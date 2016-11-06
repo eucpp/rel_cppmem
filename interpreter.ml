@@ -9,7 +9,10 @@ type stmt =
   | Var      of string
   | Binop    of binop * stmt * stmt
   | Asgn     of stmt * stmt
-                                 
+
+  | If       of stmt * stmt * stmt
+  | Repeat   of stmt
+                         
   | Read     of mem_order * loc
   | Write    of mem_order * loc * stmt
   | Cas      of mem_order * mem_order * loc * stmt * stmt
@@ -26,29 +29,44 @@ type context =
   | AsgnL    of context * stmt
   | AsgnR    of stmt * context
 
+  | If       of context * stmt * stmt
+  | RepeatC  of context                                     
+
   | WriteC   of mem_order * loc * context
   | CasE     of mem_order * mem_order * loc * context * stmt
-  | CasD     of mem_order * mem_order * loc * stmt * context                                                          
-
+  | CasD     of mem_order * mem_order * loc * stmt * context
+                                                       
   | SeqC     of context * stmt
   | ParL     of context * stmt
   | ParR     of stmt * context                            
 
-type path = N | L of path | R of path
 
+type ts = TS of int
+type viewfront = ViewFront of loc * ts list                   
+type history = History of loc * ts * int * viewfront list
+                                   
+type path = N | L of path | R of path
+                        
 let rec getPath : context -> path = function
   | Hole -> N
 
-  | BinopL (_, c, _)
-  | BinopR (_, _, c)
-  | AsgnL  (c, _)
-  | AsgnR  (_, c)
-  | Seq    (c, _)
+  | BinopL  (_, c, _)
+  | BinopR  (_, _, c)
+  | AsgnL   (c, _)
+  | AsgnR   (_, c)
+  | IfC     (c, _, _)            
+  | RepeatC c           
+  | Seq     (c, _)
       -> getPath c
 
   | ParL (c, _) -> L (getPath c)
   | ParR (_, c) -> R (getPath c)                     
 
+type thrd_state = ThreadState of viewfront          
+type thrd_tree  = Nil | Node of thrd_state * thrd_tree * thrd_tree 
+                                   
+type state = State of history * thrd_tree                                   
+                     
 let isValue : stmt -> bool = function
   | Const _
   | Var   _
@@ -68,6 +86,14 @@ let rec getContexts : stmt -> (context * stmt) list = function
   | Asgn    (x, y)                                  ->
       List.map (fun (c, t) -> AsgnL (c, y), t) (getContexts x)
 
+  | If (e, x, y) as t when isValue e -> [Hole, t]
+  | If (e, x, y)                     ->
+      List.map (fun (c, t) -> IfC (c, x, y), t) (getContexts e)
+
+  | Repeat x as t when isValue x -> [Hole, t]
+  | Repeat x                     ->
+      List.map (fun (c, t) -> RepeatC c, t) (getContexts x)
+               
   | Write (mo, loc, x) as t when isValue x -> [Hole, t]
   | Write (mo, loc, x)
       List.map (fun (c, t) -> WriteC (mo, loc, c), t) (getContexts x)
@@ -106,11 +132,27 @@ let rec applyContext (c : context, t : stmt) : stmt =
   | SeqC (c', t')                -> Seq (applyContext (c', t), t')
   | ParL (c', t')                -> Par (applyContext (c', t), t')
   | ParR (t', c')                -> Par (t', applyContext (c', t))                                        
-           
-let t = Par (Binop (Mult, Const 2, Const 42), Binop (Add, Const 0, Const 2));;
 
-let ctxs = getContexts t;;            
-                                                                           
+(*                                        
+let rec applyRules (c: context, t: stmt, st: state) : context * stmt * state =
+  match t with
+  | Const i                   ->
+  | Var x                     ->
+  | Binop (op, l, r)          ->
+  | Asgn (l, r)               ->
+  | Read (mo, loc)            ->
+  | Write (mo, loc, t')       ->
+  | Cas (smo, fmo, loc, e, d) ->
+  | Seq (t', t'')             ->
+  | Par (t', t'')             ->
+*)
+
+(*
+let performStep (c: context, st: state) : context * state list = ...
+
+let getStateSpace (c: context, st: state) : context * state list = ...
+*)                                        
+                                        
 let _ =
   print_string (contextsToString ctxs);
   print_newline;
