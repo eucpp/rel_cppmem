@@ -1,6 +1,6 @@
 
 
-module type ReductionContext =
+module type Context =
   sig
     (** Term type *)
     type t
@@ -11,30 +11,29 @@ module type ReductionContext =
     (** State type *) 
     type s
    
-    val get_contexts : t -> c * t list
-    val apply_context : c * t -> t list 
+    (** Type of rules *) 
+    type rule
+
+    val split : t -> (c * t) list
+    val plug : c * t -> t 
   end
 
-module ReductionSemantic (C : ReductionContext) :
+module Interpreter (C : Context) :
   sig
-    (** Type of the semantic *) 
+    (** Type of the interpreter *) 
     type t
 
-    module C : ReductionContext
+    exception Rule_already_registered of string
 
-    type rule_result = 
-      (** rule is not applicable to given term *)
-      | Skip
-      (** result of successful application *)
-      | Conclusion of C.t * C.s
-                              
-    val register_rule : string -> (C.t -> C.s -> rule_result) -> unit
-    val deregister_rule : string -> unit
+    val create : string * C.rule list -> t
+
+    val register_rule : t -> string -> C.rule -> t
+    val deregister_rule : t -> string -> t
 
     (** Performs single step in given semantic *)
-    val step : C.t * C.s -> C.t * C.c list
+    val step : t -> C.t * C.s -> C.t * C.c list
 
     (** Returns states that are reachable from initial state *)
-    val space : C.t * C.s -> C.t * C.c list 
+    val space : t -> C.t * C.s -> C.t * C.c list 
 
   end

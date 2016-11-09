@@ -1,3 +1,9 @@
+type t = Longident.t
+type asdf = string * int [@@deriving show]
+
+let () = 
+  print_endline @@ show_asdf (("adsfas",5) : asdf)
+
 type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
 
 type loc = Loc of string
@@ -19,7 +25,7 @@ type stmt =
 
   | Seq      of stmt * stmt
   | Par      of stmt * stmt
-  | Stuck                         
+  | Stuck
 
 type context =
   | Hole
@@ -29,8 +35,8 @@ type context =
   | AsgnL    of context * stmt
   | AsgnR    of stmt * context
 
-  | If       of context * stmt * stmt
-  | RepeatC  of context                                     
+  | IfC       of context * stmt * stmt
+  | RepeatC  of context
 
   | WriteC   of mem_order * loc * context
   | CasE     of mem_order * mem_order * loc * context * stmt
@@ -38,11 +44,11 @@ type context =
                                                        
   | SeqC     of context * stmt
   | ParL     of context * stmt
-  | ParR     of stmt * context                            
+  | ParR     of stmt * context
 
 
 type ts = TS of int
-type viewfront = ViewFront of loc * ts list                   
+type viewfront = ViewFront of loc * ts list
 type history = History of loc * ts * int * viewfront list
                                    
 type path = N | L of path | R of path
@@ -54,18 +60,18 @@ let rec getPath : context -> path = function
   | BinopR  (_, _, c)
   | AsgnL   (c, _)
   | AsgnR   (_, c)
-  | IfC     (c, _, _)            
-  | RepeatC c           
-  | Seq     (c, _)
+  | IfC     (c, _, _)
+  | RepeatC c
+  | SeqC     (c, _)
       -> getPath c
 
   | ParL (c, _) -> L (getPath c)
-  | ParR (_, c) -> R (getPath c)                     
+  | ParR (_, c) -> R (getPath c)
 
-type thrd_state = ThreadState of viewfront          
-type thrd_tree  = Nil | Node of thrd_state * thrd_tree * thrd_tree 
+type thrd_state = ThreadState of viewfront
+type thrd_tree  = Nil | Node of thrd_state * thrd_tree * thrd_tree
                                    
-type state = State of history * thrd_tree                                   
+type state = State of history * thrd_tree
                      
 let isValue : stmt -> bool = function
   | Const _
@@ -95,7 +101,7 @@ let rec getContexts : stmt -> (context * stmt) list = function
       List.map (fun (c, t) -> RepeatC c, t) (getContexts x)
                
   | Write (mo, loc, x) as t when isValue x -> [Hole, t]
-  | Write (mo, loc, x)
+  | Write (mo, loc, x)                     ->
       List.map (fun (c, t) -> WriteC (mo, loc, c), t) (getContexts x)
 
   | Cas (_, _, _, x, y) as t       when isValue x && isValue y -> [Hole, t]
@@ -119,7 +125,7 @@ let rec getContexts : stmt -> (context * stmt) list = function
      
   | t -> [Hole, t]
                                            
-let rec applyContext (c : context, t : stmt) : stmt =
+let rec applyContext ((c : context), (t : stmt)) : stmt =
   match c with
   | Hole                         -> t
   | BinopL (bop, c', t')         -> Binop (bop, applyContext (c', t), t')
@@ -131,9 +137,9 @@ let rec applyContext (c : context, t : stmt) : stmt =
   | CasD (smo, fmo, loc, t', c') -> Cas (smo, fmo, loc, t', applyContext (c', t))
   | SeqC (c', t')                -> Seq (applyContext (c', t), t')
   | ParL (c', t')                -> Par (applyContext (c', t), t')
-  | ParR (t', c')                -> Par (t', applyContext (c', t))                                        
+  | ParR (t', c')                -> Par (t', applyContext (c', t))
 
-(*                                        
+
 let rec applyRules (c: context, t: stmt, st: state) : context * stmt * state =
   match t with
   | Const i                   ->
@@ -145,14 +151,13 @@ let rec applyRules (c: context, t: stmt, st: state) : context * stmt * state =
   | Cas (smo, fmo, loc, e, d) ->
   | Seq (t', t'')             ->
   | Par (t', t'')             ->
-*)
+     
 
-(*
-let performStep (c: context, st: state) : context * state list = ...
+(* let performStep (c: context, st: state) : context * state list = ... *)
 
-let getStateSpace (c: context, st: state) : context * state list = ...
-*)                                        
+(* let getStateSpace (c: context, st: state) : context * state list = ... *)
+
                                         
-let _ =
-  print_string (contextsToString ctxs);
-  print_newline;
+(* let _ = *)
+(*   print_string (contextsToString ctxs); *)
+(*   print_newline; *)
