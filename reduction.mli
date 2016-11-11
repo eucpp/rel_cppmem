@@ -11,8 +11,13 @@ module type Context =
     (** State type *) 
     type s
    
+    (** Result of rule application *) 
+    type rresult = 
+      | Skip
+      | Conclusion of t * s
+
     (** Type of rules *) 
-    type rule
+    type rule = (t * s -> rresult)
 
     val split : t -> (c * t) list
     val plug : c * t -> t 
@@ -31,9 +36,9 @@ module Interpreter (C : Context) :
     val deregister_rule : t -> string -> t
 
     (** Performs single step in given semantic *)
-    val step : t -> C.t * C.s -> C.t * C.c list
+    val step : t -> C.t * C.s -> C.t * C.s list
 
     (** Returns states that are reachable from initial state *)
-    val space : t -> C.t * C.s -> C.t * C.c list 
+    val space : t -> C.t * C.s -> C.t * C.s list 
 
   end

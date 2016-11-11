@@ -10,32 +10,55 @@ module type Context =
     (** State type *) 
     type s
    
-    (** Type of rules *) 
-    type rule
+    type rresult = 
+      | Skip
+      | Conclusion of t * s
 
+    type rule = (t -> rresult)
+    
     val split : t -> (c * t) list
-    val merge : c * t -> t 
+    val plug : c * t -> t 
   end
 
 module Interpreter (C : Context) =
   struct
-    type t = Rules of (string * C.rule) list
+    type t = (string * C.rule) list
 
     exception Rule_already_registered of string
 
-    let create rules = Rules rules
+    let create rules = rules
 
-    let register_rule (Rules rules) name rule = 
-        if List.mem_assoc name rules 
-        then raise (Rule_already_registered name) 
-        else Rules ((name, rule)::rules)
+    let register_rule rules name rule = 
+      if List.mem_assoc name rules 
+      then raise (Rule_already_registered name) 
+      else (name, rule)::rules
+
+    let deregister_rule rules name = List.remove_assoc name rules
+
+    let apply_rule (c, t) s rule =
+      match (rule (t, s)) with 
+        | C.Conclusion (t', s') -> [(c, t', s')]
+        | C.Skip                -> []
+
+    let apply_rules redex s rules =
+         List.map (fun rule -> apply_rule redex s rule) rules
+      |> List.concat
+
+    let step rules (t, s) =
+      let redexes = C.split t in
+           List.map (fun redex -> apply_rules redex s rules) redexes
+        |> List.concat
+        |> List.map (fun (c', t', s') -> C.plug (c', t'), s')
+      
+    let rec space' rules cfgs = 
+      let next =
+           List.map (step rules) cfgs 
+        |> List.concat
+      in
+        if next = cfgs
+        then cfgs
+        else space' rules next
     
-    let deregister_rule (Rules rules) name = Rules (List.remove_assoc name rules)
-
-    (** Performs single step in given semantic *)
-    let step (Rules rules) (t, c) = 
-        
-    (** Returns states that are reachable from initial state *)
-    val space : C.t * C.s -> C.t * C.c list 
-
+    let space rules cfg = space' rules [cfg]
+       
   end

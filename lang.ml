@@ -31,7 +31,7 @@ module ExprContext =
       | Skip
       | Conclusion of c * t
 
-    type rule = (t -> rresult)
+    type rule = (t * s -> rresult)
 
     let rec split = 
       let module E = Expr in 
@@ -100,7 +100,7 @@ module StmtContext =
       | Skip
       | Conclusion of c * t
 
-    type rule = (t -> rresult)
+    type rule = (t * s -> rresult)
 
     let rec split = 
       let module S = Stmt in 
