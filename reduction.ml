@@ -14,8 +14,10 @@ module type Context =
       | Skip
       | Conclusion of t * s
 
-    type rule = (t -> rresult)
+    type rule = (t * s -> rresult)
     
+    val default_state : s    
+
     val split : t -> (c * t) list
     val plug : c * t -> t 
   end
@@ -28,12 +30,12 @@ module Interpreter (C : Context) =
 
     let create rules = rules
 
-    let register_rule rules name rule = 
+    let register_rule name rule rules = 
       if List.mem_assoc name rules 
       then raise (Rule_already_registered name) 
       else (name, rule)::rules
 
-    let deregister_rule rules name = List.remove_assoc name rules
+    let deregister_rule name rules = List.remove_assoc name rules
 
     let apply_rule (c, t) s rule =
       match (rule (t, s)) with 
@@ -41,7 +43,7 @@ module Interpreter (C : Context) =
         | C.Skip                -> []
 
     let apply_rules redex s rules =
-         List.map (fun rule -> apply_rule redex s rule) rules
+         List.map (fun (_, rule) -> apply_rule redex s rule) rules
       |> List.concat
 
     let step rules (t, s) =

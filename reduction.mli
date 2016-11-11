@@ -19,6 +19,8 @@ module type Context =
     (** Type of rules *) 
     type rule = (t * s -> rresult)
 
+    val default_state : s
+
     val split : t -> (c * t) list
     val plug : c * t -> t 
   end
@@ -30,15 +32,15 @@ module Interpreter (C : Context) :
 
     exception Rule_already_registered of string
 
-    val create : string * C.rule list -> t
+    val create : (string * C.rule) list -> t
 
-    val register_rule : t -> string -> C.rule -> t
-    val deregister_rule : t -> string -> t
+    val register_rule : string -> C.rule -> t -> t
+    val deregister_rule : string -> t -> t
 
     (** Performs single step in given semantic *)
-    val step : t -> C.t * C.s -> C.t * C.s list
+    val step : t -> C.t * C.s -> (C.t * C.s) list
 
     (** Returns states that are reachable from initial state *)
-    val space : t -> C.t * C.s -> C.t * C.s list 
+    val space : t -> C.t * C.s -> (C.t * C.s) list 
 
   end

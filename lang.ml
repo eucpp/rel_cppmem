@@ -25,13 +25,15 @@ module ExprContext =
       | BinopL   of string * c * t
       | BinopR   of string * t * c 
 
-    type s = Empty
+    type s = unit
 
     type rresult = 
       | Skip
-      | Conclusion of c * t
+      | Conclusion of t * s
 
     type rule = (t * s -> rresult)
+
+    let default_state = ()
 
     let rec split = 
       let module E = Expr in 
@@ -41,7 +43,7 @@ module ExprContext =
               List.map (fun (c, t) -> BinopR (op, x, c), t) (split y)
           | E.Binop (op, x, y)                                        ->
               List.map (fun (c, t) -> BinopL (op, c, y), t) (split x)
-          | _ -> raise (Invalid_argument "split is applied to value-term")
+          | t -> [Hole, t]
 
     let rec plug (c, t) = 
       let module E = Expr in 
@@ -98,7 +100,7 @@ module StmtContext =
 
     type rresult = 
       | Skip
-      | Conclusion of c * t
+      | Conclusion of t * s
 
     type rule = (t * s -> rresult)
 
