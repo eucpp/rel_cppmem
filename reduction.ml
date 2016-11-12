@@ -37,14 +37,24 @@ module Interpreter (C : Context) =
 
     let deregister_rule name rules = List.remove_assoc name rules
 
+    let remove_duplicates xs = 
+      let insert_unique ys x = 
+        if List.exists ((=) x) ys
+        then ys
+        else x::ys
+      in
+           List.fold_left insert_unique [] xs  
+        |> List.rev
+        
     let apply_rule (c, t) s rule =
       match (rule (t, s)) with 
         | C.Conclusion (t', s') -> [(c, t', s')]
-        | C.Skip                -> []
+        | C.Skip                -> [(c, t, s)]
 
     let apply_rules redex s rules =
          List.map (fun (_, rule) -> apply_rule redex s rule) rules
       |> List.concat
+      |> remove_duplicates
 
     let step rules (t, s) =
       let redexes = C.split t in

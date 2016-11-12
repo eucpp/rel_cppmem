@@ -16,7 +16,7 @@ let check_and_take_first_term = function
   | _    -> failwith "List of size 1 was expected"
 
 let rules = RI.create [
-    "const", Rules.BasicExpr.const;
+    (* "const", Rules.BasicExpr.const; *)
     "binop", Rules.BasicExpr.binop;
   ]
 
