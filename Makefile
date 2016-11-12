@@ -8,5 +8,5 @@ clean:
 rel_cppmem: ;
 
 test:
-	ocamlbuild test.byte -pkgs oUnit
+	ocamlbuild src/test.byte -pkgs oUnit
 	./test.byte
