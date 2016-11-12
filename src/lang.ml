@@ -29,9 +29,9 @@ module ExprContext =
 
     type rresult = 
       | Skip
-      | Conclusion of t * s
+      | Conclusion of c * t * s
 
-    type rule = (t * s -> rresult)
+    type rule = (c * t * s -> rresult)
 
     let default_state = ()
 
@@ -100,9 +100,9 @@ module StmtContext =
 
     type rresult = 
       | Skip
-      | Conclusion of t * s
+      | Conclusion of c * t * s
 
-    type rule = (t * s -> rresult)
+    type rule = (c * t * s -> rresult)
 
     let rec split = 
       let module S = Stmt in 

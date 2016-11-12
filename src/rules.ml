@@ -25,14 +25,9 @@ module BasicExpr =
           | "*" -> E.Const (l' * r')
           | _   -> failwith "Unsupported binary operator"        
 
-    let const (t, s) =
-      match t with  
-        | E.Const _ -> EC.Conclusion (t, s)
-        | _         -> EC.Skip 
-
-    let binop (t, s) = 
+    let binop (c, t, s) = 
       match t with
-        | E.Binop (op, l, r) -> EC.Conclusion (apply_binop op l r, s)
+        | E.Binop (op, l, r) -> EC.Conclusion (c, apply_binop op l r, s)
         | _                  -> EC.Skip  
 
 

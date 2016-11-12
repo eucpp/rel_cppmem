@@ -1,20 +1,17 @@
 
 module type Context =
   sig
-    (** Term type *)
     type t
     
-    (** Context type *)
     type c
 
-    (** State type *) 
     type s
    
     type rresult = 
       | Skip
-      | Conclusion of t * s
+      | Conclusion of c * t * s
 
-    type rule = (t * s -> rresult)
+    type rule = (c * t * s -> rresult)
     
     val default_state : s    
 
@@ -47,8 +44,8 @@ module Interpreter (C : Context) =
         |> List.rev
         
     let apply_rule (c, t) s rule =
-      match (rule (t, s)) with 
-        | C.Conclusion (t', s') -> [(c, t', s')]
+      match (rule (c, t, s)) with 
+        | C.Conclusion (c', t', s') -> [(c', t', s')]
         | C.Skip                -> []
 
     let apply_rules ((c, t) as redex) s rules =

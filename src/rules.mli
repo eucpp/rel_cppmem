@@ -8,7 +8,5 @@ module BasicExpr:
 
     type rresult = Lang.ExprContext.rresult
 
-    val const : t * s -> rresult
-    val binop : t * s -> rresult
-    (*val var : ExprContext.t * ExprContext.s -> ExprContext.rresult*)
+    val binop : c * t * s -> rresult
   end

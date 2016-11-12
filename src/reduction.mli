@@ -14,10 +14,10 @@ module type Context =
     (** Result of rule application *) 
     type rresult = 
       | Skip
-      | Conclusion of t * s
+      | Conclusion of c * t * s
 
     (** Type of rules *) 
-    type rule = (t * s -> rresult)
+    type rule = (c * t * s -> rresult)
 
     val default_state : s
 
