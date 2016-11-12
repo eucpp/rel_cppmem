@@ -49,12 +49,15 @@ module Interpreter (C : Context) =
     let apply_rule (c, t) s rule =
       match (rule (t, s)) with 
         | C.Conclusion (t', s') -> [(c, t', s')]
-        | C.Skip                -> [(c, t, s)]
+        | C.Skip                -> []
 
-    let apply_rules redex s rules =
-         List.map (fun (_, rule) -> apply_rule redex s rule) rules
-      |> List.concat
-      |> remove_duplicates
+    let apply_rules ((c, t) as redex) s rules =
+      let res = 
+           List.map (fun (_, rule) -> apply_rule redex s rule) rules 
+        |> List.concat
+        |> remove_duplicates
+      in
+        if res = [] then [(c, t, s)] else res
 
     let step rules (t, s) =
       let redexes = C.split t in
