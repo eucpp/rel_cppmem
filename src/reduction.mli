@@ -30,6 +30,8 @@ module Interpreter (C : Context) :
     (** Type of the interpreter *) 
     type t
 
+    type edge = {rule : string; from : C.t * C.s; }
+
     exception Rule_already_registered of string
 
     val create : (string * C.rule) list -> t
@@ -39,8 +41,11 @@ module Interpreter (C : Context) :
 
     (** Performs single step in given semantic *)
     val step : t -> C.t * C.s -> (C.t * C.s) list
+    
+    (** Returns graph of states that are reachable from initial state *)
+    val graph : t -> C.t * C.s -> (C.t * C.s, edge) Graph.t    
 
-    (** Returns states that are reachable from initial state *)
+    (** Returns terminal states that are reachable from initial state *)
     val space : t -> C.t * C.s -> (C.t * C.s) list 
 
   end

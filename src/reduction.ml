@@ -43,34 +43,51 @@ module Interpreter (C : Context) =
            List.fold_left insert_unique [] xs  
         |> List.rev
         
-    let apply_rule (c, t) s rule =
+    let apply_rule (c, t) s (name, rule) =
       match (rule (c, t, s)) with 
-        | C.Conclusion (c', t', s') -> [(c', t', s')]
-        | C.Skip                -> []
+        | C.Conclusion (c', t', s') -> [(name, c', t', s')]
+        | C.Skip                    -> []
 
     let apply_rules ((c, t) as redex) s rules =
-      let res = 
-           List.map (fun (_, rule) -> apply_rule redex s rule) rules 
-        |> List.concat
-        |> remove_duplicates
-      in
-        if res = [] then [(c, t, s)] else res
+         List.map (fun rule -> apply_rule redex s rule) rules 
+      |> List.concat
+      |> remove_duplicates
 
-    let step rules (t, s) =
+    let step' rules ((t, s) as cfg) g = 
       let redexes = C.split t in
            List.map (fun redex -> apply_rules redex s rules) redexes
         |> List.concat
-        |> List.map (fun (c', t', s') -> C.plug (c', t'), s')
+        |> List.map (fun (rule, c', t', s') -> 
+             let res = C.plug (c', t'), s' in  
+               try
+                 Graph.connect g cfg res {rule = rule; from = cfg};
+                 Some res
+               with
+                 | Graph.Duplicate_edge -> None   
+           )
+        |> List.filter Option.is_none
+        |> List.map Option.get
+
+    let step rules cfg = step' rules cfg (Graph.create ())
       
-    let rec space' rules cfgs = 
-      let next =
-           List.map (step rules) cfgs 
-        |> List.concat
-      in
-        if next = cfgs
-        then cfgs
-        else space' rules next
-    
-    let space rules cfg = space' rules [cfg]
-       
+    let rec graph' rules waiting g =
+      if Queue.is_empty waiting
+      then ()
+      else
+        let p   = Queue.pop waiting in
+        let ps  = step' rules p g in
+          List.iter (fun x -> Queue.push x waiting) ps; 
+          graph' rules waiting g
+      
+    let graph rules init = 
+      let q = Queue.create () in
+      let g = Graph.create () in
+        Queue.push init q; 
+        graph' rules q g;
+        g 
+
+    let space rules init = 
+      let g = graph rules init in
+        Graph.sinks g
+
   end
