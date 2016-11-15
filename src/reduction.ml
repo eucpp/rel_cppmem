@@ -23,6 +23,8 @@ module Interpreter (C : Context) =
   struct
     type t = (string * C.rule) list
 
+    type edge = {rule : string; from : C.t * C.s; }
+
     exception Rule_already_registered of string
 
     let create rules = rules
@@ -65,8 +67,8 @@ module Interpreter (C : Context) =
                with
                  | Graph.Duplicate_edge -> None   
            )
-        |> List.filter Option.is_none
-        |> List.map Option.get
+        |> List.filter Utils.Option.is_some
+        |> List.map Utils.Option.get
 
     let step rules cfg = step' rules cfg (Graph.create ())
       
@@ -82,7 +84,8 @@ module Interpreter (C : Context) =
     let graph rules init = 
       let q = Queue.create () in
       let g = Graph.create () in
-        Queue.push init q; 
+        Queue.push init q;
+        Graph.add_vertex g init; 
         graph' rules q g;
         g 
 

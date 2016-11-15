@@ -33,4 +33,5 @@ let suite =
   ]
 
 let _ =
-  run_test_tt_main suite                       
+  run_test_tt_main suite
+  (* RI.space rules (expr_term_2, EC.default_state) *)
