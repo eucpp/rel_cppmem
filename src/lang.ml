@@ -1,8 +1,42 @@
 type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
 
 type loc = string
+type tstmp = int
 
 type path = N | L of path | R of path
+
+module ViewFront = 
+  struct
+    type t = (loc * tstmp) list
+
+    let create = fun _ -> []
+
+    let get l vfront = List.assoc l vfront
+    
+    let update l t vfront =
+      let vfront' = List.remove_assoc l vfront in
+        (l, t)::vfront' 
+  end
+
+module History = 
+  struct 
+    type t = (loc * tstmp * int * ViewFront.t) list
+
+    let create = fun _ -> []
+
+    let next_tstmp l h = 
+      try
+        let _, t, _, _ = List.find (fun (l', _, _, _) -> l = l') h in
+          t + 1
+      with
+        | Not_found -> 0
+    
+    let insert l t v vfront h =
+      let (lpart, rpart) = List.partition (fun (l', t', _, _) -> l' <= l && t' > t) h in
+        lpart @ [(l, t, v, vfront)] @ rpart
+
+    let get l tmin h = List.find (fun (l', t', _, _) -> l = l' && tmin <= t') h
+  end
 
 module Expr = 
   struct
