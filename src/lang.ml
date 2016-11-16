@@ -105,7 +105,7 @@ module ExprContext =
       | BinopL   of string * c * t
       | BinopR   of string * t * c 
 
-    type s = State.t
+    type s = path * State.t
 
     type rresult =
       | Conclusion of c * t * s
@@ -114,7 +114,7 @@ module ExprContext =
 
     type rule = (c * t * s -> rresult list)
 
-    let default_state = State.create ()
+    let default_state = N, State.create ()
 
     let rec split = 
       let module E = Expr in 

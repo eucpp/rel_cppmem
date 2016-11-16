@@ -8,9 +8,9 @@ module BasicExpr:
 
     type rresult = Lang.ExprContext.rresult
 
-    val binop : c * t * s -> rresult list
+    val var : c * t * s -> rresult list
 
-    val read_na : c * t * s -> rresult list
+    val binop : c * t * s -> rresult list
   end
 
 module BasicStmt :
@@ -23,7 +23,11 @@ module BasicStmt :
 
     type rresult = Lang.StmtContext.rresult
 
+    val read_na : c * t * s -> rresult list
+
     val write_na : c * t * s -> rresult list
 
     val assign : c * t * s -> rresult list
+
+    val if' : c * t * s -> rresult list
   end

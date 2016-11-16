@@ -26,15 +26,15 @@ module BasicExpr =
       (*| Expr.Var x   -> ExprContext.lookup_var s x*)
       | _            -> failwith "Given term is not a value-term" 
 
-    let read_na' c s var =
+    let read_na' c (path, s) var =
       let tm           = H.lash_tstmp var s.history in
       let (_, _, v, _) = H.get var tm s.history in
-      let thrd         = T.get_thread s.threads (SC.get_path c) in
+      let thrd         = T.get_thread s.threads path in
         if tm = VF.get var thrd.curr
         then EC.Conclusion (c, E.Const v, s)
         else EC.Rewrite (E.Stuck, s)
 
-    let read_na (c, t, s) = 
+    let var (c, t, s) = 
       match t with
         | E.Var var -> [read_na' c s var]
         | _         -> [EC.Skip]
@@ -65,7 +65,7 @@ module BasicStmt =
     type rresult = EC.rresult
 
     let expr_rules = ExprIntpr.create [
-      "read_na", BasicExpr.read_na;
+      "read_na", BasicExpr.var;
       "binop"  , BasicExpr.binop;
     ]
     
@@ -82,12 +82,22 @@ module BasicStmt =
         else 
           SC.Rewrite (S.Stuck, s)
 
+    let read_na (c, t, s) = 
+      match t with
+        | S.Read (Lang.NA, loc) -> 
+          begin
+            match BasicExpr.read_na' EC.Hole (SC.get_path c, s) loc with
+              | EC.Conclusion (c', e, s') -> [SC.Conclusion (c, S.AExpr e, s)]
+              | EC.Rewrite (E.Stuck, s')  -> [SC.Rewrite (S.Stuck, s)]
+          end
+        | _                     -> [SC.Skip]
+
     let write_na (c, t, s) = 
       match t with
-        | S.Write (mo, loc, e) when mo = Lang.NA ->
+        | S.Write (Lang.NA, loc, e) ->
              ExprIntpr.space expr_rules (e, s)
           |> List.map (fun (E.Const v, s') -> write_na' c s' loc v) 
-        | _                                      -> [SC.Skip]
+        | _                         -> [SC.Skip]
              
     let assign' c s el er =
       match (el, er) with
@@ -95,13 +105,20 @@ module BasicStmt =
         | _                      -> failwith "Bad assignment"
 
     let assign (c, t, s) = 
-      match t with
-        | S.Asgn (S.AExpr el, S.AExpr er) ->
-              ExprIntpr.space expr_rules (el, s)
-           |> List.map (fun (el', s') -> 
-                List.map (fun (er', s'') -> assign' c s'' el' er') (ExprIntpr.space expr_rules (er, s')))
-           |> List.concat
-        
-        | _                               -> [SC.Skip]
+      let es = (SC.get_path c, s) in
+        match t with
+          | S.Asgn (S.AExpr el, S.AExpr er) -> 
+                ExprIntpr.space expr_rules (el, es)
+             |> List.map (fun (el', _) -> 
+                  List.map (fun (er', _) -> assign' c s el' er') (ExprIntpr.space expr_rules (er, es)))
+             |> List.concat
 
+          | _                               -> [SC.Skip]
+
+    let if' (c, t, s) = 
+      match t with 
+        | S.If (cond, tbranch, fbranch) ->
+              ExprIntpr.space expr_rules (cond, (SC.get_path c, s))
+           |> List.map (fun (E.Const x, _) -> if x = 0 then [SC.Conclusion (c, tbranch, s)] else [SC.Conclusion (c, fbranch, s)]
+        | _                             -> [SC.Skip] 
   end
