@@ -7,11 +7,12 @@ module type Context =
 
     type s
    
-    type rresult = 
-      | Skip
+    type rresult =
       | Conclusion of c * t * s
+      | Rewrite    of t * s
+      | Skip
 
-    type rule = (c * t * s -> rresult)
+    type rule = (c * t * s -> rresult list)
     
     val default_state : s    
 
@@ -47,7 +48,8 @@ module Interpreter (C : Context) =
         
     let apply_rule (c, t) s (name, rule) =
       match (rule (c, t, s)) with 
-        | C.Conclusion (c', t', s') -> [(name, c', t', s')]
+        | C.Conclusion (c', t', s') -> [(name, C.plug (c', t'), s')]
+        | C.Rewrite (t', s')        -> [(name, t', s')]
         | C.Skip                    -> []
 
     let apply_rules ((c, t) as redex) s rules =
@@ -59,13 +61,12 @@ module Interpreter (C : Context) =
       let redexes = C.split t in
            List.map (fun redex -> apply_rules redex s rules) redexes
         |> List.concat
-        |> List.map (fun (rule, c', t', s') -> 
-             let res = C.plug (c', t'), s' in  
-               try
-                 Graph.connect g cfg res {rule = rule; from = cfg};
-                 Some res
-               with
-                 | Graph.Duplicate_edge -> None   
+        |> List.map (fun (rule, t', s') -> 
+             try
+               Graph.connect g cfg (t', s') {rule = rule; from = cfg};
+               Some (t', s')
+             with
+               | Graph.Duplicate_edge -> None   
            )
         |> List.filter Utils.Option.is_some
         |> List.map Utils.Option.get

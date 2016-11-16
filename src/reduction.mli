@@ -17,7 +17,7 @@ module type Context =
       | Conclusion of c * t * s
 
     (** Type of rules *) 
-    type rule = (c * t * s -> rresult)
+    type rule = (c * t * s -> rresult list)
 
     val default_state : s
 

@@ -18,16 +18,47 @@ module ViewFront =
         (l, t)::vfront' 
   end
 
+module Thread = 
+  struct
+    type t = {
+      curr : ViewFront.t;
+    }
+
+    type tree = Leaf of t | Node of tree * tree
+
+    let create _ = { curr = ViewFront.create () }
+
+    let create_tree _ = Leaf (create ())
+
+    let rec get_thread t p = 
+       match (t, p) with
+         | Node (l, _), L p' -> get_thread l p'
+         | Node (_, r), R p' -> get_thread r p'
+         | Leaf thrd  , N    -> thrd
+         | _          , _    -> failwith "Incorrect path"
+
+    let rec update_thread t p thrd = 
+       match (t, p) with
+         | Node (l, r), L p' -> Node (update_thread l p' thrd, r)
+         | Node (l, r), R p' -> Node (l, update_thread r p' thrd)
+         | Leaf _     , N    -> Leaf thrd
+         | _          , _    -> failwith "Incorrect path"       
+       
+  end
+
 module History = 
   struct 
     type t = (loc * tstmp * int * ViewFront.t) list
 
     let create = fun _ -> []
 
+    let last_tstmp l h = 
+      let _, t, _, _ = List.find (fun (l', _, _, _) -> l = l') h in
+        t
+
     let next_tstmp l h = 
       try
-        let _, t, _, _ = List.find (fun (l', _, _, _) -> l = l') h in
-          t + 1
+        1 + (last_tstmp l h) 
       with
         | Not_found -> 0
     
@@ -38,18 +69,31 @@ module History =
     let get l tmin h = List.find (fun (l', t', _, _) -> l = l' && tmin <= t') h
   end
 
+module State = 
+  struct 
+    type t = {
+      history : History.t;
+      threads : Thread.tree;
+    }
+
+    let create _ = { history = History.create (); threads = Thread.create_tree (); }
+  end 
+
 module Expr = 
   struct
     type t = 
       | Const    of int
       | Var      of string
       | Binop    of string * t * t
+      | Stuck
 
     let is_value = function
-      | Const _
-      | Var _
-          -> true
-      | _ -> false
+      | Const _ -> true
+      | _       -> false
+
+    let is_var = function
+      | Var _ -> true
+      | _     -> false
   end
 
 module ExprContext = 
@@ -61,15 +105,16 @@ module ExprContext =
       | BinopL   of string * c * t
       | BinopR   of string * t * c 
 
-    type s = unit
+    type s = State.t
 
-    type rresult = 
-      | Skip
+    type rresult =
       | Conclusion of c * t * s
+      | Rewrite    of t * s 
+      | Skip
 
-    type rule = (c * t * s -> rresult)
+    type rule = (c * t * s -> rresult list)
 
-    let default_state = ()
+    let default_state = State.create ()
 
     let rec split = 
       let module E = Expr in 
@@ -107,7 +152,10 @@ module Stmt =
 
     let is_value = function
       | AExpr e   -> Expr.is_value e 
-      | Skip      -> true
+      | _         -> false
+
+    let is_var = function
+      | AExpr e   -> Expr.is_var e
       | _         -> false
   end
 
@@ -124,31 +172,33 @@ module StmtContext =
       | ParL     of c * t
       | ParR     of t * c
 
-    type s = 
-      | Empty
+    type s = State.t
 
-    type rresult = 
+    type rresult =
+      | Conclusion of c * t * s 
+      | Rewrite    of t * s
       | Skip
-      | Conclusion of c * t * s
 
-    type rule = (c * t * s -> rresult)
+    type rule = (c * t * s -> rresult list)
+
+    let default_state = State.create ()
 
     let rec split = 
       let module E = Expr in
       let module S = Stmt in 
         function
-          | S.Asgn    (x, y) as t when S.is_value x && S.is_value y -> [Hole, t]
-          | S.Asgn    (x, y) as t when S.is_value x                 ->
+          | S.Asgn    (x, y) as t when S.is_var x && S.is_value y -> [Hole, t]
+          | S.Asgn    (x, y) as t when S.is_var x                 ->
               List.map (fun (c, t) -> AsgnR (x, c), t) (split y)
-          | S.Asgn    (x, y)                                        ->
+          | S.Asgn    (x, y)                                      ->
               List.map (fun (c, t) -> AsgnL (c, y), t) (split x)
 
           | S.Repeat x as t when S.is_value x    -> [Hole, t]
           | S.Repeat x                           ->
               List.map (fun (c, t) -> Repeat c, t) (split x)
 
-          | S.Seq (x, y) as t when S.is_value x -> [Hole, t]
-          | S.Seq (x, y)                        ->
+          | S.Seq (S.Skip, y) as t -> [Hole, t]
+          | S.Seq (x, y)           ->
               List.map (fun (c, t) -> Seq (c, y), t) (split x)
 
           | S.Par  (l, r) as t ->
