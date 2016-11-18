@@ -1,83 +1,3 @@
-type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
-
-type loc = string
-type tstmp = int
-
-type path = N | L of path | R of path
-
-module ViewFront = 
-  struct
-    type t = (loc * tstmp) list
-
-    let create = fun _ -> []
-
-    let get l vfront = List.assoc l vfront
-    
-    let update l t vfront =
-      let vfront' = List.remove_assoc l vfront in
-        (l, t)::vfront' 
-  end
-
-module Thread = 
-  struct
-    type t = {
-      curr : ViewFront.t;
-    }
-
-    type tree = Leaf of t | Node of tree * tree
-
-    let create _ = { curr = ViewFront.create () }
-
-    let create_tree _ = Leaf (create ())
-
-    let rec get_thread t p = 
-       match (t, p) with
-         | Node (l, _), L p' -> get_thread l p'
-         | Node (_, r), R p' -> get_thread r p'
-         | Leaf thrd  , N    -> thrd
-         | _          , _    -> failwith "Incorrect path"
-
-    let rec update_thread t p thrd = 
-       match (t, p) with
-         | Node (l, r), L p' -> Node (update_thread l p' thrd, r)
-         | Node (l, r), R p' -> Node (l, update_thread r p' thrd)
-         | Leaf _     , N    -> Leaf thrd
-         | _          , _    -> failwith "Incorrect path"       
-       
-  end
-
-module History = 
-  struct 
-    type t = (loc * tstmp * int * ViewFront.t) list
-
-    let create = fun _ -> []
-
-    let last_tstmp l h = 
-      let _, t, _, _ = List.find (fun (l', _, _, _) -> l = l') h in
-        t
-
-    let next_tstmp l h = 
-      try
-        1 + (last_tstmp l h) 
-      with
-        | Not_found -> 0
-    
-    let insert l t v vfront h =
-      let (lpart, rpart) = List.partition (fun (l', t', _, _) -> l' <= l && t' > t) h in
-        lpart @ [(l, t, v, vfront)] @ rpart
-
-    let get l tmin h = List.find (fun (l', t', _, _) -> l = l' && tmin <= t') h
-  end
-
-module State = 
-  struct 
-    type t = {
-      history : History.t;
-      threads : Thread.tree;
-    }
-
-    let create _ = { history = History.create (); threads = Thread.create_tree (); }
-  end 
 
 module Expr = 
   struct
@@ -105,7 +25,7 @@ module ExprContext =
       | BinopL   of string * c * t
       | BinopR   of string * t * c 
 
-    type s = History.t * Thread.t
+    type s = Memory.StateST.t
 
     type rresult =
       | Conclusion of c * t * s
@@ -114,7 +34,7 @@ module ExprContext =
 
     type rule = (c * t * s -> rresult list)
 
-    let default_state = History.create (), Thread.create ()
+    let default_state = Memory.StateST.empty
 
     let rec split = 
       let module E = Expr in 
@@ -141,9 +61,9 @@ module Stmt =
       | Asgn     of t * t
       | If       of Expr.t * t * t
       | Repeat   of t
-      | Read     of mem_order * loc
-      | Write    of mem_order * loc * Expr.t
-      | Cas      of mem_order * mem_order * loc * Expr.t * Expr.t
+      | Read     of Memory.mem_order * Memory.loc
+      | Write    of Memory.mem_order * Memory.loc * Expr.t
+      | Cas      of Memory.mem_order * Memory.mem_order * Memory.loc * Expr.t * Expr.t
       | Seq      of t * t
       | Spw      of t * t
       | Par      of t * t
@@ -172,7 +92,7 @@ module StmtContext =
       | ParL     of c * t
       | ParR     of t * c
 
-    type s = State.t
+    type s = Memory.StateMT.t
 
     type rresult =
       | Conclusion of c * t * s 
@@ -181,7 +101,7 @@ module StmtContext =
 
     type rule = (c * t * s -> rresult list)
 
-    let default_state = State.create ()
+    let default_state = Memory.StateMT.empty
 
     let rec split = 
       let module E = Expr in
@@ -229,7 +149,7 @@ module StmtContext =
           | ParR (t', c')                -> S.Par (t', plug (c', t))
 
     let rec get_path = function
-      | Hole -> N
+      | Hole -> Memory.Path.N
 
       | AsgnL   (c, _)
       | AsgnR   (_, c)
@@ -237,6 +157,6 @@ module StmtContext =
       | Repeat c
         -> get_path c
 
-      | ParL    (c, _) -> L (get_path c)
-      | ParR    (_, c) -> R (get_path c) 
+      | ParL    (c, _) -> Memory.Path.L (get_path c)
+      | ParR    (_, c) -> Memory.Path.R (get_path c) 
   end

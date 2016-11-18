@@ -4,10 +4,12 @@ module EC = Lang.ExprContext
 module S  = Lang.Stmt
 module SC = Lang.StmtContext
 
-module ST = Lang.State 
-module H  = Lang.History
-module T  = Lang.Thread
-module VF = Lang.ViewFront
+module SST   = Memory.StateST
+module SMT   = Memory.StateMT 
+module VF    = Memory.ViewFront
+module H     = Memory.History
+module T     = Memory.ThreadState
+module TTree = Memory.ThreadTree 
 
 module ExprIntpr = Reduction.Interpreter(EC)
 
@@ -26,7 +28,9 @@ module BasicExpr =
       (*| Expr.Var x   -> ExprContext.lookup_var s x*)
       | _            -> failwith "Given term is not a value-term" 
 
-    let read_na' c ((h, thrd) as s) var =
+    let read_na' c s var =
+      let h            = s.SST.history in
+      let thrd         = s.SST.thread in
       let tm           = H.last_tstmp var h in
       let (_, _, v, _) = H.get var tm h in
         if tm = VF.get var thrd.T.curr
@@ -69,25 +73,27 @@ module BasicStmt =
     ]
     
     let write_na' c s var v = 
-      let tm   = H.last_tstmp var s.ST.history in
-      let thrd = T.get_thread s.ST.threads (SC.get_path c) in
+      let h     = s.SMT.history in
+      let ttree = s.SMT.tree in
+      let tm    = H.last_tstmp var h in
+      let thrd  = TTree.get_thread ttree (SC.get_path c) in
         if tm = VF.get var thrd.curr
         then 
           let tm'      = tm + 1 in
-          let h'       = H.insert var tm' v (VF.create ()) s.ST.history in
-          let thrd'    = {thrd with curr = VF.update var tm' thrd.curr} in
-          let threads' = T.update_thread s.ST.threads (SC.get_path c) thrd' in
-            SC.Conclusion (c, S.Skip, { ST.history = h'; ST.threads = threads'; })
+          let h'       = H.insert var tm' v VF.empty h in
+          let thrd'    = {thrd with T.curr = VF.update var tm' thrd.T.curr} in
+          let ttree'   = TTree.update_thread ttree (SC.get_path c) thrd' in
+            SC.Conclusion (c, S.Skip, { SMT.history = h'; SMT.tree = ttree'; })
         else 
           SC.Rewrite (S.Stuck, s)
 
     let read_na (c, t, s) = 
       match t with
-        | S.Read (Lang.NA, loc) -> 
+        | S.Read (Memory.NA, loc) -> 
           let path = SC.get_path c in
-          let thrd = T.get_thread s.ST.threads path in
+          let thrd = TTree.get_thread s.SMT.tree path in
             begin
-              match BasicExpr.read_na' EC.Hole (s.ST.history, thrd) loc with
+              match BasicExpr.read_na' EC.Hole {SST.history = s.SMT.history; SST.thread = thrd;} loc with
                 | EC.Conclusion (c', e, s') -> [SC.Conclusion (c, S.AExpr e, s)]
                 | EC.Rewrite (E.Stuck, s')  -> [SC.Rewrite (S.Stuck, s)]
             end
@@ -95,10 +101,10 @@ module BasicStmt =
 
     let write_na (c, t, s) = 
       let path = SC.get_path c in
-      let thrd = T.get_thread s.ST.threads path in
+      let thrd = TTree.get_thread s.SMT.tree path in
         match t with
-          | S.Write (Lang.NA, loc, e) ->
-               ExprIntpr.space expr_rules (e, (s.ST.history, thrd))
+          | S.Write (Memory.NA, loc, e) ->
+               ExprIntpr.space expr_rules (e, {SST.history = s.SMT.history; SST.thread = thrd;})
             |> List.map (fun (E.Const v, s') -> write_na' c s loc v) 
           | _                         -> [SC.Skip]
              
@@ -109,8 +115,8 @@ module BasicStmt =
 
     let assign (c, t, s) = 
       let path = SC.get_path c in
-      let thrd = T.get_thread s.ST.threads path in
-      let es = (s.ST.history, thrd) in
+      let thrd = TTree.get_thread s.SMT.tree path in
+      let es = {SST.history = s.SMT.history; SST.thread = thrd;} in
         match t with
           | S.Asgn (S.AExpr el, S.AExpr er) -> 
                 ExprIntpr.space expr_rules (el, es)
@@ -122,10 +128,10 @@ module BasicStmt =
 
     let if' (c, t, s) = 
       let path = SC.get_path c in
-      let thrd = T.get_thread s.ST.threads path in
+      let thrd = TTree.get_thread s.SMT.tree path in
         match t with 
           | S.If (cond, tbranch, fbranch) ->
-               ExprIntpr.space expr_rules (cond, (s.ST.history, thrd))
+               ExprIntpr.space expr_rules (cond, {SST.history = s.SMT.history; SST.thread = thrd;})
             |> List.map (fun (E.Const x, _) -> if x <> 0 then [SC.Conclusion (c, tbranch, s)] else [SC.Conclusion (c, fbranch, s)])
             |> List.concat                 
           | _                             -> [SC.Skip] 

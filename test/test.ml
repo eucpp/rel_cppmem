@@ -8,10 +8,12 @@ module SC = Lang.StmtContext
 module ExprIntpr = Reduction.Interpreter(EC)
 module StmtIntpr = Reduction.Interpreter(SC)
 
-module H  = Lang.History
-module T  = Lang.Thread
-module VF = Lang.ViewFront
-module ST = Lang.State
+module H     = Memory.History
+module T     = Memory.ThreadState
+module TTree = Memory.ThreadTree 
+module VF    = Memory.ViewFront
+module SST   = Memory.StateST
+module SMT   = Memory.StateMT
 
 let rec string_of_expr = function
   | E.Const c            -> string_of_int c
@@ -47,24 +49,24 @@ let expr_term_1 = E.Const 1
 let expr_term_2 = E.Binop ("+", E.Const 1, E.Const 4)
 let expr_term_3 = E.Binop ("*", expr_term_2, expr_term_2)
 
-let vfront = VF.create ()
+let vfront = VF.empty
 
 let h = 
-     H.create ()
+     H.empty
   |> H.insert "x" 0 1 vfront
   |> H.insert "x" 1 2 vfront
   |> H.insert "y" 0 0 vfront
 
 let curr_vf = 
-     VF.create ()
+     VF.empty
   |> VF.update "x" 1
   |> VF.update "y" 0
 
 let thrd = {T.curr = curr_vf}
 
-let thrd_tree = T.Leaf thrd
+let thrd_tree = TTree.update_thread TTree.empty Memory.Path.N thrd
 
-let state = {ST.history = h; ST.threads = thrd_tree;}
+let state = {SMT.history = h; SMT.tree = thrd_tree;}
 
 let stmt_term_if_true = S.If (E.Const 1, S.AExpr (E.Const 1), S.AExpr (E.Const 0)) 
 let stmt_term_if_false = S.If (E.Const 0, S.AExpr (E.Const 1), S.AExpr (E.Const 0)) 
@@ -83,7 +85,7 @@ let suite =
     "test_space_expr_term_2">:: test_space_expr_term (E.Const 5)  (expr_term_2, EC.default_state);
     "test_space_expr_term_3">:: test_space_expr_term (E.Const 25) (expr_term_3, EC.default_state);
 
-    "test_space_expr_term_var">:: test_space_expr_term (E.Const 2) (E.Var "x", (h, thrd));
+    "test_space_expr_term_var">:: test_space_expr_term (E.Const 2) (E.Var "x", {SST.history = h; SST.thread = thrd});
 
     "test_space_stmt_if_true">:: test_space_stmt_term (S.AExpr (E.Const 1)) (stmt_term_if_true, SC.default_state);
     "test_space_stmt_if_false">:: test_space_stmt_term (S.AExpr (E.Const 0)) (stmt_term_if_false, SC.default_state);
