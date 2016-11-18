@@ -13,8 +13,9 @@ module type Context =
    
     (** Result of rule application *) 
     type rresult = 
-      | Skip
       | Conclusion of c * t * s
+      | Rewrite    of t * s
+      | Skip
 
     (** Type of rules *) 
     type rule = (c * t * s -> rresult list)

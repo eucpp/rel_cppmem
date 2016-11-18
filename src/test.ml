@@ -8,6 +8,7 @@ module SC = Lang.StmtContext
 module RI = Reduction.Interpreter(EC)
 
 module H  = Lang.History
+module T  = Lang.Thread
 module VF = Lang.ViewFront
 
 let check_and_take_first_term = function
@@ -20,7 +21,7 @@ let rules = RI.create [
   ]
 
 let test_space_expr_term expected init test_ctx = 
-  let actual = RI.space rules (init, EC.default_state) in
+  let actual = RI.space rules init in
     assert_equal 1 (List.length actual)  ~printer:string_of_int;
     assert_equal expected (fst (List.hd actual)) 
 
@@ -36,13 +37,22 @@ let h =
   |> H.insert "x" 1 2 vfront
   |> H.insert "y" 0 0 vfront
 
+let curr_vf = 
+     VF.create ()
+  |> VF.update "x" 1
+  |> VF.update "y" 0
+
+let thrd = {T.curr = curr_vf}
+
 let print_hcell (l, t, v, _) = Printf.sprintf "(%s, %d, %d)" l t v
 
 let suite =
   "suite">::: [
-    "test_space_expr_term_1">:: test_space_expr_term (E.Const 1)  expr_term_1;
-    "test_space_expr_term_2">:: test_space_expr_term (E.Const 5)  expr_term_2;
-    "test_space_expr_term_3">:: test_space_expr_term (E.Const 25) expr_term_3;
+    "test_space_expr_term_1">:: test_space_expr_term (E.Const 1)  (expr_term_1, EC.default_state);
+    "test_space_expr_term_2">:: test_space_expr_term (E.Const 5)  (expr_term_2, EC.default_state);
+    "test_space_expr_term_3">:: test_space_expr_term (E.Const 25) (expr_term_3, EC.default_state);
+
+    "test_space_expr_term_var">:: test_space_expr_term (E.Const 2) (E.Var "x", (h, thrd));
 
     "test_history_get_1">:: (fun test_ctxt ->
       assert_equal ("x", 1, 2, vfront) (H.get "x" 0 h) ~printer:print_hcell);
