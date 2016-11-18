@@ -77,7 +77,7 @@ module BasicStmt =
       let ttree = s.SMT.tree in
       let tm    = H.last_tstmp var h in
       let thrd  = TTree.get_thread ttree (SC.get_path c) in
-        if tm = VF.get var thrd.curr
+        if tm = VF.get var thrd.T.curr
         then 
           let tm'      = tm + 1 in
           let h'       = H.insert var tm' v VF.empty h in
@@ -136,6 +136,15 @@ module BasicStmt =
             |> List.concat                 
           | _                             -> [SC.Skip] 
 
-    
+    let repeat (c, t, s) = 
+      let path = SC.get_path c in
+      let thrd = TTree.get_thread s.SMT.tree path in
+        match t with 
+          | S.Repeat e -> 
+               ExprIntpr.space expr_rules (e, {SST.history = s.SMT.history; SST.thread = thrd;})
+            |> List.map (fun (E.Const x, _) -> if x <> 0 then [SC.Conclusion (c, S.Repeat e, s)] else [SC.Conclusion (c, S.Skip, s)])
+            |> List.concat
+          | _          -> [SC.Skip] 
+          
     
   end

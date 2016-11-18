@@ -60,7 +60,7 @@ module Stmt =
       | AExpr    of Expr.t
       | Asgn     of t * t
       | If       of Expr.t * t * t
-      | Repeat   of t
+      | Repeat   of Expr.t
       | Read     of Memory.mem_order * Memory.loc
       | Write    of Memory.mem_order * Memory.loc * Expr.t
       | Cas      of Memory.mem_order * Memory.mem_order * Memory.loc * Expr.t * Expr.t
@@ -87,7 +87,6 @@ module StmtContext =
       | Hole
       | AsgnL    of c * t
       | AsgnR    of t * c
-      | Repeat   of c
       | Seq      of c * t
       | ParL     of c * t
       | ParR     of t * c
@@ -112,10 +111,6 @@ module StmtContext =
               List.map (fun (c, t) -> AsgnR (x, c), t) (split y)
           | S.Asgn    (x, y)                                      ->
               List.map (fun (c, t) -> AsgnL (c, y), t) (split x)
-
-          | S.Repeat x as t when S.is_value x    -> [Hole, t]
-          | S.Repeat x                           ->
-              List.map (fun (c, t) -> Repeat c, t) (split x)
 
           | S.Seq (S.Skip, y) as t -> [Hole, t]
           | S.Seq (x, y)           ->
@@ -142,8 +137,6 @@ module StmtContext =
           | AsgnL  (c', t')              -> S.Asgn (plug (c', t), t')
           | AsgnR  (t', c')              -> S.Asgn (t', plug (c', t))
 
-          | Repeat c'                    -> S.Repeat (plug (c', t))
-
           | Seq  (c', t')                -> S.Seq (plug (c', t), t')
           | ParL (c', t')                -> S.Par (plug (c', t), t')
           | ParR (t', c')                -> S.Par (t', plug (c', t))
@@ -154,7 +147,6 @@ module StmtContext =
       | AsgnL   (c, _)
       | AsgnR   (_, c)
       | Seq     (c, _)
-      | Repeat c
         -> get_path c
 
       | ParL    (c, _) -> Memory.Path.L (get_path c)

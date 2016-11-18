@@ -30,4 +30,6 @@ module BasicStmt :
     val assign : c * t * s -> rresult list
 
     val if' : c * t * s -> rresult list
+
+    val repeat : c * t * s -> rresult list
   end
