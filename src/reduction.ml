@@ -45,12 +45,15 @@ module Interpreter (C : Context) =
       in
            List.fold_left insert_unique [] xs  
         |> List.rev
-        
+
+    let handle_rule_app name = function
+      | C.Conclusion (c', t', s') -> [(name, C.plug (c', t'), s')]
+      | C.Rewrite (t', s')        -> [(name, t', s')]
+      | C.Skip                    -> []
+             
     let apply_rule (c, t) s (name, rule) =
-      match (rule (c, t, s)) with 
-        | C.Conclusion (c', t', s') -> [(name, C.plug (c', t'), s')]
-        | C.Rewrite (t', s')        -> [(name, t', s')]
-        | C.Skip                    -> []
+         List.map (handle_rule_app name) (rule (c, t, s))
+      |> List.concat          
 
     let apply_rules ((c, t) as redex) s rules =
          List.map (fun rule -> apply_rule redex s rule) rules 
@@ -71,7 +74,7 @@ module Interpreter (C : Context) =
         |> List.filter Utils.Option.is_some
         |> List.map Utils.Option.get
 
-    let step rules cfg = step' rules cfg (Graph.create ())
+    let step (rules : t) cfg = step' rules cfg (Graph.create ())
       
     let rec graph' rules waiting g =
       if Queue.is_empty waiting

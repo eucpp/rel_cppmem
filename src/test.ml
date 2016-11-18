@@ -11,19 +11,28 @@ module H  = Lang.History
 module T  = Lang.Thread
 module VF = Lang.ViewFront
 
+let rec string_of_expr = function
+  | E.Const c            -> string_of_int c
+  | E.Var x              -> x
+  | E.Binop (op, el, er) -> "(" ^ (string_of_expr el) ^ op ^ (string_of_expr er) ^ ")"
+  | E.Stuck              -> "Stuck"
+
+let string_of_expr_cfg (t, s) = string_of_expr t
+                                                                                     
 let check_and_take_first_term = function
   | [hd] -> fst hd
   | _    -> failwith "List of size 1 was expected"
 
 let rules = RI.create [
     (* "const", Rules.BasicExpr.const; *)
+    "var"  , Rules.BasicExpr.var;            
     "binop", Rules.BasicExpr.binop;
   ]
 
 let test_space_expr_term expected init test_ctx = 
   let actual = RI.space rules init in
     assert_equal 1 (List.length actual)  ~printer:string_of_int;
-    assert_equal expected (fst (List.hd actual)) 
+    assert_equal expected (fst (List.hd actual)) ~printer:string_of_expr
 
 let expr_term_1 = E.Const 1
 let expr_term_2 = E.Binop ("+", E.Const 1, E.Const 4)

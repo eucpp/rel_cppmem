@@ -55,13 +55,13 @@ module BasicExpr =
 
 module BasicStmt = 
   struct 
-    type t = EC.t
+    type t = SC.t
 
-    type c = EC.c
+    type c = SC.c
 
-    type s = EC.s   
+    type s = SC.s   
 
-    type rresult = EC.rresult
+    type rresult = SC.rresult
 
     let expr_rules = ExprIntpr.create [
       "read_na", BasicExpr.var;
@@ -126,6 +126,7 @@ module BasicStmt =
         match t with 
           | S.If (cond, tbranch, fbranch) ->
                ExprIntpr.space expr_rules (cond, (s.ST.history, thrd))
-            |> List.map (fun (E.Const x, _) -> if x = 0 then [SC.Conclusion (c, tbranch, s)] else [SC.Conclusion (c, fbranch, s)])
+            |> List.map (fun (E.Const x, _) -> if x <> 0 then [SC.Conclusion (c, tbranch, s)] else [SC.Conclusion (c, fbranch, s)])
+            |> List.concat                 
           | _                             -> [SC.Skip] 
   end
