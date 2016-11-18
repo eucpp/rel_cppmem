@@ -1,12 +1,13 @@
-.PHONY: test
+.PHONY: all test clean
 
-all: rel_cppmem
+OCB_FLAGS = -cflag "-g" -lflag "-g"
+OCB = ocamlbuild $(OCB_FLAGS)
+
+all: ;
 
 clean:
 	rm -rf ./_build *.byte
 
-rel_cppmem: ;
-
 test:
-	ocamlbuild src/test.byte -pkgs oUnit -cflag "-g" -lflag "-g"
+	$(OCB) test.byte -pkgs oUnit -I src -I test 
 	./test.byte
