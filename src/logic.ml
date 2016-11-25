@@ -65,15 +65,13 @@ module ExprContext =
       fresh (n)
         ((t === !!(Const n)) &&& (ct === !!(!!Hole, t)));
     ])
-  end 
 
-(* let _ =  *)
-(*   let module ET = ExprTerm in *)
-(*   let module EC = ExprContext in *)
-(*   let e = ET.Binop ("+", ET.Var "x", ET.Const 2) in *)
-(*     run q (fun q -> EC.splito (ET.inj e) q) *)
-(*           (fun a -> (fun (lc, lt) -> print_string  @@ EC.show @@ EC.prj lc; *)
-(*                                      print_string  @@ ", "; *)
-(*                                      print_endline @@ ET.show @@ ET.prj lt *)
-(*                                      ) @@ prj @@ Stream.hd a) *)
+    let prj_pair p = (!? p) |> fun (lc, lt) -> (prj lc, ExprTerm.prj lt)
+
+    let split t = run q (fun q -> splito (ExprTerm.inj t) q)
+                        (fun a -> Stream.map prj_pair a)
+
+    let plug (c, t) = run q (fun q -> splito q !!(inj c, ExprTerm.inj t))
+                            (fun a -> Stream.map ExprTerm.prj a)
+  end 
   
