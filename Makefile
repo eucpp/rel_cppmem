@@ -10,5 +10,5 @@ clean:
 	rm -rf ./_build *.byte
 
 test:
-	$(OCB) test.byte  
-	./test.byte
+	$(OCB) LogicTest.byte  
+	./LogicTest.byte
