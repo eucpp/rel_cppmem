@@ -1,7 +1,11 @@
-type loc = string
-type tstmp = int
+type loc   = string 
+type tstmp = int 
 
 type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
+
+val string_of_loc : loc -> string
+val string_of_tstmp : tstmp -> string
+val string_of_mo : mem_order -> string
 
 module Path : 
   sig

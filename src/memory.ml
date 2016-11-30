@@ -3,6 +3,18 @@ type tstmp = int
 
 type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
 
+let string_of_loc = fun x -> x
+let string_of_tstmp = string_of_int
+
+let string_of_mo = function
+  | SC      -> "sc"
+  | ACQ     -> "acq"
+  | REL     -> "rel"
+  | ACQ_REL -> "acq_rel"
+  | CON     -> "con"
+  | RLX     -> "rlx"
+  | NA      -> "na"  
+
 module Path = 
   struct
     type t = N | L of t | R of t
