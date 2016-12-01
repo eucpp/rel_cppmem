@@ -164,8 +164,7 @@ module StmtContext =
       fresh (t1 t2)
         (b === !true)
         (t === !(Par (t1, t2)));
-                                     (* ]) *)
-      
+                                          
       ((b === !false) &&& (t === !Skip));
       ((b === !false) &&& (t === !Stuck));   
     ])

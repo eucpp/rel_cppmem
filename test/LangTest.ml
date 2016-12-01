@@ -1,8 +1,8 @@
 open OUnit2
 open MiniKanren
 
-module ET = Logic.ExprTerm 
-module EC = Logic.ExprContext
+module ET = Lang.ExprTerm 
+module EC = Lang.ExprContext
 
 let test_stream_answers stream expected eq show test_ctxt =
   let (actual, stream') = Stream.retrieve ~n:(List.length expected) @@ stream in

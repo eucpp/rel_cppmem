@@ -4,11 +4,11 @@ OCB_FLAGS = -use-ocamlfind -syntax camlp5o -cflag "-g" -cflag "-rectypes" -lflag
 OCB = ocamlbuild $(OCB_FLAGS)
 
 all: 
-	$(OCB) logic.byte 
+	$(OCB) Lang.byte 
 
 clean:
 	rm -rf ./_build *.byte
 
 test:
-	$(OCB) LogicTest.byte  
-	./LogicTest.byte
+	$(OCB) LangTest.byte  
+	./LangTest.byte
