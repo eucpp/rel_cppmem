@@ -5,11 +5,11 @@ open Memory
 module ExprTerm = 
   struct
     @type ('int, 'string, 't) at =
-      | Const of 'int
-      | Var   of 'string
-      | Binop of 'string * 't * 't
-      | Stuck
-      with gmap, eq, show 
+    | Const of 'int
+    | Var   of 'string
+    | Binop of 'string * 't * 't
+    | Stuck
+    with gmap, eq, show 
 
     type t  = (int, string, t) at
     type lt = (int logic, string logic, lt) at logic
@@ -29,10 +29,12 @@ module ExprContext =
     type lt = ExprTerm.lt
 
     @type ('int, 'string, 't, 'c) ac = 
-      | Hole
-      | BinopL of 'string * 'c * 't
-      | BinopR of 'string * 't * 'c
-      with gmap, eq, show
+    | Hole
+    | BinopL of 'string * 'c * 't
+    | BinopR of 'string * 't * 'c
+    with gmap, eq, show
+
+    
 
     type c  = (int, string, t, c) ac
     type lc = (int logic, string logic, lt, lc) ac logic
@@ -45,52 +47,52 @@ module ExprContext =
 
     let rec eq c c' = GT.eq(ac) (GT.eq(int)) (GT.eq(string)) (ExprTerm.eq) (eq) c c'
 
-    let is_splittableo t b = ExprTerm.(conde [
-      fresh (n)      ((b === !!false) &&& (t === !!(Const n)));
-      fresh (x)      ((b === !!true)  &&& (t === !!(Var x)));
-      fresh (op l r) ((b === !!true)  &&& (t === !!(Binop (op, l, r))));
+    let (!) = MiniKanren.inj
+    let (?) = MiniKanren.prj
+
+    let reducibleo t b = ExprTerm.(conde [
+      fresh (n)      (b === !false) (t === !(Const n));
+      fresh (x)      (b === !true)  (t === !(Var x));
+      fresh (op l r) (b === !true)  (t === !(Binop (op, l, r)));
     ])
 
-    let rec splito t ct = ExprTerm.(conde [
-      fresh (op l r ct' c' t')
-         (t === !!(Binop (op, l, r)))
-         (ct' === !!(c', t')) 
+    let rec splito t c rdx = ExprTerm.(conde [
+      fresh (op l r c' t')
+         (t === !(Binop (op, l, r)))
          (conde [
-           ((ct === !!(!!(BinopL (op, c', r)), t')) &&& (splito l ct')             &&& (is_splittableo l !!true));
-           ((ct === !!(!!(BinopR (op, l, c')), t')) &&& (splito r ct')             &&& (is_splittableo r !!true));
-           ((ct === !!(!!Hole, t))                  &&& (is_splittableo l !!false) &&& (is_splittableo r !!false));
+           ((c === !(BinopL (op, c', r))) &&& (rdx === t') &&& (reducibleo l !true ) &&& (splito l c' t'));
+           ((c === !(BinopR (op, l, c'))) &&& (rdx === t') &&& (reducibleo r !true ) &&& (splito r c' t'));
+           ((c === !Hole)                 &&& (rdx === t)  &&& (reducibleo l !false) &&& (reducibleo r !false));
         ]);
       fresh (x)
-        ((t === !!(Var x)) &&& (ct === !!(!!Hole, t)));
+        ((t === !(Var x)) &&& (c === !Hole) &&& (rdx === t));
       fresh (n)
-        ((t === !!(Const n)) &&& (ct === !!(!!Hole, t)));
+        ((t === !(Const n)) &&& (c === !Hole) &&& (rdx === t));
     ])
 
-    let prj_pair p = (!? p) |> fun (lc, lt) -> (prj lc, ExprTerm.prj lt)
+    let split t = run qr (fun q  r  -> splito (ExprTerm.inj t) q r)
+                         (fun qs rs -> Stream.zip (Stream.map prj qs) (Stream.map ExprTerm.prj rs))
 
-    let split t = run q (fun q -> splito (ExprTerm.inj t) q)
-                        (fun a -> Stream.map prj_pair a)
-
-    let plug (c, t) = run q (fun q -> splito q !!(inj c, ExprTerm.inj t))
-                            (fun a -> Stream.map ExprTerm.prj a)
+    let plug (c, t) = run q (fun q  -> splito q (inj c) (ExprTerm.inj t))
+                            (fun qs -> Stream.map ExprTerm.prj qs)
   end 
  
 module StmtTerm = 
   struct
     @type ('expr, 'string, 'mo, 'loc, 't) at =
-      | AExpr    of 'expr
-      | Asgn     of 'string * 't
-      | If       of 'expr * 't * 't
-      | Repeat   of 't
-      | Read     of 'mo * 'loc
-      | Write    of 'mo * 'loc * 'expr
-      | Cas      of 'mo * 'mo * 'loc * 'expr * 'expr
-      | Seq      of 't * 't
-      | Spw      of 't * 't
-      | Par      of 't * 't
-      | Skip
-      | Stuck
-      with gmap, eq, show
+    | AExpr    of 'expr
+    | Asgn     of 'string * 't
+    | If       of 'expr * 't * 't
+    | Repeat   of 't
+    | Read     of 'mo * 'loc
+    | Write    of 'mo * 'loc * 'expr
+    | Cas      of 'mo * 'mo * 'loc * 'expr * 'expr
+    | Seq      of 't * 't
+    | Spw      of 't * 't
+    | Par      of 't * 't
+    | Skip
+    | Stuck
+    with gmap, eq, show
 
     type t  = (ExprTerm.t, string, mem_order, loc, t) at
     type lt = (ExprTerm.t logic, string logic, mem_order logic, loc logic, lt) at logic
@@ -110,12 +112,12 @@ module StmtContext =
     type lt = StmtTerm.lt
 
     @type ('expr, 'string, 'mo, 'loc, 't, 'c) ac =
-      | Hole
-      | AsgnC     of 'c * 't
-      | SeqC      of 'c * 't
-      | ParL      of 'c * 't
-      | ParR      of 't * 'c
-      with gmap, eq, show
+    | Hole
+    | AsgnC     of 'string * 'c
+    | SeqC      of 'c * 't
+    | ParL      of 'c * 't
+    | ParR      of 't * 'c
+    with gmap, eq, show
 
     type c  = (ExprTerm.t, string, mem_order, loc, StmtTerm.t, c) ac
     type lc = (ExprTerm.lt, string logic, mem_order logic, loc logic, StmtTerm.lt, lc) ac
@@ -131,29 +133,60 @@ module StmtContext =
     let (!) = MiniKanren.inj
     let (?) = MiniKanren.prj
 
-    let is_splittableo t b = StmtTerm.(conde [
-      fresh (n)      ((b === !false) &&& (t === !(Const n)));
-      fresh (x)      ((b === !true)  &&& (t === !(Var x)));
-      fresh (op l r) ((b === !true)  &&& (t === !(Binop (op, l, r))));
+    let reducibleo t b = StmtTerm.(conde [
+      fresh (e) 
+        (b === !false)
+        (t === !(AExpr e));
+      fresh (x r)
+        (b === !true) 
+        (t === !(Asgn (x, t)));
+      fresh (e t1 t2)
+        (b === !true)
+        (t === !(If (e, t1, t2)));
+      fresh (t')
+        (b === !true)
+        (t === !(Repeat t'));
+      fresh (mo l)
+        (b === !true)
+        (t === !(Read (mo, l)));
+      fresh (mo l e)
+        (b === !true) 
+        (t === !(Write (mo, l, e)));
+      fresh (mo1 mo2 l e1 e2)
+        (b === !true) 
+        (t === !(Cas (mo1, mo2, l, e1, e2)));
+      fresh (t1 t2)
+        (b === !true)
+        (t === !(Seq (t1, t2)));
+      fresh (t1 t2)
+        (b === !true)
+        (t === !(Spw (t1, t2)));
+      fresh (t1 t2)
+        (b === !true)
+        (t === !(Par (t1, t2)));
+                                     (* ]) *)
+      
+      ((b === !false) &&& (t === !Skip));
+      ((b === !false) &&& (t === !Stuck));   
     ])
 
     let rec splito t c rdx = StmtTerm.( 
       (conde [
-        fresh (x r)
+        fresh (x r c' t')
           (t === !(Asgn (x, r)))
           (conde [
-            ((ct === !Hole)          &&& (rdx === t ) &&& (reducibleo r !false));
-            ((c === !(AsgnC (x c'))) &&& (rdx === t') &&& (reducibleo r !true ) &&& (splito r c' t'));
+            ((c === !Hole)            &&& (rdx === t ) &&& (reducibleo r !false));
+            ((c === !(AsgnC (x, c'))) &&& (rdx === t') &&& (reducibleo r !true ) &&& (splito r c' t'));
           ]);
  
-        fresh (t1 t2)
+        fresh (t1 t2 c' t')
           (t === !(Seq (t1, t2)))
           (conde [
             ((c === !Hole)            &&& (rdx === t ) &&& (reducibleo t1 !false)); 
             ((c === !(SeqC (c', t2))) &&& (rdx === t') &&& (reducibleo t1 !true) &&& (splito t1 c' t'));
           ]);
 
-        fresh (t1 t2)
+        fresh (t1 t2 c' t')
           (t === !(Par (t1, t2)))
           (conde [
              ((c === !Hole)            &&& (rdx === t ) &&& (reducibleo t1 !false) &&& (reducibleo t2 !false));
@@ -161,15 +194,31 @@ module StmtContext =
              ((c === !(ParR (t1, c'))) &&& (rdx === t') &&& (reducibleo t2 !true ) &&& (splito t2 c' t'));
           ]);
 
-        fresh (e) 
-          ((t === !(AExpr e)) &&& (c === !Hole) &&& (rdx === t));
-        
-        fresh (e t1 t2) 
-          ((t === !(If (e, t1, t2))) &&& (c === !Hole) &&& (rdx === t));
+        ((c === !Hole) &&& (rdx === t) &&& conde [
+          fresh (e) 
+            (t === !(AExpr e));
 
-        fresh (t') 
-          ((t === !(Repeat t')) &&& (c === !Hole) &&& (rdx === t));
- 
-        
-      ])
+          fresh (e t1 t2) 
+            (t === !(If (e, t1, t2)));
+
+          fresh (t') 
+            (t === !(Repeat t'));
+
+          fresh (mo l)
+            (t === !(Read (mo, l)));
+
+          fresh (mo l e)
+            (t === !(Write (mo, l, e)));
+
+          fresh (mo1 mo2 l e1 e2)
+            (t === !(Cas (mo1, mo2, l, e1, e2)));
+
+          fresh (t1 t2)
+            (t === !(Spw (t1, t2)));
+
+          (t === !Skip);
+
+          (t === !Stuck);     
+        ]);
+      ]))
   end
