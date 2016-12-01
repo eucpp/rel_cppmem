@@ -2,6 +2,67 @@ open GT
 open MiniKanren
 open Memory
 
+module type Term = 
+  sig
+    (** Term type *)
+    type t
+    
+    (** Injection of term into logic domain *)
+    type lt
+
+    val inj : t -> lt
+    val prj : lt -> t
+    val show : t -> string 
+    val eq : t -> t -> bool   
+  end
+
+module type Context = 
+  sig 
+    (** Term type *)
+    type t
+    
+    (** Injection of term into MiniKanren.logic domain *)
+    type lt
+    
+    (** Context type *)
+    type c
+
+    (** Injection of context into MiniKanren.logic domain *)
+    type lc
+
+    val inj : c -> lc
+    val prj : lc -> c
+    val show : c -> string 
+    val eq : c -> c -> bool
+
+    (** [splito t c rdx] splits the term [t] into context [c] and redex [rdx] *) 
+    val splito : lt -> lc -> lt -> goal
+
+    (** Non-relational wrapper for split *)
+    val split : t -> (c * t) Stream.t
+
+    (** Non-relational wrapper for plugging term into context *)
+    val plug : (c * t) -> t  
+  end
+
+module Reducer (C : Context) = 
+  struct
+    type t = C.t
+    type c = C.c
+
+    let split t = run qr (fun q  r  -> C.splito (C.inj_term t) q r)
+                         (fun qs rs -> Stream.zip (Stream.map C.prj_ctx qs) (Stream.map C.prj_term rs))
+
+    let plug (c, t) = run q (fun q  -> C.splito q (C.inj_ctx c) (C.inj_term t))
+                            (fun qs -> let 
+                                         (hd, tl) = Stream.retrieve ~n:1 qs
+                                       in
+                                         (** Plugging should be deterministic *)
+                                         assert (Stream.is_empty tl);
+                                         C.prj_term @@ List.hd hd
+                            )
+  end
+
 module ExprTerm = 
   struct
     @type ('int, 'string, 't) at =
@@ -34,8 +95,6 @@ module ExprContext =
     | BinopR of 'string * 't * 'c
     with gmap, eq, show
 
-    
-
     type c  = (int, string, t, c) ac
     type lc = (int logic, string logic, lt, lc) ac logic
 
@@ -46,6 +105,12 @@ module ExprContext =
     let rec show c = GT.show(ac) (GT.show(int)) (GT.show(string)) (ExprTerm.show) (show) c 
 
     let rec eq c c' = GT.eq(ac) (GT.eq(int)) (GT.eq(string)) (ExprTerm.eq) (eq) c c'
+
+    let inj_term = ExprTerm.inj
+    let prj_term = ExprTerm.prj
+
+    let inj_ctx = inj
+    let prj_ctx = prj
 
     let (!) = MiniKanren.inj
     let (?) = MiniKanren.prj
@@ -69,12 +134,6 @@ module ExprContext =
       fresh (n)
         ((t === !(Const n)) &&& (c === !Hole) &&& (rdx === t));
     ])
-
-    let split t = run qr (fun q  r  -> splito (ExprTerm.inj t) q r)
-                         (fun qs rs -> Stream.zip (Stream.map prj qs) (Stream.map ExprTerm.prj rs))
-
-    let plug (c, t) = run q (fun q  -> splito q (inj c) (ExprTerm.inj t))
-                            (fun qs -> Stream.map ExprTerm.prj qs)
   end 
  
 module StmtTerm = 
@@ -129,6 +188,12 @@ module StmtContext =
     let rec show c = GT.show(ac) (ExprTerm.show) (GT.show(string)) (string_of_mo) (string_of_loc) (StmtTerm.show) (show) c
 
     let rec eq c c' = GT.eq(ac) (ExprTerm.eq) (GT.eq(string)) (=) (=) (StmtTerm.eq) (eq) c c'
+
+    let inj_term = StmtTerm.inj
+    let prj_term = StmtTerm.prj
+
+    let inj_ctx = inj
+    let prj_ctx = prj
 
     let (!) = MiniKanren.inj
     let (?) = MiniKanren.prj
@@ -220,4 +285,6 @@ module StmtContext =
           (t === !Stuck);     
         ]);
       ]))
+
+    
   end
