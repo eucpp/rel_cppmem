@@ -10,7 +10,7 @@ val string_of_mo : mem_order -> string
 module Path : 
   sig
     type t = N | L of t | R of t
-  end
+  end 
 
 module Registers : 
   sig
