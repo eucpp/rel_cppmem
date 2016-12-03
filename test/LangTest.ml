@@ -76,6 +76,6 @@ let expr_tests =
     (*                            test_expr_plug (EC.BinopR ("+", ET.Const 1, EC.Hole), ET.Var "x") [e]); *)
   ]
 
-let _ =
-  run_test_tt_main expr_tests
+let tests = 
+  "lang">::: [expr_tests]
 

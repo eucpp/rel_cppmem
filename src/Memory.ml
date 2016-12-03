@@ -1,3 +1,5 @@
+open MiniKanren
+
 type loc = string
 type tstmp = int
 
@@ -18,6 +20,47 @@ let string_of_mo = function
 module Path = 
   struct
     type t = N | L of t | R of t
+  end
+
+module Registers = 
+  struct
+    type t  = (string * int) list 
+    type lt = (string logic * int logic) logic MiniKanren.List.logic
+    
+    let empty = []
+
+    let (!) = MiniKanren.inj
+
+    let prj_pair lp = (fun (k, v) -> (!?k, !?v)) (!?lp)
+
+    let inj l = MiniKanren.List.inj (fun (k, v) -> !(!k, !v)) @@ MiniKanren.List.of_list l
+    let prj l = MiniKanren.List.to_list @@ MiniKanren.List.prj prj_pair l
+
+    let make_reg var v = !(var, v)
+
+    let key_eq k p b =
+      fresh (k' v')
+        (p === !(k', v'))
+        (conde [
+          ((k === k') &&& (b === !true));
+          ((k =/= k') &&& (b === !false)) 
+        ])
+
+    let geto var regs v = 
+      fresh (opt) 
+        (MiniKanren.List.lookupo (key_eq var) regs opt)
+        (opt === !(Some !(var, v)))
+
+    let seto var v regs regs'' = 
+      fresh (regs')
+        (MiniKanren.List.filtero (key_eq var) regs regs')
+        (regs'' === (make_reg var v) % regs)
+
+    let get var regs = run q (fun q  -> geto !var (inj regs) q)
+                             (fun qs -> !?(Utils.excl_answ qs))
+
+    let set var v regs = run q (fun q  -> seto !var !v (inj regs) q)
+                               (fun qs -> (prj @@ Utils.excl_answ qs)) 
   end
 
 module ViewFront = 

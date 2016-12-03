@@ -1,35 +1,36 @@
-module BasicExpr: 
-  sig
-    type t = Lang.ExprContext.t
+module BasicExpr =  
+  struct
+    type t  = Lang.StmtContext.t
+    type lt = Lang.StmtContext.lt
 
-    type c = Lang.ExprContext.c
+    type c  = Lang.StmtContext.c
+    type lc = Lang.StmtContext.lc
 
-    type s = Lang.ExprContext.s   
+    type s
+    type ls
 
-    type rresult = Lang.ExprContext.rresult
+    type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
 
-    val var : c * t * s -> rresult list
-
-    val binop : c * t * s -> rresult list
+    val varo   : rule
+    val binopo : rule
   end
 
-module BasicStmt :
+module BasicStmt : 
   sig 
-    type t = Lang.StmtContext.t
+    type t  = Lang.StmtContext.t
+    type lt = Lang.StmtContext.lt
 
-    type c = Lang.StmtContext.c
+    type c  = Lang.StmtContext.c
+    type lc = Lang.StmtContext.lc
 
-    type s = Lang.StmtContext.s   
+    type s
+    type ls
 
-    type rresult = Lang.StmtContext.rresult
-
-    val read_na : c * t * s -> rresult list
-
-    val write_na : c * t * s -> rresult list
-
-    val assign : c * t * s -> rresult list
-
-    val if' : c * t * s -> rresult list
-
-    val repeat : c * t * s -> rresult list
+    type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
+    
+    val expro   : rule
+    val asgno   : rule
+    val ifo     : rule
+    val repeato : rule
+    val seqo    : rule
   end

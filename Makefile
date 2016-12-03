@@ -10,5 +10,5 @@ clean:
 	rm -rf ./_build *.byte
 
 test:
-	$(OCB) LangTest.byte  
-	./LangTest.byte
+	$(OCB) Test.byte  
+	./Test.byte
