@@ -35,6 +35,12 @@ module type Context =
     val show : c -> string 
     val eq : c -> c -> bool
 
+    val inj_term : t -> lt
+    val prj_term : lt -> t
+
+    val inj_ctx : c -> lc
+    val prj_ctx : lc -> c                     
+                         
     (** [splito t c rdx] splits the term [t] into context [c] and redex [rdx] *) 
     val splito : lt -> lc -> lt -> goal
 
@@ -45,23 +51,23 @@ module type Context =
     val plug : (c * t) -> t  
   end
 
-module Reducer (C : Context) = 
-  struct
-    type t = C.t
-    type c = C.c
+(* module Reducer (C : Context) =  *)
+(*   struct *)
+(*     type t = C.t *)
+(*     type c = C.c *)
 
-    let split t = run qr (fun q  r  -> C.splito (C.inj_term t) q r)
-                         (fun qs rs -> Stream.zip (Stream.map C.prj_ctx qs) (Stream.map C.prj_term rs))
+(*     let split t = run qr (fun q  r  -> C.splito (C.inj_term t) q r) *)
+(*                          (fun qs rs -> Stream.zip (Stream.map C.prj_ctx qs) (Stream.map C.prj_term rs)) *)
 
-    let plug (c, t) = run q (fun q  -> C.splito q (C.inj_ctx c) (C.inj_term t))
-                            (fun qs -> let 
-                                         (hd, tl) = Stream.retrieve ~n:1 qs
-                                       in
-                                         (** Plugging should be deterministic *)
-                                         assert (Stream.is_empty tl);
-                                         C.prj_term @@ List.hd hd
-                            )
-  end
+(*     let plug (c, t) = run q (fun q  -> C.splito q (C.inj_ctx c) (C.inj_term t)) *)
+(*                             (fun qs -> let  *)
+(*                                          (hd, tl) = Stream.retrieve ~n:1 qs *)
+(*                                        in *)
+(*                                          (\** Plugging should be deterministic *\) *)
+(*                                          assert (Stream.is_empty tl); *)
+(*                                          C.prj_term @@ List.hd hd *)
+(*                             ) *)
+(*   end *)
 
 module ExprTerm = 
   struct
@@ -134,6 +140,18 @@ module ExprContext =
       fresh (n)
         ((t === !(Const n)) &&& (c === !Hole) &&& (rdx === t));
     ])
+
+    let split t = run qr (fun q  r  -> splito (inj_term t) q r)
+                         (fun qs rs -> Stream.zip (Stream.map prj_ctx qs) (Stream.map prj_term rs))
+
+    let plug (c, t) = run q (fun q  -> splito q (inj_ctx c) (inj_term t))
+                            (fun qs -> let 
+                                         (hd, tl) = Stream.retrieve ~n:1 qs
+                                       in
+                                         (** Plugging should be deterministic *)
+                                         assert (Stream.is_empty tl);
+                                         prj_term @@ List.hd hd
+                            )                                 
   end 
  
 module StmtTerm = 
@@ -285,6 +303,4 @@ module StmtContext =
           (t === !Stuck);     
         ]);
       ]))
-
-    
   end
