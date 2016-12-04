@@ -1,10 +1,9 @@
 open MiniKanren
 
-module Semantics
-  (T : Lang.Term)
-  (C : Lang.Context with type t = T.t) :
+module Make
+  (L : Lang.Lang with type lt = Lang.ExprLang.lt with type lc = Lang.ExprLang.lc) =
   struct
-    type rule = (C.lt -> C.lc -> C.ls -> C.lt -> C.lc -> C.ls -> MiniKanren.goal)
+    type rule = (L.lc -> L.lt -> L.ls -> L.lc -> L.lt -> L.ls -> MiniKanren.goal)
 
     type t = (string * rule) list 
 
@@ -15,5 +14,10 @@ module Semantics
     let register rl rls = rl::rls
     let deregister = List.remove_assoc
 
-    (* let stepo rls t s t' s' = *)
+    let stepo rls t s t' s' =
+      fresh (c c' rdx rdx')
+        (conde @@ List.map (fun (name, rl) -> rl c rdx s c' rdx' s') rls)
+        (L.splito t  c  rdx )
+        (L.splito t' c' rdx')
+            
   end

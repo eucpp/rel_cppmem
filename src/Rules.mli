@@ -1,17 +1,17 @@
-module BasicExpr =  
-  struct
-    type t  = Lang.StmtContext.t
-    type lt = Lang.StmtContext.lt
+module BasicExpr :  
+  sig
+    type t  = Lang.ExprLang.t
+    type lt = Lang.ExprLang.lt
 
-    type c  = Lang.StmtContext.c
-    type lc = Lang.StmtContext.lc
+    type c  = Lang.ExprLang.c
+    type lc = Lang.ExprLang.lc
 
-    type s  = Memory.Registers.t
-    type ls = Memory.Registers.lt
+    type s  = Lang.ExprLang.s
+    type ls = Lang.ExprLang.ls
 
     type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
 
-    val varo   : rule
+    val varo   : string * rule
     (* val binopo : rule *)
   end
 

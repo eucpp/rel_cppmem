@@ -36,6 +36,14 @@ module Registers =
     let inj l = MiniKanren.List.inj (fun (k, v) -> !(!k, !v)) @@ MiniKanren.List.of_list l
     let prj l = MiniKanren.List.to_list @@ MiniKanren.List.prj prj_pair l
 
+    let show = List.fold_left (fun ac (k, v) -> ac ^ " {" ^ k ^ ": " ^ string_of_int v ^ "}; ") ""
+
+    let eq regs regs' = 
+      let 
+        check_reg reg = List.exists ((=) reg) regs'
+      in
+        List.for_all check_reg regs
+
     let make_reg var v = !(var, v)
 
     let key_eq k p b =

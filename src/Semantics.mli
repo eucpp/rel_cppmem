@@ -1,10 +1,9 @@
-module Semantics
-  (T : Lang.Term)
-  (C : Lang.Context with type t = T.t) :
+module Make
+  (L : Lang.Lang with type lt = Lang.ExprLang.lt with type lc = Lang.ExprLang.lc) :
   sig
     type t
 
-    type rule = (C.lt -> C.lc -> C.ls -> C.lt -> C.lc -> C.ls -> MiniKanren.goal)
+    type rule = (L.lc -> L.lt -> L.ls -> L.lc -> L.lt -> L.ls -> MiniKanren.goal)
 
     val empty : t
     
@@ -13,5 +12,5 @@ module Semantics
     val register   : string * rule -> t -> t
     val deregister : string -> t -> t 
 
-    val stepo : t -> C.lt -> C.ls -> C.lt -> C.ls -> MiniKanren.goal
+    val stepo : t -> L.lt -> L.ls -> L.lt -> L.ls -> MiniKanren.goal
   end

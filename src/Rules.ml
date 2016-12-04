@@ -1,3 +1,5 @@
+open MiniKanren
+
 module ET = Lang.ExprTerm
 module EC = Lang.ExprContext 
 
@@ -6,20 +8,22 @@ module SC = Lang.StmtContext
 
 module Regs = Memory.Registers
 
-module BasicExpr: 
-  sig
-    type t  = Lang.StmtContext.t
-    type lt = Lang.StmtContext.lt
+module BasicExpr = 
+  struct
+    type t  = Lang.ExprLang.t
+    type lt = Lang.ExprLang.lt
 
-    type c  = Lang.StmtContext.c
-    type lc = Lang.StmtContext.lc
+    type c  = Lang.ExprLang.c
+    type lc = Lang.ExprLang.lc
 
-    type s  = Memory.Registers.t
-    type ls = Memory.Registers.lt
+    type s  = Lang.ExprLang.s
+    type ls = Lang.ExprLang.ls
 
     type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
 
-    let varo c t s c' t' s' = ET.(
+    let (!) = MiniKanren.inj
+
+    let varo' c t s c' t' s' = ET.(
       fresh (n x)
         (t  === !(Var x))
         (t' === !(Const n))
@@ -27,6 +31,8 @@ module BasicExpr:
         (s  === s')
         (Regs.geto x s n)
     )
+
+    let varo = ("var", varo') 
 
     (* val binopo : rule *)
   end

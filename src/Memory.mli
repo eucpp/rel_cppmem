@@ -14,13 +14,16 @@ module Path :
 
 module Registers : 
   sig
-    type t
-    type lt
+    type t  = (string * int) list 
+    type lt = (string MiniKanren.logic * int MiniKanren.logic) MiniKanren.logic MiniKanren.List.logic
     
     val empty : t
 
     val inj : t -> lt
     val prj : lt -> t
+
+    val show : t -> string
+    val eq : t -> t -> bool
 
     val geto : string MiniKanren.logic -> lt -> int MiniKanren.logic -> MiniKanren.goal
     val seto : string MiniKanren.logic -> int MiniKanren.logic -> lt -> lt -> MiniKanren.goal
