@@ -132,11 +132,11 @@ module ExprTerm =
     with gmap, eq, show 
 
     type t  = (int, string, t) at
-    type lt = (int logic, string logic, lt) at logic
+    type lt = (Nat.logic, string logic, lt) at logic
 
-    let rec inj t = !! (gmap(at) (!!) (!!) (inj) t)
+    let rec inj t = !! (gmap(at) (fun x -> Nat.inj @@ Nat.of_int x) (!!) (inj) t)
 
-    let rec prj lt = gmap(at) (!?) (!?) (prj) (!? lt)
+    let rec prj lt = gmap(at) (fun x -> Nat.to_int @@ Nat.prj x) (!?) (prj) (!? lt)
 
     let rec show t = GT.show(at) (GT.show(int)) (GT.show(string)) (show) t
 
@@ -155,11 +155,11 @@ module ExprContext =
     with gmap, eq, show
 
     type c  = (int, string, t, c) ac
-    type lc = (int logic, string logic, lt, lc) ac logic
+    type lc = (Nat.logic, string logic, lt, lc) ac logic
 
-    let rec inj c = !! (gmap(ac) (!!) (!!) (ExprTerm.inj) (inj) c)
+    let rec inj c = !! (gmap(ac) (fun x -> Nat.inj @@ Nat.of_int x) (!!) (ExprTerm.inj) (inj) c)
 
-    let rec prj lc = gmap(ac) (!?) (!?) (ExprTerm.prj) (prj) (!? lc)
+    let rec prj lc = gmap(ac) (fun x -> Nat.to_int @@ Nat.prj x) (!?) (ExprTerm.prj) (prj) (!? lc)
 
     let rec show c = GT.show(ac) (GT.show(int)) (GT.show(string)) (ExprTerm.show) (show) c 
 

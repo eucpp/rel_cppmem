@@ -11,8 +11,8 @@ module BasicExpr :
 
     type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
 
-    val varo   : string * rule
-    (* val binopo : rule *)
+    val var   : string * rule
+    val binop : string * rule
   end
 
 (* module BasicStmt :  *)

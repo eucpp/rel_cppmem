@@ -15,7 +15,7 @@ module Path :
 module Registers : 
   sig
     type t  = (string * int) list 
-    type lt = (string MiniKanren.logic * int MiniKanren.logic) MiniKanren.logic MiniKanren.List.logic
+    type lt = (string MiniKanren.logic * MiniKanren.Nat.logic) MiniKanren.logic MiniKanren.List.logic
     
     val empty : t
 
@@ -25,8 +25,8 @@ module Registers :
     val show : t -> string
     val eq : t -> t -> bool
 
-    val geto : string MiniKanren.logic -> lt -> int MiniKanren.logic -> MiniKanren.goal
-    val seto : string MiniKanren.logic -> int MiniKanren.logic -> lt -> lt -> MiniKanren.goal
+    val geto : string MiniKanren.logic -> lt -> MiniKanren.Nat.logic -> MiniKanren.goal
+    val seto : string MiniKanren.logic -> MiniKanren.Nat.logic -> lt -> lt -> MiniKanren.goal
 
     val get : string -> t -> int
     val set : string -> int -> t -> t

@@ -34,7 +34,9 @@ let regs = Registers.set "x" 42 Registers.empty
 
 let basic_expr_tests = 
   "basic_expr">::: [
-    "var">:: BasicExprTester.test_rule BasicExpr.varo (ET.Var "x", regs) [(ET.Const 42, regs)]
+    "var">:: BasicExprTester.test_rule BasicExpr.var (ET.Var "x", regs) [(ET.Const 42, regs)];
+    
+    "binop">:: BasicExprTester.test_rule BasicExpr.binop (ET.Binop ("+", ET.Const 1, ET.Const 2), regs) [(ET.Const 3, regs)]
   ]
 
 let tests = 

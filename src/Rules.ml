@@ -23,18 +23,31 @@ module BasicExpr =
 
     let (!) = MiniKanren.inj
 
-    let varo' c t s c' t' s' = ET.(
+    let varo c t s c' t' s' = ET.(
       fresh (n x)
-        (t  === !(Var x))
-        (t' === !(Const n))
         (c  === c')
         (s  === s')
+        (t  === !(Var x))
+        (t' === !(Const n))
         (Regs.geto x s n)
     )
 
-    let varo = ("var", varo') 
+    let var = ("var", varo)
 
-    (* val binopo : rule *)
+    (* let plus a b = inj @@ (!? a) + (!? b) *)
+
+    let binopo c t s c' t' s' = ET.(
+        fresh (op x y z)
+        (c  === c')
+        (s  === s')
+        (t  === !(Binop (op, !(Const x), !(Const y))))
+        (t' === !(Const z))
+        (conde [
+          ((op === !"+") &&& (Nat.addo x y z));
+        ])       
+    )
+
+    let binop = ("binop", binopo)
   end
 
 (* module BasicStmt :  *)

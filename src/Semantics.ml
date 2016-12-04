@@ -16,8 +16,8 @@ module Make
 
     let stepo rls t s t' s' =
       fresh (c c' rdx rdx')
-        (conde @@ List.map (fun (name, rl) -> rl c rdx s c' rdx' s') rls)
         (L.splito t  c  rdx )
+        (conde @@ List.map (fun (name, rl) -> rl c rdx s c' rdx' s') rls)
         (L.splito t' c' rdx')
             
   end

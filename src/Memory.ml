@@ -25,15 +25,15 @@ module Path =
 module Registers = 
   struct
     type t  = (string * int) list 
-    type lt = (string logic * int logic) logic MiniKanren.List.logic
+    type lt = (string logic * Nat.logic) logic MiniKanren.List.logic
     
     let empty = []
 
     let (!) = MiniKanren.inj
 
-    let prj_pair lp = (fun (k, v) -> (!?k, !?v)) (!?lp)
+    let prj_pair lp = (fun (k, v) -> (!?k, Nat.to_int (Nat.prj v))) (!?lp)
 
-    let inj l = MiniKanren.List.inj (fun (k, v) -> !(!k, !v)) @@ MiniKanren.List.of_list l
+    let inj l = MiniKanren.List.inj (fun (k, v) -> !(!k, Nat.inj (Nat.of_int v))) @@ MiniKanren.List.of_list l
     let prj l = MiniKanren.List.to_list @@ MiniKanren.List.prj prj_pair l
 
     let show = List.fold_left (fun ac (k, v) -> ac ^ " {" ^ k ^ ": " ^ string_of_int v ^ "}; ") ""
@@ -65,9 +65,9 @@ module Registers =
         (regs'' === (make_reg var v) % regs)
 
     let get var regs = run q (fun q  -> geto !var (inj regs) q)
-                             (fun qs -> !?(Utils.excl_answ qs))
+                             (fun qs -> Nat.to_int @@ Nat.prj (Utils.excl_answ qs))
 
-    let set var v regs = run q (fun q  -> seto !var !v (inj regs) q)
+    let set var v regs = run q (fun q  -> seto !var (Nat.inj @@ Nat.of_int v) (inj regs) q)
                                (fun qs -> (prj @@ Utils.excl_answ qs)) 
   end
 
