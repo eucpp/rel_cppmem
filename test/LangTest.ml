@@ -3,17 +3,20 @@ open MiniKanren
 
 module ET = Lang.ExprTerm 
 module EC = Lang.ExprContext
+module ES = Lang.ExprState
 
 module Tester
-  (L : Lang.Lang) =
+  (T : Lang.Term)
+  (C : Lang.Context with type t = T.t with type 'a lt = 'a logic)
+  (S : Lang.State with type 'a lt = 'a logic) =
   struct
-    (* module R = Lang.Reducer(C) *)
+    module Sem = Semantics.Make(T)(C)(S)
 
     let test_split term expected test_ctx =
-      let stream             = L.split term in
+      let stream             = Sem.split term in
       let (actual, stream')  = Stream.retrieve ~n:(List.length expected) @@ stream in
-      let show (c, t)        = "Context/Term is not found among answers: " ^ L.show_ctx c ^ " ; " ^ L.show_term t in
-      let eq (c, t) (c', t') = (L.eq_ctx c c') && (L.eq_term t t') in
+      let show (c, t)        = "Context/Term is not found among answers: " ^ C.show c ^ " ; " ^ T.show t in
+      let eq (c, t) (c', t') = (C.eq c c') && (T.eq t t') in
       let assert_contains x =
         assert_bool (show x) @@ List.exists (eq x) actual
       in
@@ -21,11 +24,11 @@ module Tester
         List.iter assert_contains expected
 
     let test_plug ctx_term expected test_ctx =
-      let actual = L.plug ctx_term in
-        assert_equal expected actual ~cmp:L.eq_term ~printer:L.show_term
+      let actual = Sem.plug ctx_term in
+        assert_equal expected actual ~cmp:T.eq ~printer:T.show
   end
 
-module ExprTester = Tester(Lang.ExprLang)
+module ExprTester = Tester(ET)(EC)(ES)
 
 (* let test_split term expected =  *)
 (*       let stream             = C.split term in *)

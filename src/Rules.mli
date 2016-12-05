@@ -1,13 +1,13 @@
 module BasicExpr :  
   sig
-    type t  = Lang.ExprLang.t
-    type lt = Lang.ExprLang.lt
+    type t  = Lang.ExprTerm.t
+    type lt = Lang.ExprTerm.lt
 
-    type c  = Lang.ExprLang.c
-    type lc = Lang.ExprLang.lc
+    type c  = Lang.ExprContext.c
+    type lc = Lang.ExprContext.lc
 
-    type s  = Lang.ExprLang.s
-    type ls = Lang.ExprLang.ls
+    type s  = Lang.ExprState.t
+    type ls = Lang.ExprState.lt
 
     type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
 

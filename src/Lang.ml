@@ -8,119 +8,53 @@ module type Term =
     type t
     
     (** Injection of term into logic domain *)
-    type lt
+    type 'a lt
 
-    val inj : t -> lt
-    val prj : lt -> t
+    val inj : t -> _ lt
+    val prj : _ lt -> t
     val show : t -> string
     val eq : t -> t -> bool
   end
 
-(* module type Context =  *)
-(*   sig  *)
-(*     (\** Term type *\) *)
-(*     type t *)
-           
-(*     (\** Injection of term into MiniKanren.logic domain *\) *)
-(*     type lt *)
-    
-(*     (\** Context type *\) *)
-(*     type c *)
-
-(*     (\** Injection of context into logic domain *\) *)
-(*     type lc *)
-
-(*     (\** State type *\) *)
-(*     type s *)
-
-(*     (\** Injection of state into logic domain *\) *)
-(*     type ls *)
-
-(*     val inj : c -> lc *)
-(*     val prj : lc -> c *)
-(*     val show : c -> string  *)
-(*     val eq : c -> c -> bool *)
-
-(*     val inj_term : t -> lt *)
-(*     val prj_term : lt -> t *)
-
-(*     val inj_ctx : c -> lc *)
-(*     val prj_ctx : lc -> c                      *)
-                         
-(*     (\** [splito t c rdx] splits the term [t] into context [c] and redex [rdx] *\)  *)
-(*     val splito : lt -> lc -> lt -> goal *)
-
-(*     (\** Non-relational wrapper for split *\) *)
-(*     val split : t -> (c * t) Stream.t *)
-
-(*     (\** Non-relational wrapper for plugging term into context *\) *)
-(*     val plug : (c * t) -> t *)
-(*   end *)
-
-module type Lang = 
+module type Context =
   sig
     (** Term type *)
     type t
            
-    (** Injection of term into logic domain *)
-    type lt
+    (** Injection of term into MiniKanren.logic domain *)
+    type 'a lt
     
     (** Context type *)
     type c
 
     (** Injection of context into logic domain *)
-    type lc
+    type 'b lc
 
-    (** State type *)
-    type s
+    val inj : c -> _ lc
+    val prj : _ lc -> c
+    val show : c -> string
+    val eq : c -> c -> bool
+                     
+    (** [splito t c rdx] splits the term [t] into context [c] and redex [rdx] *)
+    val splito : _ lt -> _ lc -> _ lt -> goal
 
-    (** Injection of state into logic domain *)
-    type ls
+    (* (\** Non-relational wrapper for split *\) *)
+    (* val split : t -> (c * t) Stream.t *)
 
-    val inj_term : t -> lt
-    val prj_term : lt -> t
+    (* (\** Non-relational wrapper for plugging term into context *\) *)
+    (* val plug : (c * t) -> t *)
+  end
 
-    val inj_ctx : c -> lc
-    val prj_ctx : lc -> c  
+module type State = 
+  sig 
+    type t
+    type 'a lt
 
-    val inj_st  : s -> ls
-    val prj_st  : ls -> s
-
-    val show_term : t -> string
-    val show_ctx  : c -> string
-    val show_st   : s -> string
-    
-    val eq_term : t -> t -> bool
-    val eq_ctx  : c -> c -> bool
-    val eq_st   : s -> s -> bool                   
-                         
-    (** [splito t c rdx] splits the term [t] into context [c] and redex [rdx] *) 
-    val splito : lt -> lc -> lt -> goal
-
-    (** Non-relational wrapper for split *)
-    val split : t -> (c * t) Stream.t
-
-    (** Non-relational wrapper for plugging term into context *)
-    val plug : (c * t) -> t
-  end 
-
-(* module Lang (C : Context) = *)
-(*   struct *)
-(*     type t = C.t *)
-(*     type c = C.c *)
-
-(*     let split t = run qr (fun q  r  -> C.splito (C.inj_term t) q r) *)
-(*                          (fun qs rs -> Stream.zip (Stream.map C.prj_ctx qs) (Stream.map C.prj_term rs)) *)
-
-(*     let plug (c, t) = run q (fun q  -> C.splito q (C.inj_ctx c) (C.inj_term t)) *)
-(*                             (fun qs -> let *)
-(*                                          (hd, tl) = Stream.retrieve ~n:1 qs *)
-(*                                        in *)
-(*                                          (\** Plugging should be deterministic *\) *)
-(*                                          assert (Stream.is_empty tl); *)
-(*                                          C.prj_term @@ List.hd hd *)
-(*                             ) *)
-(*   end *)
+    val inj : t -> _ lt
+    val prj : _ lt -> t
+    val show : t -> string
+    val eq : t -> t -> bool
+  end
 
 module ExprTerm = 
   struct
@@ -132,11 +66,11 @@ module ExprTerm =
     with gmap, eq, show 
 
     type t  = (int, string, t) at
-    type lt = (Nat.logic, string logic, lt) at logic
+    type 'a lt = (Nat.logic, string logic, 'a lt) at logic
 
-    let rec inj t = !! (gmap(at) (fun x -> Nat.inj @@ Nat.of_int x) (!!) (inj) t)
+    let rec inj t = !! (gmap(at) (inj_nat) (!!) (inj) t)
 
-    let rec prj lt = gmap(at) (fun x -> Nat.to_int @@ Nat.prj x) (!?) (prj) (!? lt)
+    let rec prj lt = gmap(at) (prj_nat) (!?) (prj) (!? lt)
 
     let rec show t = GT.show(at) (GT.show(int)) (GT.show(string)) (show) t
 
@@ -146,7 +80,7 @@ module ExprTerm =
 module ExprContext =
   struct
     type t  = ExprTerm.t
-    type lt = ExprTerm.lt
+    type 'a lt = 'a ExprTerm.lt
 
     @type ('int, 'string, 't, 'c) ac = 
     | Hole
@@ -155,18 +89,17 @@ module ExprContext =
     with gmap, eq, show
 
     type c  = (int, string, t, c) ac
-    type lc = (Nat.logic, string logic, lt, lc) ac logic
+    type 'a lc = (Nat.logic, string logic, lt, 'a lc) ac logic
 
-    let rec inj c = !! (gmap(ac) (fun x -> Nat.inj @@ Nat.of_int x) (!!) (ExprTerm.inj) (inj) c)
+    let rec inj c = !! (gmap(ac) (inj_nat) (!!) (ExprTerm.inj) (inj) c)
 
-    let rec prj lc = gmap(ac) (fun x -> Nat.to_int @@ Nat.prj x) (!?) (ExprTerm.prj) (prj) (!? lc)
+    let rec prj lc = gmap(ac) (prj_nat) (!?) (ExprTerm.prj) (prj) (!? lc)
 
     let rec show c = GT.show(ac) (GT.show(int)) (GT.show(string)) (ExprTerm.show) (show) c 
 
     let rec eq c c' = GT.eq(ac) (GT.eq(int)) (GT.eq(string)) (ExprTerm.eq) (eq) c c'
 
     let (!) = MiniKanren.inj
-    let (?) = MiniKanren.prj
 
     let reducibleo t b = ExprTerm.(conde [
       fresh (n)      (b === !false) (t === !(Const n));
@@ -188,54 +121,8 @@ module ExprContext =
         ((t === !(Const n)) &&& (c === !Hole) &&& (rdx === t));
     ])                                 
   end 
- 
-module ExprLang : (Lang with type t = ExprTerm.t 
-                        with type c = ExprContext.c
-                        with type s = Registers.t
-                        with type lt = ExprTerm.lt
-                        with type lc = ExprContext.lc
-                        with type ls = Registers.lt) = 
-  struct
-    type t  = ExprTerm.t
-    type lt = ExprTerm.lt
 
-    type c  = ExprContext.c
-    type lc = ExprContext.lc
-
-    type s  = Registers.t
-    type ls = Registers.lt
-
-    let inj_term = ExprTerm.inj
-    let prj_term = ExprTerm.prj
-
-    let inj_ctx = ExprContext.inj
-    let prj_ctx = ExprContext.prj
-
-    let inj_st = Registers.inj
-    let prj_st = Registers.prj
-
-    let show_term = ExprTerm.show
-    let show_ctx  = ExprContext.show
-    let show_st   = Registers.show
-    
-    let eq_term = ExprTerm.eq
-    let eq_ctx  = ExprContext.eq
-    let eq_st   = Registers.eq
-
-    let splito = ExprContext.splito                   
-
-    let split t = run qr (fun q  r  -> splito (inj_term t) q r)
-                         (fun qs rs -> Stream.zip (Stream.map prj_ctx qs) (Stream.map prj_term rs))
-
-    let plug (c, t) = run q (fun q  -> splito q (inj_ctx c) (inj_term t))
-                            (fun qs -> let 
-                                         (hd, tl) = Stream.retrieve ~n:1 qs
-                                       in
-                                         (** Plugging should be deterministic *)
-                                         assert (Stream.is_empty tl);
-                                         prj_term @@ List.hd hd
-                            )
-  end
+module ExprState = Registers
 
 module StmtTerm = 
   struct

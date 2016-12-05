@@ -10,14 +10,14 @@ module Regs = Memory.Registers
 
 module BasicExpr = 
   struct
-    type t  = Lang.ExprLang.t
-    type lt = Lang.ExprLang.lt
+    type t  = Lang.ExprTerm.t
+    type lt = Lang.ExprTerm.lt
 
-    type c  = Lang.ExprLang.c
-    type lc = Lang.ExprLang.lc
+    type c  = Lang.ExprContext.c
+    type lc = Lang.ExprContext.lc
 
-    type s  = Lang.ExprLang.s
-    type ls = Lang.ExprLang.ls
+    type s  = Lang.ExprState.t
+    type ls = Lang.ExprState.lt
 
     type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
 
@@ -34,10 +34,8 @@ module BasicExpr =
 
     let var = ("var", varo)
 
-    (* let plus a b = inj @@ (!? a) + (!? b) *)
-
     let binopo c t s c' t' s' = ET.(
-        fresh (op x y z)
+      fresh (op x y z)
         (c  === c')
         (s  === s')
         (t  === !(Binop (op, !(Const x), !(Const y))))

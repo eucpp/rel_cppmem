@@ -1,9 +1,11 @@
 open MiniKanren
 
 module Make
-  (L : Lang.Lang with type lt = Lang.ExprLang.lt with type lc = Lang.ExprLang.lc) =
+  (T : Lang.Term) 
+  (C : Lang.Context with type t = T.t with type lt = T.lt)
+  (S : Lang.State) =
   struct
-    type rule = (L.lc -> L.lt -> L.ls -> L.lc -> L.lt -> L.ls -> MiniKanren.goal)
+    type rule = (C.lc -> T.lt -> S.lt -> C.lc -> T.lt -> S.lt -> MiniKanren.goal)
 
     type t = (string * rule) list 
 
@@ -17,7 +19,18 @@ module Make
     let stepo rls t s t' s' =
       fresh (c c' rdx rdx')
         (L.splito t  c  rdx )
-        (conde @@ List.map (fun (name, rl) -> rl c rdx s c' rdx' s') rls)
         (L.splito t' c' rdx')
-            
+        (conde @@ List.map (fun (name, rl) -> rl c rdx s c' rdx' s') rls)
+        
+    let split t = run qr (fun q  r  -> splito (inj_term t) q r)
+                         (fun qs rs -> Stream.zip (Stream.map prj_ctx qs) (Stream.map prj_term rs))
+
+    let plug (c, t) = run q (fun q  -> splito q (inj_ctx c) (inj_term t))
+                            (fun qs -> let 
+                                         (hd, tl) = Stream.retrieve ~n:1 qs
+                                       in
+                                         (** Plugging should be deterministic *)
+                                         assert (Stream.is_empty tl);
+                                         prj_term @@ List.hd hd
+                            )         
   end
