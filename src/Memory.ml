@@ -66,9 +66,9 @@ module Registers =
         (regs'' === (make_reg var v) % regs)
 
     let get var regs = run q (fun q  -> geto !var (inj regs) q)
-                             (fun qs -> Nat.to_int @@ Nat.prj (Utils.excl_answ qs))
+                             (fun qs -> prj_nat @@ Utils.excl_answ qs)
 
-    let set var v regs = run q (fun q  -> seto !var (Nat.inj @@ Nat.of_int v) (inj regs) q)
+    let set var v regs = run q (fun q  -> seto !var (inj_nat v) (inj regs) q)
                                (fun qs -> (prj @@ Utils.excl_answ qs)) 
   end
 
@@ -85,13 +85,53 @@ module ViewFront =
         (l, t)::vfront' 
   end
 
-module ThreadState = 
-  struct
+module ThreadState :
+  sig
     type t = {
-      curr : ViewFront.t;
+      regs : Registers.t
+      (* curr : ViewFront.t; *)
     }
 
-    let empty = { curr = ViewFront.empty }
+    type lt' = {
+      lregs : Registers.lt;
+    }
+
+    type lt = lt' MiniKanren.logic
+
+    let empty = { regs = Registers.empty; }
+
+    let inj t  = { lregs = Registers.inj t.regs; }
+    
+    let prj lt = 
+      let lt' = !?lt in
+      { regs = Registers.prj lt'.regs; }
+
+    let show t = "Registers: " ^ Registers.show t.regs
+    
+    let eq t t' = Registers.eq t.regs t'.regs
+  end
+
+module ThreadTree : 
+  struct
+    @type ('a 't) at = Leaf of 'a | Node of 't * 't with gmap
+ 
+    type t   = (ThreadState.t, t) at
+    type lt' = (ThreadState.lt, lt' logic) at
+    type lt  = lt' logic
+
+    let empty = Leaf ThreadState.empty 
+
+    let rec inj t  = !! (gmap(at) (ThreadState.inj) (inj) t)
+    let rec prj lt = gmap(at) (ThreadState.prj) (prj) (!?lt)
+
+    val show : t -> string
+    val eq : t -> t -> bool
+
+    val get_thrdo    : Path.lt -> lt -> ThreadState.lt -> MiniKanren.goal
+    val update_thrdo : Path.lt -> ThreadState.lt -> lt -> lt -> MiniKanren.goal      
+
+    val get_thrd    : Path.t -> t -> ThreadState.t
+    val update_thrd : Path.t -> ThreadState.t -> t -> t
   end
 
 module ThreadTree = 

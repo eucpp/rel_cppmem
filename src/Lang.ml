@@ -156,8 +156,9 @@ module StmtTerm =
     | Stuck
     with gmap, eq, show
 
-    type t  = (ExprTerm.t, string, mem_order, loc, t) at
-    type lt = (ExprTerm.t logic, string logic, mem_order logic, loc logic, lt) at logic
+    type t   = (ExprTerm.t, string, mem_order, loc, t) at
+    type lt' = (ExprTerm.t logic, string logic, mem_order logic, loc logic, lt' logic) at
+    type lt  = lt' logic
 
     let rec inj t = !! (gmap(at) (ExprTerm.inj) (!!) (!!) (!!) (inj) t)
 
@@ -170,8 +171,9 @@ module StmtTerm =
 
 module StmtContext = 
   struct
-    type t  = StmtTerm.t
-    type lt = StmtTerm.lt
+    type t   = StmtTerm.t
+    type lt' = StmtTerm.lt'
+    type lt  = StmtTerm.lt
 
     @type ('expr, 'string, 'mo, 'loc, 't, 'c) ac =
     | Hole
@@ -181,8 +183,9 @@ module StmtContext =
     | ParR      of 't * 'c
     with gmap, eq, show
 
-    type c  = (ExprTerm.t, string, mem_order, loc, StmtTerm.t, c) ac
-    type lc = (ExprTerm.lt, string logic, mem_order logic, loc logic, StmtTerm.lt, lc) ac
+    type c   = (ExprTerm.t, string, mem_order, loc, StmtTerm.t, c) ac
+    type lc' = (ExprTerm.t, string, mem_order, loc, StmtTerm.t, lc' logic) ac
+    type lc  = lc' logic
 
     let rec inj c = !! (gmap(ac) (ExprTerm.inj) (!!) (!!) (!!) (StmtTerm.inj) (inj) c)
 

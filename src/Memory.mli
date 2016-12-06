@@ -9,7 +9,10 @@ val string_of_mo : mem_order -> string
 
 module Path : 
   sig
-    type t = N | L of t | R of t
+    type 'a at = N | L of 'a | R of 'a
+
+    type t  = t  at
+    type lt = lt at MiniKanren.logic
   end 
 
 module Registers : 
@@ -47,21 +50,44 @@ module ViewFront :
 module ThreadState :
   sig
     type t = {
-      curr : ViewFront.t;
+      regs : Registers.t
+      (* curr : ViewFront.t; *)
     }
 
+    type lt' = {
+      lregs : Registers.lt;
+    }
+
+    type lt = lt' MiniKanren.logic
+
     val empty : t
+
+    val inj : t -> lt
+    val prj : lt -> t
+
+    val show : t -> string
+    val eq : t -> t -> bool
   end
 
 module ThreadTree : 
   sig
     type t
+    type lt'
+    type lt = lt' MiniKanren.logic
 
     val empty : t
 
-    val get_thread : t -> Path.t -> ThreadState.t
-    
-    val update_thread : t -> Path.t -> ThreadState.t -> t
+    val inj : t -> lt
+    val prj : lt -> t
+
+    val show : t -> string
+    val eq : t -> t -> bool
+
+    val get_thrdo    : Path.lt -> lt -> ThreadState.lt -> MiniKanren.goal
+    val update_thrdo : Path.lt -> ThreadState.lt -> lt -> lt -> MiniKanren.goal      
+
+    val get_thrd    : Path.t -> t -> ThreadState.t
+    val update_thrd : Path.t -> ThreadState.t -> t -> t
   end
 
 module History :
