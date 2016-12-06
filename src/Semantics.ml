@@ -16,11 +16,41 @@ module Make
     let register rl rls = rl::rls
     let deregister = List.remove_assoc
 
+    let (!) = (!!)
+
     let stepo rls t s t' s' =
       fresh (c c' rdx rdx')
         (C.splito t  c  rdx )
-        (conde @@ List.map (fun (name, rl) -> rl c rdx s c' rdx' s') rls)     
+        (C.reducibleo rdx !true)
+        (conde @@ List.map (fun (name, rl) -> rl c rdx s c' rdx' s') rls)
+        (rdx =/= rdx')
         (C.splito t' c' rdx')
+        (* (conde [ *)
+        (*   (b === !true) &&& *)
+        (*   (C.reducibleo rdx !true) &&& *)
+        (*   (conde @@ List.map (fun (name, rl) -> rl c rdx s c' rdx' s') rls) &&& *)
+        (*   (rdx =/= rdx') &&& *)
+        (*   (C.splito t' c' rdx'); *)
+        
+        (*   (b === !false) &&& *)
+        (*   (C.reducibleo rdx !false); *)
+        (* ]) *)
+        
+
+    let rec spaceo rls t s t'' s'' = 
+      conde [
+        (C.reducibleo t !false) &&& (t === t'') &&& (s === s'');
+        (fresh (t' s')
+          (C.reducibleo t !true)
+          (stepo rls t s t' s') 
+          (spaceo rls t' s' t'' s''));
+      ]
+
+        (* (stepo rls t s t' s' b) *)
+        (* (conde [ *)
+        (*   (b === !false) &&& (t === t'') &&& (s === s''); *)
+        (*   (b === !true)  &&& () &&& (spaceo rls t' s' t'' s''); *)
+        (* ]) *) 
         
     let split t = run qr (fun q  r  -> C.splito (T.inj t) q r)
                          (fun qs rs -> Stream.zip (Stream.map C.prj qs) (Stream.map T.prj rs))
@@ -33,4 +63,12 @@ module Make
                                          assert (Stream.is_empty tl);
                                          T.prj @@ List.hd hd
                             )         
+
+    let step rls t s = 
+      run qr (fun q  r  -> stepo rls (T.inj t) (S.inj s) q r)
+             (fun qs rs -> Stream.zip (Stream.map T.prj qs) (Stream.map S.prj rs))
+
+    let space rls t s = 
+      run qr (fun q  r  -> spaceo rls (T.inj t) (S.inj s) q r)
+             (fun qs rs -> Stream.zip (Stream.map T.prj qs) (Stream.map S.prj rs))
   end

@@ -13,6 +13,8 @@ module BasicExpr :
 
     val var   : string * rule
     val binop : string * rule
+
+    val all   : (string * rule) list
   end
 
 (* module BasicStmt :  *)

@@ -14,21 +14,19 @@ module Tester
   struct 
     module Sem = Semantics.Make(T)(C)(S)
 
-    let step sem t s = 
-      run qr (fun q  r  -> Sem.stepo sem (T.inj t) (S.inj s) q r)
-             (fun qs rs -> Stream.zip (Stream.map T.prj qs) (Stream.map S.prj rs))
+    let show (t, s) = "Term/State is not found among answers: " ^ T.show t ^ "; " ^ S.show s
+      
+    let eq (t, s) (t', s') = (T.eq t t') && (S.eq s s')
 
-    let test_rule rule (t, s) expected test_ctx =
-      let sem = Sem.make [rule] in
-      let stream = step sem t s in
-      let (actual, stream') = Stream.retrieve ~n:(List.length expected) @@ stream in
-      let show (t, s)        = "Term/State is not found among answers: " ^ T.show t ^ "; " ^ S.show s in
-      let eq (t, s) (t', s') = (T.eq t t') && (S.eq s s') in
-      let assert_contains x = 
-        assert_bool (show x) @@ List.exists (eq x) actual
-      in
-        assert_bool "More answers than expected" (Stream.is_empty stream');
-        List.iter assert_contains expected
+    let test_step rules (t, s) expected test_ctx =
+      let sem    = Sem.make rules in
+      let stream = Sem.step sem t s in
+        TestUtils.assert_stream stream expected ~show:show ~eq:eq
+
+    let test_space rules (t, s) expected test_ctx = 
+      let sem    = Sem.make rules in
+      let stream = Sem.space sem t s in
+        TestUtils.assert_stream stream expected ~show:show ~eq:eq 
   end
   
 module BasicExprTester = Tester(ET)(EC)(ES)
@@ -37,9 +35,17 @@ let regs = Registers.set "x" 42 Registers.empty
 
 let basic_expr_tests = 
   "basic_expr">::: [
-    "var">:: BasicExprTester.test_rule BasicExpr.var (ET.Var "x", regs) [(ET.Const 42, regs)];
+    "var">:: BasicExprTester.test_step [BasicExpr.var] (ET.Var "x", regs) [(ET.Const 42, regs)];
     
-    "binop">:: BasicExprTester.test_rule BasicExpr.binop (ET.Binop ("+", ET.Const 1, ET.Const 2), regs) [(ET.Const 3, regs)]
+    "binop">:: BasicExprTester.test_step [BasicExpr.binop] (ET.Binop ("+", ET.Const 1, ET.Const 2), regs) [(ET.Const 3, regs)];
+
+    "step_all">:: BasicExprTester.test_step BasicExpr.all (ET.Binop ("+", ET.Var "x", ET.Const 1), regs) [(ET.Binop ("+", ET.Const 42, ET.Const 1), regs)];
+
+
+    "space_all">:: let
+               e = (ET.Binop ("+", ET.Var "x", ET.Binop ("*", ET.Const 2, ET.Const 4)), regs)
+             in
+               BasicExprTester.test_space BasicExpr.all e [(ET.Const 50, regs); (ET.Const 50, regs)]
   ]
 
 let tests = 

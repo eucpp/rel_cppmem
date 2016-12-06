@@ -41,6 +41,9 @@ module type Context =
     val show : c -> string
     val eq : c -> c -> bool
                      
+    (** [reducibleo t b] says whether term t could be reduced *)
+    val reducibleo : lt -> bool logic -> goal 
+
     (** [splito t c rdx] splits the term [t] into context [c] and redex [rdx] *)
     val splito :  lt ->  lc ->  lt -> goal
 
@@ -116,16 +119,16 @@ module ExprContext =
     let reducibleo t b = ExprTerm.(conde [
       fresh (n)      (b === !false) (t === !(Const n));
       fresh (x)      (b === !true)  (t === !(Var x));
-      fresh (op l r) (b === !true)  (t === !(Binop (op, l, r)));
+      fresh (op l r) (b === !true)  (t === !(Binop (op, l, r))) ;
     ])
 
     let rec splito t c rdx = ExprTerm.(conde [
       fresh (op l r c' t')
          (t === !(Binop (op, l, r)))
          (conde [
-           ((c === !(BinopL (op, c', r))) &&& (rdx === t') &&& (reducibleo l !true ) &&& (splito l c' t'));
-           ((c === !(BinopR (op, l, c'))) &&& (rdx === t') &&& (reducibleo r !true ) &&& (splito r c' t'));
-           ((c === !Hole)                 &&& (rdx === t)  &&& (reducibleo l !false) &&& (reducibleo r !false));
+           ((c === !(BinopL (op, c', r))) &&& (rdx === t') &&& (splito l c' t'));
+           ((c === !(BinopR (op, l, c'))) &&& (rdx === t') &&& (splito r c' t'));
+           ((c === !Hole)                 &&& (rdx === t));
         ]);
       fresh (x)
         ((t === !(Var x)) &&& (c === !Hole) &&& (rdx === t));
