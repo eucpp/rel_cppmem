@@ -1,5 +1,4 @@
 let excl_answ qs = 
-  (* Printf.printf "answ len %d" (MiniKanren.Stream.length qs);  *)
   assert ( not (MiniKanren.Stream.is_empty qs)); 
   let 
     (hd, tl) = MiniKanren.Stream.retrieve ~n:1 qs

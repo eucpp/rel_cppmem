@@ -56,13 +56,7 @@ module Make
                          (fun qs rs -> Stream.zip (Stream.map C.prj qs) (Stream.map T.prj rs))
 
     let plug (c, t) = run q (fun q  -> C.splito q (C.inj c) (T.inj t))
-                            (fun qs -> let 
-                                         (hd, tl) = Stream.retrieve ~n:1 qs
-                                       in
-                                         (** Plugging should be deterministic *)
-                                         assert (Stream.is_empty tl);
-                                         T.prj @@ List.hd hd
-                            )         
+                            (fun qs -> T.prj @@ Utils.excl_answ qs)         
 
     let step rls t s = 
       run qr (fun q  r  -> stepo rls (T.inj t) (S.inj s) q r)
