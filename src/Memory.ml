@@ -24,8 +24,9 @@ module Path =
 
 module Registers = 
   struct
-    type t  = (string * int) list 
-    type lt = (string logic * Nat.logic) logic MiniKanren.List.logic
+    type t   = (string * int) list
+    type lt' = ((string logic * Nat.logic) logic, lt' logic) llist   
+    type lt  = lt' logic
     
     let empty = []
 

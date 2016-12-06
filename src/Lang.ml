@@ -7,11 +7,13 @@ module type Term =
     (** Term type *)
     type t
     
-    (** Injection of term into logic domain *)
-    type 'a lt
+    type lt'
 
-    val inj : t -> _ lt
-    val prj : _ lt -> t
+    (** Injection of term into logic domain *)
+    type lt = lt' logic
+
+    val inj : t -> lt
+    val prj : lt -> t
     val show : t -> string
     val eq : t -> t -> bool
   end
@@ -21,22 +23,26 @@ module type Context =
     (** Term type *)
     type t
            
+    type lt'
+
     (** Injection of term into MiniKanren.logic domain *)
-    type 'a lt
+    type lt = lt' logic
     
     (** Context type *)
     type c
 
-    (** Injection of context into logic domain *)
-    type 'b lc
+    type lc'
 
-    val inj : c -> _ lc
-    val prj : _ lc -> c
+    (** Injection of context into logic domain *)
+    type lc = lc' logic
+
+    val inj : c -> lc
+    val prj : lc -> c
     val show : c -> string
     val eq : c -> c -> bool
                      
     (** [splito t c rdx] splits the term [t] into context [c] and redex [rdx] *)
-    val splito : _ lt -> _ lc -> _ lt -> goal
+    val splito :  lt ->  lc ->  lt -> goal
 
     (* (\** Non-relational wrapper for split *\) *)
     (* val split : t -> (c * t) Stream.t *)
@@ -48,10 +54,13 @@ module type Context =
 module type State = 
   sig 
     type t
-    type 'a lt
+    
+    type lt'
 
-    val inj : t -> _ lt
-    val prj : _ lt -> t
+    type lt = lt' logic 
+
+    val inj : t -> lt
+    val prj : lt -> t
     val show : t -> string
     val eq : t -> t -> bool
   end
@@ -65,8 +74,9 @@ module ExprTerm =
     | Stuck
     with gmap, eq, show 
 
-    type t  = (int, string, t) at
-    type 'a lt = (Nat.logic, string logic, 'a lt) at logic
+    type t   = (int, string, t) at
+    type lt' = (Nat.logic, string logic, lt' logic) at
+    type lt  = lt' logic
 
     let rec inj t = !! (gmap(at) (inj_nat) (!!) (inj) t)
 
@@ -79,8 +89,9 @@ module ExprTerm =
 
 module ExprContext =
   struct
-    type t  = ExprTerm.t
-    type 'a lt = 'a ExprTerm.lt
+    type t   = ExprTerm.t
+    type lt' = ExprTerm.lt'
+    type lt  = ExprTerm.lt
 
     @type ('int, 'string, 't, 'c) ac = 
     | Hole
@@ -88,8 +99,9 @@ module ExprContext =
     | BinopR of 'string * 't * 'c
     with gmap, eq, show
 
-    type c  = (int, string, t, c) ac
-    type 'a lc = (Nat.logic, string logic, lt, 'a lc) ac logic
+    type c   = (int, string, t, c) ac
+    type lc' = (Nat.logic, string logic, lt, lc' logic) ac
+    type lc  = lc' logic
 
     let rec inj c = !! (gmap(ac) (inj_nat) (!!) (ExprTerm.inj) (inj) c)
 

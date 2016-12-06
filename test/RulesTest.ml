@@ -9,7 +9,7 @@ module ES = Lang.ExprState
 
 module Tester 
   (T : Lang.Term)
-  (C : Lang.Context with type t = T.t with type lt = 'a logic)
+  (C : Lang.Context with type t = T.t with type lt' = T.lt')
   (S : Lang.State) = 
   struct 
     module Sem = Semantics.Make(T)(C)(S)
@@ -39,7 +39,7 @@ let basic_expr_tests =
   "basic_expr">::: [
     "var">:: BasicExprTester.test_rule BasicExpr.var (ET.Var "x", regs) [(ET.Const 42, regs)];
     
-    (* "binop">:: BasicExprTester.test_rule BasicExpr.binop (ET.Binop ("+", ET.Const 1, ET.Const 2), regs) [(ET.Const 3, regs)] *)
+    "binop">:: BasicExprTester.test_rule BasicExpr.binop (ET.Binop ("+", ET.Const 1, ET.Const 2), regs) [(ET.Const 3, regs)]
   ]
 
 let tests = 

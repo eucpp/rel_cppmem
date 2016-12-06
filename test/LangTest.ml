@@ -7,8 +7,8 @@ module ES = Lang.ExprState
 
 module Tester
   (T : Lang.Term)
-  (C : Lang.Context with type t = T.t with type 'a lt = 'a logic)
-  (S : Lang.State with type 'a lt = 'a logic) =
+  (C : Lang.Context with type t = T.t with type lt' = T.lt')
+  (S : Lang.State) =
   struct
     module Sem = Semantics.Make(T)(C)(S)
 

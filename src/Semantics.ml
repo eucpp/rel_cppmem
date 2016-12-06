@@ -2,7 +2,7 @@ open MiniKanren
 
 module Make
   (T : Lang.Term) 
-  (C : Lang.Context with type t = T.t with type lt = T.lt)
+  (C : Lang.Context with type t = T.t with type lt' = T.lt')
   (S : Lang.State) =
   struct
     type rule = (C.lc -> T.lt -> S.lt -> C.lc -> T.lt -> S.lt -> MiniKanren.goal)
@@ -18,19 +18,19 @@ module Make
 
     let stepo rls t s t' s' =
       fresh (c c' rdx rdx')
-        (L.splito t  c  rdx )
-        (L.splito t' c' rdx')
-        (conde @@ List.map (fun (name, rl) -> rl c rdx s c' rdx' s') rls)
+        (C.splito t  c  rdx )
+        (conde @@ List.map (fun (name, rl) -> rl c rdx s c' rdx' s') rls)     
+        (C.splito t' c' rdx')
         
-    let split t = run qr (fun q  r  -> splito (inj_term t) q r)
-                         (fun qs rs -> Stream.zip (Stream.map prj_ctx qs) (Stream.map prj_term rs))
+    let split t = run qr (fun q  r  -> C.splito (T.inj t) q r)
+                         (fun qs rs -> Stream.zip (Stream.map C.prj qs) (Stream.map T.prj rs))
 
-    let plug (c, t) = run q (fun q  -> splito q (inj_ctx c) (inj_term t))
+    let plug (c, t) = run q (fun q  -> C.splito q (C.inj c) (T.inj t))
                             (fun qs -> let 
                                          (hd, tl) = Stream.retrieve ~n:1 qs
                                        in
                                          (** Plugging should be deterministic *)
                                          assert (Stream.is_empty tl);
-                                         prj_term @@ List.hd hd
+                                         T.prj @@ List.hd hd
                             )         
   end

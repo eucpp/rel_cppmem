@@ -41,7 +41,7 @@ module BasicExpr =
         (t  === !(Binop (op, !(Const x), !(Const y))))
         (t' === !(Const z))
         (conde [
-          ((op === !"+") &&& (Nat.addo x y z));
+          ((* (op === !"+") &&& *) (Nat.addo x y z));
         ])       
     )
 

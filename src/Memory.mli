@@ -14,8 +14,9 @@ module Path :
 
 module Registers : 
   sig
-    type t  = (string * int) list 
-    type lt = (string MiniKanren.logic * MiniKanren.Nat.logic) MiniKanren.logic MiniKanren.List.logic
+    type t   (* = (string * int) list  *)
+    type lt'  
+    type lt  = lt' MiniKanren.logic
     
     val empty : t
 
