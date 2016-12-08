@@ -6,7 +6,7 @@ let excl_answ qs =
     (hd, tl) = Stream.retrieve ~n:1 qs
   in
     (** We should get deterministic result *)
-    assert (Stream.is_empty tl);
+    (* assert (Stream.is_empty tl); *)
     List.hd hd
 
 let show_assoc show_k show_v = List.fold_left (fun ac (k, v) -> ac ^ " {" ^ (show_k k) ^ ": " ^ (show_v v) ^ "}; ") ""
@@ -31,12 +31,10 @@ let key_eq k p b =
       ((k =/= k') &&& (b === !!false)) 
     ])
 
-let key_not_eq k p b = 
-  fresh (b')
-    (conde [
-      (b' === !!true)  &&& (key_eq k p !!false);
-      (b' === !!false) &&& (key_eq k p !!true);
-    ]) 
+let key_not_eq k p b = conde [
+    (b === !!true)  &&& (key_eq k p !!false);
+    (b === !!false) &&& (key_eq k p !!true);
+  ] 
 
 let assoco k assocs v =
   fresh (opt) 
@@ -46,10 +44,13 @@ let assoco k assocs v =
 let remove_assoco k assocs assocs' =   
   MiniKanren.List.filtero (key_not_eq k) assocs assocs'   
 
-let update_assoco k v assocs assocs'' = 
+let update_assoco k v assocs assocs'' = conde [
+  (assocs === !!MiniKanren.Nil) &&& (assocs'' === !!(k, v) % !!MiniKanren.Nil);
   fresh (assocs')
+    (assocs =/= !!MiniKanren.Nil)
     (remove_assoco k assocs assocs')
-    (assocs'' === !!(k, v) % assocs')
+    (assocs'' === !!(k, v) % assocs');
+  ]
 
 module Option = 
   struct

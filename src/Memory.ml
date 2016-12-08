@@ -89,13 +89,18 @@ module ViewFront =
 
     let geto = Utils.assoco
 
+    let removo = Utils.remove_assoco
+
     let updateo = Utils.update_assoco
 
     let get var regs = run q (fun q  -> geto !var (inj regs) q)
                              (fun qs -> prj_nat @@ Utils.excl_answ qs)
 
+    let remove var regs = run q (fun q  -> removo !var (inj regs) q)
+                                (fun qs -> prj @@ Utils.excl_answ qs) 
+
     let update var v regs = run q (fun q  -> updateo !var (inj_nat v) (inj regs) q)
-                                  (fun qs -> (prj @@ Utils.excl_answ qs)) 
+                                  (fun qs -> prj @@ Utils.excl_answ qs) 
 
   end
 

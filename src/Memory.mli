@@ -54,9 +54,11 @@ module ViewFront :
     val eq : t -> t -> bool
 
     val geto    : loc MiniKanren.logic -> lt -> MiniKanren.Nat.logic -> MiniKanren.goal
+    val removo  : loc MiniKanren.logic -> lt -> lt -> MiniKanren.goal
     val updateo : loc MiniKanren.logic -> MiniKanren.Nat.logic -> lt -> lt -> MiniKanren.goal
 
     val get    : loc -> t -> tstmp
+    val remove : loc -> t -> t
     val update : loc -> tstmp -> t -> t
   end
 
