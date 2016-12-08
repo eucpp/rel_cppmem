@@ -51,24 +51,24 @@ module BasicExpr =
     let all = [var; binop]
   end
 
-module BasicStmt :
-  struct
-    type t  = Lang.StmtContext.t
-    type lt = Lang.StmtContext.lt
+(* module BasicStmt : *)
+(*   struct *)
+(*     type t  = Lang.StmtContext.t *)
+(*     type lt = Lang.StmtContext.lt *)
 
-    type c  = Lang.StmtContext.c
-    type lc = Lang.StmtContext.lc
+(*     type c  = Lang.StmtContext.c *)
+(*     type lc = Lang.StmtContext.lc *)
 
-    type s
-    type ls
+(*     type s *)
+(*     type ls *)
 
-    type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
+(*     type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal) *)
     
-    let expro c t s c' t' s' = 
+(*     let expro c t s c' t' s' =  *)
 
 
-    val asgno   : rule
-    val ifo     : rule
-    val repeato : rule
-    val seqo    : rule
-  end
+(*     val asgno   : rule *)
+(*     val ifo     : rule *)
+(*     val repeato : rule *)
+(*     val seqo    : rule *)
+(*   end *)

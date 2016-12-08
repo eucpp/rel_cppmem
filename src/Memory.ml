@@ -1,3 +1,4 @@
+open GT
 open MiniKanren
 
 type loc = string
@@ -19,7 +20,26 @@ let string_of_mo = function
 
 module Path = 
   struct
-    type t = N | L of t | R of t
+    type 'a at = N | L of 'a | R of 'a
+
+    type t  = t  at
+    type lt = lt at MiniKanren.logic
+
+    let (!) = (!!)
+
+    let rec inj = function
+    | N -> !N
+    | L p -> !(L (inj p))
+    | R p -> !(R (inj p))
+
+
+    let rec prj lp = 
+      let p = !?lp in
+        match p with
+        | N -> N
+        | L lp' -> L (prj lp')
+        | R lp' -> R (prj lp')
+ 
   end
 
 module Registers = 
@@ -85,8 +105,8 @@ module ViewFront =
         (l, t)::vfront' 
   end
 
-module ThreadState :
-  sig
+module ThreadState =
+  struct
     type t = {
       regs : Registers.t
       (* curr : ViewFront.t; *)
@@ -96,24 +116,24 @@ module ThreadState :
       lregs : Registers.lt;
     }
 
-    type lt = lt' MiniKanren.logic
+    type lt = lt' logic
 
     let empty = { regs = Registers.empty; }
 
-    let inj t  = { lregs = Registers.inj t.regs; }
+    let inj t  = !! { lregs = Registers.inj t.regs; }
     
     let prj lt = 
       let lt' = !?lt in
-      { regs = Registers.prj lt'.regs; }
+      { regs = Registers.prj lt'.lregs; }
 
     let show t = "Registers: " ^ Registers.show t.regs
     
     let eq t t' = Registers.eq t.regs t'.regs
   end
 
-module ThreadTree : 
+module ThreadTree =
   struct
-    @type ('a 't) at = Leaf of 'a | Node of 't * 't with gmap
+    @type ('a, 't) at = Leaf of 'a | Node of 't * 't with gmap
  
     type t   = (ThreadState.t, t) at
     type lt' = (ThreadState.lt, lt' logic) at
@@ -124,35 +144,57 @@ module ThreadTree :
     let rec inj t  = !! (gmap(at) (ThreadState.inj) (inj) t)
     let rec prj lt = gmap(at) (ThreadState.prj) (prj) (!?lt)
 
-    val show : t -> string
-    val eq : t -> t -> bool
+    let rec thrd_list' thrds = function
+    | Leaf thrd          -> thrd::thrds
+    | Node (left, right) -> 
+      let thrds' = thrd_list' thrds left in
+        thrd_list' thrds' right
 
-    val get_thrdo    : Path.lt -> lt -> ThreadState.lt -> MiniKanren.goal
-    val update_thrdo : Path.lt -> ThreadState.lt -> lt -> lt -> MiniKanren.goal      
+    let thrd_list thrd_tree = List.rev @@ thrd_list' [] thrd_tree
 
-    val get_thrd    : Path.t -> t -> ThreadState.t
-    val update_thrd : Path.t -> ThreadState.t -> t -> t
-  end
+    let show thrd_tree = 
+      let thrds = thrd_list thrd_tree in
+      let sep = "-------------------------------------------------------------" in
+      let cnt = ref 0 in
+      let show_thrd acc thrd = 
+        cnt := !cnt + 1;
+        acc ^ "Thread #" ^ (string_of_int !cnt) ^ ":\n" ^ (ThreadState.show thrd) ^ sep ^ "\n" 
+      in
+        List.fold_left show_thrd "" thrds
 
-module ThreadTree = 
-  struct
-    type t = Leaf of ThreadState.t | Node of t * t
+    let rec eq thrd_tree thrd_tree' = match (thrd_tree, thrd_tree') with
+    | Leaf thrd, Leaf thrd'      -> ThreadState.eq thrd thrd'
+    | Node (l, r), Node (l', r') -> (eq l l') && (eq r r')
+    | _, _ -> false
 
-    let empty = Leaf ThreadState.empty
+    let (!) = (!!)
 
-    let rec get_thread t p = 
-       match (t, p) with
-         | Node (l, _), Path.L p' -> get_thread l p'
-         | Node (_, r), Path.R p' -> get_thread r p'
-         | Leaf thrd  , Path.N    -> thrd
-         | _          , _         -> failwith "Incorrect path"
+    let rec get_thrdo path thrd_tree thrd = conde [
+      (path === !Path.N) &&& (thrd_tree === !(Leaf thrd));  
+      fresh (l r path')
+        (thrd_tree === !(Node (l, r)))
+        (conde [
+          (path === !(Path.L path')) &&& (get_thrdo path' l thrd);
+          (path === !(Path.R path')) &&& (get_thrdo path' r thrd);
+        ])
+    ]
 
-    let rec update_thread t p thrd = 
-       match (t, p) with
-         | Node (l, r), Path.L p' -> Node (update_thread l p' thrd, r)
-         | Node (l, r), Path.R p' -> Node (l, update_thread r p' thrd)
-         | Leaf _     , Path.N    -> Leaf thrd
-         | _          , _         -> failwith "Incorrect path"       
+    let rec update_thrdo path thrd thrd_tree thrd_tree' = conde [
+      fresh (thrd') 
+        ((path === !Path.N) &&& (thrd_tree === !(Leaf thrd')) &&& (thrd_tree' === !(Leaf thrd)));
+      fresh (l r l' r' path')
+        (thrd_tree === !(Node (l, r)))
+        (conde [
+          (path === !(Path.L path')) &&& (thrd_tree' === !(Node (l', r))) &&& (update_thrdo path' thrd l l');
+          (path === !(Path.R path')) &&& (thrd_tree' === !(Node (l, r'))) &&& (update_thrdo path' thrd r r');
+        ]);
+    ] 
+
+    let get_thrd path thrd_tree = run q (fun q  -> get_thrdo (Path.inj path) (inj thrd_tree) q)
+                                        (fun qs -> ThreadState.prj @@ Utils.excl_answ qs)
+
+    let update_thrd path thrd thrd_tree = run q (fun q  -> update_thrdo (Path.inj path) (ThreadState.inj thrd) (inj thrd_tree) q)
+                                                (fun qs -> prj @@ Utils.excl_answ qs)
   end
 
 module History = 

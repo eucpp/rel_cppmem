@@ -13,6 +13,9 @@ module Path :
 
     type t  = t  at
     type lt = lt at MiniKanren.logic
+
+    val inj : t -> lt
+    val prj : lt -> t
   end 
 
 module Registers : 
@@ -71,9 +74,11 @@ module ThreadState :
 
 module ThreadTree : 
   sig
-    type t
-    type lt'
-    type lt = lt' MiniKanren.logic
+    @type ('a, 't) at = Leaf of 'a | Node of 't * 't with gmap
+ 
+    type t   = (ThreadState.t, t) at
+    type lt' = (ThreadState.lt, lt' MiniKanren.logic) at
+    type lt  = lt' MiniKanren.logic
 
     val empty : t
 

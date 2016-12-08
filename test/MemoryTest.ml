@@ -4,7 +4,7 @@ open Memory
 
 let int_of_bool b = if b then 1 else 0
 
-let registers_test = 
+let registers_tests = 
   "registers">::: [
     "test_1">:: (fun test_ctx -> 
        let r = Registers.set "x" 0 Registers.empty in
@@ -35,5 +35,36 @@ let registers_test =
     (* ); *)
   ]
 
+let regs      = Registers.set "x" 0 Registers.empty
+let thrd      = { ThreadState.regs = regs }
+let thrd_tree = ThreadTree.Node (ThreadTree.Leaf thrd, ThreadTree.empty)
+
+let thrd_tree_tests = 
+  "thrd_tree">::: [
+    "test_get_1">:: (fun test_ctx -> 
+      let expected = thrd in
+      let actual = ThreadTree.get_thrd (Path.L Path.N) thrd_tree in 
+        assert_equal expected actual ~cmp:ThreadState.eq ~printer:ThreadState.show 
+    );
+
+    "test_get_2">:: (fun test_ctx -> 
+      let expected = ThreadState.empty in
+      let actual   = ThreadTree.get_thrd (Path.R Path.N) thrd_tree in 
+        assert_equal expected actual ~cmp:ThreadState.eq ~printer:ThreadState.show 
+    );
+
+    "test_update_1">:: (fun test_ctx ->
+      let expected = thrd_tree in
+      let actual   = ThreadTree.update_thrd (Path.L Path.N) thrd (ThreadTree.Node (ThreadTree.empty, ThreadTree.empty)) in
+        assert_equal expected actual ~cmp:ThreadTree.eq ~printer:ThreadTree.show  
+    );
+
+    "test_update_2">:: (fun test_ctx ->
+      let expected = ThreadTree.Node (ThreadTree.Leaf thrd, ThreadTree.Leaf thrd) in
+      let actual   = ThreadTree.update_thrd (Path.R Path.N) thrd thrd_tree in
+        assert_equal expected actual ~cmp:ThreadTree.eq ~printer:ThreadTree.show  
+    );
+  ]
+
 let tests = 
-  "memory">::: [registers_test]
+  "memory">::: [registers_tests; thrd_tree_tests]
