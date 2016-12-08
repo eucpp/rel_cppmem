@@ -52,38 +52,16 @@ module Registers =
 
     let (!) = MiniKanren.inj
 
-    let prj_pair lp = (fun (k, v) -> (!?k, Nat.to_int (Nat.prj v))) (!?lp)
+    let inj = Utils.inj_assoc (!)  (inj_nat)
+    let prj = Utils.prj_assoc (!?) (prj_nat)
 
-    let inj l = MiniKanren.List.inj (fun (k, v) -> !(!k, Nat.inj (Nat.of_int v))) @@ MiniKanren.List.of_list l
-    let prj l = MiniKanren.List.to_list @@ MiniKanren.List.prj prj_pair l
+    let show = Utils.show_assoc (fun x -> x) (string_of_int) 
 
-    let show = List.fold_left (fun ac (k, v) -> ac ^ " {" ^ k ^ ": " ^ string_of_int v ^ "}; ") ""
+    let eq = Utils.eq_assoc (=) (=)
 
-    let eq regs regs' = 
-      let 
-        check_reg reg = List.exists ((=) reg) regs'
-      in
-        List.for_all check_reg regs
+    let geto = Utils.assoco
 
-    let make_reg var v = !(var, v)
-
-    let key_eq k p b =
-      fresh (k' v')
-        (p === !(k', v'))
-        (conde [
-          ((k === k') &&& (b === !true));
-          ((k =/= k') &&& (b === !false)) 
-        ])
-
-    let geto var regs v = 
-      fresh (opt) 
-        (MiniKanren.List.lookupo (key_eq var) regs opt)
-        (opt === !(Some !(var, v)))
-
-    let seto var v regs regs'' = 
-      fresh (regs')
-        (MiniKanren.List.filtero (key_eq var) regs regs')
-        (regs'' === (make_reg var v) % regs)
+    let seto = Utils.update_assoco 
 
     let get var regs = run q (fun q  -> geto !var (inj regs) q)
                              (fun qs -> prj_nat @@ Utils.excl_answ qs)
@@ -92,17 +70,33 @@ module Registers =
                                (fun qs -> (prj @@ Utils.excl_answ qs)) 
   end
 
-module ViewFront = 
+module ViewFront =
   struct
-    type t = (loc * tstmp) list
+    type t   = (loc * tstmp) list
+    type lt' = ((loc logic * Nat.logic) logic, lt' logic) llist   
+    type lt  = lt' logic
 
     let empty = []
 
-    let get l vfront = List.assoc l vfront
-    
-    let update l t vfront =
-      let vfront' = List.remove_assoc l vfront in
-        (l, t)::vfront' 
+    let (!) = MiniKanren.inj
+
+    let inj = Utils.inj_assoc (!)  (inj_nat)
+    let prj = Utils.prj_assoc (!?) (prj_nat)
+
+    let show = Utils.show_assoc (string_of_loc) (string_of_tstmp) 
+
+    let eq = Utils.eq_assoc (=) (=)
+
+    let geto = Utils.assoco
+
+    let updateo = Utils.update_assoco
+
+    let get var regs = run q (fun q  -> geto !var (inj regs) q)
+                             (fun qs -> prj_nat @@ Utils.excl_answ qs)
+
+    let update var v regs = run q (fun q  -> updateo !var (inj_nat v) (inj regs) q)
+                                  (fun qs -> (prj @@ Utils.excl_answ qs)) 
+
   end
 
 module ThreadState =

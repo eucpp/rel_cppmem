@@ -2,8 +2,6 @@ open OUnit2
 open MiniKanren
 open Memory
 
-let int_of_bool b = if b then 1 else 0
-
 let registers_tests = 
   "registers">::: [
     "test_1">:: (fun test_ctx -> 
@@ -27,13 +25,33 @@ let registers_tests =
         assert_equal 0 vx ~printer:string_of_int;
         assert_equal 1 vy ~printer:string_of_int   
     );
-
-    (* "test_tmp">:: (fun test_ctx -> *)
-    (*   run q (fun q  -> Registers.key_eq !!"x" !!(!!"x", !!1) q) *)
-    (*         (fun qs -> assert (not (Stream.is_empty qs)); *)
-    (*                    Stream.iter (fun x -> print_int @@ int_of_bool (!? x)) qs) *)
-    (* ); *)
   ]
+
+let viewfront_tests = 
+  "viewfront">::: [
+    "test_1">:: (fun test_ctx -> 
+       let r = ViewFront.update "x" 0 ViewFront.empty in
+       let v = ViewFront.get "x" r in
+         assert_equal 0 v ~printer:string_of_int   
+    );
+
+    "test_2">:: (fun test_ctx -> 
+       let r  = ViewFront.update "x" 0 ViewFront.empty in
+       let r' = ViewFront.update "x" 1 r in
+       let v  = ViewFront.get "x" r' in
+         assert_equal 1 v ~printer:string_of_int   
+    );
+
+    "test_3">:: (fun test_ctx ->
+      let r  = ViewFront.update "x" 0 ViewFront.empty in
+      let r' = ViewFront.update "y" 1 r in
+      let vx = ViewFront.get "x" r' in
+      let vy = ViewFront.get "y" r' in
+        assert_equal 0 vx ~printer:string_of_int;
+        assert_equal 1 vy ~printer:string_of_int   
+    );
+  ]
+
 
 let regs      = Registers.set "x" 0 Registers.empty
 let thrd      = { ThreadState.regs = regs }
@@ -67,4 +85,4 @@ let thrd_tree_tests =
   ]
 
 let tests = 
-  "memory">::: [registers_tests; thrd_tree_tests]
+  "memory">::: [registers_tests; viewfront_tests; thrd_tree_tests]

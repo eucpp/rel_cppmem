@@ -20,7 +20,7 @@ module Path :
 
 module Registers : 
   sig
-    type t   (* = (string * int) list  *)
+    type t
     type lt'  
     type lt  = lt' MiniKanren.logic
     
@@ -42,11 +42,21 @@ module Registers :
 module ViewFront :
   sig
     type t
+    type lt' 
+    type lt = lt' MiniKanren.logic
 
     val empty : t
 
-    val get : loc -> t -> int
+    val inj : t -> lt
+    val prj : lt -> t
 
+    val show : t -> string
+    val eq : t -> t -> bool
+
+    val geto    : loc MiniKanren.logic -> lt -> MiniKanren.Nat.logic -> MiniKanren.goal
+    val updateo : loc MiniKanren.logic -> MiniKanren.Nat.logic -> lt -> lt -> MiniKanren.goal
+
+    val get    : loc -> t -> tstmp
     val update : loc -> tstmp -> t -> t
   end
 
