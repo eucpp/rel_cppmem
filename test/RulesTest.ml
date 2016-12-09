@@ -7,6 +7,10 @@ module ET = Lang.ExprTerm
 module EC = Lang.ExprContext
 module ES = Lang.ExprState
 
+module ST = Lang.StmtTerm
+module SC = Lang.StmtContext
+module SS = Lang.StmtState
+
 module Tester 
   (T : Lang.Term)
   (C : Lang.Context with type t = T.t with type lt' = T.lt')
@@ -30,6 +34,7 @@ module Tester
   end
   
 module BasicExprTester = Tester(ET)(EC)(ES)
+module BasicStmtTester = Tester(ST)(SC)(SS)
 
 let regs = Registers.set "x" 42 Registers.empty
 
@@ -48,5 +53,12 @@ let basic_expr_tests =
                BasicExprTester.test_space BasicExpr.all e [(ET.Const 50, regs); (ET.Const 50, regs)]
   ]
 
+let mem = MemState.assign_local Path.N "x" 42 MemState.empty
+
+let basic_stmt_tests = 
+  "basic_stmt">::: [
+    "assign">:: BasicStmtTester.test_step [BasicStmt.asgn] (ST.Asgn ("x", ST.AExpr (ET.Const 42)), MemState.empty) [(ST.Skip, mem)];
+  ]
+
 let tests = 
-  "rules">::: [basic_expr_tests]
+  "rules">::: [basic_expr_tests; basic_stmt_tests]

@@ -5,6 +5,10 @@ module ET = Lang.ExprTerm
 module EC = Lang.ExprContext
 module ES = Lang.ExprState
 
+module ST = Lang.StmtTerm
+module SC = Lang.StmtContext
+module SS = Lang.StmtState
+
 module Tester
   (T : Lang.Term)
   (C : Lang.Context with type t = T.t with type lt' = T.lt')
@@ -24,6 +28,7 @@ module Tester
   end
 
 module ExprTester = Tester(ET)(EC)(ES)
+module StmtTester = Tester(ST)(SC)(SS)
 
 let expr_tests = 
   "expr">::: [
@@ -54,6 +59,15 @@ let expr_tests =
                                ExprTester.test_plug (EC.BinopR ("+", ET.Const 1, EC.Hole), ET.Var "x") e);
   ]
 
+let stmt_tests = 
+  "stmt_tests">::: [
+    "test_split_asgn">:: (let stmt = ST.Asgn ("x", ST.Skip) in
+                            StmtTester.test_split stmt [(SC.Hole, stmt);
+                                                        (SC.AsgnC ("x", SC.Hole), ST.Skip)]);
+
+    "test_plug_skip">:: StmtTester.test_plug (SC.Hole, ST.Skip) ST.Skip;
+  ]
+
 let tests = 
-  "lang">::: [expr_tests]
+  "lang">::: [expr_tests; stmt_tests]
 

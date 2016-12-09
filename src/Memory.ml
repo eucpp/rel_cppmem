@@ -107,7 +107,7 @@ module ViewFront =
 module ThreadState =
   struct
     type t = {
-      regs : Registers.t
+      regs : Registers.t;
       curr : ViewFront.t;
     }
 
@@ -130,6 +130,24 @@ module ThreadState =
     let show t = "Registers: " ^ Registers.show t.regs ^ "\nCurrent viewfront: " ^ ViewFront.show t.curr
     
     let eq t t' = (Registers.eq t.regs t'.regs) && (ViewFront.eq t.curr t'.curr)
+
+    let (!) = (!!)
+
+    let get_regso t regs = 
+      fresh (curr)
+        (t === !{ lregs = regs; lcurr = curr; })
+  
+    let set_regso regs' t t' = 
+      fresh (regs curr)
+        (t  === !!{ lregs = regs;  lcurr = curr; })
+        (t' === !!{ lregs = regs'; lcurr = curr; })
+
+    let assign_localo var v t t' = 
+      fresh (regs regs')
+        (get_regso t regs)
+        (Registers.seto var v regs regs')
+        (set_regso regs' t t')        
+
   end
 
 module ThreadTree =
@@ -221,14 +239,14 @@ module History =
     let get l tmin h = List.find (fun (l', t', _, _) -> l = l' && tmin <= t') h
   end
 
-module State =
+module MemState =
   struct
     type t = {
       thrds : ThreadTree.t;
     }
 
     type lt' = {
-      lthrds : ThreadTree.t;
+      lthrds : ThreadTree.lt;
     }
 
     type lt = lt' MiniKanren.logic
@@ -246,4 +264,32 @@ module State =
     let show t = "Threads\n" ^ sep ^ "\n" ^ ThreadTree.show t.thrds
     
     let eq t t' = ThreadTree.eq t.thrds t'.thrds
+
+    let (!) = (!!)
+
+    let get_thrd_treeo t tree = 
+      (t === !{lthrds = tree;})
+
+    let set_thrd_treeo tree t t' = 
+      (t' === !{lthrds = tree;})
+ 
+    let get_thrdo path t thrd =
+      fresh (thrd_tree)
+        (get_thrd_treeo t thrd_tree)
+        (ThreadTree.get_thrdo path thrd_tree thrd) 
+      
+    let update_thrdo path thrd t t' = 
+      fresh (thrd_tree thrd_tree')
+        (get_thrd_treeo t thrd_tree)
+        (ThreadTree.update_thrdo path thrd thrd_tree thrd_tree')
+        (set_thrd_treeo thrd_tree' t t')
+ 
+    let assign_localo path x n t t' = 
+      fresh (thrd thrd')
+        (get_thrdo path t thrd)
+        (ThreadState.assign_localo x n thrd thrd')
+        (update_thrdo path thrd' t t')
+
+    let assign_local path x n t = run q (fun q  -> assign_localo (Path.inj path) !x (inj_nat n) (inj t) q)
+                                        (fun qs -> prj @@ Utils.excl_answ qs)
   end

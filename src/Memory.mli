@@ -1,3 +1,5 @@
+open MiniKanren
+
 type loc   = string 
 type tstmp = int 
 
@@ -12,7 +14,7 @@ module Path :
     type 'a at = N | L of 'a | R of 'a
 
     type t  = t  at
-    type lt = lt at MiniKanren.logic
+    type lt = lt at logic
 
     val inj : t -> lt
     val prj : lt -> t
@@ -22,7 +24,7 @@ module Registers :
   sig
     type t
     type lt'  
-    type lt  = lt' MiniKanren.logic
+    type lt  = lt' logic
     
     val empty : t
 
@@ -83,6 +85,8 @@ module ThreadState :
 
     val show : t -> string
     val eq : t -> t -> bool
+
+    val assign_localo : string logic -> Nat.logic -> lt -> lt -> goal
   end
 
 module ThreadTree : 
@@ -123,17 +127,17 @@ module History :
     val insert : loc -> tstmp -> int -> ViewFront.t -> t -> t 
   end
 
-module State : 
+module MemState : 
   sig
     type t = {
       thrds : ThreadTree.t;
     }
 
     type lt' = {
-      lthrds : ThreadTree.t;
+      lthrds : ThreadTree.lt;
     }
 
-    type lt = lt' MiniKanren.logic
+    type lt = lt' logic
 
     val empty : t
 
@@ -142,4 +146,10 @@ module State :
 
     val show : t -> string
     val eq : t -> t -> bool
+
+    val get_thrdo : Path.lt -> lt -> ThreadState.lt -> goal 
+
+    val assign_localo : Path.lt -> string logic -> Nat.logic -> lt -> lt -> goal
+
+    val assign_local : Path.t -> string -> int -> t -> t
   end

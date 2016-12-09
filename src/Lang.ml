@@ -157,7 +157,7 @@ module StmtTerm =
     with gmap, eq, show
 
     type t   = (ExprTerm.t, string, mem_order, loc, t) at
-    type lt' = (ExprTerm.t logic, string logic, mem_order logic, loc logic, lt' logic) at
+    type lt' = (ExprTerm.lt, string logic, mem_order logic, loc logic, lt' logic) at
     type lt  = lt' logic
 
     let rec inj t = !! (gmap(at) (ExprTerm.inj) (!!) (!!) (!!) (inj) t)
@@ -184,7 +184,7 @@ module StmtContext =
     with gmap, eq, show
 
     type c   = (ExprTerm.t, string, mem_order, loc, StmtTerm.t, c) ac
-    type lc' = (ExprTerm.t, string, mem_order, loc, StmtTerm.t, lc' logic) ac
+    type lc' = (ExprTerm.lt, string logic, mem_order logic, loc logic, StmtTerm.lt, lc' logic) ac
     type lc  = lc' logic
 
     let rec inj c = !! (gmap(ac) (ExprTerm.inj) (!!) (!!) (!!) (StmtTerm.inj) (inj) c)
@@ -195,12 +195,6 @@ module StmtContext =
 
     let rec eq c c' = GT.eq(ac) (ExprTerm.eq) (GT.eq(string)) (=) (=) (StmtTerm.eq) (eq) c c'
 
-    let inj_term = StmtTerm.inj
-    let prj_term = StmtTerm.prj
-
-    let inj_ctx = inj
-    let prj_ctx = prj
-
     let (!) = MiniKanren.inj
     let (?) = MiniKanren.prj
 
@@ -210,7 +204,7 @@ module StmtContext =
         (t === !(AExpr e));
       fresh (x r)
         (b === !true) 
-        (t === !(Asgn (x, t)));
+        (t === !(Asgn (x, r)));
       fresh (e t1 t2)
         (b === !true)
         (t === !(If (e, t1, t2)));
@@ -245,8 +239,8 @@ module StmtContext =
         fresh (x r c' t')
           (t === !(Asgn (x, r)))
           (conde [
-            ((c === !Hole)            &&& (rdx === t ) &&& (reducibleo r !false));
-            ((c === !(AsgnC (x, c'))) &&& (rdx === t') &&& (reducibleo r !true ) &&& (splito r c' t'));
+            ((c === !Hole)            &&& (rdx === t ));
+            ((c === !(AsgnC (x, c'))) &&& (rdx === t') &&& (splito r c' t'));
           ]);
  
         fresh (t1 t2 c' t')
@@ -291,4 +285,15 @@ module StmtContext =
           (t === !Stuck);     
         ]);
       ]))
+
+      let rec patho c path = StmtTerm.(
+        fresh (x t' c' path')
+          (conde [
+            (c === !Hole)            &&& (path === !Memory.Path.N);
+            (c === !(AsgnC (x, c'))) &&& (path === !Memory.Path.N);
+            (c === !(SeqC (c', t'))) &&& (path === !Memory.Path.N);
+            (c === !(ParL (c', t'))) &&& (path === !(Memory.Path.L path')) &&& (patho c' path');            (c === !(ParR (t', c'))) &&& (path === !(Memory.Path.R path')) &&& (patho c' path');          ])
+      )
   end
+
+module StmtState = MemState

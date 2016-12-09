@@ -1,12 +1,10 @@
 open MiniKanren
+open Memory
 
 module ET = Lang.ExprTerm
-module EC = Lang.ExprContext 
 
 module ST = Lang.StmtTerm
 module SC = Lang.StmtContext
-
-module Regs = Memory.Registers
 
 module BasicExpr = 
   struct
@@ -29,7 +27,7 @@ module BasicExpr =
         (s  === s')
         (t  === !(Var x))
         (t' === !(Const n))
-        (Regs.geto x s n)
+        (Registers.geto x s n)
     )
 
     let var = ("var", varo)
@@ -51,24 +49,36 @@ module BasicExpr =
     let all = [var; binop]
   end
 
-(* module BasicStmt : *)
-(*   struct *)
-(*     type t  = Lang.StmtContext.t *)
-(*     type lt = Lang.StmtContext.lt *)
+module BasicStmt =
+  struct
+    type t  = Lang.StmtTerm.t
+    type lt = Lang.StmtTerm.lt
 
-(*     type c  = Lang.StmtContext.c *)
-(*     type lc = Lang.StmtContext.lc *)
+    type c  = Lang.StmtContext.c
+    type lc = Lang.StmtContext.lc
 
-(*     type s *)
-(*     type ls *)
+    type s  = Lang.StmtState.t
+    type ls = Lang.StmtState.lt
 
-(*     type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal) *)
+    type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
+ 
+    let (!) = (!!)
+   
+    (* let expro c t s c' t' s' = *)
+ 
+
+    let asgno c t s c' t' s' = ST.(SC.(
+      fresh (x n path e)
+        (c  === c')
+        (t  === !(Asgn (x, !(AExpr !(ET.Const n)))))
+        (t' === !Skip)
+        (patho c path)
+        (MemState.assign_localo path x n s s')
+    ))
+
+    let asgn = ("assign", asgno)
     
-(*     let expro c t s c' t' s' =  *)
-
-
-(*     val asgno   : rule *)
-(*     val ifo     : rule *)
-(*     val repeato : rule *)
-(*     val seqo    : rule *)
-(*   end *)
+    (* val ifo     : rule *)
+    (* val repeato : rule *)
+    (* val seqo    : rule *)
+  end
