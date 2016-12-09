@@ -27,7 +27,7 @@ module BasicExpr =
         (s  === s')
         (t  === !(Var x))
         (t' === !(Const n))
-        (Registers.geto x s n)
+        (ThreadState.get_localo s x n)
     )
 
     let var = ("var", varo)
@@ -63,9 +63,23 @@ module BasicStmt =
     type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
  
     let (!) = (!!)
-   
-    (* let expro c t s c' t' s' = *)
- 
+      
+    module ExprSem = Semantics.Make(Lang.ExprTerm)(Lang.ExprContext)(Lang.ExprState)
+
+    let expr_sem = ExprSem.make BasicExpr.all
+
+    let expro c t s c' t' s' = ST.(SC.(
+      fresh (et es et' es' path)
+        (c === c')
+        (s === s')
+        (t === !(AExpr et))
+        (patho c path)
+        (MemState.get_thrdo path s es)
+        (ExprSem.spaceo expr_sem et es et' es')
+        (t' === !(AExpr et'))
+    ))
+
+    let expr = ("expression", expro) 
 
     let asgno c t s c' t' s' = ST.(SC.(
       fresh (x n path e)

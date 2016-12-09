@@ -30,7 +30,7 @@ module BasicStmt :
 
     type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
     
-    (* val expro   : rule *)
+    val expr   : string * rule
     val asgn   : string * rule
     (* val ifo     : rule *)
     (* val repeato : rule *)

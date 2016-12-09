@@ -142,6 +142,11 @@ module ThreadState =
         (t  === !!{ lregs = regs;  lcurr = curr; })
         (t' === !!{ lregs = regs'; lcurr = curr; })
 
+    let get_localo t var v = 
+      fresh (regs)
+        (get_regso t regs)
+        (Registers.geto var regs v) 
+
     let assign_localo var v t t' = 
       fresh (regs regs')
         (get_regso t regs)

@@ -61,9 +61,14 @@ let expr_tests =
 
 let stmt_tests = 
   "stmt_tests">::: [
+    "test_split_expr">:: (let stmt = ST.AExpr (ET.Var "x") in
+                            StmtTester.test_split stmt [(SC.Hole, stmt)]);
+
     "test_split_asgn">:: (let stmt = ST.Asgn ("x", ST.Skip) in
                             StmtTester.test_split stmt [(SC.Hole, stmt);
                                                         (SC.AsgnC ("x", SC.Hole), ST.Skip)]);
+
+    
 
     "test_plug_skip">:: StmtTester.test_plug (SC.Hole, ST.Skip) ST.Skip;
   ]

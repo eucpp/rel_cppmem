@@ -38,26 +38,32 @@ module BasicStmtTester = Tester(ST)(SC)(SS)
 
 let regs = Registers.set "x" 42 Registers.empty
 
+let thrd = { ThreadState.regs = regs; ThreadState.curr = ViewFront.empty }
+
 let basic_expr_tests = 
   "basic_expr">::: [
-    "var">:: BasicExprTester.test_step [BasicExpr.var] (ET.Var "x", regs) [(ET.Const 42, regs)];
+    "var">:: BasicExprTester.test_step [BasicExpr.var] (ET.Var "x", thrd) [(ET.Const 42, thrd)];
     
-    "binop">:: BasicExprTester.test_step [BasicExpr.binop] (ET.Binop ("+", ET.Const 1, ET.Const 2), regs) [(ET.Const 3, regs)];
+    "binop">:: BasicExprTester.test_step [BasicExpr.binop] (ET.Binop ("+", ET.Const 1, ET.Const 2), thrd) [(ET.Const 3, thrd)];
 
-    "step_all">:: BasicExprTester.test_step BasicExpr.all (ET.Binop ("+", ET.Var "x", ET.Const 1), regs) [(ET.Binop ("+", ET.Const 42, ET.Const 1), regs)];
+    "step_all">:: BasicExprTester.test_step BasicExpr.all (ET.Binop ("+", ET.Var "x", ET.Const 1), thrd) [(ET.Binop ("+", ET.Const 42, ET.Const 1), thrd)];
 
 
     "space_all">:: let
-               e = (ET.Binop ("+", ET.Var "x", ET.Binop ("*", ET.Const 2, ET.Const 4)), regs)
+               e = (ET.Binop ("+", ET.Var "x", ET.Binop ("*", ET.Const 2, ET.Const 4)), thrd)
              in
-               BasicExprTester.test_space BasicExpr.all e [(ET.Const 50, regs); (ET.Const 50, regs)]
+               BasicExprTester.test_space BasicExpr.all e [(ET.Const 50, thrd); (ET.Const 50, thrd)]
   ]
 
 let mem = MemState.assign_local Path.N "x" 42 MemState.empty
 
 let basic_stmt_tests = 
   "basic_stmt">::: [
+    "expr"  >:: BasicStmtTester.test_step [BasicStmt.expr] (ST.AExpr (ET.Var "x"), mem) [(ST.AExpr (ET.Const 42), mem)];
+
     "assign">:: BasicStmtTester.test_step [BasicStmt.asgn] (ST.Asgn ("x", ST.AExpr (ET.Const 42)), MemState.empty) [(ST.Skip, mem)];
+
+   
   ]
 
 let tests = 

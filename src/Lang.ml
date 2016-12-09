@@ -137,7 +137,7 @@ module ExprContext =
     ])                                 
   end 
 
-module ExprState = Registers
+module ExprState = ThreadState
 
 module StmtTerm = 
   struct
@@ -200,8 +200,8 @@ module StmtContext =
 
     let reducibleo t b = StmtTerm.(conde [
       fresh (e) 
-        (b === !false)
-        (t === !(AExpr e));
+        (t === !(AExpr e))
+        (ExprContext.reducibleo e b);
       fresh (x r)
         (b === !true) 
         (t === !(Asgn (x, r)));
