@@ -108,26 +108,28 @@ module ThreadState =
   struct
     type t = {
       regs : Registers.t
-      (* curr : ViewFront.t; *)
+      curr : ViewFront.t;
     }
 
     type lt' = {
       lregs : Registers.lt;
+      lcurr : ViewFront.lt;
     }
 
     type lt = lt' logic
 
-    let empty = { regs = Registers.empty; }
+    let empty = { regs = Registers.empty; curr = ViewFront.empty; }
 
-    let inj t  = !! { lregs = Registers.inj t.regs; }
+    let inj t  = !! { lregs = Registers.inj t.regs; lcurr = ViewFront.inj t.curr; }
     
     let prj lt = 
       let lt' = !?lt in
-      { regs = Registers.prj lt'.lregs; }
+      { regs = Registers.prj lt'.lregs; 
+        curr = ViewFront.prj lt'.lcurr; }
 
-    let show t = "Registers: " ^ Registers.show t.regs
+    let show t = "Registers: " ^ Registers.show t.regs ^ "\nCurrent viewfront: " ^ ViewFront.show t.curr
     
-    let eq t t' = Registers.eq t.regs t'.regs
+    let eq t t' = (Registers.eq t.regs t'.regs) && (ViewFront.eq t.curr t'.curr)
   end
 
 module ThreadTree =
@@ -219,22 +221,29 @@ module History =
     let get l tmin h = List.find (fun (l', t', _, _) -> l = l' && tmin <= t') h
   end
 
-module StateST = 
-  struct 
+module State =
+  struct
     type t = {
-      history : History.t;
-      thread  : ThreadState.t;
+      thrds : ThreadTree.t;
     }
 
-    let empty = { history = History.empty; thread = ThreadState.empty; }
+    type lt' = {
+      lthrds : ThreadTree.t;
+    }
+
+    type lt = lt' MiniKanren.logic
+
+    let empty = { thrds = ThreadTree.empty; }
+
+    let inj t = !! { lthrds = ThreadTree.inj t.thrds; }
+
+    let prj lt = 
+      let lt' = !?lt in
+      { thrds = ThreadTree.prj lt'.lthrds; }
+
+    let sep = "-------------------------------------------------------------"
+
+    let show t = "Threads\n" ^ sep ^ "\n" ^ ThreadTree.show t.thrds
+    
+    let eq t t' = ThreadTree.eq t.thrds t'.thrds
   end
-
-module StateMT = 
-  struct 
-    type t = {
-      history : History.t;
-      tree    : ThreadTree.t;
-    }
-
-    let empty = { history = History.empty; tree = ThreadTree.empty; }
-  end 

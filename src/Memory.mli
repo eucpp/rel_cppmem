@@ -65,12 +65,13 @@ module ViewFront :
 module ThreadState :
   sig
     type t = {
-      regs : Registers.t
-      (* curr : ViewFront.t; *)
+      regs : Registers.t;
+      curr : ViewFront.t;
     }
 
     type lt' = {
       lregs : Registers.lt;
+      lcurr : ViewFront.lt;
     }
 
     type lt = lt' MiniKanren.logic
@@ -122,22 +123,23 @@ module History :
     val insert : loc -> tstmp -> int -> ViewFront.t -> t -> t 
   end
 
-module StateST :
+module State : 
   sig
     type t = {
-      history : History.t;
-      thread  : ThreadState.t;
+      thrds : ThreadTree.t;
     }
 
-    val empty : t
-  end
-
-module StateMT :
-  sig
-    type t = {
-      history : History.t;
-      tree    : ThreadTree.t;
+    type lt' = {
+      lthrds : ThreadTree.t;
     }
 
+    type lt = lt' MiniKanren.logic
+
     val empty : t
+
+    val inj : t -> lt
+    val prj : lt -> t
+
+    val show : t -> string
+    val eq : t -> t -> bool
   end
