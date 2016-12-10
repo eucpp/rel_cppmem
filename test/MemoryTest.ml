@@ -36,7 +36,7 @@ let viewfront_tests =
     );
 
     "test_2">:: (fun test_ctx -> 
-       let r  = ViewFront.update "x" 0 ViewFront.empty in
+       let r   = ViewFront.update "x" 0 ViewFront.empty in 
        let r' = ViewFront.update "x" 1 r in
        let v  = ViewFront.get "x" r' in
          assert_equal 1 v ~printer:string_of_int   
@@ -50,6 +50,14 @@ let viewfront_tests =
         assert_equal 0 vx ~printer:string_of_int;
         assert_equal 1 vy ~printer:string_of_int   
     );
+
+    "test_join">:: (fun test_ctx ->
+      let vf       = ViewFront.from_assoc [("x", 0); ("y", 1)] in
+      let vf'      = ViewFront.from_assoc [("x", 1); ("z", 1)] in
+      let expected = ViewFront.from_assoc [("x", 1); ("y", 1); ("z", 1)] in
+      let actual   = ViewFront.join vf vf' in
+        assert_equal expected actual ~cmp:ViewFront.eq ~printer:ViewFront.show
+    )
   ]
 
 

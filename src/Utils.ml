@@ -23,7 +23,7 @@ let prj_pair prj_a prj_b (a, b) = (prj_a a, prj_b b)
 
 let prj_assoc prj_k prj_v assoc = MiniKanren.List.to_list @@ MiniKanren.List.prj (fun lpair -> prj_pair prj_k prj_v @@ !?lpair) assoc
 
-let key_eq k p b = 
+let key_eqo k p b = 
   fresh (k' v')
     (p === !!(k', v'))
     (conde [
@@ -31,25 +31,28 @@ let key_eq k p b =
       ((k =/= k') &&& (b === !!false)) 
     ])
 
-let key_not_eq k p b = conde [
-    (b === !!true)  &&& (key_eq k p !!false);
-    (b === !!false) &&& (key_eq k p !!true);
+let key_not_eqo k p b = conde [
+    (b === !!true)  &&& (key_eqo k p !!false);
+    (b === !!false) &&& (key_eqo k p !!true);
   ] 
 
 let assoco k assocs v =
   fresh (opt) 
-    (MiniKanren.List.lookupo (key_eq k) assocs opt)
+    (MiniKanren.List.lookupo (key_eqo k) assocs opt)
     (opt === !!(Some !!(k, v)))
 
 let remove_assoco k assocs assocs' =   
-  MiniKanren.List.filtero (key_not_eq k) assocs assocs'   
+  MiniKanren.List.filtero (key_not_eqo k) assocs assocs'   
 
-let update_assoco k v assocs assocs'' = conde [
-  (assocs === !!MiniKanren.Nil) &&& (assocs'' === !!(k, v) % !!MiniKanren.Nil);
-  fresh (assocs')
-    (assocs =/= !!MiniKanren.Nil)
-    (remove_assoco k assocs assocs')
-    (assocs'' === !!(k, v) % assocs');
+let rec update_assoco k v assocs assocs' = conde [
+  (assocs === !!MiniKanren.Nil) &&& (assocs' === !!(k, v) % !!MiniKanren.Nil);
+  fresh (hd tl tl' k' v')
+    (assocs === !!(MiniKanren.Cons (hd, tl)))
+    (hd === !!(k', v'))
+    (conde [
+      (k === k') &&& (assocs' === !!(MiniKanren.Cons (!!(k , v ), tl )));
+      (k =/= k') &&& (assocs' === !!(MiniKanren.Cons (!!(k', v'), tl'))) &&& (update_assoco k v tl tl');
+    ])
   ]
 
 module Option = 

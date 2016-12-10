@@ -78,29 +78,49 @@ module ViewFront =
 
     let empty = []
 
-    let (!) = MiniKanren.inj
-
-    let inj = Utils.inj_assoc (!)  (inj_nat)
+    let inj = Utils.inj_assoc (!!)  (inj_nat)
     let prj = Utils.prj_assoc (!?) (prj_nat)
 
     let show = Utils.show_assoc (string_of_loc) (string_of_tstmp) 
 
     let eq = Utils.eq_assoc (=) (=)
 
-    let geto = Utils.assoco
+    let from_assoc assoc = assoc
 
-    let removo = Utils.remove_assoco
+    let (!) = MiniKanren.inj 
+ 
+    let geto = Utils.assoco
 
     let updateo = Utils.update_assoco
 
-    let get var regs = run q (fun q  -> geto !var (inj regs) q)
-                             (fun qs -> prj_nat @@ Utils.excl_answ qs)
+    let join_loco lts vf vf' = 
+      fresh (l ts ts' opt)
+        (lts === !(l, ts))
+        (MiniKanren.List.lookupo (Utils.key_eqo l) vf opt)
+        (conde [
+          (opt === !(Some !(l, ts'))) &&&
+          (* (Utils.remove_assoco l vf vf'') &&& *)
+          (* (vf' === vf''); *)
+          (conde [
+            Nat.(ts <= ts') &&& (vf' === vf);
+            Nat.(ts >  ts') &&& (updateo l ts vf vf');
+          ]);
+          
+          (opt === !None) &&&
+          (vf' === lts % vf)
+        ])
 
-    let remove var regs = run q (fun q  -> removo !var (inj regs) q)
+    let joino t t' joined = 
+      MiniKanren.List.foldro join_loco t t' joined
+
+    let get var vf = run q (fun q  -> geto !var (inj vf) q)
+                           (fun qs -> prj_nat @@ Utils.excl_answ qs)
+
+    let update var v vf = run q (fun q  -> updateo !var (inj_nat v) (inj vf) q)
                                 (fun qs -> prj @@ Utils.excl_answ qs) 
 
-    let update var v regs = run q (fun q  -> updateo !var (inj_nat v) (inj regs) q)
-                                  (fun qs -> prj @@ Utils.excl_answ qs) 
+    let join vf vf' = run q (fun q  -> joino (inj vf) (inj vf') q)
+                            (fun qs -> prj @@ Utils.excl_answ qs) 
 
   end
 

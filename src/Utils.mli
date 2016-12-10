@@ -2,6 +2,9 @@ open MiniKanren
 
 val excl_answ : 'a Stream.t -> 'a
 
+val key_eqo     : 'a logic -> ('a logic * 'b logic) logic -> bool logic -> goal
+val key_not_eqo : 'a logic -> ('a logic * 'b logic) logic -> bool logic -> goal
+
 val inj_assoc : ('a -> 'c logic) -> ('b -> 'd logic) -> ('a * 'b) list -> ('c logic * 'd logic) logic MiniKanren.List.logic
 val prj_assoc : ('c logic -> 'a) -> ('d logic -> 'b) -> ('c logic * 'd logic) logic MiniKanren.List.logic -> ('a * 'b) list
 
