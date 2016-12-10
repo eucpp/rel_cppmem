@@ -145,7 +145,7 @@ module StmtTerm =
     | AExpr    of 'expr
     | Asgn     of 'string * 't
     | If       of 'expr * 't * 't
-    | Repeat   of 't
+    | While    of 'expr * 't
     | Read     of 'mo * 'loc
     | Write    of 'mo * 'loc * 'expr
     | Cas      of 'mo * 'mo * 'loc * 'expr * 'expr
@@ -208,9 +208,9 @@ module StmtContext =
       fresh (e t1 t2)
         (b === !true)
         (t === !(If (e, t1, t2)));
-      fresh (t')
+      fresh (t' e')
         (b === !true)
-        (t === !(Repeat t'));
+        (t === !(While (e', t')));
       fresh (mo l)
         (b === !true)
         (t === !(Read (mo, l)));
@@ -265,8 +265,8 @@ module StmtContext =
           fresh (e t1 t2) 
             (t === !(If (e, t1, t2)));
 
-          fresh (t') 
-            (t === !(Repeat t'));
+          fresh (t' e') 
+            (t === !(While (e', t')));
 
           fresh (mo l)
             (t === !(Read (mo, l)));

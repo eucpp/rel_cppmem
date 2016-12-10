@@ -52,7 +52,7 @@ let basic_expr_tests =
     "space_all">:: let
                e = (ET.Binop ("+", ET.Var "x", ET.Binop ("*", ET.Const 2, ET.Const 4)), thrd)
              in
-               BasicExprTester.test_space BasicExpr.all e [(ET.Const 50, thrd); (ET.Const 50, thrd)]
+               BasicExprTester.test_space BasicExpr.all e [(ET.Const 50, thrd); (ET.Const 50, thrd)];
   ]
 
 let mem = MemState.assign_local Path.N "x" 42 MemState.empty
@@ -63,7 +63,16 @@ let basic_stmt_tests =
 
     "assign">:: BasicStmtTester.test_step [BasicStmt.asgn] (ST.Asgn ("x", ST.AExpr (ET.Const 42)), MemState.empty) [(ST.Skip, mem)];
 
-   
+    "if_true">:: BasicStmtTester.test_step [BasicStmt.if'] (ST.If (ET.Var "x", ST.Skip, ST.Stuck), mem) [(ST.Skip, mem)];
+
+    "if_false">:: BasicStmtTester.test_step [BasicStmt.if'] (ST.If (ET.Const 0, ST.Stuck, ST.Skip), mem) [(ST.Skip, mem)];
+
+    "while">:: (let loop = ST.While (ET.Const 1, ST.Skip) in
+                  BasicStmtTester.test_step [BasicStmt.while'] (loop, mem) [(ST.If (ET.Const 1, ST.Seq (ST.Skip, loop), ST.Skip), mem)]);
+
+    "seq_skip">:: BasicStmtTester.test_step [BasicStmt.seq] (ST.Seq (ST.Skip, ST.Skip), mem) [(ST.Skip, mem)];
+
+    "seq_stuck">:: BasicStmtTester.test_step [BasicStmt.seq] (ST.Seq (ST.Stuck, ST.Skip), mem) [(ST.Stuck, mem)];
   ]
 
 let tests = 

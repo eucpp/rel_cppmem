@@ -92,7 +92,43 @@ module BasicStmt =
 
     let asgn = ("assign", asgno)
     
-    (* val ifo     : rule *)
-    (* val repeato : rule *)
-    (* val seqo    : rule *)
+    let ifo c t s c' t' s' = ST.(SC.(
+      fresh (e btrue bfalse path e' es es' n)
+        (c === c')
+        (s === s')
+        (t === !(If (e, btrue, bfalse)))
+        (patho c path)
+        (MemState.get_thrdo path s es)
+        (ExprSem.spaceo expr_sem e es e' es')
+        (e' === !(ET.Const n))
+        (conde [
+          (n =/= (inj_nat 0)) &&& (t' === btrue);
+          (n === (inj_nat 0)) &&& (t' === bfalse);
+        ])                                          
+    ))
+
+    let if' = ("if", ifo)
+
+    let whileo c t s c' t' s' = ST.(SC.(
+      fresh (e body)
+        (c  === c')
+        (s  === s')
+        (t  === !(While (e, body)))
+        (t' === !(If (e, !(Seq (body, t)), !Skip)))
+    ))
+
+    let while' = ("while", whileo)
+
+    let seqo c t s c' t' s' = ST.(SC.(
+      fresh (t1 t2)
+        (s === s')
+        (t === !(Seq (t1, t2)))
+        (conde [
+          (t1 === !Skip)  &&& (t' === t2)     &&& (c' === c);
+          (t1 === !Stuck) &&& (t' === !Stuck) &&& (c' === !Hole);
+        ])
+    ))
+
+   let seq = ("seq", seqo)
+
   end

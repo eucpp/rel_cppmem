@@ -32,7 +32,7 @@ module BasicStmt :
     
     val expr   : string * rule
     val asgn   : string * rule
-    (* val ifo     : rule *)
-    (* val repeato : rule *)
-    (* val seqo    : rule *)
+    val if'    : string * rule
+    val while' : string * rule
+    val seq    : string * rule
   end
