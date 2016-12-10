@@ -51,13 +51,13 @@ let viewfront_tests =
         assert_equal 1 vy ~printer:string_of_int   
     );
 
-    "test_join">:: (fun test_ctx ->
-      let vf       = ViewFront.from_assoc [("x", 0); ("y", 1)] in
-      let vf'      = ViewFront.from_assoc [("x", 1); ("z", 1)] in
-      let expected = ViewFront.from_assoc [("x", 1); ("y", 1); ("z", 1)] in
-      let actual   = ViewFront.join vf vf' in
-        assert_equal expected actual ~cmp:ViewFront.eq ~printer:ViewFront.show
-    )
+    (* "test_join">:: (fun test_ctx -> *)
+    (*   let vf       = ViewFront.from_assoc [("x", 0); ("y", 1)] in *)
+    (*   let vf'      = ViewFront.from_assoc [("x", 1); ("z", 1)] in *)
+    (*   let expected = ViewFront.from_assoc [("x", 1); ("y", 1); ("z", 1)] in *)
+    (*   let actual   = ViewFront.join vf vf' in *)
+    (*     assert_equal expected actual ~cmp:ViewFront.eq ~printer:ViewFront.show *)
+    (* ) *)
   ]
 
 
@@ -90,6 +90,13 @@ let thrd_tree_tests =
       let actual   = ThreadTree.update_thrd (Path.R Path.N) thrd thrd_tree in
         assert_equal expected actual ~cmp:ThreadTree.eq ~printer:ThreadTree.show  
     );
+
+    "test_spawn">:: (fun test_ctx -> 
+      let leaf     = ThreadTree.Leaf ThreadState.empty in 
+      let expected = ThreadTree.Node (ThreadTree.Node (leaf, leaf), leaf) in
+      let actual   = ThreadTree.spawn_thrd (Path.L Path.N) (ThreadTree.Node (leaf, leaf)) in
+        assert_equal expected actual ~cmp:ThreadTree.eq ~printer:ThreadTree.show  
+    )
   ]
 
 let tests = 

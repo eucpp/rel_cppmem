@@ -153,25 +153,32 @@ module ThreadState =
 
     let (!) = (!!)
 
-    let get_regso t regs = 
-      fresh (curr)
-        (t === !{ lregs = regs; lcurr = curr; })
-  
-    let set_regso regs' t t' = 
-      fresh (regs curr)
-        (t  === !!{ lregs = regs;  lcurr = curr; })
-        (t' === !!{ lregs = regs'; lcurr = curr; })
+    let splito t regs curr = 
+      (t === !{lregs = regs; lcurr = curr; })
 
     let get_localo t var v = 
-      fresh (regs)
-        (get_regso t regs)
+      fresh (regs curr)
+        (splito t regs curr)
         (Registers.geto var regs v) 
 
     let assign_localo var v t t' = 
-      fresh (regs regs')
-        (get_regso t regs)
+      fresh (regs regs' curr)
+        (splito t regs curr)
         (Registers.seto var v regs regs')
-        (set_regso regs' t t')        
+        (splito t' regs' curr)
+
+    let spawno t spwn spwn' = 
+      fresh (regs curr)
+        (splito t regs curr)
+        (splito spwn (Registers.inj Registers.empty) curr)
+        (spwn' === spwn)
+
+    let joino t t' joined = 
+      fresh (regs regs' curr curr' curr'')
+        (splito t  regs  curr)
+        (splito t' regs' curr')
+        (ViewFront.joino curr curr' curr'')
+        (splito joined (Registers.inj Registers.empty) curr'')      
 
   end
 
@@ -234,11 +241,28 @@ module ThreadTree =
         ]);
     ] 
 
+    let rec spawn_thrdo path thrd_tree thrd_tree' = conde [
+      fresh (thrd thrd' thrd'')
+        ((path === !Path.N) &&& 
+         (thrd_tree === !(Leaf thrd)) &&& 
+         (ThreadState.spawno thrd thrd' thrd'') &&& 
+         (thrd_tree' === !(Node (!(Leaf thrd'), !(Leaf thrd'')))));
+      fresh (l r l' r' path')
+        (thrd_tree === !(Node (l, r)))
+        (conde [
+          (path === !(Path.L path')) &&& (thrd_tree' === !(Node (l', r ))) &&& (spawn_thrdo path' l l');
+          (path === !(Path.R path')) &&& (thrd_tree' === !(Node (l , r'))) &&& (spawn_thrdo path' r r');
+        ]) 
+    ]
+
     let get_thrd path thrd_tree = run q (fun q  -> get_thrdo (Path.inj path) (inj thrd_tree) q)
                                         (fun qs -> ThreadState.prj @@ Utils.excl_answ qs)
 
     let update_thrd path thrd thrd_tree = run q (fun q  -> update_thrdo (Path.inj path) (ThreadState.inj thrd) (inj thrd_tree) q)
                                                 (fun qs -> prj @@ Utils.excl_answ qs)
+
+    let spawn_thrd path thrd_tree = run q  (fun q  -> spawn_thrdo (Path.inj path) (inj thrd_tree) q)
+                                           (fun qs -> prj @@ Utils.excl_answ qs)
   end
 
 module History = 
