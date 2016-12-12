@@ -61,7 +61,7 @@ let basic_stmt_tests =
   "basic_stmt">::: [
     "expr"  >:: BasicStmtTester.test_step [BasicStmt.expr] (ST.AExpr (ET.Var "x"), mem) [(ST.AExpr (ET.Const 42), mem)];
 
-    "assign">:: BasicStmtTester.test_step [BasicStmt.asgn] (ST.Asgn ("x", ST.AExpr (ET.Const 42)), MemState.empty) [(ST.Skip, mem)];
+    "assign">:: BasicStmtTester.test_step [BasicStmt.asgn] (ST.Asgn (ST.AExpr (ET.Var "x"), ST.AExpr (ET.Const 42)), MemState.empty) [(ST.Skip, mem)];
 
     "if_true">:: BasicStmtTester.test_step [BasicStmt.if'] (ST.If (ET.Var "x", ST.Skip, ST.Stuck), mem) [(ST.Skip, mem)];
 
@@ -73,6 +73,18 @@ let basic_stmt_tests =
     "seq_skip">:: BasicStmtTester.test_step [BasicStmt.seq] (ST.Seq (ST.Skip, ST.Skip), mem) [(ST.Skip, mem)];
 
     "seq_stuck">:: BasicStmtTester.test_step [BasicStmt.seq] (ST.Seq (ST.Stuck, ST.Skip), mem) [(ST.Stuck, mem)];
+
+    "spawn">:: (let leaf = ThreadTree.Leaf ThreadState.empty in
+                let thrd_tree = ThreadTree.Node (leaf, leaf) in
+                let state  = { MemState.thrds = leaf; } in
+                let state' = { MemState.thrds = thrd_tree; } in
+                  BasicStmtTester.test_step [BasicStmt.spawn] (ST.Spw (ST.Skip, ST.Skip), state) [(ST.Par (ST.Skip, ST.Skip), state')]);
+
+    "join">::  (let leaf = ThreadTree.Leaf ThreadState.empty in
+                let thrd_tree = ThreadTree.Node (leaf, leaf) in
+                let state  = { MemState.thrds = thrd_tree; } in
+                let state' = { MemState.thrds = leaf; } in
+                  BasicStmtTester.test_step [BasicStmt.join] (ST.Par (ST.AExpr (ET.Const 1), ST.AExpr (ET.Const 2)), state) [(ST.Pair (ET.Const 1, ET.Const 2), state')]);
   ]
 
 let tests = 

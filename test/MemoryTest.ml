@@ -60,7 +60,6 @@ let viewfront_tests =
     (* ) *)
   ]
 
-
 let regs      = Registers.set "x" 0 Registers.empty
 let thrd      = { ThreadState.regs = regs; ThreadState.curr = ViewFront.empty }
 let thrd_tree = ThreadTree.Node (ThreadTree.Leaf thrd, ThreadTree.empty)

@@ -331,28 +331,37 @@ module MemState =
 
     let (!) = (!!)
 
-    let get_thrd_treeo t tree = 
-      (t === !{lthrds = tree;})
-
-    let set_thrd_treeo tree t t' = 
-      (t' === !{lthrds = tree;})
+    let splito t thrd_tree history = 
+      (t === !{ lthrds = thrd_tree; })
  
     let get_thrdo path t thrd =
-      fresh (thrd_tree)
-        (get_thrd_treeo t thrd_tree)
+      fresh (thrd_tree h)
+        (splito t thrd_tree h)
         (ThreadTree.get_thrdo path thrd_tree thrd) 
       
     let update_thrdo path thrd t t' = 
-      fresh (thrd_tree thrd_tree')
-        (get_thrd_treeo t thrd_tree)
+      fresh (thrd_tree thrd_tree' h)
+        (splito t thrd_tree h)
         (ThreadTree.update_thrdo path thrd thrd_tree thrd_tree')
-        (set_thrd_treeo thrd_tree' t t')
+        (splito t' thrd_tree' h)
  
     let assign_localo path x n t t' = 
       fresh (thrd thrd')
         (get_thrdo path t thrd)
         (ThreadState.assign_localo x n thrd thrd')
         (update_thrdo path thrd' t t')
+
+    let spawn_thrdo path t t' = 
+      fresh (thrd_tree thrd_tree' h)
+        (splito t thrd_tree h)
+        (ThreadTree.spawn_thrdo path thrd_tree thrd_tree')
+        (splito t' thrd_tree' h)
+
+    let join_thrdo path t t' = 
+      fresh (thrd_tree thrd_tree' h)
+        (splito t thrd_tree h)
+        (ThreadTree.join_thrdo path thrd_tree thrd_tree')
+        (splito t' thrd_tree' h)
 
     let assign_local path x n t = run q (fun q  -> assign_localo (Path.inj path) !x (inj_nat n) (inj t) q)
                                         (fun qs -> prj @@ Utils.excl_answ qs)

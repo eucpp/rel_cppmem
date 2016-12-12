@@ -35,4 +35,6 @@ module BasicStmt :
     val if'    : string * rule
     val while' : string * rule
     val seq    : string * rule
+    val spawn  : string * rule
+    val join   : string * rule 
   end

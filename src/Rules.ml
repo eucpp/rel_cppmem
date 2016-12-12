@@ -82,12 +82,22 @@ module BasicStmt =
     let expr = ("expression", expro) 
 
     let asgno c t s c' t' s' = ST.(SC.(
-      fresh (x n path e)
+      fresh (l r n path e)
         (c  === c')
-        (t  === !(Asgn (x, !(AExpr !(ET.Const n)))))
+        (t  === !(Asgn (l, r)))
         (t' === !Skip)
         (patho c path)
-        (MemState.assign_localo path x n s s')
+        (conde [
+          fresh (x n)
+            (l === !(AExpr !(ET.Var   x)))
+            (r === !(AExpr !(ET.Const n)))
+            (MemState.assign_localo path x n s s');
+          fresh (x1 x2 n1 n2 s'')
+            (l === !(Pair (!(ET.Var   x1), !(ET.Var   x2))))
+            (r === !(Pair (!(ET.Const n1), !(ET.Const n2))))
+            (MemState.assign_localo path x1 n1 s   s'')
+            (MemState.assign_localo path x2 n2 s'' s' );
+        ])
     ))
 
     let asgn = ("assign", asgno)
@@ -130,5 +140,29 @@ module BasicStmt =
     ))
 
    let seq = ("seq", seqo)
+
+   let spawno c t s c' t' s' = ST.(SC.(
+     fresh (l r path)
+       (c  === c')
+       (t  === !(Spw (l, r)))
+       (patho c path)
+       (t' === !(Par (l, r)))
+       (MemState.spawn_thrdo path s s')
+   ))
+
+   let spawn = ("spawn", spawno)
+
+   let joino c t s c' t' s' = ST.(SC.(
+     fresh (t1 t2 n1 n2 path)
+       (c === c') 
+       (t1 === !(AExpr !(ET.Const n1)))
+       (t2 === !(AExpr !(ET.Const n2)))
+       (t  === !(Par  (t1, t2)))
+       (t' === !(Pair (!(ET.Const n1), !(ET.Const n2))))
+       (patho c path)
+       (MemState.join_thrdo path s s')
+   ))
+
+   let join = ("join", joino)
 
   end

@@ -143,7 +143,8 @@ module StmtTerm =
   struct
     @type ('expr, 'string, 'mo, 'loc, 't) at =
     | AExpr    of 'expr
-    | Asgn     of 'string * 't
+    | Asgn     of 't * 't
+    | Pair     of 'expr * 'expr
     | If       of 'expr * 't * 't
     | While    of 'expr * 't
     | Read     of 'mo * 'loc
@@ -177,7 +178,7 @@ module StmtContext =
 
     @type ('expr, 'string, 'mo, 'loc, 't, 'c) ac =
     | Hole
-    | AsgnC     of 'string * 'c
+    | AsgnC     of 't * 'c
     | SeqC      of 'c * 't
     | ParL      of 'c * 't
     | ParR      of 't * 'c
@@ -196,15 +197,17 @@ module StmtContext =
     let rec eq c c' = GT.eq(ac) (ExprTerm.eq) (GT.eq(string)) (=) (=) (StmtTerm.eq) (eq) c c'
 
     let (!) = MiniKanren.inj
-    let (?) = MiniKanren.prj
 
     let reducibleo t b = StmtTerm.(conde [
       fresh (e) 
         (t === !(AExpr e))
         (ExprContext.reducibleo e b);
-      fresh (x r)
+      fresh (x1 x2)
+        (b === !false)
+        (t === !(Pair (x1, x2)));
+      fresh (l r)
         (b === !true) 
-        (t === !(Asgn (x, r)));
+        (t === !(Asgn (l, r)));
       fresh (e t1 t2)
         (b === !true)
         (t === !(If (e, t1, t2)));
@@ -236,11 +239,11 @@ module StmtContext =
 
     let rec splito t c rdx = StmtTerm.( 
       (conde [
-        fresh (x r c' t')
-          (t === !(Asgn (x, r)))
+        fresh (l r c' t')
+          (t === !(Asgn (l, r)))
           (conde [
             ((c === !Hole)            &&& (rdx === t ));
-            ((c === !(AsgnC (x, c'))) &&& (rdx === t') &&& (splito r c' t'));
+            ((c === !(AsgnC (l, c'))) &&& (rdx === t') &&& (splito r c' t'));
           ]);
  
         fresh (t1 t2 c' t')
@@ -261,6 +264,9 @@ module StmtContext =
         ((c === !Hole) &&& (rdx === t) &&& conde [
           fresh (e) 
             (t === !(AExpr e));
+
+          fresh (e1 e2)
+            (t === !(Pair (e1, e2)));
 
           fresh (e t1 t2) 
             (t === !(If (e, t1, t2)));

@@ -163,5 +163,8 @@ module MemState :
 
     val assign_localo : Path.lt -> string logic -> Nat.logic -> lt -> lt -> goal
 
+    val spawn_thrdo : Path.lt -> lt -> lt -> goal
+    val join_thrdo  : Path.lt -> lt -> lt -> goal
+
     val assign_local : Path.t -> string -> int -> t -> t
   end
