@@ -115,11 +115,13 @@ module ThreadTree :
     val update_thrdo : Path.lt -> ThreadState.lt -> lt -> lt -> MiniKanren.goal      
 
     val spawn_thrdo : Path.lt -> lt -> lt -> MiniKanren.goal
+    val join_thrdo  : Path.lt -> lt -> lt -> MiniKanren.goal
 
     val get_thrd    : Path.t -> t -> ThreadState.t
     val update_thrd : Path.t -> ThreadState.t -> t -> t
 
     val spawn_thrd : Path.t -> t -> t
+    val join_thrd  : Path.t -> t -> t
   end
 
 module History :

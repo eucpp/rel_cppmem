@@ -99,8 +99,6 @@ module ViewFront =
         (MiniKanren.List.lookupo (Utils.key_eqo l) vf opt)
         (conde [
           (opt === !(Some !(l, ts'))) &&&
-          (* (Utils.remove_assoco l vf vf'') &&& *)
-          (* (vf' === vf''); *)
           (conde [
             Nat.(ts <= ts') &&& (vf' === vf);
             Nat.(ts >  ts') &&& (updateo l ts vf vf');
@@ -243,16 +241,30 @@ module ThreadTree =
 
     let rec spawn_thrdo path thrd_tree thrd_tree' = conde [
       fresh (thrd thrd' thrd'')
-        ((path === !Path.N) &&& 
-         (thrd_tree === !(Leaf thrd)) &&& 
-         (ThreadState.spawno thrd thrd' thrd'') &&& 
-         (thrd_tree' === !(Node (!(Leaf thrd'), !(Leaf thrd'')))));
+        (path === !Path.N)
+        (thrd_tree === !(Leaf thrd))
+        (ThreadState.spawno thrd thrd' thrd'')
+        (thrd_tree' === !(Node (!(Leaf thrd'), !(Leaf thrd''))));
       fresh (l r l' r' path')
         (thrd_tree === !(Node (l, r)))
         (conde [
-          (path === !(Path.L path')) &&& (thrd_tree' === !(Node (l', r ))) &&& (spawn_thrdo path' l l');
-          (path === !(Path.R path')) &&& (thrd_tree' === !(Node (l , r'))) &&& (spawn_thrdo path' r r');
-        ]) 
+           (path === !(Path.L path')) &&& (thrd_tree' === !(Node (l', r ))) &&& (spawn_thrdo path' l l');
+           (path === !(Path.R path')) &&& (thrd_tree' === !(Node (l , r'))) &&& (spawn_thrdo path' r r');
+        ]); 
+    ]
+
+    let rec join_thrdo path thrd_tree thrd_tree' = conde [
+      fresh (l r joined)
+        (path === !Path.N)
+        (thrd_tree === !(Node (!(Leaf l), !(Leaf r))))
+        (ThreadState.joino l r joined)
+        (thrd_tree' === !(Leaf joined));
+      fresh (l r l' r' path')
+        (thrd_tree === !(Node (l, r)))
+        (conde [
+          (path === !(Path.L path') &&& (thrd_tree' === !(Node (l', r ))) &&& (join_thrdo path' l l'));
+          (path === !(Path.R path') &&& (thrd_tree' === !(Node (l , r'))) &&& (join_thrdo path' r r'));
+        ])
     ]
 
     let get_thrd path thrd_tree = run q (fun q  -> get_thrdo (Path.inj path) (inj thrd_tree) q)
@@ -263,6 +275,9 @@ module ThreadTree =
 
     let spawn_thrd path thrd_tree = run q  (fun q  -> spawn_thrdo (Path.inj path) (inj thrd_tree) q)
                                            (fun qs -> prj @@ Utils.excl_answ qs)
+
+    let join_thrd path thrd_tree = run q (fun q  -> join_thrdo (Path.inj path) (inj thrd_tree) q)
+                                         (fun qs -> prj @@ Utils.excl_answ qs)
   end
 
 module History = 

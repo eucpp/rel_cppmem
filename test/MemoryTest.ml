@@ -96,6 +96,13 @@ let thrd_tree_tests =
       let expected = ThreadTree.Node (ThreadTree.Node (leaf, leaf), leaf) in
       let actual   = ThreadTree.spawn_thrd (Path.L Path.N) (ThreadTree.Node (leaf, leaf)) in
         assert_equal expected actual ~cmp:ThreadTree.eq ~printer:ThreadTree.show  
+    );
+
+    "test_join">:: (fun test_ctx -> 
+      let leaf     = ThreadTree.Leaf ThreadState.empty in 
+      let expected = ThreadTree.Node (leaf, leaf) in
+      let actual   = ThreadTree.join_thrd (Path.R Path.N) (ThreadTree.Node (leaf, ThreadTree.Node (leaf, leaf))) in
+        assert_equal expected actual ~cmp:ThreadTree.eq ~printer:ThreadTree.show  
     )
   ]
 
