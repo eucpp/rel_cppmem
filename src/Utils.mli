@@ -1,5 +1,7 @@
 open MiniKanren
 
+val zip3 : 'a Stream.t -> 'b Stream.t -> 'c Stream.t -> ('a * 'b * 'c) Stream.t
+
 val excl_answ : 'a Stream.t -> 'a
 
 val key_eqo     : 'a logic -> ('a logic * 'b logic) logic -> bool logic -> goal

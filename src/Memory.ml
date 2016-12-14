@@ -280,6 +280,74 @@ module ThreadTree =
                                          (fun qs -> prj @@ Utils.excl_answ qs)
   end
 
+
+module Cell =
+  struct
+    type t   = (tstmp * int * ViewFront.t)
+    type lt' = (Nat.logic * Nat.logic * ViewFront.lt)
+
+    type lt = lt' logic
+
+    let inj (ts, v, vf) = !! (inj_nat ts, inj_nat v, ViewFront.inj vf)
+    let prj lt = !?lt |> fun (lts, lv, lvf) -> (prj_nat lts, prj_nat lv, ViewFront.prj lvf)
+
+    let show (ts, v, vf) = "(" ^ (string_of_tstmp ts) ^ ", " ^ (string_of_int v) ^ ", " ^ ViewFront.show vf ^ ")"
+
+    let eq (ts, v, vf) (ts', v', vf') = (ts = ts') && (v = v') && (ViewFront.eq vf vf')
+  end
+
+module LocStory =
+  struct
+    type t   = (tstmp * int * ViewFront.t) list
+
+    type lt' = ((Nat.logic * Nat.logic * ViewFront.lt) logic, lt' logic) llist
+
+    type lt = lt' logic
+
+    let empty = []
+    
+    let from_list x = x
+
+    let (!) = (!!)
+
+    let inj t = 
+      MiniKanren.List.inj Cell.inj @@ MiniKanren.List.of_list t
+
+    let prj_msg (lts, lv, lvf) = (prj_nat lts, prj_nat lv, ViewFront.prj lvf)
+
+    let prj lt = MiniKanren.List.to_list @@ MiniKanren.List.prj (fun lmsg -> prj_msg !?lmsg) lt
+
+    let show t = 
+      let content = List.fold_left (fun a cell -> a ^ (Cell.show cell)) "" t in
+        "{" ^ content ^ "}"
+
+    let eq t t' = 
+      let 
+        check_exists cell = List.exists (Cell.eq cell) t'
+      in
+        List.for_all check_exists t
+
+    let visible_msgo ts msg b = 
+      fresh (ts' v vf)
+        (msg === !(ts', v, vf))
+        (Nat.leo ts ts' b)
+
+    let read_acqo t ts ts' v vf =
+      fresh (t' msg)
+        (MiniKanren.List.filtero (visible_msgo ts) t t')
+        (MiniKanren.List.membero t' msg)
+        (msg === !(ts', v, vf))
+
+    let write_relo ts v vf t t' =
+      (t' === !(ts, v, vf) % t)
+
+    let read_acq t ts = run qrs (fun q  r  s  -> read_acqo (inj t) (inj_nat ts) q r s)
+                                (fun qs rs ss -> Utils.zip3 (Stream.map prj_nat qs) (Stream.map prj_nat rs) (Stream.map ViewFront.prj ss))
+
+    let write_rel ts v vf t = run q (fun q  -> write_relo (inj_nat ts) (inj_nat v) (ViewFront.inj vf) (inj t) q)
+                                    (fun qs -> prj @@ Utils.excl_answ qs)
+  end
+
 module History = 
   struct 
     type t = (loc * tstmp * int * ViewFront.t) list

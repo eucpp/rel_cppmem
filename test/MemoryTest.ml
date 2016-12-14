@@ -36,7 +36,7 @@ let viewfront_tests =
     );
 
     "test_2">:: (fun test_ctx -> 
-       let r   = ViewFront.update "x" 0 ViewFront.empty in 
+       let r  = ViewFront.update "x" 0 ViewFront.empty in 
        let r' = ViewFront.update "x" 1 r in
        let v  = ViewFront.get "x" r' in
          assert_equal 1 v ~printer:string_of_int   
@@ -105,5 +105,26 @@ let thrd_tree_tests =
     )
   ]
 
+let loc_story_tests = 
+  "loc_story">::: [
+    "test_read_acq_1">:: (fun test_ctx ->
+      let vf = ViewFront.empty in
+      let loc_story = LocStory.from_list [(0, 0, vf); (1, 0, vf)] in
+        TestUtils.assert_stream (LocStory.read_acq loc_story 0) [(0, 0, vf); (1, 0, vf)] ~eq:Cell.eq ~show:Cell.show
+    );
+
+    "test_read_acq_2">:: (fun test_ctx ->
+      let vf = ViewFront.empty in
+      let loc_story = LocStory.from_list [(0, 0, vf); (1, 0, vf)] in
+        TestUtils.assert_stream (LocStory.read_acq loc_story 1) [(1, 0, vf)] ~eq:Cell.eq ~show:Cell.show
+    );
+
+    "test_write_rel_1">:: (fun test_ctx ->
+      let vf = ViewFront.empty in
+      let expected = LocStory.from_list [(0, 0, vf)] in
+        assert_equal (LocStory.write_rel 0 0 vf LocStory.empty) expected ~cmp:LocStory.eq ~printer:LocStory.show
+    )
+  ] 
+
 let tests = 
-  "memory">::: [registers_tests; viewfront_tests; thrd_tree_tests]
+  "memory">::: [registers_tests; viewfront_tests; thrd_tree_tests; loc_story_tests]

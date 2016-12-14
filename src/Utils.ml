@@ -1,5 +1,7 @@
 open MiniKanren
 
+let zip3 xs ys zs = Stream.map (fun (x, (y, z)) -> (x, y, z)) @@ Stream.zip xs @@ Stream.zip ys zs
+
 let excl_answ qs = 
   assert ( not (Stream.is_empty qs)); 
   let 
@@ -9,7 +11,9 @@ let excl_answ qs =
     (* assert (Stream.is_empty tl); *)
     List.hd hd
 
-let show_assoc show_k show_v = List.fold_left (fun ac (k, v) -> ac ^ " {" ^ (show_k k) ^ ": " ^ (show_v v) ^ "}; ") ""
+let show_assoc show_k show_v lst = 
+  let content = List.fold_left (fun ac (k, v) -> ac ^ " {" ^ (show_k k) ^ ": " ^ (show_v v) ^ "}; ") "" lst in
+    "{" ^ content ^ "}"
 
 let eq_assoc eq_k eq_v assoc assoc' = 
   let 

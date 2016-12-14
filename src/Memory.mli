@@ -49,13 +49,13 @@ module ViewFront :
 
     val empty : t
 
+    val from_assoc : (loc * tstmp) list -> t
+
     val inj : t -> lt
     val prj : lt -> t
 
     val show : t -> string
     val eq : t -> t -> bool
-
-    val from_assoc : (loc * tstmp) list -> t
 
     val geto    : loc MiniKanren.logic -> lt -> MiniKanren.Nat.logic -> MiniKanren.goal
     val updateo : loc MiniKanren.logic -> MiniKanren.Nat.logic -> lt -> lt -> MiniKanren.goal
@@ -122,6 +122,43 @@ module ThreadTree :
 
     val spawn_thrd : Path.t -> t -> t
     val join_thrd  : Path.t -> t -> t
+  end
+
+module Cell : 
+  sig 
+    type t   = (tstmp * int * ViewFront.t)
+    type lt' = (Nat.logic * Nat.logic * ViewFront.lt)
+
+    type lt = lt' logic
+
+    val inj : t -> lt
+    val prj : lt -> t
+
+    val show : t -> string
+    val eq : t -> t -> bool
+  end
+
+module LocStory :
+  sig
+    type t 
+    type lt'
+    type lt = lt' logic
+
+    val empty : t
+
+    val from_list : Cell.t list -> t
+
+    val inj : t -> lt
+    val prj : lt -> t
+
+    val show : t -> string
+    val eq : t -> t -> bool
+
+    val read_acqo  : lt -> Nat.logic -> Nat.logic -> Nat.logic -> ViewFront.lt -> goal
+    val write_relo : Nat.logic -> Nat.logic -> ViewFront.lt -> lt -> lt -> goal
+
+    val read_acq  : t -> tstmp -> Cell.t Stream.t
+    val write_rel : tstmp -> int -> ViewFront.t -> t -> t
   end
 
 module History :
