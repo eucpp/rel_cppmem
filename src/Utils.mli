@@ -4,6 +4,8 @@ val zip3 : 'a Stream.t -> 'b Stream.t -> 'c Stream.t -> ('a * 'b * 'c) Stream.t
 
 val excl_answ : 'a Stream.t -> 'a
 
+val prj_pair : ('a logic -> 'b) -> ('c logic -> 'd) -> ('a logic * 'b logic) logic -> ('c * 'd)
+
 val key_eqo     : 'a logic -> ('a logic * 'b logic) logic -> bool logic -> goal
 val key_not_eqo : 'a logic -> ('a logic * 'b logic) logic -> bool logic -> goal
 

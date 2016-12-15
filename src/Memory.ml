@@ -59,7 +59,7 @@ module Registers =
 
     let eq = Utils.eq_assoc (=) (=)
 
-    let geto = Utils.assoco
+    let geto x t v = Utils.assoco
 
     let seto = Utils.update_assoco 
 
@@ -89,7 +89,7 @@ module ViewFront =
 
     let (!) = MiniKanren.inj 
  
-    let geto = Utils.assoco
+    let geto l t ts = Utils.assoco
 
     let updateo = Utils.update_assoco
 
@@ -370,27 +370,34 @@ module LocStory =
                                  (fun qs -> prj @@ Utils.excl_answ qs)
   end
 
-module History = 
+module MemStory = 
   struct 
-    type t = (loc * tstmp * int * ViewFront.t) list
+    type t   = (loc * LocStory.t) list
+    type lt' = (loc logic * LocStory.lt, lt' logic) llist
+    type lt  = lt' logic
 
     let empty = []
 
-    let last_tstmp l h = 
-      let _, t, _, _ = List.find (fun (l', _, _, _) -> l = l') h in
-        t
+    let (!) = (!!)
 
-    let next_tstmp l h = 
-      try
-        1 + (last_tstmp l h) 
-      with
-        | Not_found -> 0
-    
-    let insert l t v vfront h =
-      let (lpart, rpart) = List.partition (fun (l', t', _, _) -> l' < l || t' > t) h in
-        lpart @ [(l, t, v, vfront)] @ rpart
+    let inj t  = MiniKanren.List.inj (fun (l, story) -> !(!l, LocStory.inj story)) @@ MiniKanren.List.of_list t
 
-    let get l tmin h = List.find (fun (l', t', _, _) -> l = l' && tmin <= t') h
+    let prj lt = MiniKanren.List.to_list @@ MiniKanren.List.prj (Utils.prj_pair (!) LocStory.prj) lt
+
+    let show t = List.fold_left (fun a (l, story) -> l ^ ": " ^ (LocStory.show story) ^ "\n") "" t
+
+    let eq t t' =       
+      let 
+        check_exists (l, story) = List.exists (fun (l', story') -> (l = l') && (LocStory.eq story story')) t'
+      in
+        List.for_all check_exists t
+
+    let read_acqo t l ts ts' v vf = 
+      fresh (opt pair story)
+        (Utils.assoco l t pair)
+        (pair === !(l, story))
+        (LocStory.read_acqo story ts ts' v vf)
+ 
   end
 
 module MemState =

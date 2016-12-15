@@ -23,7 +23,8 @@ let eq_assoc eq_k eq_v assoc assoc' =
 
 let inj_assoc inj_k inj_v assoc = MiniKanren.List.inj (fun (k, v) -> !!(inj_k k, inj_v v)) @@ MiniKanren.List.of_list assoc
 
-let prj_pair prj_a prj_b (a, b) = (prj_a a, prj_b b)
+let prj_pair prj_a prj_b pair = 
+  let (a, b) = !?pair in (prj_a a, prj_b b)
 
 let prj_assoc prj_k prj_v assoc = MiniKanren.List.to_list @@ MiniKanren.List.prj (fun lpair -> prj_pair prj_k prj_v @@ !?lpair) assoc
 
