@@ -155,10 +155,10 @@ module LocStory :
     val eq : t -> t -> bool
 
     val read_acqo  : lt -> Nat.logic -> Nat.logic -> Nat.logic -> ViewFront.lt -> goal
-    val write_relo : Nat.logic -> Nat.logic -> ViewFront.lt -> lt -> lt -> goal
+    val write_relo : Nat.logic -> ViewFront.lt -> lt -> lt -> goal
 
     val read_acq  : t -> tstmp -> Cell.t Stream.t
-    val write_rel : tstmp -> int -> ViewFront.t -> t -> t
+    val write_rel : int -> ViewFront.t -> t -> t
   end
 
 module History :

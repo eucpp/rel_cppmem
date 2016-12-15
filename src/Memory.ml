@@ -298,34 +298,51 @@ module Cell =
 
 module LocStory =
   struct
-    type t   = (tstmp * int * ViewFront.t) list
+    type t = { 
+      tsnext : tstmp;
+      story  : (tstmp * int * ViewFront.t) list;
+    }
 
-    type lt' = ((Nat.logic * Nat.logic * ViewFront.lt) logic, lt' logic) llist
+    type lt' = {
+      ltsnext : Nat.logic; 
+      lstory  : (Nat.logic * Nat.logic * ViewFront.lt) logic MiniKanren.List.logic;
+    }
 
     type lt = lt' logic
 
-    let empty = []
+    let empty = { tsnext = 0; story = []; }
     
-    let from_list x = x
+    let from_list x = 
+      let maxts = List.fold_left (fun a (b, _, _) -> max a b) (-1) x in 
+        { tsnext = maxts + 1; story = x; }
 
     let (!) = (!!)
 
-    let inj t = 
-      MiniKanren.List.inj Cell.inj @@ MiniKanren.List.of_list t
+    let inj t = !! {
+      ltsnext = inj_nat t.tsnext;
+      lstory  = MiniKanren.List.inj Cell.inj @@ MiniKanren.List.of_list t.story;
+    }
 
     let prj_msg (lts, lv, lvf) = (prj_nat lts, prj_nat lv, ViewFront.prj lvf)
 
-    let prj lt = MiniKanren.List.to_list @@ MiniKanren.List.prj (fun lmsg -> prj_msg !?lmsg) lt
+    let prj lt = 
+      let lt' = !? lt in {
+        tsnext = prj_nat lt'.ltsnext;
+        story  = MiniKanren.List.to_list @@ MiniKanren.List.prj (fun lmsg -> prj_msg !?lmsg) lt'.lstory;
+      }
 
     let show t = 
-      let content = List.fold_left (fun a cell -> a ^ (Cell.show cell)) "" t in
+      let content = List.fold_left (fun a cell -> a ^ (Cell.show cell)) "" t.story in
         "{" ^ content ^ "}"
 
     let eq t t' = 
       let 
-        check_exists cell = List.exists (Cell.eq cell) t'
+        check_exists cell = List.exists (Cell.eq cell) t'.story
       in
-        List.for_all check_exists t
+        List.for_all check_exists t.story
+
+    let splito t tsnext story = 
+      (t === !{ ltsnext = tsnext; lstory = story; })
 
     let visible_msgo ts msg b = 
       fresh (ts' v vf)
@@ -333,19 +350,24 @@ module LocStory =
         (Nat.leo ts ts' b)
 
     let read_acqo t ts ts' v vf =
-      fresh (t' msg)
-        (MiniKanren.List.filtero (visible_msgo ts) t t')
-        (MiniKanren.List.membero t' msg)
+      fresh (story story' msg tsnext)
+        (splito t tsnext story)
+        (MiniKanren.List.filtero (visible_msgo ts) story story')
+        (MiniKanren.List.membero story' msg)
         (msg === !(ts', v, vf))
 
-    let write_relo ts v vf t t' =
-      (t' === !(ts, v, vf) % t)
+    let write_relo v vf t t' =
+      fresh (ts ts' story story')
+        (splito t ts story)
+        (ts' === !(S ts))
+        (story' === !(ts, v, vf) % story)
+        (splito t' ts' story')
 
     let read_acq t ts = run qrs (fun q  r  s  -> read_acqo (inj t) (inj_nat ts) q r s)
                                 (fun qs rs ss -> Utils.zip3 (Stream.map prj_nat qs) (Stream.map prj_nat rs) (Stream.map ViewFront.prj ss))
 
-    let write_rel ts v vf t = run q (fun q  -> write_relo (inj_nat ts) (inj_nat v) (ViewFront.inj vf) (inj t) q)
-                                    (fun qs -> prj @@ Utils.excl_answ qs)
+    let write_rel v vf t = run q (fun q  -> write_relo (inj_nat v) (ViewFront.inj vf) (inj t) q)
+                                 (fun qs -> prj @@ Utils.excl_answ qs)
   end
 
 module History = 

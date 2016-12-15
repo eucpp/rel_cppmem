@@ -18,6 +18,8 @@ val remove_assoco : 'a logic -> ('a logic * 'b logic) logic MiniKanren.List.logi
 
 val update_assoco : 'a logic -> 'b logic -> ('a logic * 'b logic) logic MiniKanren.List.logic -> ('a logic * 'b logic) logic MiniKanren.List.logic -> goal
 
+val maxo : Nat.logic -> Nat.logic -> Nat.logic -> goal 
+
 module Option : 
   sig
     exception No_value

@@ -57,7 +57,16 @@ let rec update_assoco k v assocs assocs' = conde [
       (k === k') &&& (assocs' === !!(MiniKanren.Cons (!!(k , v ), tl )));
       (k =/= k') &&& (assocs' === !!(MiniKanren.Cons (!!(k', v'), tl'))) &&& (update_assoco k v tl tl');
     ])
-  ]
+]
+
+let maxo a b c = conde [
+  fresh (f)
+    (Nat.gto a b f) 
+    (conde [
+      (f === !!true ) &&& (a === c);
+      (f === !!false) &&& (b === c);
+    ])
+]
 
 module Option = 
   struct

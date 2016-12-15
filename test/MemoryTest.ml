@@ -119,10 +119,10 @@ let loc_story_tests =
         TestUtils.assert_stream (LocStory.read_acq loc_story 1) [(1, 0, vf)] ~eq:Cell.eq ~show:Cell.show
     );
 
-    "test_write_rel_1">:: (fun test_ctx ->
+    "test_write_rel">:: (fun test_ctx ->
       let vf = ViewFront.empty in
       let expected = LocStory.from_list [(0, 0, vf)] in
-        assert_equal (LocStory.write_rel 0 0 vf LocStory.empty) expected ~cmp:LocStory.eq ~printer:LocStory.show
+        assert_equal (LocStory.write_rel 0 vf LocStory.empty) expected ~cmp:LocStory.eq ~printer:LocStory.show
     )
   ] 
 
