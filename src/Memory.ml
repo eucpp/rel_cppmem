@@ -59,7 +59,7 @@ module Registers =
 
     let eq = Utils.eq_assoc (=) (=)
 
-    let geto x t v = Utils.assoco
+    let geto = Utils.assoco
 
     let seto = Utils.update_assoco 
 
@@ -89,7 +89,7 @@ module ViewFront =
 
     let (!) = MiniKanren.inj 
  
-    let geto l t ts = Utils.assoco
+    let geto = Utils.assoco
 
     let updateo = Utils.update_assoco
 
@@ -362,7 +362,7 @@ module LocStory =
         (ts' === !(S ts))
         (story' === !(ts, v, vf) % story)
         (splito t' ts' story')
-
+        
     let read_acq t ts = run qrs (fun q  r  s  -> read_acqo (inj t) (inj_nat ts) q r s)
                                 (fun qs rs ss -> Utils.zip3 (Stream.map prj_nat qs) (Stream.map prj_nat rs) (Stream.map ViewFront.prj ss))
 

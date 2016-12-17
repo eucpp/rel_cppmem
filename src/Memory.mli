@@ -161,21 +161,6 @@ module LocStory :
     val write_rel : int -> ViewFront.t -> t -> t
   end
 
-module History :
-  sig
-    type t
-
-    val empty : t
-
-    val last_tstmp : loc -> t -> tstmp
-    
-    val next_tstmp : loc -> t -> tstmp
-
-    val get : loc -> tstmp -> t -> (loc * tstmp * int * ViewFront.t)
-
-    val insert : loc -> tstmp -> int -> ViewFront.t -> t -> t 
-  end
-
 module MemState : 
   sig
     type t = {

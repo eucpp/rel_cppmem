@@ -26,7 +26,7 @@ let inj_assoc inj_k inj_v assoc = MiniKanren.List.inj (fun (k, v) -> !!(inj_k k,
 let prj_pair prj_a prj_b pair = 
   let (a, b) = !?pair in (prj_a a, prj_b b)
 
-let prj_assoc prj_k prj_v assoc = MiniKanren.List.to_list @@ MiniKanren.List.prj (fun lpair -> prj_pair prj_k prj_v @@ !?lpair) assoc
+let prj_assoc prj_k prj_v assoc = MiniKanren.List.to_list @@ MiniKanren.List.prj (fun lpair -> prj_pair prj_k prj_v @@ lpair) assoc
 
 let key_eqo k p b = 
   fresh (k' v')
@@ -49,16 +49,26 @@ let assoco k assocs v =
 let remove_assoco k assocs assocs' =   
   MiniKanren.List.filtero (key_not_eqo k) assocs assocs'   
 
-let rec update_assoco k v assocs assocs' = conde [
-  (assocs === !!MiniKanren.Nil) &&& (assocs' === !!(k, v) % !!MiniKanren.Nil);
-  fresh (hd tl tl' k' v')
+let rec update_assoco_k k upd_v assocs assocs' = conde [
+  fresh (v)
+    (assocs === !!MiniKanren.Nil)
+    (upd_v k !!None v)
+    (assocs' === !!(k, v) % !!MiniKanren.Nil);
+  
+  fresh (hd tl tl' k' v v')
     (assocs === !!(MiniKanren.Cons (hd, tl)))
     (hd === !!(k', v'))
     (conde [
-      (k === k') &&& (assocs' === !!(MiniKanren.Cons (!!(k , v ), tl )));
-      (k =/= k') &&& (assocs' === !!(MiniKanren.Cons (!!(k', v'), tl'))) &&& (update_assoco k v tl tl');
+      (k === k') &&& (assocs' === !!(MiniKanren.Cons (!!(k , v ), tl ))) &&& (upd_v k !!(Some v') v);
+      (k =/= k') &&& (assocs' === !!(MiniKanren.Cons (!!(k', v'), tl'))) &&& (update_assoco_k k upd_v tl tl');
     ])
 ]
+                          
+let rec update_assoco k v assocs assocs' = 
+  let 
+    upd_v k opt vnew = (vnew === v)
+  in 
+    update_assoco_k k upd_v assocs assocs'
 
 let maxo a b c = conde [
   fresh (f)
