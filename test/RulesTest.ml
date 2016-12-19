@@ -76,14 +76,14 @@ let basic_stmt_tests =
 
     "spawn">:: (let leaf = ThreadTree.Leaf ThreadState.empty in
                 let thrd_tree = ThreadTree.Node (leaf, leaf) in
-                let state  = { MemState.thrds = leaf; } in
-                let state' = { MemState.thrds = thrd_tree; } in
+                let state  = { MemState.thrds = leaf; MemState.story = MemStory.empty; } in
+                let state' = { MemState.thrds = thrd_tree; MemState.story = MemStory.empty } in
                   BasicStmtTester.test_step [BasicStmt.spawn] (ST.Spw (ST.Skip, ST.Skip), state) [(ST.Par (ST.Skip, ST.Skip), state')]);
 
     "join">::  (let leaf = ThreadTree.Leaf ThreadState.empty in
                 let thrd_tree = ThreadTree.Node (leaf, leaf) in
-                let state  = { MemState.thrds = thrd_tree; } in
-                let state' = { MemState.thrds = leaf; } in
+                let state  = { MemState.thrds = thrd_tree;  MemState.story = MemStory.empty; } in
+                let state' = { MemState.thrds = leaf;  MemState.story = MemStory.empty; } in
                   BasicStmtTester.test_step [BasicStmt.join] (ST.Par (ST.AExpr (ET.Const 1), ST.AExpr (ET.Const 2)), state) [(ST.Pair (ET.Const 1, ET.Const 2), state')]);
   ]
 

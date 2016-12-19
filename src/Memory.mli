@@ -161,14 +161,44 @@ module LocStory :
     val write_rel : int -> ViewFront.t -> t -> t
   end
 
+module MemStory :
+  sig
+    type t 
+    type lt'
+    type lt  = lt' logic
+
+    val empty : t
+
+    val from_assoc : (loc * LocStory.t) list -> t
+
+    val inj : t -> lt
+
+    val prj : lt -> t
+
+    val show : t -> string
+
+    val eq : t -> t -> bool 
+
+    val read_acqo : lt -> loc logic -> Nat.logic -> Nat.logic -> Nat.logic -> ViewFront.lt -> goal
+
+    val write_relo : loc logic -> Nat.logic -> ViewFront.lt -> lt -> lt -> goal
+
+    val read_acq : t -> loc -> tstmp -> (tstmp * int * ViewFront.t) Stream.t
+
+    val write_rel : loc -> int -> ViewFront.t -> t -> t
+    
+  end
+
 module MemState : 
   sig
     type t = {
       thrds : ThreadTree.t;
+      story : MemStory.t;
     }
 
     type lt' = {
       lthrds : ThreadTree.lt;
+      lstory : MemStory.lt;
     }
 
     type lt = lt' logic
@@ -188,5 +218,9 @@ module MemState :
     val spawn_thrdo : Path.lt -> lt -> lt -> goal
     val join_thrdo  : Path.lt -> lt -> lt -> goal
 
+    val get_thrd : Path.t -> t -> ThreadState.t
+
     val assign_local : Path.t -> string -> int -> t -> t
+
+    val read_acq : Path.t -> string -> t -> (int * t) Stream.t
   end

@@ -165,6 +165,23 @@ module ThreadState =
         (Registers.seto var v regs regs')
         (splito t' regs' curr)
 
+    let get_tstmpo t l ts = 
+      fresh (regs curr)
+        (splito t regs curr)
+        (ViewFront.geto l curr ts)
+
+    let update_tstmpo l ts t t' = 
+      fresh (regs curr curr') 
+        (splito t  regs curr)
+        (ViewFront.updateo l ts curr curr')
+        (splito t' regs curr')
+
+    let join_viewfronto vf t t' = 
+      fresh (regs curr curr')
+        (splito t regs curr)
+        (ViewFront.joino vf curr curr')
+        (splito t' regs curr')
+
     let spawno t spwn spwn' = 
       fresh (regs curr)
         (splito t regs curr)
@@ -373,16 +390,18 @@ module LocStory =
 module MemStory = 
   struct 
     type t   = (loc * LocStory.t) list
-    type lt' = (loc logic * LocStory.lt, lt' logic) llist
+    type lt' = ((loc logic * LocStory.lt) logic, lt' logic) llist
     type lt  = lt' logic
 
     let empty = []
 
     let (!) = (!!)
 
+    let from_assoc assoc = assoc
+
     let inj t  = MiniKanren.List.inj (fun (l, story) -> !(!l, LocStory.inj story)) @@ MiniKanren.List.of_list t
 
-    let prj lt = MiniKanren.List.to_list @@ MiniKanren.List.prj (Utils.prj_pair (!) LocStory.prj) lt
+    let prj lt = MiniKanren.List.to_list @@ MiniKanren.List.prj (Utils.prj_pair (!?) LocStory.prj) lt
 
     let show t = List.fold_left (fun a (l, story) -> l ^ ": " ^ (LocStory.show story) ^ "\n") "" t
 
@@ -394,42 +413,60 @@ module MemStory =
 
     let read_acqo t l ts ts' v vf = 
       fresh (opt pair story)
-        (Utils.assoco l t pair)
-        (pair === !(l, story))
+        (Utils.assoco l t story)
         (LocStory.read_acqo story ts ts' v vf)
- 
+
+    let update_k v vf l opt_story story' =
+      fresh (story)
+        (LocStory.write_relo v vf story story')
+        (conde [
+          (opt_story === !(Some story));
+          (opt_story === !None) &&& (story === LocStory.inj LocStory.empty);
+        ])         
+
+    let write_relo l v vf t t' = Utils.update_assoco_k l (update_k v vf) t t'
+
+    let read_acq t l ts = run qrs (fun q  r  s  -> read_acqo (inj t) (!l) (inj_nat ts) q r s)
+                                  (fun qs rs ss -> Utils.zip3 (Stream.map prj_nat qs) (Stream.map prj_nat rs) (Stream.map ViewFront.prj ss))
+
+    let write_rel l v vf t = run q (fun q  -> write_relo (!l) (inj_nat v) (ViewFront.inj vf) (inj t) q)
+                                   (fun qs -> prj @@ Utils.excl_answ qs)
+    
   end
 
 module MemState =
   struct
     type t = {
       thrds : ThreadTree.t;
+      story : MemStory.t;
     }
 
     type lt' = {
       lthrds : ThreadTree.lt;
+      lstory : MemStory.lt;
     }
 
     type lt = lt' MiniKanren.logic
 
-    let empty = { thrds = ThreadTree.empty; }
+    let empty = { thrds = ThreadTree.empty; story = MemStory.empty }
 
-    let inj t = !! { lthrds = ThreadTree.inj t.thrds; }
+    let inj t = !! { lthrds = ThreadTree.inj t.thrds; lstory = MemStory.inj t.story; }
 
     let prj lt = 
       let lt' = !?lt in
-      { thrds = ThreadTree.prj lt'.lthrds; }
+      { thrds = ThreadTree.prj lt'.lthrds;
+        story = MemStory.prj lt'.lstory; }
 
     let sep = "-------------------------------------------------------------"
 
     let show t = "Threads\n" ^ sep ^ "\n" ^ ThreadTree.show t.thrds
     
-    let eq t t' = ThreadTree.eq t.thrds t'.thrds
+    let eq t t' = (ThreadTree.eq t.thrds t'.thrds) && (MemStory.eq t.story t'.story)
 
     let (!) = (!!)
 
-    let splito t thrd_tree history = 
-      (t === !{ lthrds = thrd_tree; })
+    let splito t thrd_tree story = 
+      (t === !{ lthrds = thrd_tree; lstory = story; })
  
     let get_thrdo path t thrd =
       fresh (thrd_tree h)
@@ -448,6 +485,16 @@ module MemState =
         (ThreadState.assign_localo x n thrd thrd')
         (update_thrdo path thrd' t t')
 
+    let read_acqo path l v t t' = 
+      fresh (thrd_tree thrd_tree' story thrd thrd' ts ts' vf)
+        (splito t thrd_tree story)
+        (ThreadTree.get_thrdo path thrd_tree thrd)
+        (ThreadState.get_tstmpo thrd l ts)
+        (MemStory.read_acqo story l ts ts' v vf)
+        (ThreadState.join_viewfronto vf thrd thrd')
+        (ThreadTree.update_thrdo path thrd' thrd_tree thrd_tree')
+        (splito t' thrd_tree' story) 
+
     let spawn_thrdo path t t' = 
       fresh (thrd_tree thrd_tree' h)
         (splito t thrd_tree h)
@@ -460,6 +507,12 @@ module MemState =
         (ThreadTree.join_thrdo path thrd_tree thrd_tree')
         (splito t' thrd_tree' h)
 
+    let get_thrd path t = run q (fun q  -> get_thrdo (Path.inj path) (inj t) q)
+                                (fun qs -> ThreadState.prj @@ Utils.excl_answ qs)
+
     let assign_local path x n t = run q (fun q  -> assign_localo (Path.inj path) !x (inj_nat n) (inj t) q)
                                         (fun qs -> prj @@ Utils.excl_answ qs)
+
+    let read_acq path l t = run qr (fun q  r  -> read_acqo (Path.inj path) (!l) q (inj t) r)
+                                   (fun qs rs -> Stream.zip (Stream.map prj_nat qs) (Stream.map prj rs))
   end

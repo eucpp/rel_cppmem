@@ -60,11 +60,12 @@ let viewfront_tests =
     (* ) *)
   ]
 
-let regs      = Registers.set "x" 0 Registers.empty
-let thrd      = { ThreadState.regs = regs; ThreadState.curr = ViewFront.empty }
-let thrd_tree = ThreadTree.Node (ThreadTree.Leaf thrd, ThreadTree.empty)
-
 let thrd_tree_tests = 
+
+  let regs      = Registers.set "x" 0 Registers.empty in
+  let thrd      = { ThreadState.regs = regs; ThreadState.curr = ViewFront.empty } in
+  let thrd_tree = ThreadTree.Node (ThreadTree.Leaf thrd, ThreadTree.empty) in
+
   "thrd_tree">::: [
     "test_get_1">:: (fun test_ctx -> 
       let expected = thrd in
@@ -126,5 +127,34 @@ let loc_story_tests =
     )
   ] 
 
+
+
+let mem_state_tests = 
+
+  let vf        = ViewFront.from_assoc [("x", 0)] in
+  let vf'       = ViewFront.from_assoc [("x", 1)] in
+  let thrd      = { ThreadState.regs = Registers.empty; ThreadState.curr = vf; } in
+  let thrd_tree = ThreadTree.Leaf thrd in
+  let mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
+  let mem_state = { MemState.thrds = thrd_tree; MemState.story = mem_story; } in
+
+  "mem_state">::: [
+    "test_read_acq">:: (fun test_ctx -> 
+      let exp_thrd      = { ThreadState.regs = Registers.empty; ThreadState.curr = vf'; } in
+      let exp_thrd_tree = ThreadTree.Leaf exp_thrd in
+      let exp_mem_state = { MemState.thrds = exp_thrd_tree; MemState.story = mem_story; } in
+
+      let stream = MemState.read_acq Path.N "x" mem_state in
+      let show (v, state) = Printf.sprintf "x=%d;\n MemState:\n%s\n" v (MemState.show state) in
+      let eq (v, state) (v', state') = (v == v') && (MemState.eq state state') in
+        TestUtils.assert_stream stream [(0, mem_state); (1, exp_mem_state)] ~eq:eq ~show:show
+    );
+
+  ]
+
 let tests = 
-  "memory">::: [registers_tests; viewfront_tests; thrd_tree_tests; loc_story_tests]
+  "memory">::: [registers_tests; 
+                viewfront_tests; 
+                thrd_tree_tests; 
+                loc_story_tests; 
+                mem_state_tests]
