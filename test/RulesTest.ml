@@ -90,19 +90,27 @@ let basic_stmt_tests =
 
 let rel_acq_tests =
 
-  let vf        = ViewFront.from_assoc [("x", 0)] in
-  let vf'       = ViewFront.from_assoc [("x", 1)] in
-  let thrd      = { ThreadState.regs = Registers.empty; ThreadState.curr = vf; } in
-  let thrd_tree = ThreadTree.Leaf thrd in
-  let mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
-  let state     = { MemState.thrds = thrd_tree; MemState.story = mem_story; } in
+  let vf         = ViewFront.from_assoc [("x", 0)] in
+  let vf'        = ViewFront.from_assoc [("x", 1)] in
+  let thrd       = { ThreadState.regs = Registers.empty; ThreadState.curr = vf; } in
+  let thrd'      = { ThreadState.regs = Registers.empty; ThreadState.curr = vf'; } in
+  let thrd_tree  = ThreadTree.Leaf thrd in
+  let thrd_tree' = ThreadTree.Leaf thrd' in
  
   "rel_acq">::: [
     "read_acq">:: 
-      let thrd'      = { ThreadState.regs = Registers.empty; ThreadState.curr = vf'; } in
-      let thrd_tree' = ThreadTree.Leaf thrd' in
-      let state'     = { MemState.thrds = thrd_tree'; MemState.story = mem_story; } in
-        StmtTester.test_step ~empty_check:false [RelAcq.read_acq] (ST.Read (ACQ, "x"), state) [(ST.AExpr (ET.Const 0), state); (ST.AExpr (ET.Const 1), state')]
+      (let mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
+       let state     = { MemState.thrds = thrd_tree; MemState.story = mem_story; } in
+       let state'    = { MemState.thrds = thrd_tree'; MemState.story = mem_story; } in
+         StmtTester.test_step ~empty_check:false [RelAcq.read_acq] (ST.Read (ACQ, "x"), state) [(ST.AExpr (ET.Const 0), state); (ST.AExpr (ET.Const 1), state')]);
+
+    "write_rel">:: 
+      (let mem_story  = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf)])] in
+       let mem_story' = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
+       let state      = { MemState.thrds = thrd_tree; MemState.story = mem_story; } in
+       let state'     = { MemState.thrds = thrd_tree'; MemState.story = mem_story'; } in
+         StmtTester.test_step [RelAcq.write_rel] (ST.Write (REL, "x", ET.Const 1), state) [(ST.Skip, state')]);
+ 
   ]
 
 let tests = 

@@ -52,5 +52,6 @@ module RelAcq :
 
     type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
     
-    val read_acq : string * rule
+    val read_acq  : string * rule
+    val write_rel : string * rule
   end

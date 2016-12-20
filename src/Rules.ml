@@ -182,17 +182,33 @@ module RelAcq =
 
     type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
 
+    module ExprSem = Semantics.Make(Lang.ExprTerm)(Lang.ExprContext)(Lang.ExprState)
+
+    let expr_sem = ExprSem.make BasicExpr.all
+
     let (!) = (!!)
 
     let read_acqo c t s c' t' s' = ST.(SC.(
       fresh (l path n)
         (c  === c')
         (t  === !(Read (!ACQ, l)))
+        (t' === !(AExpr !(ET.Const n)))
         (patho c path)
         (MemState.read_acqo path l n s s')
-        (t' === !(AExpr !(ET.Const n)))
     )) 
 
     let read_acq = ("read_acq", read_acqo)
+
+    let write_relo c t s c' t' s' = ST.(SC.(
+      fresh (l n e es es' path)
+        (c  === c')
+        (t  === !(Write (!REL, l, e)))
+        (t' === !Skip)
+        (patho c path)
+        (ExprSem.spaceo expr_sem e es !(ET.Const n) es')
+        (MemState.write_relo path l n s s')
+    ))
+
+    let write_rel = ("write_rel", write_relo)
  
   end
