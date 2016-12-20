@@ -165,4 +165,34 @@ module BasicStmt =
 
    let join = ("join", joino)
 
+   let all = [expr; asgn; if'; while'; seq; spawn; join]
+
+  end
+
+module RelAcq =
+  struct
+    type t  = Lang.StmtTerm.t
+    type lt = Lang.StmtTerm.lt
+
+    type c  = Lang.StmtContext.c
+    type lc = Lang.StmtContext.lc
+
+    type s  = Lang.StmtState.t
+    type ls = Lang.StmtState.lt
+
+    type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
+
+    let (!) = (!!)
+
+    let read_acqo c t s c' t' s' = ST.(SC.(
+      fresh (l path n)
+        (c  === c')
+        (t  === !(Read (!ACQ, l)))
+        (patho c path)
+        (MemState.read_acqo path l n s s')
+        (t' === !(AExpr !(ET.Const n)))
+    )) 
+
+    let read_acq = ("read_acq", read_acqo)
+ 
   end

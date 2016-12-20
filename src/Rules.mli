@@ -38,3 +38,19 @@ module BasicStmt :
     val spawn  : string * rule
     val join   : string * rule 
   end
+
+module RelAcq :
+  sig
+    type t  = Lang.StmtTerm.t
+    type lt = Lang.StmtTerm.lt
+
+    type c  = Lang.StmtContext.c
+    type lc = Lang.StmtContext.lc
+
+    type s  = Lang.StmtState.t
+    type ls = Lang.StmtState.lt
+
+    type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
+    
+    val read_acq : string * rule
+  end
