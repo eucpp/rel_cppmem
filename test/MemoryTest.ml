@@ -161,11 +161,13 @@ let mem_state_tests =
   let vf'       = ViewFront.from_assoc [("x", 1)] in
   let thrd      = { ThreadState.regs = Registers.empty; ThreadState.curr = vf; } in
   let thrd_tree = ThreadTree.Leaf thrd in
-  let mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
-  let mem_state = { MemState.thrds = thrd_tree; MemState.story = mem_story; } in
 
   "mem_state">::: [
     "test_read_acq">:: (fun test_ctx -> 
+
+      let mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
+      let mem_state = { MemState.thrds = thrd_tree; MemState.story = mem_story; } in
+
       let exp_thrd      = { ThreadState.regs = Registers.empty; ThreadState.curr = vf'; } in
       let exp_thrd_tree = ThreadTree.Leaf exp_thrd in
       let exp_mem_state = { MemState.thrds = exp_thrd_tree; MemState.story = mem_story; } in
@@ -173,8 +175,22 @@ let mem_state_tests =
       let stream = MemState.read_acq Path.N "x" mem_state in
       let show (v, state) = Printf.sprintf "Following value/state is not found among answers:\nx=%d;\nMemState:\n%s\n" v (MemState.show state) in
       let eq (v, state) (v', state') = (v == v') && (MemState.eq state state') in
+
         TestUtils.assert_stream stream [(0, mem_state); (1, exp_mem_state)] ~eq:eq ~show:show ~empty_check:false
     );
+
+    "test_write_rel">:: (fun test_ctx -> 
+
+      let mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf)])] in
+      let mem_state = { MemState.thrds = thrd_tree; MemState.story = mem_story; } in
+
+      let exp_thrd      = { ThreadState.regs = Registers.empty; ThreadState.curr = vf'; } in
+      let exp_thrd_tree = ThreadTree.Leaf exp_thrd in
+      let exp_mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
+      let exp_mem_state = { MemState.thrds = exp_thrd_tree; MemState.story = exp_mem_story; } in
+
+        assert_equal exp_mem_state (MemState.write_rel Path.N "x" 1 mem_state) ~cmp:MemState.eq ~printer:MemState.show
+    )
 
   ]
 

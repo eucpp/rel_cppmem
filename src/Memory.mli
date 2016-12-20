@@ -92,6 +92,9 @@ module ThreadState :
 
     val get_localo    : lt -> string logic -> Nat.logic -> goal
     val assign_localo : string logic -> Nat.logic -> lt -> lt -> goal
+
+    val get_tstmpo    : lt -> loc logic -> Nat.logic -> goal
+    val update_tstmpo : loc logic -> Nat.logic -> lt -> lt -> ViewFront.lt -> goal 
     
     val spawno : lt -> lt -> lt -> goal
     val joino  : lt -> lt -> lt -> goal    
@@ -156,6 +159,8 @@ module LocStory :
     val show : t -> string
     val eq : t -> t -> bool
 
+    val next_tstmpo : lt -> Nat.logic -> goal
+
     val read_acqo  : lt -> Nat.logic -> Nat.logic -> Nat.logic -> ViewFront.lt -> goal
     val write_relo : Nat.logic -> ViewFront.lt -> lt -> lt -> goal
 
@@ -180,6 +185,8 @@ module MemStory :
     val show : t -> string
 
     val eq : t -> t -> bool 
+
+    val next_tstmpo : lt -> loc logic -> Nat.logic -> goal
 
     val read_acqo : lt -> loc logic -> Nat.logic -> Nat.logic -> Nat.logic -> ViewFront.lt -> goal
 
@@ -217,6 +224,9 @@ module MemState :
 
     val assign_localo : Path.lt -> string logic -> Nat.logic -> lt -> lt -> goal
 
+    val read_acqo  : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
+    val write_relo : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
+
     val spawn_thrdo : Path.lt -> lt -> lt -> goal
     val join_thrdo  : Path.lt -> lt -> lt -> goal
 
@@ -224,5 +234,6 @@ module MemState :
 
     val assign_local : Path.t -> string -> int -> t -> t
 
-    val read_acq : Path.t -> string -> t -> (int * t) Stream.t
+    val read_acq  : Path.t -> string -> t -> (int * t) Stream.t
+    val write_rel : Path.t -> string -> int -> t -> t
   end

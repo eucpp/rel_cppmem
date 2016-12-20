@@ -170,7 +170,7 @@ module ThreadState =
     let (!) = (!!)
 
     let splito t regs curr = 
-      (t === !{lregs = regs; lcurr = curr; })
+      (t === !{lregs = regs; lcurr = curr; }) 
 
     let get_localo t var v = 
       fresh (regs curr)
@@ -188,8 +188,8 @@ module ThreadState =
         (splito t regs curr)
         (ViewFront.geto l curr ts)
 
-    let update_tstmpo l ts t t' = 
-      fresh (regs curr curr') 
+    let update_tstmpo l ts t t' curr' = 
+      fresh (regs curr) 
         (splito t  regs curr)
         (ViewFront.updateo l ts curr curr')
         (splito t' regs curr')
@@ -379,6 +379,10 @@ module LocStory =
     let splito t tsnext story = 
       (t === !{ ltsnext = tsnext; lstory = story; })
 
+    let next_tstmpo t ts = 
+      fresh (story)
+        (splito t ts story)
+
     let visible_msgo ts msg b = 
       fresh (ts' v vf)
         (msg === !(ts', v, vf))
@@ -429,6 +433,11 @@ module MemStory =
       in
         List.for_all check_exists t
 
+    let next_tstmpo t l ts = 
+      fresh (story)
+        (Utils.assoco l t story)
+        (LocStory.next_tstmpo story ts)
+
     let read_acqo t l ts ts' v vf = 
       fresh (story)
         (Utils.assoco l t story)
@@ -477,7 +486,7 @@ module MemState =
 
     let sep = "-------------------------------------------------------------"
 
-    let show t = "Threads\n" ^ sep ^ "\n" ^ ThreadTree.show t.thrds
+    let show t = Printf.sprintf "Threads:\n%s \n%s \nMemory:\n%s \n%s" sep (ThreadTree.show t.thrds) sep (MemStory.show t.story)
     
     let eq t t' = (ThreadTree.eq t.thrds t'.thrds) && (MemStory.eq t.story t'.story)
 
@@ -513,6 +522,16 @@ module MemState =
         (ThreadTree.update_thrdo path thrd' thrd_tree thrd_tree')
         (splito t' thrd_tree' story)
 
+    let write_relo path l v t t' = 
+      fresh (thrd_tree thrd_tree' story story' thrd thrd' ts vf)
+        (splito t thrd_tree story)
+        (MemStory.next_tstmpo story l ts)
+        (ThreadTree.get_thrdo path thrd_tree thrd)
+        (ThreadState.update_tstmpo l ts thrd thrd' vf)
+        (MemStory.write_relo l v vf story story')
+        (ThreadTree.update_thrdo path thrd' thrd_tree thrd_tree')
+        (splito t' thrd_tree' story')
+
     let spawn_thrdo path t t' = 
       fresh (thrd_tree thrd_tree' h)
         (splito t thrd_tree h)
@@ -533,4 +552,7 @@ module MemState =
 
     let read_acq path l t = run qr (fun q  r  -> read_acqo (Path.inj path) (!l) q (inj t) r)
                                    (fun qs rs -> Stream.zip (Stream.map prj_nat qs) (Stream.map prj rs))
+
+    let write_rel path l v t = run q (fun q  -> write_relo (Path.inj path) (!l) (inj_nat v) (inj t) q)
+                                     (fun qs -> prj @@ Utils.excl_answ qs)
   end
