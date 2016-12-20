@@ -93,19 +93,37 @@ module ViewFront =
 
     let updateo = Utils.update_assoco
 
-    let join_loco lts vf vf' = 
-      fresh (l ts ts' opt)
+    (* let join_loco lts vf vf' =  *)
+    (*   fresh (l ts ts' opt) *)
+    (*     (lts === !(l, ts)) *)
+    (*     (MiniKanren.List.lookupo (Utils.key_eqo l) vf opt) *)
+    (*     (conde [ *)
+    (*       (opt === !None) &&& *)
+    (*       (vf' === lts % vf); *)
+
+    (*       (opt === !(Some !(l, ts'))) &&& *)
+    (*       (conde [ *)
+    (*         Nat.(ts <= ts') &&& (vf' === vf); *)
+    (*         Nat.(ts >  ts') &&& (updateo l ts vf vf'); *)
+    (*       ]); *)
+    (*     ]) *)
+
+    let rec join_loco lts vf vf' = 
+      fresh (l l' ts ts')
         (lts === !(l, ts))
-        (MiniKanren.List.lookupo (Utils.key_eqo l) vf opt)
         (conde [
-          (opt === !(Some !(l, ts'))) &&&
-          (conde [
-            Nat.(ts <= ts') &&& (vf' === vf);
-            Nat.(ts >  ts') &&& (updateo l ts vf vf');
-          ]);
-          
-          (opt === !None) &&&
-          (vf' === lts % vf)
+          (vf === !MiniKanren.Nil) &&& (vf' === lts % vf);
+
+          fresh (tl tl')
+            (vf === !(l', ts') % tl)
+            (conde [
+              (l === l') &&& conde [
+                Nat.(ts <= ts') &&& (vf' === vf);
+                Nat.(ts >  ts') &&& (vf' === !(l, ts) % tl);
+              ];
+
+              (l =/= l') &&& (vf' === !(l', ts') % tl') &&& (join_loco lts tl tl');
+            ])
         ])
 
     let joino t t' joined = 
@@ -145,7 +163,7 @@ module ThreadState =
       { regs = Registers.prj lt'.lregs; 
         curr = ViewFront.prj lt'.lcurr; }
 
-    let show t = "Registers: " ^ Registers.show t.regs ^ "\nCurrent viewfront: " ^ ViewFront.show t.curr
+    let show t = "Registers: " ^ Registers.show t.regs ^ "\nCurrent viewfront: " ^ ViewFront.show t.curr ^ "\n"
     
     let eq t t' = (Registers.eq t.regs t'.regs) && (ViewFront.eq t.curr t'.curr)
 
@@ -412,17 +430,17 @@ module MemStory =
         List.for_all check_exists t
 
     let read_acqo t l ts ts' v vf = 
-      fresh (opt pair story)
+      fresh (story)
         (Utils.assoco l t story)
         (LocStory.read_acqo story ts ts' v vf)
 
     let update_k v vf l opt_story story' =
       fresh (story)
-        (LocStory.write_relo v vf story story')
         (conde [
           (opt_story === !(Some story));
           (opt_story === !None) &&& (story === LocStory.inj LocStory.empty);
-        ])         
+        ])
+        (LocStory.write_relo v vf story story')         
 
     let write_relo l v vf t t' = Utils.update_assoco_k l (update_k v vf) t t'
 
@@ -493,7 +511,7 @@ module MemState =
         (MemStory.read_acqo story l ts ts' v vf)
         (ThreadState.join_viewfronto vf thrd thrd')
         (ThreadTree.update_thrdo path thrd' thrd_tree thrd_tree')
-        (splito t' thrd_tree' story) 
+        (splito t' thrd_tree' story)
 
     let spawn_thrdo path t t' = 
       fresh (thrd_tree thrd_tree' h)

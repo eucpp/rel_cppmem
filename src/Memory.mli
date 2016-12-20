@@ -88,6 +88,8 @@ module ThreadState :
     val show : t -> string
     val eq : t -> t -> bool
 
+    val join_viewfronto : ViewFront.lt -> lt -> lt -> goal
+
     val get_localo    : lt -> string logic -> Nat.logic -> goal
     val assign_localo : string logic -> Nat.logic -> lt -> lt -> goal
     

@@ -51,14 +51,40 @@ let viewfront_tests =
         assert_equal 1 vy ~printer:string_of_int   
     );
 
-    (* "test_join">:: (fun test_ctx -> *)
-    (*   let vf       = ViewFront.from_assoc [("x", 0); ("y", 1)] in *)
-    (*   let vf'      = ViewFront.from_assoc [("x", 1); ("z", 1)] in *)
-    (*   let expected = ViewFront.from_assoc [("x", 1); ("y", 1); ("z", 1)] in *)
+    "test_join">:: (fun test_ctx ->
+      let vf       = ViewFront.from_assoc [("x", 0); ("y", 1)] in
+      let vf'      = ViewFront.from_assoc [("x", 1); ("z", 1)] in
+      let expected = ViewFront.from_assoc [("x", 1); ("y", 1); ("z", 1)] in
+      let actual   = ViewFront.join vf vf' in
+        assert_equal expected actual ~cmp:ViewFront.eq ~printer:ViewFront.show
+    );
+
+        
+    (* "test_join_tmp">:: (fun test_ctx -> *)
+    (*   let vf       = ViewFront.from_assoc [("x", 0)] in *)
+    (*   let vf'      = ViewFront.from_assoc [("x", 1)] in *)
+    (*   let expected = ViewFront.from_assoc [("x", 1)] in *)
     (*   let actual   = ViewFront.join vf vf' in *)
     (*     assert_equal expected actual ~cmp:ViewFront.eq ~printer:ViewFront.show *)
-    (* ) *)
+    (* ); *)
   ]
+
+(* let thrd_state_tests =  *)
+(*   "thrd_state">::: [ *)
+(*     "test_join_viewfront">:: (fun test_ctx -> *)
+(*       let regs = Registers.empty in *)
+(*       let curr = ViewFront.from_assoc [("x", 0)] in *)
+(*       let vf   = ViewFront.from_assoc [("x", 1)] in *)
+(*       let thrd = { ThreadState.regs = regs; ThreadState.curr = curr } in *)
+
+(*       let expected = { ThreadState.regs = regs; ThreadState.curr = vf } in *)
+
+(*       let actual = run q (fun q  -> ThreadState.join_viewfronto (ViewFront.inj vf) (ThreadState.inj thrd) q) *)
+(*                          (fun qs -> ThreadState.prj @@ Utils.excl_answ qs) in *)
+      
+(*         assert_equal expected actual ~cmp:ThreadState.eq ~printer:ThreadState.show *)
+(*     ) *)
+(*   ] *)
 
 let thrd_tree_tests = 
 
@@ -145,16 +171,17 @@ let mem_state_tests =
       let exp_mem_state = { MemState.thrds = exp_thrd_tree; MemState.story = mem_story; } in
 
       let stream = MemState.read_acq Path.N "x" mem_state in
-      let show (v, state) = Printf.sprintf "x=%d;\n MemState:\n%s\n" v (MemState.show state) in
+      let show (v, state) = Printf.sprintf "Following value/state is not found among answers:\nx=%d;\nMemState:\n%s\n" v (MemState.show state) in
       let eq (v, state) (v', state') = (v == v') && (MemState.eq state state') in
-        TestUtils.assert_stream stream [(0, mem_state); (1, exp_mem_state)] ~eq:eq ~show:show
+        TestUtils.assert_stream stream [(0, mem_state); (1, exp_mem_state)] ~eq:eq ~show:show ~empty_check:false
     );
 
   ]
 
 let tests = 
   "memory">::: [registers_tests; 
-                viewfront_tests; 
+                viewfront_tests;
+                (* thrd_state_tests; *) 
                 thrd_tree_tests; 
                 loc_story_tests; 
                 mem_state_tests]
