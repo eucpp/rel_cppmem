@@ -64,12 +64,12 @@ let basic_stmt_tests =
 
     "assign">:: StmtTester.test_step [BasicStmt.asgn] (ST.Asgn (ST.AExpr (ET.Var "x"), ST.AExpr (ET.Const 42)), MemState.empty) [(ST.Skip, mem)];
 
-    "if_true">:: StmtTester.test_step [BasicStmt.if'] (ST.If (ET.Var "x", ST.Skip, ST.Stuck), mem) [(ST.Skip, mem)];
+    "if_true">:: StmtTester.test_step ~empty_check:false [BasicStmt.if'] (ST.If (ST.AExpr (ET.Const 1), ST.Skip, ST.Stuck), mem) [(ST.Skip, mem)];
 
-    "if_false">:: StmtTester.test_step [BasicStmt.if'] (ST.If (ET.Const 0, ST.Stuck, ST.Skip), mem) [(ST.Skip, mem)];
+    "if_false">:: StmtTester.test_step ~empty_check:false [BasicStmt.if'] (ST.If (ST.AExpr (ET.Const 0), ST.Stuck, ST.Skip), mem) [(ST.Skip, mem)];
 
-    "while">:: (let loop = ST.While (ET.Const 1, ST.Skip) in
-                  StmtTester.test_step [BasicStmt.while'] (loop, mem) [(ST.If (ET.Const 1, ST.Seq (ST.Skip, loop), ST.Skip), mem)]);
+    "repeat">:: (let loop = ST.Repeat (ST.AExpr (ET.Const 1)) in
+                  StmtTester.test_step ~empty_check:false [BasicStmt.repeat] (loop, mem) [(ST.If (ST.AExpr (ET.Const 1), loop, ST.Skip), mem)]);
 
     "seq_skip">:: StmtTester.test_step [BasicStmt.seq] (ST.Seq (ST.Skip, ST.Skip), mem) [(ST.Skip, mem)];
 

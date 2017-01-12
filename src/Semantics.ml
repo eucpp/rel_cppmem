@@ -20,21 +20,11 @@ module Make
 
     let stepo rls t s t' s' =
       fresh (c c' rdx rdx')
-        (C.splito t  c  rdx )
+        (C.splito t  c  rdx)
         (C.reducibleo rdx !true)
-        (conde @@ List.map (fun (name, rl) -> rl c rdx s c' rdx' s') rls)
         (rdx =/= rdx')
+        (conde @@ List.map (fun (name, rl) -> rl c rdx s c' rdx' s') rls)
         (C.splito t' c' rdx')
-        (* (conde [ *)
-        (*   (b === !true) &&& *)
-        (*   (C.reducibleo rdx !true) &&& *)
-        (*   (conde @@ List.map (fun (name, rl) -> rl c rdx s c' rdx' s') rls) &&& *)
-        (*   (rdx =/= rdx') &&& *)
-        (*   (C.splito t' c' rdx'); *)
-        
-        (*   (b === !false) &&& *)
-        (*   (C.reducibleo rdx !false); *)
-        (* ]) *)
         
 
     let rec spaceo rls t s t'' s'' = 
@@ -45,12 +35,6 @@ module Make
           (stepo rls t s t' s') 
           (spaceo rls t' s' t'' s''));
       ]
-
-        (* (stepo rls t s t' s' b) *)
-        (* (conde [ *)
-        (*   (b === !false) &&& (t === t'') &&& (s === s''); *)
-        (*   (b === !true)  &&& () &&& (spaceo rls t' s' t'' s''); *)
-        (* ]) *) 
         
     let split t = run qr (fun q  r  -> C.splito (T.inj t) q r)
                          (fun qs rs -> Stream.zip (Stream.map C.prj qs) (Stream.map T.prj rs))

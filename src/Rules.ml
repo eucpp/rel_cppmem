@@ -103,31 +103,28 @@ module BasicStmt =
     let asgn = ("assign", asgno)
     
     let ifo c t s c' t' s' = ST.(SC.(
-      fresh (e btrue bfalse path e' es es' n)
+      fresh (e n btrue bfalse)
         (c === c')
-        (s === s')
-        (t === !(If (e, btrue, bfalse)))
-        (patho c path)
-        (MemState.get_thrdo path s es)
-        (ExprSem.spaceo expr_sem e es e' es')
-        (e' === !(ET.Const n))
+        (s === s') 
+        (t === !(If (!(AExpr e), btrue, bfalse)))
+        (e === !(ET.Const n))
         (conde [
           (n =/= (inj_nat 0)) &&& (t' === btrue);
           (n === (inj_nat 0)) &&& (t' === bfalse);
-        ])                                          
+        ])                                         
     ))
 
     let if' = ("if", ifo)
 
-    let whileo c t s c' t' s' = ST.(SC.(
-      fresh (e body)
+    let repeato c t s c' t' s' = ST.(SC.(
+      fresh (body)
         (c  === c')
         (s  === s')
-        (t  === !(While (e, body)))
-        (t' === !(If (e, !(Seq (body, t)), !Skip)))
+        (t  === !(Repeat body))
+        (t' === !(If (body, t, !Skip)))
     ))
 
-    let while' = ("while", whileo)
+    let repeat = ("repeat", repeato)
 
     let seqo c t s c' t' s' = ST.(SC.(
       fresh (t1 t2)
@@ -153,8 +150,8 @@ module BasicStmt =
    let spawn = ("spawn", spawno)
 
    let joino c t s c' t' s' = ST.(SC.(
-     fresh (t1 t2 n1 n2 path)
-       (c === c') 
+     fresh (t1 t2 n1 n2 path) 
+       (c === c')
        (t1 === !(AExpr !(ET.Const n1)))
        (t2 === !(AExpr !(ET.Const n2)))
        (t  === !(Par  (t1, t2)))
@@ -165,7 +162,7 @@ module BasicStmt =
 
    let join = ("join", joino)
 
-   let all = [expr; asgn; if'; while'; seq; spawn; join]
+   let all = [expr; asgn; if'; repeat; seq; spawn; join]
 
   end
 

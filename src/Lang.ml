@@ -145,8 +145,8 @@ module StmtTerm =
     | AExpr    of 'expr
     | Asgn     of 't * 't
     | Pair     of 'expr * 'expr
-    | If       of 'expr * 't * 't
-    | While    of 'expr * 't
+    | If       of 't * 't * 't
+    | Repeat   of 't
     | Read     of 'mo * 'loc
     | Write    of 'mo * 'loc * 'expr
     | Cas      of 'mo * 'mo * 'loc * 'expr * 'expr
@@ -179,6 +179,7 @@ module StmtContext =
     @type ('expr, 'string, 'mo, 'loc, 't, 'c) ac =
     | Hole
     | AsgnC     of 't * 'c
+    | IfC       of 'c * 't * 't
     | SeqC      of 'c * 't
     | ParL      of 'c * 't
     | ParR      of 't * 'c
@@ -211,9 +212,9 @@ module StmtContext =
       fresh (e t1 t2)
         (b === !true)
         (t === !(If (e, t1, t2)));
-      fresh (t' e')
+      fresh (t')
         (b === !true)
-        (t === !(While (e', t')));
+        (t === !(Repeat t'));
       fresh (mo l)
         (b === !true)
         (t === !(Read (mo, l)));
@@ -245,6 +246,13 @@ module StmtContext =
             ((c === !Hole)            &&& (rdx === t ));
             ((c === !(AsgnC (l, c'))) &&& (rdx === t') &&& (splito r c' t'));
           ]);
+
+        fresh (cond btrue bfalse c' t')
+          (t === !(If (cond, btrue, bfalse)))
+          (conde [
+            ((c === !Hole)                      &&& (rdx === t ) &&& (reducibleo cond !false));
+            ((c === !(IfC (c', btrue, bfalse))) &&& (rdx === t') &&& (reducibleo cond !true) &&& (splito cond c' t'))
+          ]);
  
         fresh (t1 t2 c' t')
           (t === !(Seq (t1, t2)))
@@ -271,8 +279,8 @@ module StmtContext =
           fresh (e t1 t2) 
             (t === !(If (e, t1, t2)));
 
-          fresh (t' e') 
-            (t === !(While (e', t')));
+          fresh (t') 
+            (t === !(Repeat t'));
 
           fresh (mo l)
             (t === !(Read (mo, l)));
@@ -298,7 +306,8 @@ module StmtContext =
             (c === !Hole)            &&& (path === !Memory.Path.N);
             (c === !(AsgnC (x, c'))) &&& (path === !Memory.Path.N);
             (c === !(SeqC (c', t'))) &&& (path === !Memory.Path.N);
-            (c === !(ParL (c', t'))) &&& (path === !(Memory.Path.L path')) &&& (patho c' path');            (c === !(ParR (t', c'))) &&& (path === !(Memory.Path.R path')) &&& (patho c' path');          ])
+            (c === !(ParL (c', t'))) &&& (path === !(Memory.Path.L path')) &&& (patho c' path');            
+            (c === !(ParR (t', c'))) &&& (path === !(Memory.Path.R path')) &&& (patho c' path');          ])
       )
   end
 
