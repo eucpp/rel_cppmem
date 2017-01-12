@@ -16,6 +16,10 @@ module Tester
   struct
     module Sem = Semantics.Make(T)(C)(S)
 
+    let test_reducible pairs test_ctx =
+      List.iter (fun (t, b) -> assert_equal b @@ Sem.reducible t) pairs  
+      
+
     let test_split term expected test_ctx =
       let stream             = Sem.split term in
       let show (c, t)        = "Context/Term is not found among answers: " ^ C.show c ^ " ; " ^ T.show t in
@@ -61,14 +65,18 @@ let expr_tests =
 
 let stmt_tests = 
   "stmt_tests">::: [
+    "test_reducible_pair">:: StmtTester.test_reducible 
+                               [(ST.Pair (ET.Const 1, ET.Const 2), false);
+                                (ST.Pair (ET.Const 1, ET.Var "x"), true);
+                                (ST.Pair (ET.Var "x", ET.Const 2), true);
+                                (ST.Pair (ET.Var "x", ET.Var "y"), true)];
+
     "test_split_expr">:: (let stmt = ST.AExpr (ET.Var "x") in
                             StmtTester.test_split stmt [(SC.Hole, stmt)]);
 
-    "test_split_asgn">:: (let stmt = ST.Asgn (ST.AExpr (ET.Var "x"), ST.Skip) in
-                            StmtTester.test_split stmt [(SC.Hole, stmt);
-                                                        (SC.AsgnC (ST.AExpr (ET.Var "x"), SC.Hole), ST.Skip)]);
-
-    
+    "test_split_asgn">:: (let stmt = ST.Asgn (ST.AExpr (ET.Var "x"), ST.AExpr (ET.Const 1)) in
+                              StmtTester.test_split stmt [(SC.Hole, stmt);
+                                                          (SC.AsgnC (ST.AExpr (ET.Var "x"), SC.Hole), ST.AExpr (ET.Const 1))]);
 
     "test_plug_skip">:: StmtTester.test_plug (SC.Hole, ST.Skip) ST.Skip;
   ]

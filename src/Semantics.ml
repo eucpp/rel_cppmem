@@ -35,6 +35,9 @@ module Make
           (stepo rls t s t' s') 
           (spaceo rls t' s' t'' s''));
       ]
+
+    let reducible t = run q (fun q  -> C.reducibleo (T.inj t) q)
+                            (fun qs -> !?(Utils.excl_answ qs))
         
     let split t = run qr (fun q  r  -> C.splito (T.inj t) q r)
                          (fun qs rs -> Stream.zip (Stream.map C.prj qs) (Stream.map T.prj rs))

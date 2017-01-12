@@ -203,9 +203,6 @@ module StmtContext =
       fresh (e) 
         (t === !(AExpr e))
         (ExprContext.reducibleo e b);
-      fresh (x1 x2)
-        (b === !false)
-        (t === !(Pair (x1, x2)));
       fresh (l r)
         (b === !true) 
         (t === !(Asgn (l, r)));
@@ -233,6 +230,14 @@ module StmtContext =
       fresh (t1 t2)
         (b === !true)
         (t === !(Par (t1, t2)));
+
+      (conde [
+         fresh (e1 e2 b1 b2)
+           (t === !(Pair (e1, e2)))
+           (ExprContext.reducibleo e1 b1)
+           (ExprContext.reducibleo e2 b2)
+           (Bool.oro b1 b2 b)
+      ]);
                                           
       ((b === !false) &&& (t === !Skip));
       ((b === !false) &&& (t === !Stuck));   
@@ -250,23 +255,23 @@ module StmtContext =
         fresh (cond btrue bfalse c' t')
           (t === !(If (cond, btrue, bfalse)))
           (conde [
-            ((c === !Hole)                      &&& (rdx === t ) &&& (reducibleo cond !false));
-            ((c === !(IfC (c', btrue, bfalse))) &&& (rdx === t') &&& (reducibleo cond !true) &&& (splito cond c' t'))
+            ((c === !Hole)                      &&& (rdx === t ));
+            ((c === !(IfC (c', btrue, bfalse))) &&& (rdx === t') &&& (splito cond c' t'))
           ]);
  
         fresh (t1 t2 c' t')
           (t === !(Seq (t1, t2)))
           (conde [
-            ((c === !Hole)            &&& (rdx === t ) &&& (reducibleo t1 !false)); 
-            ((c === !(SeqC (c', t2))) &&& (rdx === t') &&& (reducibleo t1 !true) &&& (splito t1 c' t'));
+            ((c === !Hole)            &&& (rdx === t )); 
+            ((c === !(SeqC (c', t2))) &&& (rdx === t') &&& (splito t1 c' t'));
           ]);
 
         fresh (t1 t2 c' t')
           (t === !(Par (t1, t2)))
           (conde [
-             ((c === !Hole)            &&& (rdx === t ) &&& (reducibleo t1 !false) &&& (reducibleo t2 !false));
-             ((c === !(ParL (c', t2))) &&& (rdx === t') &&& (reducibleo t1 !true ) &&& (splito t1 c' t'));
-             ((c === !(ParR (t1, c'))) &&& (rdx === t') &&& (reducibleo t2 !true ) &&& (splito t2 c' t'));
+             ((c === !Hole)            &&& (rdx === t ));
+             ((c === !(ParL (c', t2))) &&& (rdx === t') &&& (splito t1 c' t'));
+             ((c === !(ParR (t1, c'))) &&& (rdx === t') &&& (splito t2 c' t'));
           ]);
 
         ((c === !Hole) &&& (rdx === t) &&& conde [
@@ -301,13 +306,15 @@ module StmtContext =
       ]))
 
       let rec patho c path = StmtTerm.(
-        fresh (x t' c' path')
+        fresh (x cond bt bf t' c' path')
           (conde [
-            (c === !Hole)            &&& (path === !Memory.Path.N);
-            (c === !(AsgnC (x, c'))) &&& (path === !Memory.Path.N);
-            (c === !(SeqC (c', t'))) &&& (path === !Memory.Path.N);
-            (c === !(ParL (c', t'))) &&& (path === !(Memory.Path.L path')) &&& (patho c' path');            
-            (c === !(ParR (t', c'))) &&& (path === !(Memory.Path.R path')) &&& (patho c' path');          ])
+            (c === !Hole)                 &&& (path === !Memory.Path.N);
+            (c === !(AsgnC (x, c')))      &&& (patho c' path);
+            (c === !(IfC (cond, bt, bf))) &&& (patho c' path);
+            (c === !(SeqC (c', t')))      &&& (patho c' path);
+            (c === !(ParL (c', t')))      &&& (path === !(Memory.Path.L path')) &&& (patho c' path');            
+            (c === !(ParR (t', c')))      &&& (path === !(Memory.Path.R path')) &&& (patho c' path');          
+          ])
       )
   end
 

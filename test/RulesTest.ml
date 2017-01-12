@@ -27,10 +27,10 @@ module Tester
       let stream = Sem.step sem t s in
         TestUtils.assert_stream ?empty_check stream expected ~show:show ~eq:eq
 
-    let test_space rules (t, s) expected test_ctx = 
+    let test_space ?empty_check rules (t, s) expected test_ctx = 
       let sem    = Sem.make rules in
       let stream = Sem.space sem t s in
-        TestUtils.assert_stream stream expected ~show:show ~eq:eq 
+        TestUtils.assert_stream ?empty_check stream expected ~show:show ~eq:eq 
   end
   
 module ExprTester = Tester(ET)(EC)(ES)
@@ -57,10 +57,13 @@ let basic_expr_tests =
 
 let basic_stmt_tests = 
   
-  let mem = MemState.assign_local Path.N "x" 42 MemState.empty in 
+  let mem  = MemState.assign_local Path.N "x" 42 MemState.empty in 
+  let mem' = MemState.assign_local Path.N "y" 1 mem in 
 
   "basic_stmt">::: [
     "expr">:: StmtTester.test_step [BasicStmt.expr] (ST.AExpr (ET.Var "x"), mem) [(ST.AExpr (ET.Const 42), mem)];
+
+    "pair">:: StmtTester.test_step [BasicStmt.pair] (ST.Pair (ET.Var "x", ET.Var "y"), mem') [(ST.Pair (ET.Const 42, ET.Const 1), mem')];
 
     "assign">:: StmtTester.test_step [BasicStmt.asgn] (ST.Asgn (ST.AExpr (ET.Var "x"), ST.AExpr (ET.Const 42)), MemState.empty) [(ST.Skip, mem)];
 
@@ -86,6 +89,24 @@ let basic_stmt_tests =
                 let state  = { MemState.thrds = thrd_tree;  MemState.story = MemStory.empty; } in
                 let state' = { MemState.thrds = leaf;  MemState.story = MemStory.empty; } in
                   StmtTester.test_step [BasicStmt.join] (ST.Par (ST.AExpr (ET.Const 1), ST.AExpr (ET.Const 2)), state) [(ST.Pair (ET.Const 1, ET.Const 2), state')]);
+
+    "spawn_assign">:: (let pair = ST.Pair (ET.Var "x", ET.Var "y") in
+                       let stmt = ST.Asgn (pair,ST.Spw (
+                           ST.AExpr (ET.Const 42),
+                           ST.AExpr (ET.Const 1)
+                         )) in
+                         StmtTester.test_space BasicStmt.all (stmt, MemState.empty) [(ST.Skip, mem')]);
+
+    "seq_asgn">:: (let stmt = ST.Seq ((ST.Asgn (ST.AExpr (ET.Var "x"), ST.AExpr (ET.Const 42)), ST.AExpr (ET.Var "x"))) in
+                     StmtTester.test_space BasicStmt.all (stmt, MemState.empty) [(ST.AExpr (ET.Const 42), mem)]);
+
+    "space_all">:: (let pair = ST.Pair (ET.Var "x", ET.Var "y") in
+                    let stmt = ST.Seq (ST.Asgn (pair, ST.Spw (
+                      ST.Seq ((ST.Asgn (ST.AExpr (ET.Var "z"), ST.AExpr (ET.Const 42)), ST.AExpr (ET.Var "z"))),
+                      ST.If (ST.AExpr (ET.Const 1), ST.AExpr (ET.Const 1), ST.AExpr (ET.Const 0)) 
+                   )), pair) in
+                      StmtTester.test_space ~empty_check:false BasicStmt.all (stmt, MemState.empty) [(ST.Pair (ET.Const 42, ET.Const 1), mem')]);
+                   
   ]
 
 let rel_acq_tests =

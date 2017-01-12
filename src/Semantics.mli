@@ -20,6 +20,8 @@ module Make
     (** Relational step* *)
     val spaceo : t -> T.lt -> S.lt -> T.lt -> S.lt -> MiniKanren.goal
 
+    val reducible : T.t -> bool
+
     (** Non-relational wrapper for split *)
     val split : T.t -> (C.c * T.t) MiniKanren.Stream.t
 

@@ -31,12 +31,15 @@ module BasicStmt :
     type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
     
     val expr   : string * rule
+    val pair   : string * rule
     val asgn   : string * rule
     val if'    : string * rule
     val repeat : string * rule
     val seq    : string * rule
     val spawn  : string * rule
-    val join   : string * rule 
+    val join   : string * rule
+
+    val all : (string * rule) list 
   end
 
 module RelAcq :

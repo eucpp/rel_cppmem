@@ -69,17 +69,31 @@ module BasicStmt =
     let expr_sem = ExprSem.make BasicExpr.all
 
     let expro c t s c' t' s' = ST.(SC.(
-      fresh (et es et' es' path)
+      fresh (et es et' path)
         (c === c')
         (s === s')
         (t === !(AExpr et))
         (patho c path)
         (MemState.get_thrdo path s es)
-        (ExprSem.spaceo expr_sem et es et' es')
+        (ExprSem.spaceo expr_sem et es et' es)
         (t' === !(AExpr et'))
     ))
 
     let expr = ("expression", expro) 
+
+    let pairo c t s c' t' s' = ST.(SC.(
+      fresh (et1 et2 et1' et2' es path)
+        (c === c')
+        (s === s')
+        (t === !(Pair (et1, et2)))
+        (patho c path)
+        (MemState.get_thrdo path s es)
+        (ExprSem.spaceo expr_sem et1 es et1' es)
+        (ExprSem.spaceo expr_sem et2 es et2' es)
+        (t' === !(Pair (et1', et2')))
+    ))
+
+    let pair = ("pair", pairo)
 
     let asgno c t s c' t' s' = ST.(SC.(
       fresh (l r n path e)
@@ -162,7 +176,7 @@ module BasicStmt =
 
    let join = ("join", joino)
 
-   let all = [expr; asgn; if'; repeat; seq; spawn; join]
+   let all = [expr; pair; asgn; if'; repeat; seq; spawn; join]
 
   end
 
