@@ -13,10 +13,20 @@ let string_of_mo = function
   | SC      -> "sc"
   | ACQ     -> "acq"
   | REL     -> "rel"
-  | ACQ_REL -> "acq_rel"
+  | ACQ_REL -> "relAcq"
   | CON     -> "con"
   | RLX     -> "rlx"
   | NA      -> "na"  
+
+let mo_of_string str = 
+  let binding = [("sc", SC);
+                 ("acq", ACQ);
+                 ("rel", REL);
+                 ("relAcq", ACQ_REL); 
+                 ("con", CON); 
+                 ("rlx", RLX); 
+                 ("na", NA)] in
+    List.assoc str binding
 
 module Path = 
   struct

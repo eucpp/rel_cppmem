@@ -9,6 +9,8 @@ val string_of_loc : loc -> string
 val string_of_tstmp : tstmp -> string
 val string_of_mo : mem_order -> string
 
+val mo_of_string : string -> mem_order
+
 module Path : 
   sig
     type 'a at = N | L of 'a | R of 'a
