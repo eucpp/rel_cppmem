@@ -2,15 +2,25 @@ open OUnit2
 
 module ET = Lang.ExprTerm 
 module EC = Lang.ExprContext
-module ES = Lang.ExprState
+module ES = Memory.ThreadState
 
 module ST = Lang.StmtTerm
 module SC = Lang.StmtContext
-module SS = Lang.StmtState
+module SS = Memory.MemState
 
 let parse_expr str = 
   let lexbuf = Lexing.from_string str in
-    Parser.main Lexer.token lexbuf
+    Parser.expr_main Lexer.token lexbuf
+
+(* module Tester *)
+(*   (T : Lang.Term) =  *)
+(*   struct *)
+(*     let test_parse str expected test_ctx =  *)
+(*       assert_equal expected () *)
+(*   end *)
+
+(* let str expected test_ctx =  *)
+  
 
 let expr_parser_tests =
   "expr">::: [

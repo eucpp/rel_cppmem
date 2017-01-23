@@ -46,12 +46,6 @@ module type Context =
 
     (** [splito t c rdx] splits the term [t] into context [c] and redex [rdx] *)
     val splito :  lt ->  lc ->  lt -> goal
-
-    (* (\** Non-relational wrapper for split *\) *)
-    (* val split : t -> (c * t) Stream.t *)
-
-    (* (\** Non-relational wrapper for plugging term into context *\) *)
-    (* val plug : (c * t) -> t *)
   end
 
 module type State = 
@@ -136,8 +130,6 @@ module ExprContext =
         ((t === !(Const n)) &&& (c === !Hole) &&& (rdx === t));
     ])                                 
   end 
-
-module ExprState = ThreadState
 
 module StmtTerm = 
   struct
@@ -317,5 +309,3 @@ module StmtContext =
           ])
       )
   end
-
-module StmtState = MemState

@@ -3,11 +3,11 @@ open MiniKanren
 
 module ET = Lang.ExprTerm 
 module EC = Lang.ExprContext
-module ES = Lang.ExprState
+module ES = Memory.ThreadState
 
 module ST = Lang.StmtTerm
 module SC = Lang.StmtContext
-module SS = Lang.StmtState
+module SS = Memory.MemState
 
 module Tester
   (T : Lang.Term)

@@ -6,8 +6,8 @@ module BasicExpr :
     type c  = Lang.ExprContext.c
     type lc = Lang.ExprContext.lc
 
-    type s  = Lang.ExprState.t
-    type ls = Lang.ExprState.lt
+    type s  = Memory.ThreadState.t
+    type ls = Memory.ThreadState.lt
 
     type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
 
@@ -25,8 +25,8 @@ module BasicStmt :
     type c  = Lang.StmtContext.c
     type lc = Lang.StmtContext.lc
 
-    type s  = Lang.StmtState.t
-    type ls = Lang.StmtState.lt
+    type s  = Memory.MemState.t
+    type ls = Memory.MemState.lt
 
     type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
     
@@ -50,8 +50,8 @@ module RelAcq :
     type c  = Lang.StmtContext.c
     type lc = Lang.StmtContext.lc
 
-    type s  = Lang.StmtState.t
-    type ls = Lang.StmtState.lt
+    type s  = Memory.MemState.t
+    type ls = Memory.MemState.lt
 
     type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
     

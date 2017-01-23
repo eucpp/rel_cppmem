@@ -14,20 +14,19 @@
 %left PLUS MINUS
 %left TIMES
 
-%start expr
-%type <Lang.ExprTerm.t> expr
+%start expr_main
+%type <Lang.ExprTerm.t> expr_main
 
-%start main
-%type <Lang.ExprTerm.t> main
-
-%start stmt
-%type <Lang.StmtTerm.t> stmt
+%start stmt_main
+%type <Lang.StmtTerm.t> stmt_main
 
 %%
 
+stmt_main:
+    stmt EOF                            { $1 }
+;
 stmt:
-    stmt EOF                             { $1 }
-  | RET expr                             { Lang.StmtTerm.AExpr $2 }
+    RET expr                             { Lang.StmtTerm.AExpr $2 }
   | STUCK                                { Lang.StmtTerm.Stuck }
   | IF stmt THEN stmt ELSE stmt FI       { Lang.StmtTerm.If ($2, $4, $6) }
   | REPEAT stmt END                      { Lang.StmtTerm.Repeat $2 }
@@ -36,8 +35,8 @@ stmt:
   | LOC UNDERSCORE MO                    { Lang.StmtTerm.Read ($3, $1) }
   | stmt SEMICOLON stmt                  { Lang.StmtTerm.Seq ($1, $3) }
 ;
-main:
-  expr EOF                               { $1 }
+expr_main:
+    expr EOF                            { $1 }
 ;
 expr:
     INT                                  { Lang.ExprTerm.Const $1 } 
