@@ -64,91 +64,19 @@ module type State =
     val eq : t -> t -> bool
   end
 
-module ExprTerm = 
-  struct
-    @type ('int, 'string, 't) at =
-    | Const of 'int
-    | Var   of 'string
-    | Binop of 'string * 't * 't
-    | Stuck
-    with gmap, eq, show 
-
-    type t   = (int, string, t) at
-    type lt' = (Nat.logic, string logic, lt' logic) at
-    type lt  = lt' logic
-
-    let rec inj t = !! (GT.gmap(at) (inj_nat) (!!) (inj) t)
-
-    let rec prj lt = GT.gmap(at) (prj_nat) (!?) (prj) (!? lt)
-
-    let rec show t = GT.show(at) (GT.show(GT.int)) (GT.show(GT.string)) (show) t
-
-    (* let parse str =  *)
-    (*   let lexbuf = Lexing.from_string str in *)
-    (*   Parser.expr_main Lexer.token lexbuf *)
-
-    let rec eq t t' = GT.eq(at) (GT.eq(GT.int)) (GT.eq(GT.string)) (eq) t t'
-                           
-  end
-
-module ExprContext =
-  struct
-    type t   = ExprTerm.t
-    type lt' = ExprTerm.lt'
-    type lt  = ExprTerm.lt
-
-    @type ('int, 'string, 't, 'c) ac = 
-    | Hole
-    | BinopL of 'string * 'c * 't
-    | BinopR of 'string * 't * 'c
-    with gmap, eq, show
-
-    type c   = (int, string, t, c) ac
-    type lc' = (Nat.logic, string logic, lt, lc' logic) ac
-    type lc  = lc' logic
-
-    let rec inj c = !! (GT.gmap(ac) (inj_nat) (!!) (ExprTerm.inj) (inj) c)
-
-    let rec prj lc = GT.gmap(ac) (prj_nat) (!?) (ExprTerm.prj) (prj) (!? lc)
-
-    let rec show c = GT.show(ac) (GT.show(GT.int)) (GT.show(GT.string)) (ExprTerm.show) (show) c 
-
-    let rec eq c c' = GT.eq(ac) (GT.eq(GT.int)) (GT.eq(GT.string)) (ExprTerm.eq) (eq) c c'
-
-    let (!) = MiniKanren.inj
-
-    let reducibleo t b = ExprTerm.(conde [
-      fresh (n)      (b === !false) (t === !(Const n));
-      fresh (x)      (b === !true)  (t === !(Var x));
-      fresh (op l r) (b === !true)  (t === !(Binop (op, l, r))) ;
-    ])
-
-    let rec splito t c rdx = ExprTerm.(conde [
-      fresh (op l r c' t')
-         (t === !(Binop (op, l, r)))
-         (conde [
-           ((c === !(BinopL (op, c', r))) &&& (rdx === t') &&& (splito l c' t'));
-           ((c === !(BinopR (op, l, c'))) &&& (rdx === t') &&& (splito r c' t'));
-           ((c === !Hole)                 &&& (rdx === t));
-        ]);
-      fresh (x)
-        ((t === !(Var x)) &&& (c === !Hole) &&& (rdx === t));
-      fresh (n)
-        ((t === !(Const n)) &&& (c === !Hole) &&& (rdx === t));
-    ])     
-  end 
-
 module StmtTerm = 
   struct
-    @type ('expr, 'string, 'mo, 'loc, 't) at =
-    | AExpr    of 'expr
+    @type ('int, 'string, 'mo, 'loc, 't) at =
+    | Const    of 'int
+    | Var      of 'string
+    | Binop    of 'string * 't * 't
     | Asgn     of 't * 't
-    | Pair     of 'expr * 'expr
+    | Pair     of 't * 't
     | If       of 't * 't * 't
     | Repeat   of 't
     | Read     of 'mo * 'loc
     | Write    of 'mo * 'loc * 'expr
-    | Cas      of 'mo * 'mo * 'loc * 'expr * 'expr
+    | Cas      of 'mo * 'mo * 'loc * 't * 't
     | Seq      of 't * 't
     | Spw      of 't * 't
     | Par      of 't * 't
@@ -156,21 +84,17 @@ module StmtTerm =
     | Stuck
     with gmap, eq, show
 
-    type t   = (ExprTerm.t, string, mem_order, loc, t) at
-    type lt' = (ExprTerm.lt, string logic, mem_order logic, loc logic, lt' logic) at
+    type t   = (int, string, mem_order, loc, t) at
+    type lt' = (Nat.logic, string logic, mem_order logic, loc logic, lt' logic) at
     type lt  = lt' logic
 
-    let rec inj t = !! (GT.gmap(at) (ExprTerm.inj) (!!) (!!) (!!) (inj) t)
+    let rec inj t = !! (GT.gmap(at) (!!) (!!) (!!) (!!) (inj) t)
 
-    let rec prj lt = GT.gmap(at) (ExprTerm.prj) (!?) (!?) (!?) (prj) (!? lt)
+    let rec prj lt = GT.gmap(at) (!?) (!?) (!?) (?!) (prj) (!? lt)
 
-    let rec show t = GT.show(at) (ExprTerm.show) (GT.show(GT.string)) (string_of_mo) (string_of_loc) (show) t
+    let rec show t = GT.show(at) (GT.show(GT.int)) (GT.show(GT.string)) (string_of_mo) (string_of_loc) (show) t
 
-    (* let parse str =  *)
-    (*   let lexbuf = Lexing.from_string str in *)
-    (*   Parser.stmt_main Lexer.token lexbuf   *)
-
-    let rec eq t t' = GT.eq(at) (ExprTerm.eq) (GT.eq(GT.string)) (=) (=) (eq) t t'
+    let rec eq t t' = GT.eq(at) (GT.eq(GT.int)) (GT.eq(GT.string)) (=) (=) (eq) t t'
   end
 
 module StmtContext = 
@@ -181,6 +105,8 @@ module StmtContext =
 
     @type ('expr, 'string, 'mo, 'loc, 't, 'c) ac =
     | Hole
+    | BinopL    of 'string * 'c * 't
+    | BinopR    of 'string * 't * 'c
     | AsgnC     of 't * 'c
     | IfC       of 'c * 't * 't
     | SeqC      of 'c * 't
@@ -188,24 +114,30 @@ module StmtContext =
     | ParR      of 't * 'c
     with gmap, eq, show
 
-    type c   = (ExprTerm.t, string, mem_order, loc, StmtTerm.t, c) ac
-    type lc' = (ExprTerm.lt, string logic, mem_order logic, loc logic, StmtTerm.lt, lc' logic) ac
+    type c   = (int, string, mem_order, loc, StmtTerm.t, c) ac
+    type lc' = (Nat.logic, string logic, mem_order logic, loc logic, StmtTerm.lt, lc' logic) ac
     type lc  = lc' logic
 
-    let rec inj c = !! (GT.gmap(ac) (ExprTerm.inj) (!!) (!!) (!!) (StmtTerm.inj) (inj) c)
+    let rec inj c = !! (GT.gmap(ac) (!!) (!!) (!!) (!!) (StmtTerm.inj) (inj) c)
 
-    let rec prj lc = GT.gmap(ac) (ExprTerm.prj) (!?) (!?) (!?) (StmtTerm.prj) (prj) (!? lc)
+    let rec prj lc = GT.gmap(ac) (!?) (!?) (!?) (!?) (StmtTerm.prj) (prj) (!? lc)
 
-    let rec show c = GT.show(ac) (ExprTerm.show) (GT.show(GT.string)) (string_of_mo) (string_of_loc) (StmtTerm.show) (show) c
+    let rec show c = GT.show(ac) (GT.show(GT.int)) (GT.show(GT.string)) (string_of_mo) (string_of_loc) (StmtTerm.show) (show) c
 
-    let rec eq c c' = GT.eq(ac) (ExprTerm.eq) (GT.eq(GT.string)) (=) (=) (StmtTerm.eq) (eq) c c'
+    let rec eq c c' = GT.eq(ac) (GT.eq(GT.int)) (GT.eq(GT.string)) (=) (=) (StmtTerm.eq) (eq) c c'
 
     let (!) = MiniKanren.inj
 
     let reducibleo t b = StmtTerm.(conde [
-      fresh (e) 
-        (t === !(AExpr e))
-        (ExprContext.reducibleo e b);
+      fresh (n)      
+        (b === !false) 
+        (t === !(Const n));
+      fresh (x)      
+        (b === !true)  
+        (t === !(Var x));
+      fresh (op l r) 
+        (b === !true)  
+        (t === !(Binop (op, l, r)));
       fresh (l r)
         (b === !true) 
         (t === !(Asgn (l, r)));
@@ -235,10 +167,10 @@ module StmtContext =
         (t === !(Par (t1, t2)));
 
       (conde [
-         fresh (e1 e2 b1 b2)
+         fresh (t1 t2 b1 b2)
            (t === !(Pair (e1, e2)))
-           (ExprContext.reducibleo e1 b1)
-           (ExprContext.reducibleo e2 b2)
+           (reducibleo t1 b1)
+           (reducibleo t2 b2)
            (Bool.oro b1 b2 b)
       ]);
                                           
@@ -248,6 +180,14 @@ module StmtContext =
 
     let rec splito t c rdx = StmtTerm.( 
       (conde [
+        fresh (op l r c' t')
+          (t === !(Binop (op, l, r)))
+          (conde [
+            ((c === !(BinopL (op, c', r))) &&& (rdx === t') &&& (splito l c' t'));
+            ((c === !(BinopR (op, l, c'))) &&& (rdx === t') &&& (splito r c' t'));
+            ((c === !Hole)                 &&& (rdx === t));
+          ]);
+
         fresh (l r c' t')
           (t === !(Asgn (l, r)))
           (conde [
@@ -278,6 +218,12 @@ module StmtContext =
           ]);
 
         ((c === !Hole) &&& (rdx === t) &&& conde [
+          fresh (n)
+            (t === !(Const n));
+
+          fresh (x)
+            (t === !(Var x));
+
           fresh (e) 
             (t === !(AExpr e));
 
@@ -309,14 +255,16 @@ module StmtContext =
       ]))
 
       let rec patho c path = StmtTerm.(
-        fresh (x cond bt bf t' c' path')
+        fresh (op t1 t2 t3 t' c' path')
           (conde [
-            (c === !Hole)                 &&& (path === !Memory.Path.N);
-            (c === !(AsgnC (x, c')))      &&& (patho c' path);
-            (c === !(IfC (cond, bt, bf))) &&& (patho c' path);
-            (c === !(SeqC (c', t')))      &&& (patho c' path);
-            (c === !(ParL (c', t')))      &&& (path === !(Memory.Path.L path')) &&& (patho c' path');            
-            (c === !(ParR (t', c')))      &&& (path === !(Memory.Path.R path')) &&& (patho c' path');          
+            (c === !Hole)                  &&& (path === !Memory.Path.N);
+            (c === !(BinopL (op, c', t1))) &&& (patho c' path);
+            (c === !(BinopR (op, t1, c'))) &&& (patho c' path);
+            (c === !(AsgnC (t1, c')))      &&& (patho c' path);
+            (c === !(IfC (t1, t2, t3)))    &&& (patho c' path);
+            (c === !(SeqC (c', t1)))       &&& (patho c' path);
+            (c === !(ParL (c', t1)))       &&& (path === !(Memory.Path.L path')) &&& (patho c' path');            
+            (c === !(ParR (t1, c')))       &&& (path === !(Memory.Path.R path')) &&& (patho c' path');          
           ])
       )
   end
