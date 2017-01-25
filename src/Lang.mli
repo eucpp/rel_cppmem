@@ -1,5 +1,3 @@
-open GT
-
 module type Term =
   sig
     (** Term type *)
@@ -13,6 +11,7 @@ module type Term =
     val inj : t -> lt
     val prj : lt -> t
     val show : t -> string
+    (* val parse : string -> t *)
     val eq : t -> t -> bool
   end
 
@@ -75,11 +74,9 @@ module ExprTerm :
     type lt  = lt' MiniKanren.logic
 
     val inj : t -> lt
-
     val prj : lt -> t
-
     val show : t -> string
-
+    (* val parse : string -> t *)
     val eq : t -> t -> bool
   end
 
@@ -100,11 +97,8 @@ module ExprContext :
     type lc  = lc' MiniKanren.logic
 
     val inj : c -> lc
-
     val prj : lc -> c
-
     val show : c -> string
-
     val eq : c -> c -> bool
 
     val reducibleo : lt -> bool MiniKanren.logic -> MiniKanren.goal
@@ -135,11 +129,9 @@ module StmtTerm :
     type lt  = lt' MiniKanren.logic
 
     val inj : t -> lt
-
     val prj : lt -> t
-
     val show : t -> string
-
+    (* val parse : string -> t *)
     val eq : t -> t -> bool
   end
 

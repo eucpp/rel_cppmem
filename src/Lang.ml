@@ -1,4 +1,3 @@
-open GT
 open MiniKanren
 open Memory
 
@@ -15,8 +14,10 @@ module type Term =
     val inj : t -> lt
     val prj : lt -> t
     val show : t -> string
-    val eq : t -> t -> bool
-  end
+    (* val parse : string -> t *)
+    val eq : t -> t -> bool    
+                          
+  end                         
 
 module type Context =
   sig
@@ -39,6 +40,7 @@ module type Context =
     val inj : c -> lc
     val prj : lc -> c
     val show : c -> string
+
     val eq : c -> c -> bool
                      
     (** [reducibleo t b] says whether term t could be reduced *)
@@ -75,13 +77,18 @@ module ExprTerm =
     type lt' = (Nat.logic, string logic, lt' logic) at
     type lt  = lt' logic
 
-    let rec inj t = !! (gmap(at) (inj_nat) (!!) (inj) t)
+    let rec inj t = !! (GT.gmap(at) (inj_nat) (!!) (inj) t)
 
-    let rec prj lt = gmap(at) (prj_nat) (!?) (prj) (!? lt)
+    let rec prj lt = GT.gmap(at) (prj_nat) (!?) (prj) (!? lt)
 
-    let rec show t = GT.show(at) (GT.show(int)) (GT.show(string)) (show) t
+    let rec show t = GT.show(at) (GT.show(GT.int)) (GT.show(GT.string)) (show) t
 
-    let rec eq t t' = GT.eq(at) (GT.eq(int)) (GT.eq(string)) (eq) t t'
+    (* let parse str =  *)
+    (*   let lexbuf = Lexing.from_string str in *)
+    (*   Parser.expr_main Lexer.token lexbuf *)
+
+    let rec eq t t' = GT.eq(at) (GT.eq(GT.int)) (GT.eq(GT.string)) (eq) t t'
+                           
   end
 
 module ExprContext =
@@ -100,13 +107,13 @@ module ExprContext =
     type lc' = (Nat.logic, string logic, lt, lc' logic) ac
     type lc  = lc' logic
 
-    let rec inj c = !! (gmap(ac) (inj_nat) (!!) (ExprTerm.inj) (inj) c)
+    let rec inj c = !! (GT.gmap(ac) (inj_nat) (!!) (ExprTerm.inj) (inj) c)
 
-    let rec prj lc = gmap(ac) (prj_nat) (!?) (ExprTerm.prj) (prj) (!? lc)
+    let rec prj lc = GT.gmap(ac) (prj_nat) (!?) (ExprTerm.prj) (prj) (!? lc)
 
-    let rec show c = GT.show(ac) (GT.show(int)) (GT.show(string)) (ExprTerm.show) (show) c 
+    let rec show c = GT.show(ac) (GT.show(GT.int)) (GT.show(GT.string)) (ExprTerm.show) (show) c 
 
-    let rec eq c c' = GT.eq(ac) (GT.eq(int)) (GT.eq(string)) (ExprTerm.eq) (eq) c c'
+    let rec eq c c' = GT.eq(ac) (GT.eq(GT.int)) (GT.eq(GT.string)) (ExprTerm.eq) (eq) c c'
 
     let (!) = MiniKanren.inj
 
@@ -128,7 +135,7 @@ module ExprContext =
         ((t === !(Var x)) &&& (c === !Hole) &&& (rdx === t));
       fresh (n)
         ((t === !(Const n)) &&& (c === !Hole) &&& (rdx === t));
-    ])                                 
+    ])     
   end 
 
 module StmtTerm = 
@@ -153,13 +160,17 @@ module StmtTerm =
     type lt' = (ExprTerm.lt, string logic, mem_order logic, loc logic, lt' logic) at
     type lt  = lt' logic
 
-    let rec inj t = !! (gmap(at) (ExprTerm.inj) (!!) (!!) (!!) (inj) t)
+    let rec inj t = !! (GT.gmap(at) (ExprTerm.inj) (!!) (!!) (!!) (inj) t)
 
-    let rec prj lt = gmap(at) (ExprTerm.prj) (!?) (!?) (!?) (prj) (!? lt)
+    let rec prj lt = GT.gmap(at) (ExprTerm.prj) (!?) (!?) (!?) (prj) (!? lt)
 
-    let rec show t = GT.show(at) (ExprTerm.show) (GT.show(string)) (string_of_mo) (string_of_loc) (show) t
+    let rec show t = GT.show(at) (ExprTerm.show) (GT.show(GT.string)) (string_of_mo) (string_of_loc) (show) t
 
-    let rec eq t t' = GT.eq(at) (ExprTerm.eq) (GT.eq(string)) (=) (=) (eq) t t'
+    (* let parse str =  *)
+    (*   let lexbuf = Lexing.from_string str in *)
+    (*   Parser.stmt_main Lexer.token lexbuf   *)
+
+    let rec eq t t' = GT.eq(at) (ExprTerm.eq) (GT.eq(GT.string)) (=) (=) (eq) t t'
   end
 
 module StmtContext = 
@@ -181,13 +192,13 @@ module StmtContext =
     type lc' = (ExprTerm.lt, string logic, mem_order logic, loc logic, StmtTerm.lt, lc' logic) ac
     type lc  = lc' logic
 
-    let rec inj c = !! (gmap(ac) (ExprTerm.inj) (!!) (!!) (!!) (StmtTerm.inj) (inj) c)
+    let rec inj c = !! (GT.gmap(ac) (ExprTerm.inj) (!!) (!!) (!!) (StmtTerm.inj) (inj) c)
 
-    let rec prj lc = gmap(ac) (ExprTerm.prj) (!?) (!?) (!?) (StmtTerm.prj) (prj) (!? lc)
+    let rec prj lc = GT.gmap(ac) (ExprTerm.prj) (!?) (!?) (!?) (StmtTerm.prj) (prj) (!? lc)
 
-    let rec show c = GT.show(ac) (ExprTerm.show) (GT.show(string)) (string_of_mo) (string_of_loc) (StmtTerm.show) (show) c
+    let rec show c = GT.show(ac) (ExprTerm.show) (GT.show(GT.string)) (string_of_mo) (string_of_loc) (StmtTerm.show) (show) c
 
-    let rec eq c c' = GT.eq(ac) (ExprTerm.eq) (GT.eq(string)) (=) (=) (StmtTerm.eq) (eq) c c'
+    let rec eq c c' = GT.eq(ac) (ExprTerm.eq) (GT.eq(GT.string)) (=) (=) (StmtTerm.eq) (eq) c c'
 
     let (!) = MiniKanren.inj
 

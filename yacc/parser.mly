@@ -14,29 +14,25 @@
 %left PLUS MINUS
 %left TIMES
 
-%start expr_main
-%type <Lang.ExprTerm.t> expr_main
-
-%start stmt_main
-%type <Lang.StmtTerm.t> stmt_main
+%start main
+%type <Lang.StmtTerm.t> main
 
 %%
 
-stmt_main:
-    stmt EOF                            { $1 }
+main:
+    stmt EOF                             { $1 }
 ;
 stmt:
     RET expr                             { Lang.StmtTerm.AExpr $2 }
   | STUCK                                { Lang.StmtTerm.Stuck }
-  | IF stmt THEN stmt ELSE stmt FI       { Lang.StmtTerm.If ($2, $4, $6) }
+  | IF expr THEN stmt ELSE stmt FI       { Lang.StmtTerm.If (Lang.StmtTerm.AExpr $2, $4, $6) }
   | REPEAT stmt END                      { Lang.StmtTerm.Repeat $2 }
-  | VAR ASSIGN stmt                      { Lang.StmtTerm.Asgn (Lang.StmtTerm.AExpr (Lang.ExprTerm.Var $1), $3) }
+  | VAR ASSIGN expr                      { Lang.StmtTerm.Asgn (Lang.StmtTerm.AExpr (Lang.ExprTerm.Var $1), Lang.StmtTerm.AExpr $3) }
   | LOC UNDERSCORE MO ASSIGN expr        { Lang.StmtTerm.Write ($3, $1, $5) }
   | LOC UNDERSCORE MO                    { Lang.StmtTerm.Read ($3, $1) }
   | stmt SEMICOLON stmt                  { Lang.StmtTerm.Seq ($1, $3) }
-;
-expr_main:
-    expr EOF                            { $1 }
+  | SKIP                                 { Lang.StmtTerm.Skip }
+  | STUCK                                { Lang.StmtTerm.Stuck }
 ;
 expr:
     INT                                  { Lang.ExprTerm.Const $1 } 
