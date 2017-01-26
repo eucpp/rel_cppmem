@@ -3,18 +3,10 @@ open MiniKanren
 open Memory
 open Rules
 
-module ET = Lang.ExprTerm
-module EC = Lang.ExprContext
-module ES = ThreadState
-
-module ST = Lang.StmtTerm
-module SC = Lang.StmtContext
-module SS = MemState
-
-module Tester 
-  (T : Lang.Term)
-  (C : Lang.Context with type t = T.t with type lt' = T.lt')
-  (S : Lang.State) = 
+module RulesTester 
+  (T : Lang.ATerm)
+  (C : Lang.AContext with type t = T.t with type lt' = T.lt')
+  (S : Lang.AState) = 
   struct 
     module Sem = Semantics.Make(T)(C)(S)
 
@@ -33,79 +25,68 @@ module Tester
         TestUtils.assert_stream ?empty_check stream expected ~show:show ~eq:eq 
   end
   
-module ExprTester = Tester(ET)(EC)(ES)
-module StmtTester = Tester(ST)(SC)(SS)
+module Tester = RulesTester(Lang.Term)(Lang.Context)(MemState)
 
-let basic_expr_tests = 
+module T = Lang.Term
+module C = Lang.Context
+module S = Memory.MemState
 
-  let regs = Registers.set "x" 42 Registers.empty in
-  let thrd = { ES.regs = regs; ES.curr = ViewFront.empty } in
-
-  "basic_expr">::: [
-    "var">:: ExprTester.test_step [BasicExpr.var] (ET.Var "x", thrd) [(ET.Const 42, thrd)];
-    
-    "binop">:: ExprTester.test_step [BasicExpr.binop] (ET.Binop ("+", ET.Const 1, ET.Const 2), thrd) [(ET.Const 3, thrd)];
-
-    "step_all">:: ExprTester.test_step BasicExpr.all (ET.Binop ("+", ET.Var "x", ET.Const 1), thrd) [(ET.Binop ("+", ET.Const 42, ET.Const 1), thrd)];
-
-
-    "space_all">:: let
-               e = (ET.Binop ("+", ET.Var "x", ET.Binop ("*", ET.Const 2, ET.Const 4)), thrd)
-             in
-               ExprTester.test_space BasicExpr.all e [(ET.Const 50, thrd); (ET.Const 50, thrd)];
-  ]
-
-let basic_stmt_tests = 
+let basic_tests = 
   
-  let mem  = SS.assign_local Path.N "x" 42 SS.empty in 
-  let mem' = SS.assign_local Path.N "y" 1 mem in 
+  let mem  = S.assign_local Path.N "x" 42 S.empty in 
+  let mem' = S.assign_local Path.N "y" 1 mem in 
 
-  "basic_stmt">::: [
-    "expr">:: StmtTester.test_step [BasicStmt.expr] (ST.AExpr (ET.Var "x"), mem) [(ST.AExpr (ET.Const 42), mem)];
+  "basic">::: [
+    "var">:: Tester.test_step [Basic.var] (T.Var "x", mem) [(T.Const 42, mem)];
+    
+    "binop">:: Tester.test_step [Basic.binop] (T.Binop ("+", T.Const 1, T.Const 2), S.empty) [(T.Const 3, S.empty)];
 
-    "pair">:: StmtTester.test_step [BasicStmt.pair] (ST.Pair (ET.Var "x", ET.Var "y"), mem') [(ST.Pair (ET.Const 42, ET.Const 1), mem')];
+    "binop_complex">:: (let e = (T.Binop ("+", T.Var "x", T.Binop ("*", T.Const 2, T.Const 4)), mem) in
+                        Tester.test_space Basic.all e [(T.Const 50, mem); (T.Const 50, mem)]);
 
-    "assign">:: StmtTester.test_step [BasicStmt.asgn] (ST.Asgn (ST.AExpr (ET.Var "x"), ST.AExpr (ET.Const 42)), SS.empty) [(ST.Skip, mem)];
+    "pair">:: Tester.test_space Basic.all (T.Pair (T.Var "x", T.Var "y"), mem') [(T.Pair (T.Const 42, T.Const 1), mem')];
 
-    "if_true">:: StmtTester.test_step ~empty_check:false [BasicStmt.if'] (ST.If (ST.AExpr (ET.Const 1), ST.Skip, ST.Stuck), mem) [(ST.Skip, mem)];
+    "assign">:: Tester.test_step [Basic.asgn] (T.Asgn (T.Var "x", T.Const 42), S.empty) [(T.Skip, mem)];
 
-    "if_false">:: StmtTester.test_step ~empty_check:false [BasicStmt.if'] (ST.If (ST.AExpr (ET.Const 0), ST.Stuck, ST.Skip), mem) [(ST.Skip, mem)];
+    "if_true">:: Tester.test_step ~empty_check:false [Basic.if'] (T.If (T.Const 1, T.Skip, T.Stuck), mem) [(T.Skip, mem)];
 
-    "repeat">:: (let loop = ST.Repeat (ST.AExpr (ET.Const 1)) in
-                  StmtTester.test_step ~empty_check:false [BasicStmt.repeat] (loop, mem) [(ST.If (ST.AExpr (ET.Const 1), loop, ST.Skip), mem)]);
+    "if_false">:: Tester.test_step ~empty_check:false [Basic.if'] (T.If (T.Const 0, T.Stuck, T.Skip), mem) [(T.Skip, mem)];
 
-    "seq_skip">:: StmtTester.test_step [BasicStmt.seq] (ST.Seq (ST.Skip, ST.Skip), mem) [(ST.Skip, mem)];
+    "repeat">:: (let loop = T.Repeat (T.Const 1) in
+                  Tester.test_step ~empty_check:false [Basic.repeat] (loop, mem) [(T.If (T.Const 1, loop, T.Skip), mem)]);
 
-    "seq_stuck">:: StmtTester.test_step [BasicStmt.seq] (ST.Seq (ST.Stuck, ST.Skip), mem) [(ST.Stuck, mem)];
+    "seq_skip">:: Tester.test_step [Basic.seq] (T.Seq (T.Skip, T.Skip), mem) [(T.Skip, mem)];
+
+    "seq_stuck">:: Tester.test_step [Basic.seq] (T.Seq (T.Stuck, T.Skip), mem) [(T.Stuck, mem)];
 
     "spawn">:: (let leaf = ThreadTree.Leaf ThreadState.empty in
                 let thrd_tree = ThreadTree.Node (leaf, leaf) in
-                let state  = { SS.thrds = leaf; SS.story = MemStory.empty; } in
-                let state' = { SS.thrds = thrd_tree; SS.story = MemStory.empty } in
-                  StmtTester.test_step [BasicStmt.spawn] (ST.Spw (ST.Skip, ST.Skip), state) [(ST.Par (ST.Skip, ST.Skip), state')]);
+                let state  = { S.thrds = leaf; S.story = MemStory.empty; } in
+                let state' = { S.thrds = thrd_tree; S.story = MemStory.empty } in
+                Tester.test_step [Basic.spawn] (T.Spw (T.Skip, T.Skip), state) [(T.Par (T.Skip, T.Skip), state')]);
 
     "join">::  (let leaf = ThreadTree.Leaf ThreadState.empty in
                 let thrd_tree = ThreadTree.Node (leaf, leaf) in
-                let state  = { SS.thrds = thrd_tree;  SS.story = MemStory.empty; } in
-                let state' = { SS.thrds = leaf;  SS.story = MemStory.empty; } in
-                  StmtTester.test_step [BasicStmt.join] (ST.Par (ST.AExpr (ET.Const 1), ST.AExpr (ET.Const 2)), state) [(ST.Pair (ET.Const 1, ET.Const 2), state')]);
+                let state  = { S.thrds = thrd_tree;  S.story = MemStory.empty; } in
+                let state' = { S.thrds = leaf;  S.story = MemStory.empty; } in
+                Tester.test_step [Basic.join] (T.Par (T.Const 1, T.Const 2), state) [(T.Pair (T.Const 1, T.Const 2), state')]);
 
-    "spawn_assign">:: (let pair = ST.Pair (ET.Var "x", ET.Var "y") in
-                       let stmt = ST.Asgn (pair,ST.Spw (
-                           ST.AExpr (ET.Const 42),
-                           ST.AExpr (ET.Const 1)
+    "spawn_assign">:: (let pair = T.Pair (T.Var "x", T.Var "y") in
+                       let stmt = T.Asgn (pair,T.Spw (
+                           T.Const 42,
+                           T.Const 1
                          )) in
-                         StmtTester.test_space BasicStmt.all (stmt, SS.empty) [(ST.Skip, mem')]);
+                         Tester.test_space Basic.all (stmt, S.empty) [(T.Skip, mem')]);
 
-    "seq_asgn">:: (let stmt = ST.Seq ((ST.Asgn (ST.AExpr (ET.Var "x"), ST.AExpr (ET.Const 42)), ST.AExpr (ET.Var "x"))) in
-                     StmtTester.test_space BasicStmt.all (stmt, SS.empty) [(ST.AExpr (ET.Const 42), mem)]);
+    "seq_asgn">:: (let stmt = T.Seq ((T.Asgn (T.Var "x", T.Const 42), T.Var "x")) in
+                     Tester.test_space Basic.all (stmt, S.empty) [(T.Const 42, mem)]);
 
-    "space_all">:: (let pair = ST.Pair (ET.Var "x", ET.Var "y") in
-                    let stmt = ST.Seq (ST.Asgn (pair, ST.Spw (
-                      ST.Seq ((ST.Asgn (ST.AExpr (ET.Var "z"), ST.AExpr (ET.Const 42)), ST.AExpr (ET.Var "z"))),
-                      ST.If (ST.AExpr (ET.Const 1), ST.AExpr (ET.Const 1), ST.AExpr (ET.Const 0)) 
+    "space_all">:: (let pair = T.Pair (T.Var "x", T.Var "y") in
+                    let stmt = T.Seq (T.Asgn (pair, T.Spw (
+                      T.Seq (T.Asgn (T.Var "z", T.Const 42), T.Var "z"),
+                      T.If (T.Const 1, T.Const 1, T.Const 0) 
                    )), pair) in
-                      StmtTester.test_space ~empty_check:false BasicStmt.all (stmt, SS.empty) [(ST.Pair (ET.Const 42, ET.Const 1), mem')]);
+                      Tester.test_space ~empty_check:false Basic.all (stmt, S.empty) [(T.Pair (T.Const 42, T.Const 1), mem')]);
                    
   ]
 
@@ -121,18 +102,18 @@ let rel_acq_tests =
   "rel_acq">::: [
     "read_acq">:: 
       (let mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
-       let state     = { SS.thrds = thrd_tree; SS.story = mem_story; } in
-       let state'    = { SS.thrds = thrd_tree'; SS.story = mem_story; } in
-         StmtTester.test_step ~empty_check:false [RelAcq.read_acq] (ST.Read (ACQ, "x"), state) [(ST.AExpr (ET.Const 0), state); (ST.AExpr (ET.Const 1), state')]);
+       let state     = { S.thrds = thrd_tree; S.story = mem_story; } in
+       let state'    = { S.thrds = thrd_tree'; S.story = mem_story; } in
+         Tester.test_step ~empty_check:false [RelAcq.read_acq] (T.Read (ACQ, "x"), state) [(T.Const 0, state); (T.Const 1, state')]);
 
     "write_rel">:: 
       (let mem_story  = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf)])] in
        let mem_story' = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
-       let state      = { SS.thrds = thrd_tree; SS.story = mem_story; } in
-       let state'     = { SS.thrds = thrd_tree'; SS.story = mem_story'; } in
-         StmtTester.test_step [RelAcq.write_rel] (ST.Write (REL, "x", ET.Const 1), state) [(ST.Skip, state')]);
+       let state      = { S.thrds = thrd_tree; S.story = mem_story; } in
+       let state'     = { S.thrds = thrd_tree'; S.story = mem_story'; } in
+         Tester.test_step [RelAcq.write_rel] (T.Write (REL, "x", T.Const 1), state) [(T.Skip, state')]);
  
   ]
 
 let tests = 
-  "rules">::: [basic_expr_tests; basic_stmt_tests; rel_acq_tests]
+  "rules">::: [basic_tests; rel_acq_tests]

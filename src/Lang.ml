@@ -1,7 +1,7 @@
 open MiniKanren
 open Memory
 
-module type Term =
+module type ATerm =
   sig
     (** Term type *)
     type t
@@ -19,7 +19,7 @@ module type Term =
                           
   end                         
 
-module type Context =
+module type AContext =
   sig
     (** Term type *)
     type t
@@ -50,7 +50,7 @@ module type Context =
     val splito :  lt ->  lc ->  lt -> goal
   end
 
-module type State = 
+module type AState = 
   sig 
     type t
     
@@ -64,7 +64,7 @@ module type State =
     val eq : t -> t -> bool
   end
 
-module StmtTerm = 
+module Term = 
   struct
     @type ('int, 'string, 'mo, 'loc, 't) at =
     | Const    of 'int
@@ -75,7 +75,7 @@ module StmtTerm =
     | If       of 't * 't * 't
     | Repeat   of 't
     | Read     of 'mo * 'loc
-    | Write    of 'mo * 'loc * 'expr
+    | Write    of 'mo * 'loc * 't
     | Cas      of 'mo * 'mo * 'loc * 't * 't
     | Seq      of 't * 't
     | Spw      of 't * 't
@@ -88,20 +88,20 @@ module StmtTerm =
     type lt' = (Nat.logic, string logic, mem_order logic, loc logic, lt' logic) at
     type lt  = lt' logic
 
-    let rec inj t = !! (GT.gmap(at) (!!) (!!) (!!) (!!) (inj) t)
+    let rec inj t = !! (GT.gmap(at) (inj_nat) (!!) (!!) (!!) (inj) t)
 
-    let rec prj lt = GT.gmap(at) (!?) (!?) (!?) (?!) (prj) (!? lt)
+    let rec prj lt = GT.gmap(at) (prj_nat) (!?) (!?) (!?) (prj) (!? lt)
 
     let rec show t = GT.show(at) (GT.show(GT.int)) (GT.show(GT.string)) (string_of_mo) (string_of_loc) (show) t
 
     let rec eq t t' = GT.eq(at) (GT.eq(GT.int)) (GT.eq(GT.string)) (=) (=) (eq) t t'
   end
 
-module StmtContext = 
+module Context = 
   struct
-    type t   = StmtTerm.t
-    type lt' = StmtTerm.lt'
-    type lt  = StmtTerm.lt
+    type t   = Term.t
+    type lt' = Term.lt'
+    type lt  = Term.lt
 
     @type ('expr, 'string, 'mo, 'loc, 't, 'c) ac =
     | Hole
@@ -114,21 +114,21 @@ module StmtContext =
     | ParR      of 't * 'c
     with gmap, eq, show
 
-    type c   = (int, string, mem_order, loc, StmtTerm.t, c) ac
-    type lc' = (Nat.logic, string logic, mem_order logic, loc logic, StmtTerm.lt, lc' logic) ac
+    type c   = (int, string, mem_order, loc, Term.t, c) ac
+    type lc' = (Nat.logic, string logic, mem_order logic, loc logic, Term.lt, lc' logic) ac
     type lc  = lc' logic
 
-    let rec inj c = !! (GT.gmap(ac) (!!) (!!) (!!) (!!) (StmtTerm.inj) (inj) c)
+    let rec inj c = !! (GT.gmap(ac) (inj_nat) (!!) (!!) (!!) (Term.inj) (inj) c)
 
-    let rec prj lc = GT.gmap(ac) (!?) (!?) (!?) (!?) (StmtTerm.prj) (prj) (!? lc)
+    let rec prj lc = GT.gmap(ac) (prj_nat) (!?) (!?) (!?) (Term.prj) (prj) (!? lc)
 
-    let rec show c = GT.show(ac) (GT.show(GT.int)) (GT.show(GT.string)) (string_of_mo) (string_of_loc) (StmtTerm.show) (show) c
+    let rec show c = GT.show(ac) (GT.show(GT.int)) (GT.show(GT.string)) (string_of_mo) (string_of_loc) (Term.show) (show) c
 
-    let rec eq c c' = GT.eq(ac) (GT.eq(GT.int)) (GT.eq(GT.string)) (=) (=) (StmtTerm.eq) (eq) c c'
+    let rec eq c c' = GT.eq(ac) (GT.eq(GT.int)) (GT.eq(GT.string)) (=) (=) (Term.eq) (eq) c c'
 
     let (!) = MiniKanren.inj
 
-    let reducibleo t b = StmtTerm.(conde [
+    let reducibleo t b = Term.(conde [
       fresh (n)      
         (b === !false) 
         (t === !(Const n));
@@ -138,6 +138,9 @@ module StmtContext =
       fresh (op l r) 
         (b === !true)  
         (t === !(Binop (op, l, r)));
+      fresh (t1 t2)
+        (b === !true)
+        (t === !(Pair (t1, t2)));
       fresh (l r)
         (b === !true) 
         (t === !(Asgn (l, r)));
@@ -165,20 +168,12 @@ module StmtContext =
       fresh (t1 t2)
         (b === !true)
         (t === !(Par (t1, t2)));
-
-      (conde [
-         fresh (t1 t2 b1 b2)
-           (t === !(Pair (e1, e2)))
-           (reducibleo t1 b1)
-           (reducibleo t2 b2)
-           (Bool.oro b1 b2 b)
-      ]);
                                           
       ((b === !false) &&& (t === !Skip));
       ((b === !false) &&& (t === !Stuck));   
     ])
 
-    let rec splito t c rdx = StmtTerm.( 
+    let rec splito t c rdx = Term.( 
       (conde [
         fresh (op l r c' t')
           (t === !(Binop (op, l, r)))
@@ -224,9 +219,6 @@ module StmtContext =
           fresh (x)
             (t === !(Var x));
 
-          fresh (e) 
-            (t === !(AExpr e));
-
           fresh (e1 e2)
             (t === !(Pair (e1, e2)));
 
@@ -254,14 +246,14 @@ module StmtContext =
         ]);
       ]))
 
-      let rec patho c path = StmtTerm.(
+      let rec patho c path = Term.(
         fresh (op t1 t2 t3 t' c' path')
           (conde [
             (c === !Hole)                  &&& (path === !Memory.Path.N);
             (c === !(BinopL (op, c', t1))) &&& (patho c' path);
             (c === !(BinopR (op, t1, c'))) &&& (patho c' path);
             (c === !(AsgnC (t1, c')))      &&& (patho c' path);
-            (c === !(IfC (t1, t2, t3)))    &&& (patho c' path);
+            (c === !(IfC (c', t2, t3)))    &&& (patho c' path);
             (c === !(SeqC (c', t1)))       &&& (patho c' path);
             (c === !(ParL (c', t1)))       &&& (path === !(Memory.Path.L path')) &&& (patho c' path');            
             (c === !(ParR (t1, c')))       &&& (path === !(Memory.Path.R path')) &&& (patho c' path');          

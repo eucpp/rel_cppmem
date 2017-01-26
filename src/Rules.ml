@@ -1,38 +1,35 @@
 open MiniKanren
 open Memory
 
-module ET = Lang.ExprTerm
-
-module ST = Lang.StmtTerm
-module SC = Lang.StmtContext
-
-module BasicExpr = 
+module Basic =
   struct
-    type t  = Lang.ExprTerm.t
-    type lt = Lang.ExprTerm.lt
+    type t  = Lang.Term.t
+    type lt = Lang.Term.lt
 
-    type c  = Lang.ExprContext.c
-    type lc = Lang.ExprContext.lc
+    type c  = Lang.Context.c
+    type lc = Lang.Context.lc
 
-    type s  = Memory.ThreadState.t
-    type ls = Memory.ThreadState.lt
+    type s  = MemState.t
+    type ls = MemState.lt
 
     type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
+ 
+    let (!) = (!!)
 
-    let (!) = MiniKanren.inj
-
-    let varo c t s c' t' s' = ET.(
-      fresh (n x)
+    let varo c t s c' t' s' = Lang.Term.(Lang.Context.(
+      fresh (n x path thrd)
         (c  === c')
         (s  === s')
         (t  === !(Var x))
         (t' === !(Const n))
-        (ThreadState.get_localo s x n)
-    )
+        (patho c path)
+        (MemState.get_thrdo path s thrd)
+        (ThreadState.get_localo thrd x n)
+    ))
 
     let var = ("var", varo)
 
-    let binopo c t s c' t' s' = ET.(
+    let binopo c t s c' t' s' = Lang.Term.(Lang.Context.(
       fresh (op x y z)
         (c  === c')
         (s  === s')
@@ -42,60 +39,11 @@ module BasicExpr =
           (op === !"+") &&& (Nat.addo x y z);
           (op === !"*") &&& (Nat.mulo x y z);
         ])       
-    )
+    ))
 
     let binop = ("binop", binopo)
 
-    let all = [var; binop]
-  end
-
-module BasicStmt =
-  struct
-    type t  = Lang.StmtTerm.t
-    type lt = Lang.StmtTerm.lt
-
-    type c  = Lang.StmtContext.c
-    type lc = Lang.StmtContext.lc
-
-    type s  = Memory.MemState.t
-    type ls = Memory.MemState.lt
-
-    type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
- 
-    let (!) = (!!)
-      
-    module ExprSem = Semantics.Make(Lang.ExprTerm)(Lang.ExprContext)(ThreadState)
-
-    let expr_sem = ExprSem.make BasicExpr.all
-
-    let expro c t s c' t' s' = ST.(SC.(
-      fresh (et es et' path)
-        (c === c')
-        (s === s')
-        (t === !(AExpr et))
-        (patho c path)
-        (MemState.get_thrdo path s es)
-        (ExprSem.spaceo expr_sem et es et' es)
-        (t' === !(AExpr et'))
-    ))
-
-    let expr = ("expression", expro) 
-
-    let pairo c t s c' t' s' = ST.(SC.(
-      fresh (et1 et2 et1' et2' es path)
-        (c === c')
-        (s === s')
-        (t === !(Pair (et1, et2)))
-        (patho c path)
-        (MemState.get_thrdo path s es)
-        (ExprSem.spaceo expr_sem et1 es et1' es)
-        (ExprSem.spaceo expr_sem et2 es et2' es)
-        (t' === !(Pair (et1', et2')))
-    ))
-
-    let pair = ("pair", pairo)
-
-    let asgno c t s c' t' s' = ST.(SC.(
+    let asgno c t s c' t' s' = Lang.Term.(Lang.Context.(
       fresh (l r n path e)
         (c  === c')
         (t  === !(Asgn (l, r)))
@@ -103,12 +51,12 @@ module BasicStmt =
         (patho c path)
         (conde [
           fresh (x n)
-            (l === !(AExpr !(ET.Var   x)))
-            (r === !(AExpr !(ET.Const n)))
+            (l === !(Var   x))
+            (r === !(Const n))
             (MemState.assign_localo path x n s s');
           fresh (x1 x2 n1 n2 s'')
-            (l === !(Pair (!(ET.Var   x1), !(ET.Var   x2))))
-            (r === !(Pair (!(ET.Const n1), !(ET.Const n2))))
+            (l === !(Pair (!(Var   x1), !(Var   x2))))
+            (r === !(Pair (!(Const n1), !(Const n2))))
             (MemState.assign_localo path x1 n1 s   s'')
             (MemState.assign_localo path x2 n2 s'' s' );
         ])
@@ -116,12 +64,11 @@ module BasicStmt =
 
     let asgn = ("assign", asgno)
     
-    let ifo c t s c' t' s' = ST.(SC.(
+    let ifo c t s c' t' s' = Lang.Term.(Lang.Context.(
       fresh (e n btrue bfalse)
         (c === c')
         (s === s') 
-        (t === !(If (!(AExpr e), btrue, bfalse)))
-        (e === !(ET.Const n))
+        (t === !(If (!(Const n), btrue, bfalse)))
         (conde [
           (n =/= (inj_nat 0)) &&& (t' === btrue);
           (n === (inj_nat 0)) &&& (t' === bfalse);
@@ -130,7 +77,7 @@ module BasicStmt =
 
     let if' = ("if", ifo)
 
-    let repeato c t s c' t' s' = ST.(SC.(
+    let repeato c t s c' t' s' = Lang.Term.(Lang.Context.(
       fresh (body)
         (c  === c')
         (s  === s')
@@ -140,7 +87,7 @@ module BasicStmt =
 
     let repeat = ("repeat", repeato)
 
-    let seqo c t s c' t' s' = ST.(SC.(
+    let seqo c t s c' t' s' = Lang.Term.(Lang.Context.(
       fresh (t1 t2)
         (s === s')
         (t === !(Seq (t1, t2)))
@@ -152,7 +99,7 @@ module BasicStmt =
 
    let seq = ("seq", seqo)
 
-   let spawno c t s c' t' s' = ST.(SC.(
+   let spawno c t s c' t' s' = Lang.Term.(Lang.Context.(
      fresh (l r path)
        (c  === c')
        (t  === !(Spw (l, r)))
@@ -163,63 +110,61 @@ module BasicStmt =
 
    let spawn = ("spawn", spawno)
 
-   let joino c t s c' t' s' = ST.(SC.(
+   let joino c t s c' t' s' = Lang.Term.(Lang.Context.(
      fresh (t1 t2 n1 n2 path) 
        (c === c')
-       (t1 === !(AExpr !(ET.Const n1)))
-       (t2 === !(AExpr !(ET.Const n2)))
+       (t1 === !(Const n1))
+       (t2 === !(Const n2))
        (t  === !(Par  (t1, t2)))
-       (t' === !(Pair (!(ET.Const n1), !(ET.Const n2))))
+       (t' === !(Pair (!(Const n1), !(Const n2))))
        (patho c path)
        (MemState.join_thrdo path s s')
    ))
 
    let join = ("join", joino)
 
-   let all = [expr; pair; asgn; if'; repeat; seq; spawn; join]
+   let all = [var; binop; asgn; if'; repeat; seq; spawn; join]
 
   end
 
 module RelAcq =
   struct
-    type t  = Lang.StmtTerm.t
-    type lt = Lang.StmtTerm.lt
+    type t  = Lang.Term.t
+    type lt = Lang.Term.lt
 
-    type c  = Lang.StmtContext.c
-    type lc = Lang.StmtContext.lc
+    type c  = Lang.Context.c
+    type lc = Lang.Context.lc
 
     type s  = Memory.MemState.t
     type ls = Memory.MemState.lt
 
     type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
 
-    module ExprSem = Semantics.Make(Lang.ExprTerm)(Lang.ExprContext)(ThreadState)
-
-    let expr_sem = ExprSem.make BasicExpr.all
-
     let (!) = (!!)
 
-    let read_acqo c t s c' t' s' = ST.(SC.(
+    let read_acqo c t s c' t' s' = Lang.Term.(Lang.Context.(
       fresh (l path n)
         (c  === c')
         (t  === !(Read (!ACQ, l)))
-        (t' === !(AExpr !(ET.Const n)))
+        (t' === !(Const n))
         (patho c path)
         (MemState.read_acqo path l n s s')
     )) 
 
     let read_acq = ("read_acq", read_acqo)
 
-    let write_relo c t s c' t' s' = ST.(SC.(
+    let write_relo c t s c' t' s' = Lang.Term.(Lang.Context.(
       fresh (l n e es es' path)
         (c  === c')
         (t  === !(Write (!REL, l, e)))
         (t' === !Skip)
         (patho c path)
-        (ExprSem.spaceo expr_sem e es !(ET.Const n) es')
+        (* (ExprSem.spaceo expr_sem e es !(Const n) es') *)
         (MemState.write_relo path l n s s')
     ))
 
     let write_rel = ("write_rel", write_relo)
+
+    let all = [read_acq; write_rel]
  
   end

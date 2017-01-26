@@ -1,7 +1,7 @@
 module Make
-  (T : Lang.Term) 
-  (C : Lang.Context with type t = T.t with type lt' = T.lt')
-  (S : Lang.State) :
+  (T : Lang.ATerm) 
+  (C : Lang.AContext with type t = T.t with type lt' = T.lt')
+  (S : Lang.AState) :
   sig
     type t
 
