@@ -1,6 +1,9 @@
 open MiniKanren
 open Memory
 
+open Lang.Term
+open Lang.Context
+
 module Basic =
   struct
     type t  = Lang.Term.t
@@ -16,7 +19,7 @@ module Basic =
  
     let (!) = (!!)
 
-    let varo c t s c' t' s' = Lang.Term.(Lang.Context.(
+    let varo c t s c' t' s' = 
       fresh (n x path thrd)
         (c  === c')
         (s  === s')
@@ -25,11 +28,10 @@ module Basic =
         (patho c path)
         (MemState.get_thrdo path s thrd)
         (ThreadState.get_localo thrd x n)
-    ))
 
     let var = ("var", varo)
 
-    let binopo c t s c' t' s' = Lang.Term.(Lang.Context.(
+    let binopo c t s c' t' s' = 
       fresh (op x y z)
         (c  === c')
         (s  === s')
@@ -38,12 +40,11 @@ module Basic =
         (conde [
           (op === !"+") &&& (Nat.addo x y z);
           (op === !"*") &&& (Nat.mulo x y z);
-        ])       
-    ))
+        ])
 
     let binop = ("binop", binopo)
 
-    let asgno c t s c' t' s' = Lang.Term.(Lang.Context.(
+    let asgno c t s c' t' s' = 
       fresh (l r n path e)
         (c  === c')
         (t  === !(Asgn (l, r)))
@@ -60,34 +61,31 @@ module Basic =
             (MemState.assign_localo path x1 n1 s   s'')
             (MemState.assign_localo path x2 n2 s'' s' );
         ])
-    ))
 
     let asgn = ("assign", asgno)
     
-    let ifo c t s c' t' s' = Lang.Term.(Lang.Context.(
+    let ifo c t s c' t' s' = 
       fresh (e n btrue bfalse)
         (c === c')
-        (s === s') 
+        (s === s')
         (t === !(If (!(Const n), btrue, bfalse)))
         (conde [
           (n =/= (inj_nat 0)) &&& (t' === btrue);
           (n === (inj_nat 0)) &&& (t' === bfalse);
-        ])                                         
-    ))
+        ])
 
     let if' = ("if", ifo)
 
-    let repeato c t s c' t' s' = Lang.Term.(Lang.Context.(
+    let repeato c t s c' t' s' = 
       fresh (body)
         (c  === c')
         (s  === s')
         (t  === !(Repeat body))
         (t' === !(If (body, t, !Skip)))
-    ))
 
     let repeat = ("repeat", repeato)
 
-    let seqo c t s c' t' s' = Lang.Term.(Lang.Context.(
+    let seqo c t s c' t' s' = 
       fresh (t1 t2)
         (s === s')
         (t === !(Seq (t1, t2)))
@@ -95,23 +93,21 @@ module Basic =
           (t1 === !Skip)  &&& (t' === t2)     &&& (c' === c);
           (t1 === !Stuck) &&& (t' === !Stuck) &&& (c' === !Hole);
         ])
-    ))
 
    let seq = ("seq", seqo)
 
-   let spawno c t s c' t' s' = Lang.Term.(Lang.Context.(
+   let spawno c t s c' t' s' =
      fresh (l r path)
        (c  === c')
        (t  === !(Spw (l, r)))
        (patho c path)
        (t' === !(Par (l, r)))
        (MemState.spawn_thrdo path s s')
-   ))
 
    let spawn = ("spawn", spawno)
 
-   let joino c t s c' t' s' = Lang.Term.(Lang.Context.(
-     fresh (t1 t2 n1 n2 path) 
+   let joino c t s c' t' s' = 
+     fresh (t1 t2 n1 n2 path)
        (c === c')
        (t1 === !(Const n1))
        (t2 === !(Const n2))
@@ -119,7 +115,6 @@ module Basic =
        (t' === !(Pair (!(Const n1), !(Const n2))))
        (patho c path)
        (MemState.join_thrdo path s s')
-   ))
 
    let join = ("join", joino)
 
@@ -142,29 +137,26 @@ module RelAcq =
 
     let (!) = (!!)
 
-    let read_acqo c t s c' t' s' = Lang.Term.(Lang.Context.(
+    let read_acqo c t s c' t' s' = 
       fresh (l path n)
         (c  === c')
         (t  === !(Read (!ACQ, l)))
         (t' === !(Const n))
         (patho c path)
         (MemState.read_acqo path l n s s')
-    )) 
 
     let read_acq = ("read_acq", read_acqo)
 
-    let write_relo c t s c' t' s' = Lang.Term.(Lang.Context.(
-      fresh (l n e es es' path)
+    let write_relo c t s c' t' s' = 
+      fresh (l n path)
         (c  === c')
-        (t  === !(Write (!REL, l, e)))
+        (t  === !(Write (!REL, l, !(Const n))))
         (t' === !Skip)
         (patho c path)
-        (* (ExprSem.spaceo expr_sem e es !(Const n) es') *)
         (MemState.write_relo path l n s s')
-    ))
 
     let write_rel = ("write_rel", write_relo)
 
-    let all = [read_acq; write_rel]
+    let all = [read_acq; write_rel; ]
  
   end

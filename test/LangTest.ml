@@ -30,7 +30,13 @@ module T = Lang.Term
 module C = Lang.Context
 
 let tests = 
-  "stmt_tests">::: [
+  "tests">::: [
+    "test_reducible_pair">:: Tester.test_reducible 
+                               [(T.Pair (T.Const 1, T.Const 2), false);
+                                (T.Pair (T.Const 1, T.Var "x"), true);
+                                (T.Pair (T.Var "x", T.Const 2), true);
+                                (T.Pair (T.Var "x", T.Var "y"), true)];
+
     "test_split_const"  >:: Tester.test_split (T.Const 1) [(C.Hole, T.Const 1)];
     
     "test_split_var"    >:: Tester.test_split (T.Var "x") [(C.Hole, T.Var "x")];
@@ -56,12 +62,6 @@ let tests =
     
     "test_plug_binop_4" >:: (let e = T.Binop ("+", T.Const 1, T.Var "x") in
                                Tester.test_plug (C.BinopR ("+", T.Const 1, C.Hole), T.Var "x") e);
-
-    "test_reducible_pair">:: Tester.test_reducible 
-                               [(T.Pair (T.Const 1, T.Const 2), false);
-                                (T.Pair (T.Const 1, T.Var "x"), true);
-                                (T.Pair (T.Var "x", T.Const 2), true);
-                                (T.Pair (T.Var "x", T.Var "y"), true)];
 
     "test_split_asgn">:: (let stmt = T.Asgn (T.Var "x", T.Const 1) in
                               Tester.test_split stmt [(C.Hole, stmt);

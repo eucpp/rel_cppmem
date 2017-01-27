@@ -44,7 +44,7 @@ let basic_tests =
     "binop_complex">:: (let e = (T.Binop ("+", T.Var "x", T.Binop ("*", T.Const 2, T.Const 4)), mem) in
                         Tester.test_space Basic.all e [(T.Const 50, mem); (T.Const 50, mem)]);
 
-    "pair">:: Tester.test_space Basic.all (T.Pair (T.Var "x", T.Var "y"), mem') [(T.Pair (T.Const 42, T.Const 1), mem')];
+    "pair">:: Tester.test_space Basic.all (T.Pair (T.Var "x", T.Var "y"), mem') [(T.Pair (T.Const 42, T.Const 1), mem'); (T.Pair (T.Const 42, T.Const 1), mem')];
 
     "assign">:: Tester.test_step [Basic.asgn] (T.Asgn (T.Var "x", T.Const 42), S.empty) [(T.Skip, mem)];
 

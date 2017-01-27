@@ -107,7 +107,10 @@ module Context =
     | Hole
     | BinopL    of 'string * 'c * 't
     | BinopR    of 'string * 't * 'c
+    | PairL     of 'c * 't
+    | PairR     of 't * 'c
     | AsgnC     of 't * 'c
+    | WriteC    of 'mo * 'loc * 'c
     | IfC       of 'c * 't * 't
     | SeqC      of 'c * 't
     | ParL      of 'c * 't
@@ -128,7 +131,7 @@ module Context =
 
     let (!) = MiniKanren.inj
 
-    let reducibleo t b = Term.(conde [
+    let rec reducibleo t b = Term.(conde [
       fresh (n)      
         (b === !false) 
         (t === !(Const n));
@@ -138,9 +141,6 @@ module Context =
       fresh (op l r) 
         (b === !true)  
         (t === !(Binop (op, l, r)));
-      fresh (t1 t2)
-        (b === !true)
-        (t === !(Pair (t1, t2)));
       fresh (l r)
         (b === !true) 
         (t === !(Asgn (l, r)));
@@ -153,9 +153,9 @@ module Context =
       fresh (mo l)
         (b === !true)
         (t === !(Read (mo, l)));
-      fresh (mo l e)
+      fresh (mo l t')
         (b === !true) 
-        (t === !(Write (mo, l, e)));
+        (t === !(Write (mo, l, t')));
       fresh (mo1 mo2 l e1 e2)
         (b === !true) 
         (t === !(Cas (mo1, mo2, l, e1, e2)));
@@ -168,6 +168,14 @@ module Context =
       fresh (t1 t2)
         (b === !true)
         (t === !(Par (t1, t2)));
+
+      (conde [
+         fresh (t1 t2 b1 b2)
+           (t === !(Pair (t1, t2)))
+           (reducibleo t1 b1)
+           (reducibleo t2 b2)
+           (Bool.oro b1 b2 b)
+      ]);
                                           
       ((b === !false) &&& (t === !Skip));
       ((b === !false) &&& (t === !Stuck));   
@@ -178,9 +186,17 @@ module Context =
         fresh (op l r c' t')
           (t === !(Binop (op, l, r)))
           (conde [
+            ((c === !Hole)                 &&& (rdx === t));
             ((c === !(BinopL (op, c', r))) &&& (rdx === t') &&& (splito l c' t'));
             ((c === !(BinopR (op, l, c'))) &&& (rdx === t') &&& (splito r c' t'));
-            ((c === !Hole)                 &&& (rdx === t));
+          ]);
+
+        fresh (t1 t2 c' t')
+          (t === !(Pair (t1, t2)))
+          (conde [
+            ((c === !Hole)             &&& (rdx === t ));
+            ((c === !(PairL (c', t2))) &&& (rdx === t') &&& (splito t1 c' t'));
+            ((c === !(PairR (t1, c'))) &&& (rdx === t') &&& (splito t2 c' t'));
           ]);
 
         fresh (l r c' t')
@@ -188,6 +204,13 @@ module Context =
           (conde [
             ((c === !Hole)            &&& (rdx === t ));
             ((c === !(AsgnC (l, c'))) &&& (rdx === t') &&& (splito r c' t'));
+          ]);
+
+        fresh (mo loc e c' t')
+          (t === !(Write (mo, loc, e)))
+          (conde [
+            ((c === !Hole)                   &&& (rdx === t ));
+            ((c === !(WriteC (mo, loc, c'))) &&& (rdx === t') &&& (splito e c' t'));
           ]);
 
         fresh (cond btrue bfalse c' t')
@@ -219,23 +242,14 @@ module Context =
           fresh (x)
             (t === !(Var x));
 
-          fresh (e1 e2)
-            (t === !(Pair (e1, e2)));
-
-          fresh (e t1 t2) 
-            (t === !(If (e, t1, t2)));
-
           fresh (t') 
             (t === !(Repeat t'));
 
           fresh (mo l)
             (t === !(Read (mo, l)));
 
-          fresh (mo l e)
-            (t === !(Write (mo, l, e)));
-
-          fresh (mo1 mo2 l e1 e2)
-            (t === !(Cas (mo1, mo2, l, e1, e2)));
+          fresh (mo1 mo2 l t1 t2)
+            (t === !(Cas (mo1, mo2, l, t1, t2)));
 
           fresh (t1 t2)
             (t === !(Spw (t1, t2)));
@@ -247,16 +261,19 @@ module Context =
       ]))
 
       let rec patho c path = Term.(
-        fresh (op t1 t2 t3 t' c' path')
+        fresh (op mo loc t1 t2 t3 t' c' path')
           (conde [
-            (c === !Hole)                  &&& (path === !Memory.Path.N);
-            (c === !(BinopL (op, c', t1))) &&& (patho c' path);
-            (c === !(BinopR (op, t1, c'))) &&& (patho c' path);
-            (c === !(AsgnC (t1, c')))      &&& (patho c' path);
-            (c === !(IfC (c', t2, t3)))    &&& (patho c' path);
-            (c === !(SeqC (c', t1)))       &&& (patho c' path);
-            (c === !(ParL (c', t1)))       &&& (path === !(Memory.Path.L path')) &&& (patho c' path');            
-            (c === !(ParR (t1, c')))       &&& (path === !(Memory.Path.R path')) &&& (patho c' path');          
+            (c === !Hole)                   &&& (path === !Memory.Path.N);
+            (c === !(BinopL (op, c', t1)))  &&& (patho c' path);
+            (c === !(BinopR (op, t1, c')))  &&& (patho c' path);
+            (c === !(PairL (c', t2)))       &&& (patho c' path);
+            (c === !(PairR (t1, c')))       &&& (patho c' path);
+            (c === !(AsgnC (t1, c')))       &&& (patho c' path);
+            (c === !(WriteC (mo, loc, c'))) &&& (patho c' path);
+            (c === !(IfC (c', t2, t3)))     &&& (patho c' path);
+            (c === !(SeqC (c', t1)))        &&& (patho c' path);
+            (c === !(ParL (c', t1)))        &&& (path === !(Memory.Path.L path')) &&& (patho c' path');            
+            (c === !(ParR (t1, c')))        &&& (path === !(Memory.Path.R path')) &&& (patho c' path');          
           ])
       )
   end

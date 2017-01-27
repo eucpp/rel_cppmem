@@ -101,7 +101,10 @@ module Context :
     | Hole
     | BinopL    of 'string * 'c * 't
     | BinopR    of 'string * 't * 'c
+    | PairL     of 'c * 't
+    | PairR     of 't * 'c
     | AsgnC     of 't * 'c
+    | WriteC    of 'mo * 'loc * 'c
     | IfC       of 'c * 't * 't
     | SeqC      of 'c * 't
     | ParL      of 'c * 't
