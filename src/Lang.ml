@@ -91,8 +91,27 @@ module Term =
     let rec inj t = !! (GT.gmap(at) (inj_nat) (!!) (!!) (!!) (inj) t)
 
     let rec prj lt = GT.gmap(at) (prj_nat) (!?) (!?) (!?) (prj) (!? lt)
-
-    let rec show t = GT.show(at) (GT.show(GT.int)) (GT.show(GT.string)) (string_of_mo) (string_of_loc) (show) t
+    
+    let show t =
+      let kwd ff s = Format.fprintf ff "%s" s in
+      let rec s ff = function
+        | Const n                 -> Format.fprintf ff "@[%d@]" n
+        | Var x                   -> Format.fprintf ff "@[%s@]" x
+        | Binop (op, a, b)        -> Format.fprintf ff "@[%a %a %a@]" s a kwd op s b
+        | Asgn (x, y)             -> Format.fprintf ff "@[<hv>%a :=@;<1 4>%a@]" s x s y
+        | Pair (x, y)             -> Format.fprintf ff "@[(%a, %a)@]" s x s y
+        | If (cond, t, f)         -> Format.fprintf ff "@[<v>if %a@;then %a@;else %a@]" s cond s t s f
+        | Repeat t                -> Format.fprintf ff "@[repeat %a@]" s t
+        | Read (mo, loc)          -> Format.fprintf ff "@[%s_%s@]" (string_of_loc loc) (string_of_mo mo)
+        | Write (mo, loc, t)      -> Format.fprintf ff "@[%s_%s :=@;<1 4>%a@]" (string_of_loc loc) (string_of_mo mo) s t
+        | Seq (t, t')             -> Format.fprintf ff "@[<v>%a;@;%a@]" s t s t'
+        | Spw (t, t')             -> Format.fprintf ff "@[<v>spw {{{@;<1 4>%a@;|||@;<1 4>%a@;}}}@]" s t s t'
+        | Par (t, t')             -> Format.fprintf ff "@[<v>par {{{@;<1 4>%a@;<1 4>|||@;<1 4>%a@;}}}@]" s t s t'
+        | Skip                    -> Format.fprintf ff "@[skip@]"
+        | Stuck                   -> Format.fprintf ff "@[stuck@]"
+      in
+      s Format.str_formatter t;
+      Format.flush_str_formatter ()
 
     let rec eq t t' = GT.eq(at) (GT.eq(GT.int)) (GT.eq(GT.string)) (=) (=) (eq) t t'
   end

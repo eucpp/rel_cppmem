@@ -1,7 +1,6 @@
 open OUnit2
 open MiniKanren
 
-
 module LangTester
   (T : Lang.ATerm)
   (C : Lang.AContext with type t = T.t with type lt' = T.lt')
@@ -30,7 +29,7 @@ module T = Lang.Term
 module C = Lang.Context
 
 let tests = 
-  "tests">::: [
+  "lang">::: [
     "test_reducible_pair">:: Tester.test_reducible 
                                [(T.Pair (T.Const 1, T.Const 2), false);
                                 (T.Pair (T.Const 1, T.Var "x"), true);
@@ -69,7 +68,4 @@ let tests =
 
     "test_plug_skip">:: Tester.test_plug (C.Hole, T.Skip) T.Skip;
   ]
-
-let tests = 
-  "lang">::: [tests]
 
