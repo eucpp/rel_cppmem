@@ -78,8 +78,8 @@ let basic_tests =
                          )) in
                          Tester.test_space Basic.all (stmt, S.empty) [(T.Skip, mem')]);
 
-    "seq_asgn">:: (let stmt = T.Seq ((T.Asgn (T.Var "x", T.Const 42), T.Var "x")) in
-                     Tester.test_space Basic.all (stmt, S.empty) [(T.Const 42, mem)]);
+    "seq_asgn">:: (let stmt = T.Seq ((T.Asgn (T.Var "x", T.Const 42), T.Skip(* T.Var "x" *))) in
+                     Tester.test_space Basic.all (stmt, S.empty) [(T.Skip(* T.Const 42 *), mem)]);
 
     "space_all">:: (let pair = T.Pair (T.Var "x", T.Var "y") in
                     let stmt = T.Seq (T.Asgn (pair, T.Spw (

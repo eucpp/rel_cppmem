@@ -16,6 +16,7 @@ val show_assoc : ('a -> string) -> ('b -> string) -> ('a * 'b) list -> string
 val eq_assoc : ('a -> 'a -> bool) -> ('b -> 'b -> bool) -> ('a * 'b) list -> ('a * 'b) list -> bool
 
 val assoco : 'a logic -> ('a logic  * 'b logic) logic MiniKanren.List.logic -> 'b logic -> MiniKanren.goal
+val assoc_defaulto : 'a logic -> ('a logic  * 'b logic) logic MiniKanren.List.logic -> 'b logic -> 'b logic -> MiniKanren.goal
 val remove_assoco : 'a logic -> ('a logic * 'b logic) logic MiniKanren.List.logic  -> ('a logic * 'b logic) logic MiniKanren.List.logic -> goal 
 
 val update_assoco_k : 'a logic -> ('a logic -> 'b logic option logic -> 'b logic -> goal) ->

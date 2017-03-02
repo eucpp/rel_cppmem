@@ -4,7 +4,7 @@ OCB_FLAGS = -use-ocamlfind -syntax camlp5o -cflag "-g" -cflag "-rectypes" -lflag
 OCB = ocamlbuild $(OCB_FLAGS)
 
 LEX  = ocamllex
-YACC = ocamlyacc 
+YACC = ocamlyacc -v
 
 all: 
 	$(LEX) yacc/lexer.mll

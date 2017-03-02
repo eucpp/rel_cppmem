@@ -26,6 +26,7 @@ let parser_tests =
     "test_write">:: test_parse "x_rel := 1" (T.Write (Memory.REL, "x", T.Const 1));
 
     "test_seq">:: test_parse "skip; stuck" (T.Seq (T.Skip, T.Stuck));
+    "test_spw">:: test_parse "spw {{{ skip ||| stuck }}}" (T.Spw (T.Skip, T.Stuck))
   ]
 
 let tests = 

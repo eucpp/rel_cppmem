@@ -98,7 +98,7 @@ module Term =
         | Const n                 -> Format.fprintf ff "@[%d@]" n
         | Var x                   -> Format.fprintf ff "@[%s@]" x
         | Binop (op, a, b)        -> Format.fprintf ff "@[%a %a %a@]" s a kwd op s b
-        | Asgn (x, y)             -> Format.fprintf ff "@[<hv>%a :=@;<1 4>%a@]" s x s y
+        | Asgn (x, y)             -> Format.fprintf ff "@[<hv>%a := %a@]" s x s y
         | Pair (x, y)             -> Format.fprintf ff "@[(%a, %a)@]" s x s y
         | If (cond, t, f)         -> Format.fprintf ff "@[<v>if %a@;then %a@;else %a@]" s cond s t s f
         | Repeat t                -> Format.fprintf ff "@[repeat %a@]" s t

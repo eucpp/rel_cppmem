@@ -38,4 +38,6 @@ module RelAcq :
     
     val read_acq  : string * rule
     val write_rel : string * rule
+
+    val all : (string * rule) list
   end

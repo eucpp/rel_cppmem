@@ -99,7 +99,7 @@ module ViewFront =
 
     let (!) = MiniKanren.inj 
  
-    let geto = Utils.assoco
+    let geto l t ts = Utils.assoc_defaulto l t (inj_nat 0) ts
 
     let updateo = Utils.update_assoco
 
@@ -445,7 +445,7 @@ module MemStory =
 
     let next_tstmpo t l ts = 
       fresh (story)
-        (Utils.assoco l t story)
+        (Utils.assoc_defaulto l t (LocStory.inj LocStory.empty) story)
         (LocStory.next_tstmpo story ts)
 
     let read_acqo t l ts ts' v vf = 

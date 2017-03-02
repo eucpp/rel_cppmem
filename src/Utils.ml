@@ -46,6 +46,15 @@ let assoco k assocs v =
     (MiniKanren.List.lookupo (key_eqo k) assocs opt)
     (opt === !!(Some !!(k, v)))
 
+let assoc_defaulto k assocs def v = 
+  fresh (opt) 
+    (MiniKanren.List.lookupo (key_eqo k) assocs opt)
+    (conde [
+         (opt === !!(Some !!(k, v)));
+         (opt === !!None) &&& (v === def);
+    ])
+
+
 let remove_assoco k assocs assocs' =   
   MiniKanren.List.filtero (key_not_eqo k) assocs assocs'   
 
