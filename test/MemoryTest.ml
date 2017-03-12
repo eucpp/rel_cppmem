@@ -166,11 +166,11 @@ let mem_state_tests =
     "test_read_acq">:: (fun test_ctx -> 
 
       let mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
-      let mem_state = { MemState.thrds = thrd_tree; MemState.story = mem_story; } in
+      let mem_state = { MemState.thrds = thrd_tree; MemState.story = mem_story; MemState.scmem = SCMemory.empty} in
 
       let exp_thrd      = { ThreadState.regs = Registers.empty; ThreadState.curr = vf'; } in
       let exp_thrd_tree = ThreadTree.Leaf exp_thrd in
-      let exp_mem_state = { MemState.thrds = exp_thrd_tree; MemState.story = mem_story; } in
+      let exp_mem_state = { MemState.thrds = exp_thrd_tree; MemState.story = mem_story; MemState.scmem = SCMemory.empty} in
 
       let stream = MemState.read_acq Path.N "x" mem_state in
       let show (v, state) = Printf.sprintf "Following value/state is not found among answers:\nx=%d;\nMemState:\n%s\n" v (MemState.show state) in
@@ -182,12 +182,12 @@ let mem_state_tests =
     "test_write_rel">:: (fun test_ctx -> 
 
       let mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf)]); ("y", LocStory.from_list [(0, 0, vf)])] in
-      let mem_state = { MemState.thrds = thrd_tree; MemState.story = mem_story; } in
+      let mem_state = { MemState.thrds = thrd_tree; MemState.story = mem_story; MemState.scmem = SCMemory.empty} in
 
       let exp_thrd      = { ThreadState.regs = Registers.empty; ThreadState.curr = vf'; } in
       let exp_thrd_tree = ThreadTree.Leaf exp_thrd in
       let exp_mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')]); ("y", LocStory.from_list [(0, 0, vf)])] in
-      let exp_mem_state = { MemState.thrds = exp_thrd_tree; MemState.story = exp_mem_story; } in
+      let exp_mem_state = { MemState.thrds = exp_thrd_tree; MemState.story = exp_mem_story; MemState.scmem = SCMemory.empty} in
 
         assert_equal exp_mem_state (MemState.write_rel Path.N "x" 1 mem_state) ~cmp:MemState.eq ~printer:MemState.show
     )

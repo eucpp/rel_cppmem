@@ -41,3 +41,22 @@ module RelAcq :
 
     val all : (string * rule) list
   end
+
+module SeqCons :
+  sig
+    type t  = Lang.Term.t
+    type lt = Lang.Term.lt
+
+    type c  = Lang.Context.c
+    type lc = Lang.Context.lc
+
+    type s  = Memory.MemState.t
+    type ls = Memory.MemState.lt
+
+    type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
+    
+    val read_sc  : string * rule
+    val write_sc : string * rule
+
+    val all : (string * rule) list
+  end

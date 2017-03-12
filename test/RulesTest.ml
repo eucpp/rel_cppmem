@@ -61,14 +61,14 @@ let basic_tests =
 
     "spawn">:: (let leaf = ThreadTree.Leaf ThreadState.empty in
                 let thrd_tree = ThreadTree.Node (leaf, leaf) in
-                let state  = { S.thrds = leaf; S.story = MemStory.empty; } in
-                let state' = { S.thrds = thrd_tree; S.story = MemStory.empty } in
+                let state  = { S.thrds = leaf; S.story = MemStory.empty; S.scmem = SCMemory.empty} in
+                let state' = { S.thrds = thrd_tree; S.story = MemStory.empty; S.scmem = SCMemory.empty } in
                 Tester.test_step [Basic.spawn] (T.Spw (T.Skip, T.Skip), state) [(T.Par (T.Skip, T.Skip), state')]);
 
     "join">::  (let leaf = ThreadTree.Leaf ThreadState.empty in
                 let thrd_tree = ThreadTree.Node (leaf, leaf) in
-                let state  = { S.thrds = thrd_tree;  S.story = MemStory.empty; } in
-                let state' = { S.thrds = leaf;  S.story = MemStory.empty; } in
+                let state  = { S.thrds = thrd_tree;  S.story = MemStory.empty; S.scmem = SCMemory.empty} in
+                let state' = { S.thrds = leaf;  S.story = MemStory.empty; S.scmem = SCMemory.empty} in
                 Tester.test_step [Basic.join] (T.Par (T.Const 1, T.Const 2), state) [(T.Pair (T.Const 1, T.Const 2), state')]);
 
     "spawn_assign">:: (let pair = T.Pair (T.Var "x", T.Var "y") in
@@ -102,15 +102,15 @@ let rel_acq_tests =
   "rel_acq">::: [
     "read_acq">:: 
       (let mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
-       let state     = { S.thrds = thrd_tree; S.story = mem_story; } in
-       let state'    = { S.thrds = thrd_tree'; S.story = mem_story; } in
+       let state     = { S.thrds = thrd_tree; S.story = mem_story; S.scmem = SCMemory.empty; } in
+       let state'    = { S.thrds = thrd_tree'; S.story = mem_story; S.scmem = SCMemory.empty; } in
          Tester.test_step ~empty_check:false [RelAcq.read_acq] (T.Read (ACQ, "x"), state) [(T.Const 0, state); (T.Const 1, state')]);
 
     "write_rel">:: 
       (let mem_story  = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf)])] in
        let mem_story' = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
-       let state      = { S.thrds = thrd_tree; S.story = mem_story; } in
-       let state'     = { S.thrds = thrd_tree'; S.story = mem_story'; } in
+       let state      = { S.thrds = thrd_tree; S.story = mem_story; S.scmem = SCMemory.empty; } in
+       let state'     = { S.thrds = thrd_tree'; S.story = mem_story'; S.scmem = SCMemory.empty; } in
          Tester.test_step [RelAcq.write_rel] (T.Write (REL, "x", T.Const 1), state) [(T.Skip, state')]);
  
   ]

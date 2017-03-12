@@ -200,16 +200,39 @@ module MemStory :
     
   end
 
+module SCMemory :
+  sig
+    type t
+    type lt'  
+    type lt  = lt' logic
+    
+    val empty : t
+
+    val inj : t -> lt
+    val prj : lt -> t
+
+    val show : t -> string
+    val eq : t -> t -> bool
+
+    val geto : string MiniKanren.logic -> lt -> MiniKanren.Nat.logic -> MiniKanren.goal
+    val seto : string MiniKanren.logic -> MiniKanren.Nat.logic -> lt -> lt -> MiniKanren.goal
+
+    val get : string -> t -> int
+    val set : string -> int -> t -> t
+  end
+
 module MemState : 
   sig
     type t = {
       thrds : ThreadTree.t;
       story : MemStory.t;
+      scmem : SCMemory.t
     }
 
     type lt' = {
       lthrds : ThreadTree.lt;
       lstory : MemStory.lt;
+      lscmem : SCMemory.lt
     }
 
     type lt = lt' logic
@@ -228,6 +251,9 @@ module MemState :
 
     val read_acqo  : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
     val write_relo : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
+
+    val read_sco  : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
+    val write_sco : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal                                                                
 
     val spawn_thrdo : Path.lt -> lt -> lt -> goal
     val join_thrdo  : Path.lt -> lt -> lt -> goal

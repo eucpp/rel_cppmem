@@ -6,7 +6,8 @@ let tests =
                     RulesTest.tests;
                     ParserTest.tests; 
                     PrettyPrinterTest.tests;
-                    RelAcqTest.tests]
+                    RelAcqTest.tests;
+                    SCTest.tests;]
 
 let () =
   run_test_tt_main tests

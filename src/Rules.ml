@@ -160,3 +160,41 @@ module RelAcq =
     let all = [read_acq; write_rel; ]
  
   end
+
+module SeqCons = 
+  struct 
+    type t  = Lang.Term.t
+    type lt = Lang.Term.lt
+
+    type c  = Lang.Context.c
+    type lc = Lang.Context.lc
+
+    type s  = Memory.MemState.t
+    type ls = Memory.MemState.lt
+
+    type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
+
+    let (!) = (!!)
+
+    let read_sco c t s c' t' s' = 
+      fresh (l path n)
+        (c  === c')
+        (t  === !(Read (!SC, l)))
+        (t' === !(Const n))
+        (patho c path)
+        (MemState.read_sco path l n s s')
+
+    let read_sc = ("read_sc", read_sco)
+
+    let write_sco c t s c' t' s' = 
+      fresh (l n path)
+        (c  === c')
+        (t  === !(Write (!SC, l, !(Const n))))
+        (t' === !Skip)
+        (patho c path)
+        (MemState.write_sco path l n s s')
+
+    let write_sc = ("write_sc", write_sco)
+
+    let all = [read_sc; write_sc;]
+  end

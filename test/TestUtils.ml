@@ -17,3 +17,14 @@ let assert_stream ?(empty_check = true) stream expected
     assert_bool "Less answers than expected" (len = (List.length actual));
     List.iter (assert_contains show eq actual) expected 
    
+module Sem = Semantics.Make(Lang.Term)(Lang.Context)(Memory.MemState)
+
+let test_prog sem prog expected test_ctx = 
+  let show s = "Outcome is not found among answers: " ^ s in
+  let lexbuf  = Lexing.from_string prog in
+  let term    = Parser.main Lexer.token lexbuf in
+  let stream  = Sem.space sem term Memory.MemState.empty in
+  let stream' = Stream.map (fun (t, s) -> Lang.Term.show t) stream in
+  let cnt     = ref 0 in 
+    Stream.iter (fun s -> cnt := !cnt + 1; print_endline @@ string_of_int !cnt) stream';
+    assert_stream ~empty_check:false stream' expected ~show:show ~eq:(=)
