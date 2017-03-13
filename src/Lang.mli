@@ -2,7 +2,7 @@ module type ATerm =
   sig
     (** Term type *)
     type t
-    
+
     type lt'
 
     (** Injection of term into logic domain *)
@@ -19,12 +19,12 @@ module type AContext =
   sig
     (** Term type *)
     type t
-           
+
     type lt'
 
     (** Injection of term into MiniKanren.logic domain *)
     type lt = lt' MiniKanren.logic
-    
+
     (** Context type *)
     type c
 
@@ -37,22 +37,22 @@ module type AContext =
     val prj : lc -> c
     val show : c -> string
     val eq : c -> c -> bool
-                     
+
     (** [reducibleo t b] says whether term t could be reduced *)
-    val reducibleo : lt -> bool MiniKanren.logic -> MiniKanren.goal 
+    val reducibleo : lt -> bool MiniKanren.logic -> MiniKanren.goal
 
     (** [splito t c rdx] splits the term [t] into context [c] and redex [rdx] *)
     val splito :  lt ->  lc ->  lt -> MiniKanren.goal
 
   end
 
-module type AState = 
-  sig 
+module type AState =
+  sig
     type t
-    
+
     type lt'
 
-    type lt = lt' MiniKanren.logic 
+    type lt = lt' MiniKanren.logic
 
     val inj : t -> lt
     val prj : lt -> t
@@ -60,7 +60,29 @@ module type AState =
     val eq : t -> t -> bool
   end
 
-module Term : 
+type loc   = string
+type tstmp = int
+
+type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
+
+val string_of_loc : loc -> string
+val string_of_tstmp : tstmp -> string
+val string_of_mo : mem_order -> string
+
+val mo_of_string : string -> mem_order
+
+module Path :
+  sig
+    type 'a at = N | L of 'a | R of 'a
+
+    type t  = t  at
+    type lt = lt at MiniKanren.logic
+
+    val inj : t -> lt
+    val prj : lt -> t
+  end
+
+module Term :
   sig
     @type ('int, 'string, 'mo, 'loc, 't) at =
     | Const    of 'int
@@ -80,8 +102,8 @@ module Term :
     | Stuck
     with gmap, eq, show
 
-    type t   = (int, string, Memory.mem_order, Memory.loc, t) at
-    type lt' = (MiniKanren.Nat.logic, string MiniKanren.logic, Memory.mem_order MiniKanren.logic, Memory.loc MiniKanren.logic, lt' MiniKanren.logic) at
+    type t   = (int, string, mem_order, loc, t) at
+    type lt' = (MiniKanren.Nat.logic, string MiniKanren.logic, mem_order MiniKanren.logic, loc MiniKanren.logic, lt' MiniKanren.logic) at
     type lt  = lt' MiniKanren.logic
 
     val inj : t -> lt
@@ -91,7 +113,7 @@ module Term :
     val eq : t -> t -> bool
   end
 
-module Context : 
+module Context :
   sig
     type t   = Term.t
     type lt' = Term.lt'
@@ -111,8 +133,8 @@ module Context :
     | ParR      of 't * 'c
     with gmap, eq, show
 
-    type c   = (int, string, Memory.mem_order, Memory.loc, Term.t, c) ac
-    type lc' = (MiniKanren.Nat.logic, string MiniKanren.logic, Memory.mem_order MiniKanren.logic, Memory.loc MiniKanren.logic, Term.lt, lc' MiniKanren.logic) ac
+    type c   = (int, string, mem_order, loc, Term.t, c) ac
+    type lc' = (MiniKanren.Nat.logic, string MiniKanren.logic, mem_order MiniKanren.logic, loc MiniKanren.logic, Term.lt, lc' MiniKanren.logic) ac
     type lc  = lc' MiniKanren.logic
 
     val inj : c -> lc
@@ -127,5 +149,5 @@ module Context :
 
     val splito : lt -> lc -> lt -> MiniKanren.goal
 
-    val patho : lc -> Memory.Path.lt -> MiniKanren.goal
+    val patho : lc -> Path.lt -> MiniKanren.goal
   end

@@ -1,11 +1,10 @@
 open MiniKanren
-open Memory
 
 module type ATerm =
   sig
     (** Term type *)
     type t
-    
+
     type lt'
 
     (** Injection of term into logic domain *)
@@ -15,20 +14,20 @@ module type ATerm =
     val prj : lt -> t
     val show : t -> string
     (* val parse : string -> t *)
-    val eq : t -> t -> bool    
-                          
-  end                         
+    val eq : t -> t -> bool
+
+  end
 
 module type AContext =
   sig
     (** Term type *)
     type t
-           
+
     type lt'
 
     (** Injection of term into MiniKanren.logic domain *)
     type lt = lt' logic
-    
+
     (** Context type *)
     type c
 
@@ -42,21 +41,21 @@ module type AContext =
     val show : c -> string
 
     val eq : c -> c -> bool
-                     
+
     (** [reducibleo t b] says whether term t could be reduced *)
-    val reducibleo : lt -> bool logic -> goal 
+    val reducibleo : lt -> bool logic -> goal
 
     (** [splito t c rdx] splits the term [t] into context [c] and redex [rdx] *)
     val splito :  lt ->  lc ->  lt -> goal
   end
 
-module type AState = 
-  sig 
+module type AState =
+  sig
     type t
-    
+
     type lt'
 
-    type lt = lt' logic 
+    type lt = lt' logic
 
     val inj : t -> lt
     val prj : lt -> t
@@ -64,7 +63,57 @@ module type AState =
     val eq : t -> t -> bool
   end
 
-module Term = 
+  type loc = string
+  type tstmp = int
+
+  type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
+
+  let string_of_loc = fun x -> x
+  let string_of_tstmp = string_of_int
+
+  let string_of_mo = function
+    | SC      -> "sc"
+    | ACQ     -> "acq"
+    | REL     -> "rel"
+    | ACQ_REL -> "relAcq"
+    | CON     -> "con"
+    | RLX     -> "rlx"
+    | NA      -> "na"
+
+  let mo_of_string str =
+    let binding = [("sc", SC);
+                   ("acq", ACQ);
+                   ("rel", REL);
+                   ("relAcq", ACQ_REL);
+                   ("con", CON);
+                   ("rlx", RLX);
+                   ("na", NA)] in
+      List.assoc str binding
+
+module Path =
+  struct
+    type 'a at = N | L of 'a | R of 'a
+
+    type t  = t  at
+    type lt = lt at MiniKanren.logic
+
+    let (!) = (!!)
+
+    let rec inj = function
+    | N -> !N
+    | L p -> !(L (inj p))
+    | R p -> !(R (inj p))
+
+
+    let rec prj lp =
+      let p = !?lp in
+        match p with
+        | N -> N
+        | L lp' -> L (prj lp')
+        | R lp' -> R (prj lp')
+  end
+
+module Term =
   struct
     @type ('int, 'string, 'mo, 'loc, 't) at =
     | Const    of 'int
@@ -91,7 +140,7 @@ module Term =
     let rec inj t = !! (GT.gmap(at) (inj_nat) (!!) (!!) (!!) (inj) t)
 
     let rec prj lt = GT.gmap(at) (prj_nat) (!?) (!?) (!?) (prj) (!? lt)
-    
+
     let show t =
       let kwd ff s = Format.fprintf ff "%s" s in
       let rec s ff = function
@@ -116,7 +165,7 @@ module Term =
     let rec eq t t' = GT.eq(at) (GT.eq(GT.int)) (GT.eq(GT.string)) (=) (=) (eq) t t'
   end
 
-module Context = 
+module Context =
   struct
     type t   = Term.t
     type lt' = Term.lt'
@@ -151,17 +200,17 @@ module Context =
     let (!) = MiniKanren.inj
 
     let rec reducibleo t b = Term.(conde [
-      fresh (n)      
-        (b === !false) 
+      fresh (n)
+        (b === !false)
         (t === !(Const n));
-      fresh (x)      
-        (b === !true)  
+      fresh (x)
+        (b === !true)
         (t === !(Var x));
-      fresh (op l r) 
-        (b === !true)  
+      fresh (op l r)
+        (b === !true)
         (t === !(Binop (op, l, r)));
       fresh (l r)
-        (b === !true) 
+        (b === !true)
         (t === !(Asgn (l, r)));
       fresh (e t1 t2)
         (b === !true)
@@ -173,10 +222,10 @@ module Context =
         (b === !true)
         (t === !(Read (mo, l)));
       fresh (mo l t')
-        (b === !true) 
+        (b === !true)
         (t === !(Write (mo, l, t')));
       fresh (mo1 mo2 l e1 e2)
-        (b === !true) 
+        (b === !true)
         (t === !(Cas (mo1, mo2, l, e1, e2)));
       fresh (t1 t2)
         (b === !true)
@@ -195,12 +244,12 @@ module Context =
            (reducibleo t2 b2)
            (Bool.oro b1 b2 b)
       ]);
-                                          
+
       ((b === !false) &&& (t === !Skip));
-      ((b === !false) &&& (t === !Stuck));   
+      ((b === !false) &&& (t === !Stuck));
     ])
 
-    let rec splito t c rdx = Term.( 
+    let rec splito t c rdx = Term.(
       (conde [
         fresh (op l r c' t')
           (t === !(Binop (op, l, r)))
@@ -238,11 +287,11 @@ module Context =
             ((c === !Hole)                      &&& (rdx === t ));
             ((c === !(IfC (c', btrue, bfalse))) &&& (rdx === t') &&& (splito cond c' t'))
           ]);
- 
+
         fresh (t1 t2 c' t')
           (t === !(Seq (t1, t2)))
           (conde [
-            ((c === !Hole)            &&& (rdx === t )); 
+            ((c === !Hole)            &&& (rdx === t ));
             ((c === !(SeqC (c', t2))) &&& (rdx === t') &&& (splito t1 c' t'));
           ]);
 
@@ -261,7 +310,7 @@ module Context =
           fresh (x)
             (t === !(Var x));
 
-          fresh (t') 
+          fresh (t')
             (t === !(Repeat t'));
 
           fresh (mo l)
@@ -275,14 +324,14 @@ module Context =
 
           (t === !Skip);
 
-          (t === !Stuck);     
+          (t === !Stuck);
         ]);
       ]))
 
       let rec patho c path = Term.(
         fresh (op mo loc t1 t2 t3 t' c' path')
           (conde [
-            (c === !Hole)                   &&& (path === !Memory.Path.N);
+            (c === !Hole)                   &&& (path === !Path.N);
             (c === !(BinopL (op, c', t1)))  &&& (patho c' path);
             (c === !(BinopR (op, t1, c')))  &&& (patho c' path);
             (c === !(PairL (c', t2)))       &&& (patho c' path);
@@ -291,8 +340,8 @@ module Context =
             (c === !(WriteC (mo, loc, c'))) &&& (patho c' path);
             (c === !(IfC (c', t2, t3)))     &&& (patho c' path);
             (c === !(SeqC (c', t1)))        &&& (patho c' path);
-            (c === !(ParL (c', t1)))        &&& (path === !(Memory.Path.L path')) &&& (patho c' path');            
-            (c === !(ParR (t1, c')))        &&& (path === !(Memory.Path.R path')) &&& (patho c' path');          
+            (c === !(ParL (c', t1)))        &&& (path === !(Path.L path')) &&& (patho c' path');
+            (c === !(ParR (t1, c')))        &&& (path === !(Path.R path')) &&& (patho c' path');
           ])
       )
   end

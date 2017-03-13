@@ -1,33 +1,12 @@
 open MiniKanren
+open Lang
 
-type loc   = string 
-type tstmp = int 
-
-type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
-
-val string_of_loc : loc -> string
-val string_of_tstmp : tstmp -> string
-val string_of_mo : mem_order -> string
-
-val mo_of_string : string -> mem_order
-
-module Path : 
-  sig
-    type 'a at = N | L of 'a | R of 'a
-
-    type t  = t  at
-    type lt = lt at logic
-
-    val inj : t -> lt
-    val prj : lt -> t
-  end 
-
-module Registers : 
+module Registers :
   sig
     type t
-    type lt'  
+    type lt'
     type lt  = lt' logic
-    
+
     val empty : t
 
     val inj : t -> lt
@@ -46,7 +25,7 @@ module Registers :
 module ViewFront :
   sig
     type t
-    type lt' 
+    type lt'
     type lt = lt' MiniKanren.logic
 
     val empty : t
@@ -96,16 +75,16 @@ module ThreadState :
     val assign_localo : string logic -> Nat.logic -> lt -> lt -> goal
 
     val get_tstmpo    : lt -> loc logic -> Nat.logic -> goal
-    val update_tstmpo : loc logic -> Nat.logic -> lt -> lt -> ViewFront.lt -> goal 
-    
+    val update_tstmpo : loc logic -> Nat.logic -> lt -> lt -> ViewFront.lt -> goal
+
     val spawno : lt -> lt -> lt -> goal
-    val joino  : lt -> lt -> lt -> goal    
+    val joino  : lt -> lt -> lt -> goal
   end
 
-module ThreadTree : 
+module ThreadTree :
   sig
     @type ('a, 't) at = Leaf of 'a | Node of 't * 't with gmap
- 
+
     type t   = (ThreadState.t, t) at
     type lt' = (ThreadState.lt, lt' MiniKanren.logic) at
     type lt  = lt' MiniKanren.logic
@@ -119,7 +98,7 @@ module ThreadTree :
     val eq : t -> t -> bool
 
     val get_thrdo    : Path.lt -> lt -> ThreadState.lt -> MiniKanren.goal
-    val update_thrdo : Path.lt -> ThreadState.lt -> lt -> lt -> MiniKanren.goal      
+    val update_thrdo : Path.lt -> ThreadState.lt -> lt -> lt -> MiniKanren.goal
 
     val spawn_thrdo : Path.lt -> lt -> lt -> MiniKanren.goal
     val join_thrdo  : Path.lt -> lt -> lt -> MiniKanren.goal
@@ -131,8 +110,8 @@ module ThreadTree :
     val join_thrd  : Path.t -> t -> t
   end
 
-module Cell : 
-  sig 
+module Cell :
+  sig
     type t   = (tstmp * int * ViewFront.t)
     type lt' = (Nat.logic * Nat.logic * ViewFront.lt)
 
@@ -147,7 +126,7 @@ module Cell :
 
 module LocStory :
   sig
-    type t 
+    type t
     type lt'
     type lt = lt' logic
 
@@ -172,7 +151,7 @@ module LocStory :
 
 module MemStory :
   sig
-    type t 
+    type t
     type lt'
     type lt  = lt' logic
 
@@ -186,7 +165,7 @@ module MemStory :
 
     val show : t -> string
 
-    val eq : t -> t -> bool 
+    val eq : t -> t -> bool
 
     val next_tstmpo : lt -> loc logic -> Nat.logic -> goal
 
@@ -197,16 +176,18 @@ module MemStory :
     val read_acq : t -> loc -> tstmp -> (tstmp * int * ViewFront.t) Stream.t
 
     val write_rel : loc -> int -> ViewFront.t -> t -> t
-    
+
   end
 
 module SCMemory :
   sig
     type t
-    type lt'  
+    type lt'
     type lt  = lt' logic
-    
+
     val empty : t
+
+    val preallocate : Lang.Term.t -> t
 
     val inj : t -> lt
     val prj : lt -> t
@@ -221,7 +202,7 @@ module SCMemory :
     val set : string -> int -> t -> t
   end
 
-module MemState : 
+module MemState :
   sig
     type t = {
       thrds : ThreadTree.t;
@@ -245,7 +226,7 @@ module MemState :
     val show : t -> string
     val eq : t -> t -> bool
 
-    val get_thrdo : Path.lt -> lt -> ThreadState.lt -> goal 
+    val get_thrdo : Path.lt -> lt -> ThreadState.lt -> goal
 
     val assign_localo : Path.lt -> string logic -> Nat.logic -> lt -> lt -> goal
 
@@ -253,7 +234,7 @@ module MemState :
     val write_relo : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
 
     val read_sco  : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
-    val write_sco : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal                                                                
+    val write_sco : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
 
     val spawn_thrdo : Path.lt -> lt -> lt -> goal
     val join_thrdo  : Path.lt -> lt -> lt -> goal

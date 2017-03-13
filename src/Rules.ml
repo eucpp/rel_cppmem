@@ -1,5 +1,6 @@
 open MiniKanren
 open Memory
+open Lang
 
 open Lang.Term
 open Lang.Context
@@ -16,10 +17,10 @@ module Basic =
     type ls = MemState.lt
 
     type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
- 
+
     let (!) = (!!)
 
-    let varo c t s c' t' s' = 
+    let varo c t s c' t' s' =
       fresh (n x path thrd)
         (c  === c')
         (s  === s')
@@ -31,7 +32,7 @@ module Basic =
 
     let var = ("var", varo)
 
-    let binopo c t s c' t' s' = 
+    let binopo c t s c' t' s' =
       fresh (op x y z)
         (c  === c')
         (s  === s')
@@ -44,7 +45,7 @@ module Basic =
 
     let binop = ("binop", binopo)
 
-    let asgno c t s c' t' s' = 
+    let asgno c t s c' t' s' =
       fresh (l r n path e)
         (c  === c')
         (t  === !(Asgn (l, r)))
@@ -63,8 +64,8 @@ module Basic =
         ])
 
     let asgn = ("assign", asgno)
-    
-    let ifo c t s c' t' s' = 
+
+    let ifo c t s c' t' s' =
       fresh (e n btrue bfalse)
         (c === c')
         (s === s')
@@ -76,7 +77,7 @@ module Basic =
 
     let if' = ("if", ifo)
 
-    let repeato c t s c' t' s' = 
+    let repeato c t s c' t' s' =
       fresh (body)
         (c  === c')
         (s  === s')
@@ -85,7 +86,7 @@ module Basic =
 
     let repeat = ("repeat", repeato)
 
-    let seqo c t s c' t' s' = 
+    let seqo c t s c' t' s' =
       fresh (t1 t2)
         (s === s')
         (t === !(Seq (t1, t2)))
@@ -106,7 +107,7 @@ module Basic =
 
    let spawn = ("spawn", spawno)
 
-   let joino c t s c' t' s' = 
+   let joino c t s c' t' s' =
      fresh (t1 t2 n1 n2 path)
        (c === c')
        (t1 === !(Const n1))
@@ -137,7 +138,7 @@ module RelAcq =
 
     let (!) = (!!)
 
-    let read_acqo c t s c' t' s' = 
+    let read_acqo c t s c' t' s' =
       fresh (l path n)
         (c  === c')
         (t  === !(Read (!ACQ, l)))
@@ -147,7 +148,7 @@ module RelAcq =
 
     let read_acq = ("read_acq", read_acqo)
 
-    let write_relo c t s c' t' s' = 
+    let write_relo c t s c' t' s' =
       fresh (l n path)
         (c  === c')
         (t  === !(Write (!REL, l, !(Const n))))
@@ -158,11 +159,11 @@ module RelAcq =
     let write_rel = ("write_rel", write_relo)
 
     let all = [read_acq; write_rel; ]
- 
+
   end
 
-module SeqCons = 
-  struct 
+module SeqCons =
+  struct
     type t  = Lang.Term.t
     type lt = Lang.Term.lt
 
@@ -176,7 +177,7 @@ module SeqCons =
 
     let (!) = (!!)
 
-    let read_sco c t s c' t' s' = 
+    let read_sco c t s c' t' s' =
       fresh (l path n)
         (c  === c')
         (t  === !(Read (!SC, l)))
@@ -186,7 +187,7 @@ module SeqCons =
 
     let read_sc = ("read_sc", read_sco)
 
-    let write_sco c t s c' t' s' = 
+    let write_sco c t s c' t' s' =
       fresh (l n path)
         (c  === c')
         (t  === !(Write (!SC, l, !(Const n))))

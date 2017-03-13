@@ -1,63 +1,13 @@
 open GT
 open MiniKanren
+open Lang
 
-type loc = string
-type tstmp = int
-
-type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
-
-let string_of_loc = fun x -> x
-let string_of_tstmp = string_of_int
-
-let string_of_mo = function
-  | SC      -> "sc"
-  | ACQ     -> "acq"
-  | REL     -> "rel"
-  | ACQ_REL -> "relAcq"
-  | CON     -> "con"
-  | RLX     -> "rlx"
-  | NA      -> "na"  
-
-let mo_of_string str = 
-  let binding = [("sc", SC);
-                 ("acq", ACQ);
-                 ("rel", REL);
-                 ("relAcq", ACQ_REL); 
-                 ("con", CON); 
-                 ("rlx", RLX); 
-                 ("na", NA)] in
-    List.assoc str binding
-
-module Path = 
-  struct
-    type 'a at = N | L of 'a | R of 'a
-
-    type t  = t  at
-    type lt = lt at MiniKanren.logic
-
-    let (!) = (!!)
-
-    let rec inj = function
-    | N -> !N
-    | L p -> !(L (inj p))
-    | R p -> !(R (inj p))
-
-
-    let rec prj lp = 
-      let p = !?lp in
-        match p with
-        | N -> N
-        | L lp' -> L (prj lp')
-        | R lp' -> R (prj lp')
- 
-  end
-
-module Registers = 
+module Registers =
   struct
     type t   = (string * int) list
-    type lt' = ((string logic * Nat.logic) logic, lt' logic) llist   
+    type lt' = ((string logic * Nat.logic) logic, lt' logic) llist
     type lt  = lt' logic
-    
+
     let empty = []
 
     let (!) = MiniKanren.inj
@@ -65,25 +15,25 @@ module Registers =
     let inj = Utils.inj_assoc (!)  (inj_nat)
     let prj = Utils.prj_assoc (!?) (prj_nat)
 
-    let show = Utils.show_assoc (fun x -> x) (string_of_int) 
+    let show = Utils.show_assoc (fun x -> x) (string_of_int)
 
     let eq = Utils.eq_assoc (=) (=)
 
     let geto = Utils.assoco
 
-    let seto = Utils.update_assoco 
+    let seto = Utils.update_assoco
 
     let get var regs = run q (fun q  -> geto !var (inj regs) q)
                              (fun qs -> prj_nat @@ Utils.excl_answ qs)
 
     let set var v regs = run q (fun q  -> seto !var (inj_nat v) (inj regs) q)
-                               (fun qs -> (prj @@ Utils.excl_answ qs)) 
+                               (fun qs -> (prj @@ Utils.excl_answ qs))
   end
 
 module ViewFront =
   struct
     type t   = (loc * tstmp) list
-    type lt' = ((loc logic * Nat.logic) logic, lt' logic) llist   
+    type lt' = ((loc logic * Nat.logic) logic, lt' logic) llist
     type lt  = lt' logic
 
     let empty = []
@@ -91,14 +41,14 @@ module ViewFront =
     let inj = Utils.inj_assoc (!!)  (inj_nat)
     let prj = Utils.prj_assoc (!?) (prj_nat)
 
-    let show = Utils.show_assoc (string_of_loc) (string_of_tstmp) 
+    let show = Utils.show_assoc (string_of_loc) (string_of_tstmp)
 
     let eq = Utils.eq_assoc (=) (=)
 
     let from_assoc assoc = assoc
 
-    let (!) = MiniKanren.inj 
- 
+    let (!) = MiniKanren.inj
+
     let geto l t ts = Utils.assoc_defaulto l t (inj_nat 0) ts
 
     let updateo = Utils.update_assoco
@@ -118,7 +68,7 @@ module ViewFront =
     (*       ]); *)
     (*     ]) *)
 
-    let rec join_loco lts vf vf' = 
+    let rec join_loco lts vf vf' =
       fresh (l l' ts ts')
         (lts === !(l, ts))
         (conde [
@@ -136,17 +86,17 @@ module ViewFront =
             ])
         ])
 
-    let joino t t' joined = 
+    let joino t t' joined =
       MiniKanren.List.foldro join_loco t t' joined
 
     let get var vf = run q (fun q  -> geto !var (inj vf) q)
                            (fun qs -> prj_nat @@ Utils.excl_answ qs)
 
     let update var v vf = run q (fun q  -> updateo !var (inj_nat v) (inj vf) q)
-                                (fun qs -> prj @@ Utils.excl_answ qs) 
+                                (fun qs -> prj @@ Utils.excl_answ qs)
 
     let join vf vf' = run q (fun q  -> joino (inj vf) (inj vf') q)
-                            (fun qs -> prj @@ Utils.excl_answ qs) 
+                            (fun qs -> prj @@ Utils.excl_answ qs)
 
   end
 
@@ -167,92 +117,92 @@ module ThreadState =
     let empty = { regs = Registers.empty; curr = ViewFront.empty; }
 
     let inj t  = !! { lregs = Registers.inj t.regs; lcurr = ViewFront.inj t.curr; }
-    
-    let prj lt = 
+
+    let prj lt =
       let lt' = !?lt in
-      { regs = Registers.prj lt'.lregs; 
+      { regs = Registers.prj lt'.lregs;
         curr = ViewFront.prj lt'.lcurr; }
 
     let show t = "Registers: " ^ Registers.show t.regs ^ "\nCurrent viewfront: " ^ ViewFront.show t.curr ^ "\n"
-    
+
     let eq t t' = (Registers.eq t.regs t'.regs) && (ViewFront.eq t.curr t'.curr)
 
     let (!) = (!!)
 
-    let splito t regs curr = 
-      (t === !{lregs = regs; lcurr = curr; }) 
+    let splito t regs curr =
+      (t === !{lregs = regs; lcurr = curr; })
 
-    let get_localo t var v = 
+    let get_localo t var v =
       fresh (regs curr)
         (splito t regs curr)
-        (Registers.geto var regs v) 
+        (Registers.geto var regs v)
 
-    let assign_localo var v t t' = 
+    let assign_localo var v t t' =
       fresh (regs regs' curr)
         (splito t regs curr)
         (Registers.seto var v regs regs')
         (splito t' regs' curr)
 
-    let get_tstmpo t l ts = 
+    let get_tstmpo t l ts =
       fresh (regs curr)
         (splito t regs curr)
         (ViewFront.geto l curr ts)
 
-    let update_tstmpo l ts t t' curr' = 
-      fresh (regs curr) 
+    let update_tstmpo l ts t t' curr' =
+      fresh (regs curr)
         (splito t  regs curr)
         (ViewFront.updateo l ts curr curr')
         (splito t' regs curr')
 
-    let join_viewfronto vf t t' = 
+    let join_viewfronto vf t t' =
       fresh (regs curr curr')
         (splito t regs curr)
         (ViewFront.joino vf curr curr')
         (splito t' regs curr')
 
-    let spawno t spwn spwn' = 
+    let spawno t spwn spwn' =
       fresh (regs curr)
         (splito t regs curr)
         (splito spwn (Registers.inj Registers.empty) curr)
         (spwn' === spwn)
 
-    let joino t t' joined = 
+    let joino t t' joined =
       fresh (regs regs' curr curr' curr'')
         (splito t  regs  curr)
         (splito t' regs' curr')
         (ViewFront.joino curr curr' curr'')
-        (splito joined (Registers.inj Registers.empty) curr'')      
+        (splito joined (Registers.inj Registers.empty) curr'')
 
   end
 
 module ThreadTree =
   struct
     @type ('a, 't) at = Leaf of 'a | Node of 't * 't with gmap
- 
+
     type t   = (ThreadState.t, t) at
     type lt' = (ThreadState.lt, lt' logic) at
     type lt  = lt' logic
 
-    let empty = Leaf ThreadState.empty 
+    let empty = Leaf ThreadState.empty
 
     let rec inj t  = !! (gmap(at) (ThreadState.inj) (inj) t)
     let rec prj lt = gmap(at) (ThreadState.prj) (prj) (!?lt)
 
     let rec thrd_list' thrds = function
     | Leaf thrd          -> thrd::thrds
-    | Node (left, right) -> 
+    | Node (left, right) ->
       let thrds' = thrd_list' thrds left in
         thrd_list' thrds' right
 
     let thrd_list thrd_tree = List.rev @@ thrd_list' [] thrd_tree
 
-    let show thrd_tree = 
+    let show thrd_tree =
       let thrds = thrd_list thrd_tree in
       let sep = "-------------------------------------------------------------" in
       let cnt = ref 0 in
-      let show_thrd acc thrd = 
+      let show_thrd acc thrd =
         cnt := !cnt + 1;
-        acc ^ "Thread #" ^ (string_of_int !cnt) ^ ":\n" ^ (ThreadState.show thrd) ^ sep ^ "\n" 
+        acc ^ "Thread #" ^ (string_of_int !cnt) ^ ":\n" ^ (ThreadState.show thrd) ^ sep ^ "\n"
       in
         List.fold_left show_thrd "" thrds
 
@@ -264,7 +214,7 @@ module ThreadTree =
     let (!) = (!!)
 
     let rec get_thrdo path thrd_tree thrd = conde [
-      (path === !Path.N) &&& (thrd_tree === !(Leaf thrd));  
+      (path === !Path.N) &&& (thrd_tree === !(Leaf thrd));
       fresh (l r path')
         (thrd_tree === !(Node (l, r)))
         (conde [
@@ -274,7 +224,7 @@ module ThreadTree =
     ]
 
     let rec update_thrdo path thrd thrd_tree thrd_tree' = conde [
-      fresh (thrd') 
+      fresh (thrd')
         ((path === !Path.N) &&& (thrd_tree === !(Leaf thrd')) &&& (thrd_tree' === !(Leaf thrd)));
       fresh (l r l' r' path')
         (thrd_tree === !(Node (l, r)))
@@ -282,7 +232,7 @@ module ThreadTree =
           (path === !(Path.L path')) &&& (thrd_tree' === !(Node (l', r))) &&& (update_thrdo path' thrd l l');
           (path === !(Path.R path')) &&& (thrd_tree' === !(Node (l, r'))) &&& (update_thrdo path' thrd r r');
         ]);
-    ] 
+    ]
 
     let rec spawn_thrdo path thrd_tree thrd_tree' = conde [
       fresh (thrd thrd' thrd'')
@@ -295,7 +245,7 @@ module ThreadTree =
         (conde [
            (path === !(Path.L path')) &&& (thrd_tree' === !(Node (l', r ))) &&& (spawn_thrdo path' l l');
            (path === !(Path.R path')) &&& (thrd_tree' === !(Node (l , r'))) &&& (spawn_thrdo path' r r');
-        ]); 
+        ]);
     ]
 
     let rec join_thrdo path thrd_tree thrd_tree' = conde [
@@ -343,22 +293,22 @@ module Cell =
 
 module LocStory =
   struct
-    type t = { 
+    type t = {
       tsnext : tstmp;
       story  : (tstmp * int * ViewFront.t) list;
     }
 
     type lt' = {
-      ltsnext : Nat.logic; 
+      ltsnext : Nat.logic;
       lstory  : (Nat.logic * Nat.logic * ViewFront.lt) logic MiniKanren.List.logic;
     }
 
     type lt = lt' logic
 
     let empty = { tsnext = 0; story = []; }
-    
-    let from_list x = 
-      let maxts = List.fold_left (fun a (b, _, _) -> max a b) (-1) x in 
+
+    let from_list x =
+      let maxts = List.fold_left (fun a (b, _, _) -> max a b) (-1) x in
         { tsnext = maxts + 1; story = x; }
 
     let (!) = (!!)
@@ -370,30 +320,30 @@ module LocStory =
 
     let prj_msg (lts, lv, lvf) = (prj_nat lts, prj_nat lv, ViewFront.prj lvf)
 
-    let prj lt = 
+    let prj lt =
       let lt' = !? lt in {
         tsnext = prj_nat lt'.ltsnext;
         story  = MiniKanren.List.to_list @@ MiniKanren.List.prj (fun lmsg -> prj_msg !?lmsg) lt'.lstory;
       }
 
-    let show t = 
+    let show t =
       let content = List.fold_left (fun a cell -> a ^ (Cell.show cell)) "" t.story in
         "{" ^ content ^ "}"
 
-    let eq t t' = 
-      let 
+    let eq t t' =
+      let
         check_exists cell = List.exists (Cell.eq cell) t'.story
       in
         List.for_all check_exists t.story
 
-    let splito t tsnext story = 
+    let splito t tsnext story =
       (t === !{ ltsnext = tsnext; lstory = story; })
 
-    let next_tstmpo t ts = 
+    let next_tstmpo t ts =
       fresh (story)
         (splito t ts story)
 
-    let visible_msgo ts msg b = 
+    let visible_msgo ts msg b =
       fresh (ts' v vf)
         (msg === !(ts', v, vf))
         (Nat.leo ts ts' b)
@@ -411,7 +361,7 @@ module LocStory =
         (ts' === !(S ts))
         (story' === !(ts, v, vf) % story)
         (splito t' ts' story')
-        
+
     let read_acq t ts = run qrs (fun q  r  s  -> read_acqo (inj t) (inj_nat ts) q r s)
                                 (fun qs rs ss -> Utils.zip3 (Stream.map prj_nat qs) (Stream.map prj_nat rs) (Stream.map ViewFront.prj ss))
 
@@ -419,8 +369,8 @@ module LocStory =
                                  (fun qs -> prj @@ Utils.excl_answ qs)
   end
 
-module MemStory = 
-  struct 
+module MemStory =
+  struct
     type t   = (loc * LocStory.t) list
     type lt' = ((loc logic * LocStory.lt) logic, lt' logic) llist
     type lt  = lt' logic
@@ -437,18 +387,18 @@ module MemStory =
 
     let show t = List.fold_left (fun a (l, story) -> l ^ ": " ^ (LocStory.show story) ^ "\n") "" t
 
-    let eq t t' =       
-      let 
+    let eq t t' =
+      let
         check_exists (l, story) = List.exists (fun (l', story') -> (l = l') && (LocStory.eq story story')) t'
       in
         List.for_all check_exists t
 
-    let next_tstmpo t l ts = 
+    let next_tstmpo t l ts =
       fresh (story)
         (Utils.assoc_defaulto l t (LocStory.inj LocStory.empty) story)
         (LocStory.next_tstmpo story ts)
 
-    let read_acqo t l ts ts' v vf = 
+    let read_acqo t l ts ts' v vf =
       fresh (story)
         (Utils.assoco l t story)
         (LocStory.read_acqo story ts ts' v vf)
@@ -459,7 +409,7 @@ module MemStory =
           (opt_story === !(Some story));
           (opt_story === !None) &&& (story === LocStory.inj LocStory.empty);
         ])
-        (LocStory.write_relo v vf story story')         
+        (LocStory.write_relo v vf story story')
 
     let write_relo l v vf t t' = Utils.update_assoco_k l (update_k v vf) t t'
 
@@ -468,35 +418,61 @@ module MemStory =
 
     let write_rel l v vf t = run q (fun q  -> write_relo (!l) (inj_nat v) (ViewFront.inj vf) (inj t) q)
                                    (fun qs -> prj @@ Utils.excl_answ qs)
-    
+
   end
 
-module SCMemory = 
+module SCMemory =
   struct
     type t   = (string * int) list
-    type lt' = ((string logic * Nat.logic) logic, lt' logic) llist   
+    type lt' = ((string logic * Nat.logic) logic, lt' logic) llist
     type lt  = lt' logic
-    
+
     let empty = []
+
+    let rec preallocate' scmem = function
+        | Lang.Term.Read  (_, x)
+        | Lang.Term.Write (_, x, _) ->
+          (try
+            let _ = List.assoc x scmem in
+            scmem
+          with
+            Not_found -> (x, 0) :: scmem)
+        | Lang.Term.Repeat t ->
+          preallocate' scmem t
+        | Lang.Term.Binop (_, t1, t2)
+        | Lang.Term.Asgn  (t1, t2)
+        | Lang.Term.Pair  (t1, t2)
+        | Lang.Term.Seq   (t1, t2)
+        | Lang.Term.Spw   (t1, t2)
+        | Lang.Term.Par   (t1, t2) ->
+          let scmem' = preallocate' scmem t1 in
+            preallocate' scmem' t2
+        | Lang.Term.If (t1, t2, t3) ->
+          let scmem'  = preallocate' scmem t1 in
+          let scmem'' = preallocate' scmem' t2 in
+          preallocate' scmem'' t3
+        | _  -> scmem
+
+    let preallocate = preallocate' empty
 
     let (!) = MiniKanren.inj
 
     let inj = Utils.inj_assoc (!)  (inj_nat)
     let prj = Utils.prj_assoc (!?) (prj_nat)
 
-    let show = Utils.show_assoc (fun x -> x) (string_of_int) 
+    let show = Utils.show_assoc (fun x -> x) (string_of_int)
 
     let eq = Utils.eq_assoc (=) (=)
 
     let geto = Utils.assoco
 
-    let seto = Utils.update_assoco 
+    let seto = Utils.update_assoco
 
     let get var regs = run q (fun q  -> geto !var (inj regs) q)
                              (fun qs -> prj_nat @@ Utils.excl_answ qs)
 
     let set var v regs = run q (fun q  -> seto !var (inj_nat v) (inj regs) q)
-                               (fun qs -> (prj @@ Utils.excl_answ qs)) 
+                               (fun qs -> (prj @@ Utils.excl_answ qs))
   end
 
 module MemState =
@@ -519,41 +495,41 @@ module MemState =
 
     let inj t = !! { lthrds = ThreadTree.inj t.thrds; lstory = MemStory.inj t.story; lscmem = SCMemory.inj t.scmem; }
 
-    let prj lt = 
+    let prj lt =
       let lt' = !?lt in
       { thrds = ThreadTree.prj lt'.lthrds;
-        story = MemStory.prj lt'.lstory; 
+        story = MemStory.prj lt'.lstory;
         scmem = SCMemory.prj lt'.lscmem; }
 
     let sep = "-------------------------------------------------------------"
 
     let show t = Printf.sprintf "Threads:\n%s \n%s \nMemory:\n%s \n%s" sep (ThreadTree.show t.thrds) sep (MemStory.show t.story)
-    
+
     let eq t t' = (ThreadTree.eq t.thrds t'.thrds) && (MemStory.eq t.story t'.story)
 
     let (!) = (!!)
 
-    let splito t thrd_tree story scmem = 
+    let splito t thrd_tree story scmem =
       (t === !{ lthrds = thrd_tree; lstory = story; lscmem = scmem; })
- 
+
     let get_thrdo path t thrd =
       fresh (thrd_tree h scmem)
         (splito t thrd_tree h scmem)
-        (ThreadTree.get_thrdo path thrd_tree thrd) 
-      
-    let update_thrdo path thrd t t' = 
+        (ThreadTree.get_thrdo path thrd_tree thrd)
+
+    let update_thrdo path thrd t t' =
       fresh (thrd_tree thrd_tree' h scmem)
         (splito t thrd_tree h scmem)
         (ThreadTree.update_thrdo path thrd thrd_tree thrd_tree')
         (splito t' thrd_tree' h scmem)
- 
-    let assign_localo path x n t t' = 
+
+    let assign_localo path x n t t' =
       fresh (thrd thrd')
         (get_thrdo path t thrd)
         (ThreadState.assign_localo x n thrd thrd')
         (update_thrdo path thrd' t t')
 
-    let read_acqo path l v t t' = 
+    let read_acqo path l v t t' =
       fresh (thrd_tree thrd_tree' story scmem thrd thrd' ts ts' vf)
         (splito t thrd_tree story scmem)
         (ThreadTree.get_thrdo path thrd_tree thrd)
@@ -563,7 +539,7 @@ module MemState =
         (ThreadTree.update_thrdo path thrd' thrd_tree thrd_tree')
         (splito t' thrd_tree' story scmem)
 
-    let write_relo path l v t t' = 
+    let write_relo path l v t t' =
       fresh (thrd_tree thrd_tree' story story' scmem thrd thrd' ts vf)
         (splito t thrd_tree story scmem)
         (MemStory.next_tstmpo story l ts)
@@ -579,19 +555,19 @@ module MemState =
         (SCMemory.geto l scmem v)
         (t' === t)
 
-    let write_sco path l v t t' = 
+    let write_sco path l v t t' =
       fresh (thrd_tree story scmem scmem')
         (splito t thrd_tree story scmem)
         (SCMemory.seto l v scmem scmem')
         (splito t' thrd_tree story scmem')
 
-    let spawn_thrdo path t t' = 
+    let spawn_thrdo path t t' =
       fresh (thrd_tree thrd_tree' h scmem)
         (splito t thrd_tree h scmem)
         (ThreadTree.spawn_thrdo path thrd_tree thrd_tree')
         (splito t' thrd_tree' h scmem)
 
-    let join_thrdo path t t' = 
+    let join_thrdo path t t' =
       fresh (thrd_tree thrd_tree' h scmem)
         (splito t thrd_tree h scmem)
         (ThreadTree.join_thrdo path thrd_tree thrd_tree')

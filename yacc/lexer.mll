@@ -14,7 +14,7 @@ let var = 'r'(lc|digit)* as var_lxm
 let mo = "sc"|"acq"|"rel"|"relAcq"|"con"|"rlx"|"na" as mo_lxm
 
 rule token = parse
-    [' ' '\t' '\n']+    { token lexbuf }     (* skip blanks *)     
+    [' ' '\t' '\n']+    { token lexbuf }     (* skip blanks *)
   | '+'                 { PLUS }
   | '-'                 { MINUS }
   | '*'                 { TIMES }
@@ -34,8 +34,8 @@ rule token = parse
   | "{{{"               { TOPEN }
   | "|||"               { TSEP }
   | "}}}"               { TCLOSE }
-  | mo                  { MO(Memory.mo_of_string mo_lxm) }
+  | mo                  { MO(Lang.mo_of_string mo_lxm) }
   | var                 { VAR(var_lxm) }
   | loc                 { LOC(loc_lxm) }
-  | integer             { INT(int_of_string int_lxm) } 
+  | integer             { INT(int_of_string int_lxm) }
   | eof                 { EOF }

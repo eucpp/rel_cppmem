@@ -1,11 +1,11 @@
 %token <string> VAR
 %token <string> LOC
 %token <int> INT
-%token <Memory.mem_order> MO
+%token <Lang.mem_order> MO
 %token PLUS MINUS TIMES
-%token RET 
+%token RET
 %token SKIP STUCK
-%token ASSIGN 
+%token ASSIGN
 %token SEMICOLON UNDERSCORE
 %token IF THEN ELSE FI
 %token REPEAT END
@@ -37,7 +37,7 @@ stmt:
   | STUCK                                { Lang.Term.Stuck }
 ;
 expr:
-    INT                                  { Lang.Term.Const $1 } 
+    INT                                  { Lang.Term.Const $1 }
   | VAR                                  { Lang.Term.Var $1 }
   | LOC UNDERSCORE MO                    { Lang.Term.Read ($3, $1) }
   | expr PLUS expr                       { Lang.Term.Binop ("+", $1, $3) }

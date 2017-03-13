@@ -2,16 +2,17 @@ open OUnit2
 open MiniKanren
 open Memory
 open Rules
+open Lang
 
-module RulesTester 
+module RulesTester
   (T : Lang.ATerm)
   (C : Lang.AContext with type t = T.t with type lt' = T.lt')
-  (S : Lang.AState) = 
-  struct 
+  (S : Lang.AState) =
+  struct
     module Sem = Semantics.Make(T)(C)(S)
 
     let show (t, s) = "Term/State is not found among answers: " ^ T.show t ^ "; " ^ S.show s
-      
+
     let eq (t, s) (t', s') = (T.eq t t') && (S.eq s s')
 
     let test_step ?empty_check rules (t, s) expected test_ctx =
@@ -19,26 +20,26 @@ module RulesTester
       let stream = Sem.step sem t s in
         TestUtils.assert_stream ?empty_check stream expected ~show:show ~eq:eq
 
-    let test_space ?empty_check rules (t, s) expected test_ctx = 
+    let test_space ?empty_check rules (t, s) expected test_ctx =
       let sem    = Sem.make rules in
       let stream = Sem.space sem t s in
-        TestUtils.assert_stream ?empty_check stream expected ~show:show ~eq:eq 
+        TestUtils.assert_stream ?empty_check stream expected ~show:show ~eq:eq
   end
-  
+
 module Tester = RulesTester(Lang.Term)(Lang.Context)(MemState)
 
 module T = Lang.Term
 module C = Lang.Context
 module S = Memory.MemState
 
-let basic_tests = 
-  
-  let mem  = S.assign_local Path.N "x" 42 S.empty in 
-  let mem' = S.assign_local Path.N "y" 1 mem in 
+let basic_tests =
+
+  let mem  = S.assign_local Path.N "x" 42 S.empty in
+  let mem' = S.assign_local Path.N "y" 1 mem in
 
   "basic">::: [
     "var">:: Tester.test_step [Basic.var] (T.Var "x", mem) [(T.Const 42, mem)];
-    
+
     "binop">:: Tester.test_step [Basic.binop] (T.Binop ("+", T.Const 1, T.Const 2), S.empty) [(T.Const 3, S.empty)];
 
     "binop_complex">:: (let e = (T.Binop ("+", T.Var "x", T.Binop ("*", T.Const 2, T.Const 4)), mem) in
@@ -84,10 +85,10 @@ let basic_tests =
     "space_all">:: (let pair = T.Pair (T.Var "x", T.Var "y") in
                     let stmt = T.Seq (T.Asgn (pair, T.Spw (
                       T.Seq (T.Asgn (T.Var "z", T.Const 42), T.Var "z"),
-                      T.If (T.Const 1, T.Const 1, T.Const 0) 
+                      T.If (T.Const 1, T.Const 1, T.Const 0)
                    )), pair) in
                       Tester.test_space ~empty_check:false Basic.all (stmt, S.empty) [(T.Pair (T.Const 42, T.Const 1), mem')]);
-                   
+
   ]
 
 let rel_acq_tests =
@@ -98,22 +99,22 @@ let rel_acq_tests =
   let thrd'      = { ThreadState.regs = Registers.empty; ThreadState.curr = vf'; } in
   let thrd_tree  = ThreadTree.Leaf thrd in
   let thrd_tree' = ThreadTree.Leaf thrd' in
- 
+
   "rel_acq">::: [
-    "read_acq">:: 
+    "read_acq">::
       (let mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
        let state     = { S.thrds = thrd_tree; S.story = mem_story; S.scmem = SCMemory.empty; } in
        let state'    = { S.thrds = thrd_tree'; S.story = mem_story; S.scmem = SCMemory.empty; } in
          Tester.test_step ~empty_check:false [RelAcq.read_acq] (T.Read (ACQ, "x"), state) [(T.Const 0, state); (T.Const 1, state')]);
 
-    "write_rel">:: 
+    "write_rel">::
       (let mem_story  = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf)])] in
        let mem_story' = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
        let state      = { S.thrds = thrd_tree; S.story = mem_story; S.scmem = SCMemory.empty; } in
        let state'     = { S.thrds = thrd_tree'; S.story = mem_story'; S.scmem = SCMemory.empty; } in
          Tester.test_step [RelAcq.write_rel] (T.Write (REL, "x", T.Const 1), state) [(T.Skip, state')]);
- 
+
   ]
 
-let tests = 
+let tests =
   "rules">::: [basic_tests; rel_acq_tests]
