@@ -27,9 +27,20 @@ let test_prog sem prog expected test_ctx =
   let state   = {MemState.thrds = ThreadTree.empty;
                  MemState.story = MemStory.empty;
                  MemState.scmem = SCMemory.preallocate term; } in
-  let stream  = Sem.space sem term state in
-  let stream' = Stream.map (fun (t, s) -> Lang.Term.show t) stream in
+  let stream =
+   run qrs (fun q  r  s  ->
+              (* fresh (s') *)
+                (Sem.spaceo sem (Lang.Term.inj term) (MemState.inj state) q r nil))
+                (* (List.appendo s' nil s)) *)
+           (fun qs rs ss -> Utils.zip3
+             (Stream.map Lang.Term.prj qs)
+             (Stream.map MemState.prj rs)
+             ss) in
+  let stream' = Stream.map (fun (t, s, epath) -> Lang.Term.show t) stream in
   let cnt     = ref 0 in
-    print_endline @@ SCMemory.show @@ SCMemory.preallocate term;
-    Stream.iter (fun s -> cnt := !cnt + 1; print_endline @@ string_of_int !cnt) stream';
+    Stream.iter (
+        fun (t, s, epath) -> cnt := !cnt + 1;
+        Printf.printf "\n%d" !cnt
+        (* Printf.printf "\n%d: %s\n" !cnt (String.concat " -> " epath) *)
+      ) stream;
     assert_stream ~empty_check:false stream' expected ~show:show ~eq:(=)

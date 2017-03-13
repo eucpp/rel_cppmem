@@ -1,5 +1,5 @@
 module Make
-  (T : Lang.ATerm) 
+  (T : Lang.ATerm)
   (C : Lang.AContext with type t = T.t with type lt' = T.lt')
   (S : Lang.AState) :
   sig
@@ -8,17 +8,17 @@ module Make
     type rule = (C.lc -> T.lt -> S.lt -> C.lc -> T.lt -> S.lt -> MiniKanren.goal)
 
     val empty : t
-    
+
     val make : (string * rule) list -> t
 
     val register   : string * rule -> t -> t
-    val deregister : string -> t -> t 
+    val deregister : string -> t -> t
 
-    (** Relational single step in given semantics *) 
-    val stepo : t -> T.lt -> S.lt -> T.lt -> S.lt (* -> bool MiniKanren.logic *) -> MiniKanren.goal
+    (** Relational single step in given semantics *)
+    val stepo : t -> T.lt -> S.lt -> T.lt -> S.lt -> string MiniKanren.logic -> MiniKanren.goal
 
     (** Relational step* *)
-    val spaceo : t -> T.lt -> S.lt -> T.lt -> S.lt -> MiniKanren.goal
+    val spaceo : t -> T.lt -> S.lt -> T.lt -> S.lt -> string MiniKanren.logic MiniKanren.List.logic -> MiniKanren.goal
 
     val reducible : T.t -> bool
 

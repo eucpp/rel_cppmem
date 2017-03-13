@@ -503,7 +503,7 @@ module MemState =
 
     let sep = "-------------------------------------------------------------"
 
-    let show t = Printf.sprintf "Threads:\n%s \n%s \nMemory:\n%s \n%s" sep (ThreadTree.show t.thrds) sep (MemStory.show t.story)
+    let show t = Printf.sprintf "Threads:\n%s \n%s \nSCMem:\n%s \n%s \nMemory:\n%s \n%s" sep (ThreadTree.show t.thrds) sep (SCMemory.show t.scmem) sep (MemStory.show t.story)
 
     let eq t t' = (ThreadTree.eq t.thrds t'.thrds) && (MemStory.eq t.story t'.story)
 
