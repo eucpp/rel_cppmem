@@ -4,6 +4,9 @@ open Lang
 
 module Registers =
   struct
+    include T2
+    include Fmap2
+
     type t   = (string * int) list
     type lt' = ((string logic * Nat.logic) logic, lt' logic) llist
     type lt  = lt' logic
@@ -12,7 +15,8 @@ module Registers =
 
     let (!) = MiniKanren.inj
 
-    let inj = Utils.inj_assoc (!)  (inj_nat)
+    (* let inj = Utils.inj_assoc (!)  (inj_nat) *)
+    let inj t = inj @@ distrib t
     let prj = Utils.prj_assoc (!?) (prj_nat)
 
     let show = Utils.show_assoc (fun x -> x) (string_of_int)
@@ -32,13 +36,17 @@ module Registers =
 
 module ViewFront =
   struct
+    include T2
+    include Fmap2
+
     type t   = (loc * tstmp) list
     type lt' = ((loc logic * Nat.logic) logic, lt' logic) llist
     type lt  = lt' logic
 
     let empty = []
 
-    let inj = Utils.inj_assoc (!!)  (inj_nat)
+    (* let inj = Utils.inj_assoc (!!)  (inj_nat) *)
+    let inj t = inj @@ distrib t
     let prj = Utils.prj_assoc (!?) (prj_nat)
 
     let show = Utils.show_assoc (string_of_loc) (string_of_tstmp)
@@ -116,7 +124,7 @@ module ThreadState =
 
     let empty = { regs = Registers.empty; curr = ViewFront.empty; }
 
-    let inj t  = !! { lregs = Registers.inj t.regs; lcurr = ViewFront.inj t.curr; }
+    let inj t  = inj @@ lift { lregs = Registers.inj t.regs; lcurr = ViewFront.inj t.curr; }
 
     let prj lt =
       let lt' = !?lt in
@@ -177,6 +185,9 @@ module ThreadState =
 
 module ThreadTree =
   struct
+    include T2
+    include Fmap2
+
     @type ('a, 't) at = Leaf of 'a | Node of 't * 't with gmap
 
     type t   = (ThreadState.t, t) at
@@ -185,7 +196,8 @@ module ThreadTree =
 
     let empty = Leaf ThreadState.empty
 
-    let rec inj t  = !! (gmap(at) (ThreadState.inj) (inj) t)
+    (* let rec inj t  = !! (gmap(at) (ThreadState.inj) (inj) t) *)
+    let inj t = inj @@ distrib t
     let rec prj lt = gmap(at) (ThreadState.prj) (prj) (!?lt)
 
     let rec thrd_list' thrds = function
@@ -278,12 +290,16 @@ module ThreadTree =
 
 module Cell =
   struct
+    include T3
+    include Fmap3
+
     type t   = (tstmp * int * ViewFront.t)
     type lt' = (Nat.logic * Nat.logic * ViewFront.lt)
 
     type lt = lt' logic
 
-    let inj (ts, v, vf) = !! (inj_nat ts, inj_nat v, ViewFront.inj vf)
+    (* let inj (ts, v, vf) = !! (inj_nat ts, inj_nat v, ViewFront.inj vf) *)
+    let inj t = inj @@ distrib t
     let prj lt = !?lt |> fun (lts, lv, lvf) -> (prj_nat lts, prj_nat lv, ViewFront.prj lvf)
 
     let show (ts, v, vf) = "(" ^ (string_of_tstmp ts) ^ ", " ^ (string_of_int v) ^ ", " ^ ViewFront.show vf ^ ")"
@@ -313,7 +329,7 @@ module LocStory =
 
     let (!) = (!!)
 
-    let inj t = !! {
+    let inj t = inj @@ lift {
       ltsnext = inj_nat t.tsnext;
       lstory  = MiniKanren.List.inj Cell.inj @@ MiniKanren.List.of_list t.story;
     }
@@ -371,6 +387,9 @@ module LocStory =
 
 module MemStory =
   struct
+    include T2
+    include Fmap2
+
     type t   = (loc * LocStory.t) list
     type lt' = ((loc logic * LocStory.lt) logic, lt' logic) llist
     type lt  = lt' logic
@@ -381,7 +400,8 @@ module MemStory =
 
     let from_assoc assoc = assoc
 
-    let inj t  = MiniKanren.List.inj (fun (l, story) -> !(!l, LocStory.inj story)) @@ MiniKanren.List.of_list t
+    (* let inj t  = MiniKanren.List.inj (fun (l, story) -> !(!l, LocStory.inj story)) @@ MiniKanren.List.of_list t *)
+    let inj t = inj @@ distrib t
 
     let prj lt = MiniKanren.List.to_list @@ MiniKanren.List.prj (Utils.prj_pair (!?) LocStory.prj) lt
 
@@ -423,6 +443,9 @@ module MemStory =
 
 module SCMemory =
   struct
+    include T2
+    include Fmap2
+
     type t   = (string * int) list
     type lt' = ((string logic * Nat.logic) logic, lt' logic) llist
     type lt  = lt' logic
@@ -457,7 +480,8 @@ module SCMemory =
 
     let (!) = MiniKanren.inj
 
-    let inj = Utils.inj_assoc (!)  (inj_nat)
+    (* let inj = Utils.inj_assoc (!)  (inj_nat) *)
+    let inj t = inj @@ distrib t
     let prj = Utils.prj_assoc (!?) (prj_nat)
 
     let show = Utils.show_assoc (fun x -> x) (string_of_int)

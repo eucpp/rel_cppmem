@@ -8,6 +8,8 @@ module type ATerm =
     (** Injection of term into logic domain *)
     type lt = lt' MiniKanren.logic
 
+    type ti = (t, lt) injected
+
     val inj : t -> lt
     val prj : lt -> t
     val show : t -> string
@@ -25,6 +27,8 @@ module type AContext =
     (** Injection of term into MiniKanren.logic domain *)
     type lt = lt' MiniKanren.logic
 
+    type ti = (t, lt) injected
+
     (** Context type *)
     type c
 
@@ -32,6 +36,8 @@ module type AContext =
 
     (** Injection of context into logic domain *)
     type lc = lc' MiniKanren.logic
+
+    type ci = (c, lc) injected
 
     val inj : c -> lc
     val prj : lc -> c
@@ -44,6 +50,8 @@ module type AContext =
     (** [splito t c rdx] splits the term [t] into context [c] and redex [rdx] *)
     val splito :  lt ->  lc ->  lt -> MiniKanren.goal
 
+    val plugo : lt -> lc -> lt -> MiniKanren.goal
+
   end
 
 module type AState =
@@ -53,6 +61,8 @@ module type AState =
     type lt'
 
     type lt = lt' MiniKanren.logic
+
+    type ti = (t, lt) injected
 
     val inj : t -> lt
     val prj : lt -> t
@@ -105,6 +115,7 @@ module Term :
     type t   = (int, string, mem_order, loc, t) at
     type lt' = (MiniKanren.Nat.logic, string MiniKanren.logic, mem_order MiniKanren.logic, loc MiniKanren.logic, lt' MiniKanren.logic) at
     type lt  = lt' MiniKanren.logic
+    type ti = (t, lt) injected
 
     val inj : t -> lt
     val prj : lt -> t
@@ -118,6 +129,7 @@ module Context :
     type t   = Term.t
     type lt' = Term.lt'
     type lt  = Term.lt
+    type ti = (t, lt) injected
 
     @type ('expr, 'string, 'mo, 'loc, 't, 'c) ac =
     | Hole
@@ -136,6 +148,7 @@ module Context :
     type c   = (int, string, mem_order, loc, Term.t, c) ac
     type lc' = (MiniKanren.Nat.logic, string MiniKanren.logic, mem_order MiniKanren.logic, loc MiniKanren.logic, Term.lt, lc' MiniKanren.logic) ac
     type lc  = lc' MiniKanren.logic
+    type ci = (c, ct) injected
 
     val inj : c -> lc
 
@@ -148,6 +161,8 @@ module Context :
     val reducibleo : lt -> MiniKanren.Bool.logic -> MiniKanren.goal
 
     val splito : lt -> lc -> lt -> MiniKanren.goal
+
+    val plugo : lt -> lc -> lt -> MiniKanren.goal
 
     val patho : lc -> Path.lt -> MiniKanren.goal
   end

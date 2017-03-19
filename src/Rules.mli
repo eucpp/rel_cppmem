@@ -16,11 +16,11 @@ module Basic :
     val asgn   : string * rule
     val if'    : string * rule
     val repeat : string * rule
-    val seq    : string * rule
+    (* val seq    : string * rule *)
     val spawn  : string * rule
     val join   : string * rule
 
-    val all : (string * rule) list 
+    val all : (string * rule) list
   end
 
 module RelAcq :
@@ -35,7 +35,7 @@ module RelAcq :
     type ls = Memory.MemState.lt
 
     type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
-    
+
     val read_acq  : string * rule
     val write_rel : string * rule
 
@@ -54,7 +54,7 @@ module SeqCons :
     type ls = Memory.MemState.lt
 
     type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
-    
+
     val read_sc  : string * rule
     val write_sc : string * rule
 

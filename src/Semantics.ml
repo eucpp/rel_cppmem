@@ -18,7 +18,7 @@ module Make
 
     let (!) = (!!)
 
-    let stepo rls t s t' s' rl =
+    let stepo rls t s t' s' =
       fresh (c c' rdx rdx')
         (C.splito t c rdx)
         (C.reducibleo rdx !true)
@@ -26,33 +26,35 @@ module Make
         (conde @@ List.map (
             fun (name, rule) -> (rule c rdx s c' rdx' s') (*&&& (rl === inj name)*)
           ) rls)
-        (C.splito t' c' rdx')
+        (C.plugo t' c' rdx')
 
 
-    let rec spaceo rls t s t'' s'' epath =
+    let rec spaceo rls t s t'' s'' =
       conde [
         (C.reducibleo t !false) &&& (t === t'') &&& (s === s'');
-        (fresh (t' s' rl)
+        (fresh (t' s')
           (C.reducibleo t !true)
-          (stepo rls t s t' s' rl)
-          (spaceo rls t' s' t'' s'' epath));
+          (stepo rls t s t' s')
+          (spaceo rls t' s' t'' s''));
           (* (epath === rl % epath')); *)
       ]
 
+    let prj r = r#prj
+
     let reducible t = run q (fun q  -> C.reducibleo (T.inj t) q)
-                            (fun qs -> !?(Utils.excl_answ qs))
+                            (fun qs -> prj @@ Utils.excl_answ qs)
 
     let split t = run qr (fun q  r  -> C.splito (T.inj t) q r)
-                         (fun qs rs -> Stream.zip (Stream.map C.prj qs) (Stream.map T.prj rs))
+                         (fun qs rs -> Stream.zip (Stream.map prj qs) (Stream.map prj rs))
 
     let plug (c, t) = run q (fun q  -> C.splito q (C.inj c) (T.inj t))
-                            (fun qs -> T.prj @@ Utils.excl_answ qs)
+                            (fun qs -> prj @@ Utils.excl_answ qs)
 
     let step rls t s =
       run qr (fun q  r  -> fresh (rl) (stepo rls (T.inj t) (S.inj s) q r rl))
-             (fun qs rs -> Stream.zip (Stream.map T.prj qs) (Stream.map S.prj rs))
+             (fun qs rs -> Stream.zip (Stream.map prj qs) (Stream.map prj rs))
 
     let space rls t s =
       run qr (fun q  r  -> fresh (epath) (spaceo rls (T.inj t) (S.inj s) q r epath))
-             (fun qs rs -> Stream.zip (Stream.map T.prj qs) (Stream.map S.prj rs))
+             (fun qs rs -> Stream.zip (Stream.map prj qs) (Stream.map prj rs))
   end

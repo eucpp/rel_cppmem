@@ -15,10 +15,10 @@ module Make
     val deregister : string -> t -> t
 
     (** Relational single step in given semantics *)
-    val stepo : t -> T.lt -> S.lt -> T.lt -> S.lt -> string MiniKanren.logic -> MiniKanren.goal
+    val stepo : t -> T.lt -> S.lt -> T.lt -> S.lt -> MiniKanren.goal
 
     (** Relational step* *)
-    val spaceo : t -> T.lt -> S.lt -> T.lt -> S.lt -> string MiniKanren.logic MiniKanren.List.logic -> MiniKanren.goal
+    val spaceo : t -> T.lt -> S.lt -> T.lt -> S.lt -> MiniKanren.goal
 
     val reducible : T.t -> bool
 

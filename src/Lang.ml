@@ -37,7 +37,7 @@ module type AContext =
     type lc = lc' logic
 
     val inj : c -> lc
-    val prj : lc -> c
+    val prj : lt -> c
     val show : c -> string
 
     val eq : c -> c -> bool
@@ -115,6 +115,9 @@ module Path =
 
 module Term =
   struct
+    include T5
+    include FMap5
+
     @type ('int, 'string, 'mo, 'loc, 't) at =
     | Const    of 'int
     | Var      of 'string
@@ -137,7 +140,8 @@ module Term =
     type lt' = (Nat.logic, string logic, mem_order logic, loc logic, lt' logic) at
     type lt  = lt' logic
 
-    let rec inj t = !! (GT.gmap(at) (inj_nat) (!!) (!!) (!!) (inj) t)
+    (* let rec inj t = !! (GT.gmap(at) (inj_nat) (!!) (!!) (!!) (inj) t) *)
+    let inj t = inj @@ distrib t
 
     let rec prj lt = GT.gmap(at) (prj_nat) (!?) (!?) (!?) (prj) (!? lt)
 
@@ -167,6 +171,9 @@ module Term =
 
 module Context =
   struct
+    include T6
+    include FMap6
+
     type t   = Term.t
     type lt' = Term.lt'
     type lt  = Term.lt
@@ -189,7 +196,8 @@ module Context =
     type lc' = (Nat.logic, string logic, mem_order logic, loc logic, Term.lt, lc' logic) ac
     type lc  = lc' logic
 
-    let rec inj c = !! (GT.gmap(ac) (inj_nat) (!!) (!!) (!!) (Term.inj) (inj) c)
+    (* let rec inj c = !! (GT.gmap(ac) (inj_nat) (!!) (!!) (!!) (Term.inj) (inj) c) *)
+    let inj t = inj @@ distrib t
 
     let rec prj lc = GT.gmap(ac) (prj_nat) (!?) (!?) (!?) (Term.prj) (prj) (!? lc)
 
@@ -255,16 +263,16 @@ module Context =
           (t === !(Binop (op, l, r)))
           (conde [
             ((c === !Hole)                 &&& (rdx === t));
-            ((c === !(BinopL (op, c', r))) &&& (rdx === t') &&& (splito l c' t'));
-            ((c === !(BinopR (op, l, c'))) &&& (rdx === t') &&& (splito r c' t'));
+            ((c === !(BinopL (op, c', r))) &&& (reducibleo l !true)  &&& (rdx === t') &&& (splito l c' t'));
+            ((c === !(BinopR (op, l, c'))) &&& (reducibleo l !false) &&& (rdx === t') &&& (splito r c' t'));
           ]);
 
         fresh (t1 t2 c' t')
           (t === !(Pair (t1, t2)))
           (conde [
             ((c === !Hole)             &&& (rdx === t ));
-            ((c === !(PairL (c', t2))) &&& (rdx === t') &&& (splito t1 c' t'));
-            ((c === !(PairR (t1, c'))) &&& (rdx === t') &&& (splito t2 c' t'));
+            ((c === !(PairL (c', t2))) &&& (reducibleo t1 !true)  &&& (rdx === t') &&& (splito t1 c' t'));
+            ((c === !(PairR (t1, c'))) &&& (reducibleo t1 !false) &&& (rdx === t') &&& (splito t2 c' t'));
           ]);
 
         fresh (l r c' t')
@@ -291,7 +299,7 @@ module Context =
         fresh (t1 t2 c' t')
           (t === !(Seq (t1, t2)))
           (conde [
-            ((c === !Hole)            &&& (rdx === t ));
+            (* ((c === !Hole)            &&& (rdx === t )); *)
             ((c === !(SeqC (c', t2))) &&& (rdx === t') &&& (splito t1 c' t'));
           ]);
 
@@ -327,6 +335,89 @@ module Context =
           (t === !Stuck);
         ]);
       ]))
+
+      let rec plugo t c rdx = Term.(
+        (conde [
+          fresh (op l r c' t')
+            (t === !(Binop (op, l, r)))
+            (conde [
+              ((c === !Hole)                 &&& (rdx === t));
+              ((c === !(BinopL (op, c', r))) &&& (rdx === t') &&& (plugo l c' t'));
+              ((c === !(BinopR (op, l, c'))) &&& (rdx === t') &&& (plugo r c' t'));
+            ]);
+
+          fresh (t1 t2 c' t')
+            (t === !(Pair (t1, t2)))
+            (conde [
+              ((c === !Hole)             &&& (rdx === t ));
+              ((c === !(PairL (c', t2))) &&& (rdx === t') &&& (plugo t1 c' t'));
+              ((c === !(PairR (t1, c'))) &&& (rdx === t') &&& (plugo t2 c' t'));
+            ]);
+
+          fresh (l r c' t')
+            (t === !(Asgn (l, r)))
+            (conde [
+              ((c === !Hole)            &&& (rdx === t ));
+              ((c === !(AsgnC (l, c'))) &&& (rdx === t') &&& (plugo r c' t'));
+            ]);
+
+          fresh (mo loc e c' t')
+            (t === !(Write (mo, loc, e)))
+            (conde [
+              ((c === !Hole)                   &&& (rdx === t ));
+              ((c === !(WriteC (mo, loc, c'))) &&& (rdx === t') &&& (plugo e c' t'));
+            ]);
+
+          fresh (cond btrue bfalse c' t')
+            (t === !(If (cond, btrue, bfalse)))
+            (conde [
+              ((c === !Hole)                      &&& (rdx === t ));
+              ((c === !(IfC (c', btrue, bfalse))) &&& (rdx === t') &&& (plugo cond c' t'))
+            ]);
+
+          fresh (t1 t2 c' t')
+            (t === !(Seq (t1, t2)))
+            (conde [
+              ((c === !Hole)            &&& (rdx === t ));
+              ((c === !(SeqC (c', t2))) &&& conde [
+                (rdx === t') &&& (plugo t1 c' t');
+                (rdx === !Skip)  &&& (t === t2);
+                (rdx === !Stuck) &&& (t === !Stuck);
+              ]);
+            ]);
+
+          fresh (t1 t2 c' t')
+            (t === !(Par (t1, t2)))
+            (conde [
+               ((c === !Hole)            &&& (rdx === t ));
+               ((c === !(ParL (c', t2))) &&& (rdx === t') &&& (plugo t1 c' t'));
+               ((c === !(ParR (t1, c'))) &&& (rdx === t') &&& (plugo t2 c' t'));
+            ]);
+
+          ((c === !Hole) &&& (rdx === t) &&& conde [
+            fresh (n)
+              (t === !(Const n));
+
+            fresh (x)
+              (t === !(Var x));
+
+            fresh (t')
+              (t === !(Repeat t'));
+
+            fresh (mo l)
+              (t === !(Read (mo, l)));
+
+            fresh (mo1 mo2 l t1 t2)
+              (t === !(Cas (mo1, mo2, l, t1, t2)));
+
+            fresh (t1 t2)
+              (t === !(Spw (t1, t2)));
+
+            (t === !Skip);
+
+            (t === !Stuck);
+          ]);
+        ]))
 
       let rec patho c path = Term.(
         fresh (op mo loc t1 t2 t3 t' c' path')

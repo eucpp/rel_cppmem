@@ -1,0 +1,7 @@
+PKG GT
+SRC src test
+B _build
+B _build/src
+B _build/test
+FLG -rectypes
+FLG -short-paths

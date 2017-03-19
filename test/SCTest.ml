@@ -22,8 +22,17 @@ let prog_LB = "
         ret r2
     }}}"
 
+(* let prog_LB = " *)
+(*     x_sc := 0; *)
+(*     y_sc := 0; *)
+(*     spw {{{ *)
+(*         ret x_sc *)
+(*     ||| *)
+(*         ret y_sc *)
+(*     }}}" *)
+
 let test_LB =
   "LB">: OUnitTest.TestCase (OUnitTest.Long, test_prog prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"])
 
 let tests =
-  "sc">::: [test_LB]
+  "SC">::: [test_LB]
