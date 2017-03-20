@@ -9,8 +9,8 @@ module LangTester
     module Sem = Semantics.Make(T)(C)(S)
 
     let test_reducible pairs test_ctx =
-      List.iter (fun (t, b) -> assert_equal b @@ Sem.reducible t) pairs  
-      
+      List.iter (fun (t, b) -> assert_equal b @@ Sem.reducible t) pairs
+
 
     let test_split term expected test_ctx =
       let stream             = Sem.split term in
@@ -28,23 +28,25 @@ module Tester = LangTester(Lang.Term)(Lang.Context)(Memory.MemState)
 module T = Lang.Term
 module C = Lang.Context
 
-let tests = 
+let tests =
   "lang">::: [
-    "test_reducible_pair">:: Tester.test_reducible 
+    "test_reducible_pair">:: Tester.test_reducible
                                [(T.Pair (T.Const 1, T.Const 2), false);
                                 (T.Pair (T.Const 1, T.Var "x"), true);
                                 (T.Pair (T.Var "x", T.Const 2), true);
                                 (T.Pair (T.Var "x", T.Var "y"), true)];
 
     "test_split_const"  >:: Tester.test_split (T.Const 1) [(C.Hole, T.Const 1)];
-    
+
     "test_split_var"    >:: Tester.test_split (T.Var "x") [(C.Hole, T.Var "x")];
-    
-    "test_split_binop"  >:: (let e = T.Binop ("+", T.Var "x", T.Const 42) 
+
+    "test_split_binop"  >:: (let e = T.Binop ("+", T.Var "x", T.Const 42)
                              in
-                               Tester.test_split e [(C.Hole, e);
-                                                        (C.BinopL ("+", C.Hole, T.Const 42), T.Var "x");
-                                                        (C.BinopR ("+", T.Var "x", C.Hole), T.Const 42);]);
+                               Tester.test_split e [(C.BinopL ("+", C.Hole, T.Const 42), T.Var "x");]);
+
+    "test_split_seq"  >:: Tester.test_split (T.Seq (Skip, Skip)) [(C.SeqC (C.Hole, T.Skip), T.Skip)];
+
+    "test_plug_seq"  >:: Tester.test_plug (C.SeqC (C.Hole, T.Skip), T.Skip) T.Skip;
 
     "test_plug_const"   >:: Tester.test_plug (C.Hole, T.Const 1) (T.Const 1);
 
@@ -53,12 +55,12 @@ let tests =
     "test_plug_binop_1" >:: (let e = T.Binop ("+", T.Const 1, T.Const 2) in
                                Tester.test_plug (C.Hole, e) e);
 
-    "test_plug_binop_3" >:: (let e = T.Binop ("+", T.Const 1, T.Const 2) in
+    "test_plug_binop_2" >:: (let e = T.Binop ("+", T.Const 1, T.Const 2) in
                                Tester.test_plug (C.BinopL ("+", C.Hole, T.Const 2), T.Const 1) e);
 
     "test_plug_binop_3" >:: (let e = T.Binop ("+", T.Var "x", T.Const 2) in
                                Tester.test_plug (C.BinopL ("+", C.Hole, T.Const 2), T.Var "x") e);
-    
+
     "test_plug_binop_4" >:: (let e = T.Binop ("+", T.Const 1, T.Var "x") in
                                Tester.test_plug (C.BinopR ("+", T.Const 1, C.Hole), T.Var "x") e);
 
@@ -68,4 +70,3 @@ let tests =
 
     "test_plug_skip">:: Tester.test_plug (C.Hole, T.Skip) T.Skip;
   ]
-

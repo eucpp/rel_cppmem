@@ -8,6 +8,15 @@ module Sem = Semantics.Make(Lang.Term)(Lang.Context)(MemState)
 let sem = Sem.make @@ List.append Rules.Basic.all Rules.SeqCons.all
 
 let test_prog = TestUtils.test_prog sem
+(*
+let prog_LB = "
+    spw {{{
+        r1 := 1;
+        ret r1
+    |||
+        r2 := 1;
+        ret r2
+    }}}" *)
 
 let prog_LB = "
     x_sc := 0;
@@ -26,4 +35,4 @@ let test_LB =
   "LB">: OUnitTest.TestCase (OUnitTest.Long, test_prog prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"])
 
 let tests =
-  "sc">::: [test_LB]
+  "sc">::: []

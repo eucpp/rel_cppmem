@@ -21,12 +21,13 @@ module Make
     let stepo rls t s t' s' rl =
       fresh (c c' rdx rdx')
         (C.splito t c rdx)
-        (C.reducibleo rdx !true)
-        (rdx =/= rdx')
-        (conde @@ List.map (
-            fun (name, rule) -> (rule c rdx s c' rdx' s') (*&&& (rl === inj name)*)
-          ) rls)
-        (C.splito t' c' rdx')
+        (conde [
+          (C.reducibleo rdx !false) &&& (rdx === rdx') &&& (c === c') &&& (t =/= t') &&& (s === s');
+          (C.reducibleo rdx !true) &&& (rdx =/= rdx') &&& (conde @@ (List.map (
+              fun (name, rule) -> (rule c rdx s c' rdx' s') (*&&& (rl === inj name)*)
+            ) rls));
+          ])
+        (C.plugo t' c' rdx')
 
 
     let rec spaceo rls t s t'' s'' epath =
@@ -45,7 +46,7 @@ module Make
     let split t = run qr (fun q  r  -> C.splito (T.inj t) q r)
                          (fun qs rs -> Stream.zip (Stream.map C.prj qs) (Stream.map T.prj rs))
 
-    let plug (c, t) = run q (fun q  -> C.splito q (C.inj c) (T.inj t))
+    let plug (c, t) = run q (fun q  -> C.plugo q (C.inj c) (T.inj t))
                             (fun qs -> T.prj @@ Utils.excl_answ qs)
 
     let step rls t s =

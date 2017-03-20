@@ -43,7 +43,7 @@ module type AContext =
 
     (** [splito t c rdx] splits the term [t] into context [c] and redex [rdx] *)
     val splito :  lt ->  lc ->  lt -> MiniKanren.goal
-
+    val plugo  :  lt ->  lc ->  lt -> MiniKanren.goal
   end
 
 module type AState =
@@ -148,6 +148,7 @@ module Context :
     val reducibleo : lt -> MiniKanren.Bool.logic -> MiniKanren.goal
 
     val splito : lt -> lc -> lt -> MiniKanren.goal
+    val plugo  :  lt ->  lc ->  lt -> MiniKanren.goal
 
     val patho : lc -> Path.lt -> MiniKanren.goal
   end

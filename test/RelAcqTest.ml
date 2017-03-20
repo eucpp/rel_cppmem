@@ -25,5 +25,5 @@ let prog_LB = "
 let test_LB =
   "LB">: OUnitTest.TestCase (OUnitTest.Long, test_prog prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"])
 
-let tests = 
-  "relAcq">::: [] (* [test_LB] *)
+let tests =
+  "relAcq">::: [test_LB]

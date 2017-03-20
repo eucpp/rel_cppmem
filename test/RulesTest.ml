@@ -43,9 +43,9 @@ let basic_tests =
     "binop">:: Tester.test_step [Basic.binop] (T.Binop ("+", T.Const 1, T.Const 2), S.empty) [(T.Const 3, S.empty)];
 
     "binop_complex">:: (let e = (T.Binop ("+", T.Var "x", T.Binop ("*", T.Const 2, T.Const 4)), mem) in
-                        Tester.test_space Basic.all e [(T.Const 50, mem); (T.Const 50, mem)]);
+                        Tester.test_space Basic.all e [(T.Const 50, mem);]);
 
-    "pair">:: Tester.test_space Basic.all (T.Pair (T.Var "x", T.Var "y"), mem') [(T.Pair (T.Const 42, T.Const 1), mem'); (T.Pair (T.Const 42, T.Const 1), mem')];
+    "pair">:: Tester.test_space Basic.all (T.Pair (T.Var "x", T.Var "y"), mem') [(T.Pair (T.Const 42, T.Const 1), mem')];
 
     "assign">:: Tester.test_step [Basic.asgn] (T.Asgn (T.Var "x", T.Const 42), S.empty) [(T.Skip, mem)];
 
@@ -56,9 +56,9 @@ let basic_tests =
     "repeat">:: (let loop = T.Repeat (T.Const 1) in
                   Tester.test_step ~empty_check:false [Basic.repeat] (loop, mem) [(T.If (T.Const 1, loop, T.Skip), mem)]);
 
-    "seq_skip">:: Tester.test_step [Basic.seq] (T.Seq (T.Skip, T.Skip), mem) [(T.Skip, mem)];
+    "seq_skip">:: Tester.test_step Basic.all ~empty_check:false (T.Seq (T.Skip, T.Skip), mem) [(T.Skip, mem)];
 
-    "seq_stuck">:: Tester.test_step [Basic.seq] (T.Seq (T.Stuck, T.Skip), mem) [(T.Stuck, mem)];
+    "seq_stuck">:: Tester.test_step Basic.all (T.Seq (T.Stuck, T.Skip), mem) [(T.Stuck, mem)];
 
     "spawn">:: (let leaf = ThreadTree.Leaf ThreadState.empty in
                 let thrd_tree = ThreadTree.Node (leaf, leaf) in
@@ -79,15 +79,15 @@ let basic_tests =
                          )) in
                          Tester.test_space Basic.all (stmt, S.empty) [(T.Skip, mem')]);
 
-    "seq_asgn">:: (let stmt = T.Seq ((T.Asgn (T.Var "x", T.Const 42), T.Skip(* T.Var "x" *))) in
-                     Tester.test_space Basic.all (stmt, S.empty) [(T.Skip(* T.Const 42 *), mem)]);
+    "seq_asgn">:: (let stmt = T.Seq ((T.Asgn (T.Var "x", T.Const 42), T.Var "x")) in
+                     Tester.test_space Basic.all (stmt, S.empty) [(T.Const 42, mem)]);
 
     "space_all">:: (let pair = T.Pair (T.Var "x", T.Var "y") in
-                    let stmt = T.Seq (T.Asgn (pair, T.Spw (
+                    let stmt = T.Spw (
                       T.Seq (T.Asgn (T.Var "z", T.Const 42), T.Var "z"),
                       T.If (T.Const 1, T.Const 1, T.Const 0)
-                   )), pair) in
-                      Tester.test_space ~empty_check:false Basic.all (stmt, S.empty) [(T.Pair (T.Const 42, T.Const 1), mem')]);
+                   ) in
+                      Tester.test_space ~empty_check:false Basic.all (stmt, S.empty) [(T.Pair (T.Const 42, T.Const 1), S.empty)]);
 
   ]
 

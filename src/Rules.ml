@@ -86,7 +86,7 @@ module Basic =
 
     let repeat = ("repeat", repeato)
 
-    let seqo c t s c' t' s' =
+    (* let seqo c t s c' t' s' =
       fresh (t1 t2)
         (s === s')
         (t === !(Seq (t1, t2)))
@@ -95,7 +95,7 @@ module Basic =
           (t1 === !Stuck) &&& (t' === !Stuck) &&& (c' === !Hole);
         ])
 
-   let seq = ("seq", seqo)
+   let seq = ("seq", seqo) *)
 
    let spawno c t s c' t' s' =
      fresh (l r path)
@@ -119,7 +119,7 @@ module Basic =
 
    let join = ("join", joino)
 
-   let all = [var; binop; asgn; if'; repeat; seq; spawn; join]
+   let all = [var; binop; asgn; if'; repeat; spawn; join]
 
   end
 
