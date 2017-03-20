@@ -64,32 +64,32 @@ module type AState =
     val eq : t -> t -> bool
   end
 
-  type loc = string
-  type tstmp = int
+type loc = string
+type tstmp = int
 
-  type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
+type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
 
-  let string_of_loc = fun x -> x
-  let string_of_tstmp = string_of_int
+let string_of_loc = fun x -> x
+let string_of_tstmp = string_of_int
 
-  let string_of_mo = function
-    | SC      -> "sc"
-    | ACQ     -> "acq"
-    | REL     -> "rel"
-    | ACQ_REL -> "relAcq"
-    | CON     -> "con"
-    | RLX     -> "rlx"
-    | NA      -> "na"
+let string_of_mo = function
+  | SC      -> "sc"
+  | ACQ     -> "acq"
+  | REL     -> "rel"
+  | ACQ_REL -> "relAcq"
+  | CON     -> "con"
+  | RLX     -> "rlx"
+  | NA      -> "na"
 
-  let mo_of_string str =
-    let binding = [("sc", SC);
-                   ("acq", ACQ);
-                   ("rel", REL);
-                   ("relAcq", ACQ_REL);
-                   ("con", CON);
-                   ("rlx", RLX);
-                   ("na", NA)] in
-      List.assoc str binding
+let mo_of_string str =
+  let binding = [("sc", SC);
+                 ("acq", ACQ);
+                 ("rel", REL);
+                 ("relAcq", ACQ_REL);
+                 ("con", CON);
+                 ("rlx", RLX);
+                 ("na", NA)] in
+    List.assoc str binding
 
 module Path =
   struct
@@ -117,22 +117,22 @@ module Path =
 module Term =
   struct
     @type ('int, 'string, 'mo, 'loc, 't) at =
-    | Const    of 'int
-    | Var      of 'string
-    | Binop    of 'string * 't * 't
-    | Asgn     of 't * 't
-    | Pair     of 't * 't
-    | If       of 't * 't * 't
-    | Repeat   of 't
-    | Read     of 'mo * 'loc
-    | Write    of 'mo * 'loc * 't
-    | Cas      of 'mo * 'mo * 'loc * 't * 't
-    | Seq      of 't * 't
-    | Spw      of 't * 't
-    | Par      of 't * 't
-    | Skip
-    | Stuck
-    with gmap, eq, show
+      | Const    of 'int
+      | Var      of 'string
+      | Binop    of 'string * 't * 't
+      | Asgn     of 't * 't
+      | Pair     of 't * 't
+      | If       of 't * 't * 't
+      | Repeat   of 't
+      | Read     of 'mo * 'loc
+      | Write    of 'mo * 'loc * 't
+      | Cas      of 'mo * 'mo * 'loc * 't * 't
+      | Seq      of 't * 't
+      | Spw      of 't * 't
+      | Par      of 't * 't
+      | Skip
+      | Stuck
+      with gmap, eq, show
 
     type t   = (int, string, mem_order, loc, t) at
     type lt' = (Nat.logic, string logic, mem_order logic, loc logic, lt' logic) at
@@ -162,6 +162,30 @@ module Term =
       in
       s Format.str_formatter t;
       Format.flush_str_formatter ()
+
+    let rec preallocate' vars atomics = function
+      | Read  (_, x)
+      | Write (_, x, _) ->
+        if List.mem x atomics then (vars, atomics) else (vars, x::atomics)
+      | Var x ->
+        if List.mem x vars then (vars, atomics) else (x::vars, atomics)
+      | Repeat t ->
+        preallocate' vars atomics t
+      | Binop (_, t1, t2)
+      | Asgn  (t1, t2)
+      | Pair  (t1, t2)
+      | Seq   (t1, t2)
+      | Spw   (t1, t2)
+      | Par   (t1, t2) ->
+        let (vars', atomics') = preallocate' vars atomics t1 in
+          preallocate' vars' atomics' t2
+      | If (t1, t2, t3) ->
+        let (vars' , atomics')  = preallocate' vars atomics t1 in
+        let (vars'', atomics'') = preallocate' vars' atomics' t2 in
+        preallocate' vars'' atomics'' t3
+      | _  -> (vars, atomics)
+
+    let preallocate = preallocate' [] []
 
     let rec eq t t' = GT.eq(at) (GT.eq(GT.int)) (GT.eq(GT.string)) (=) (=) (eq) t t'
   end

@@ -21,13 +21,12 @@ let assert_stream ?(empty_check = true) stream expected
 module Sem = Semantics.Make(Lang.Term)(Lang.Context)(MemState)
 
 let test_prog sem prog expected test_ctx =
-  let show s = "Outcome is not found among answers: " ^ s in
+  let show s  = "Outcome is not found among answers: " ^ s in
   let lexbuf  = Lexing.from_string prog in
   let term    = Parser.main Lexer.token lexbuf in
-  let state   = {MemState.thrds = ThreadTree.empty;
-                 MemState.story = MemStory.empty;
-                 MemState.scmem = SCMemory.preallocate term; } in
-  let stream =
+  let rs, vs  = Lang.Term.preallocate term in
+  let state   = MemState.preallocate rs vs in
+  let stream  =
    run qrs (fun q  r  s  ->
               (* fresh (s') *)
                 (Sem.spaceo sem (Lang.Term.inj term) (MemState.inj state) q r nil))
@@ -38,6 +37,7 @@ let test_prog sem prog expected test_ctx =
              ss) in
   let stream' = Stream.map (fun (t, s, epath) -> Lang.Term.show t) stream in
   let cnt     = ref 0 in
+    Printf.printf "%s\n" @@ MemState.show state;
     Stream.iter (
         fun (t, s, epath) -> cnt := !cnt + 1;
         Printf.printf "\n%d" !cnt

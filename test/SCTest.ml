@@ -8,14 +8,12 @@ module Sem = Semantics.Make(Lang.Term)(Lang.Context)(MemState)
 let sem = Sem.make @@ List.append Rules.Basic.all Rules.SeqCons.all
 
 let test_prog = TestUtils.test_prog sem
-(*
-let prog_LB = "
+
+(* let prog_LB = "
     spw {{{
-        r1 := 1;
-        ret r1
+        ret x_sc
     |||
-        r2 := 1;
-        ret r2
+        ret y_sc
     }}}" *)
 
 let prog_LB = "

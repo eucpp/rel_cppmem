@@ -187,7 +187,7 @@ module SCMemory :
 
     val empty : t
 
-    val preallocate : Lang.Term.t -> t
+    val preallocate : string list -> t
 
     val inj : t -> lt
     val prj : lt -> t
@@ -219,6 +219,8 @@ module MemState :
     type lt = lt' logic
 
     val empty : t
+
+    val preallocate : string list -> string list -> t
 
     val inj : t -> lt
     val prj : lt -> t

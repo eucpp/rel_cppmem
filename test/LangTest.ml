@@ -69,4 +69,9 @@ let tests =
                                                           (C.AsgnC (T.Var "x", C.Hole), T.Const 1)]);
 
     "test_plug_skip">:: Tester.test_plug (C.Hole, T.Skip) T.Skip;
+
+    "test_preallocate">:: (fun test_ctx ->
+                            let vars, atomics = Lang.Term.preallocate (T.Spw (T.Seq (T.Var "r1", T.Read (Lang.SC, "x")), T.Seq(T.Var "r1", T.Var "r2"))) in
+                            assert_equal ["r2";"r1"] vars ~cmp:(=) ~printer:(String.concat ",");
+                            assert_equal ["x"] atomics ~cmp:(=) ~printer:(String.concat ","))
   ]

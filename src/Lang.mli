@@ -111,6 +111,8 @@ module Term :
     val show : t -> string
     (* val parse : string -> t *)
     val eq : t -> t -> bool
+
+    val preallocate : t -> string list * string list
   end
 
 module Context :

@@ -19,6 +19,10 @@ module Registers =
 
     let eq = Utils.eq_assoc (=) (=)
 
+    let preallocate regs = List.map (fun a -> (a, 0)) regs
+
+    let from_assoc assoc = assoc
+
     let geto = Utils.assoco
 
     let seto = Utils.update_assoco
@@ -44,6 +48,8 @@ module ViewFront =
     let show = Utils.show_assoc (string_of_loc) (string_of_tstmp)
 
     let eq = Utils.eq_assoc (=) (=)
+
+    let preallocate atomics = List.map (fun a -> (a, 0)) atomics
 
     let from_assoc assoc = assoc
 
@@ -127,6 +133,8 @@ module ThreadState =
 
     let eq t t' = (Registers.eq t.regs t'.regs) && (ViewFront.eq t.curr t'.curr)
 
+    let preallocate vars atomics = { regs = Registers.preallocate vars; curr = ViewFront.preallocate atomics; }
+
     let (!) = (!!)
 
     let splito t regs curr =
@@ -185,6 +193,8 @@ module ThreadTree =
 
     let empty = Leaf ThreadState.empty
 
+    let preallocate vars atomics = Leaf (ThreadState.preallocate vars atomics)
+
     let rec inj t  = !! (gmap(at) (ThreadState.inj) (inj) t)
     let rec prj lt = gmap(at) (ThreadState.prj) (prj) (!?lt)
 
@@ -207,9 +217,9 @@ module ThreadTree =
         List.fold_left show_thrd "" thrds
 
     let rec eq thrd_tree thrd_tree' = match (thrd_tree, thrd_tree') with
-    | Leaf thrd, Leaf thrd'      -> ThreadState.eq thrd thrd'
-    | Node (l, r), Node (l', r') -> (eq l l') && (eq r r')
-    | _, _ -> false
+      | Leaf thrd, Leaf thrd'      -> ThreadState.eq thrd thrd'
+      | Node (l, r), Node (l', r') -> (eq l l') && (eq r r')
+      | _, _ -> false
 
     let (!) = (!!)
 
@@ -377,9 +387,11 @@ module MemStory =
 
     let empty = []
 
-    let (!) = (!!)
+    let preallocate atomics = List.map (fun a -> (a, LocStory.empty)) atomics
 
     let from_assoc assoc = assoc
+
+    let (!) = (!!)
 
     let inj t  = MiniKanren.List.inj (fun (l, story) -> !(!l, LocStory.inj story)) @@ MiniKanren.List.of_list t
 
@@ -429,31 +441,7 @@ module SCMemory =
 
     let empty = []
 
-    let rec preallocate' scmem = function
-        | Lang.Term.Read  (_, x)
-        | Lang.Term.Write (_, x, _) ->
-          (try
-            let _ = List.assoc x scmem in
-            scmem
-          with
-            Not_found -> (x, 0) :: scmem)
-        | Lang.Term.Repeat t ->
-          preallocate' scmem t
-        | Lang.Term.Binop (_, t1, t2)
-        | Lang.Term.Asgn  (t1, t2)
-        | Lang.Term.Pair  (t1, t2)
-        | Lang.Term.Seq   (t1, t2)
-        | Lang.Term.Spw   (t1, t2)
-        | Lang.Term.Par   (t1, t2) ->
-          let scmem' = preallocate' scmem t1 in
-            preallocate' scmem' t2
-        | Lang.Term.If (t1, t2, t3) ->
-          let scmem'  = preallocate' scmem t1 in
-          let scmem'' = preallocate' scmem' t2 in
-          preallocate' scmem'' t3
-        | _  -> scmem
-
-    let preallocate = preallocate' empty
+    let preallocate atomics = List.map (fun a -> (a, 0)) atomics
 
     let (!) = MiniKanren.inj
 
@@ -492,6 +480,10 @@ module MemState =
     type lt = lt' MiniKanren.logic
 
     let empty = { thrds = ThreadTree.empty; story = MemStory.empty; scmem = SCMemory.empty }
+
+    let preallocate vars atomics = { thrds = ThreadTree.preallocate vars atomics;
+                                     story = MemStory.preallocate atomics;
+                                     scmem = SCMemory.preallocate atomics }
 
     let inj t = !! { lthrds = ThreadTree.inj t.thrds; lstory = MemStory.inj t.story; lscmem = SCMemory.inj t.scmem; }
 
