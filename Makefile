@@ -6,7 +6,7 @@ OCB = ocamlbuild $(OCB_FLAGS)
 LEX  = ocamllex
 YACC = ocamlyacc -v
 
-all: 
+all:
 	$(LEX) yacc/lexer.mll
 	$(YACC) yacc/parser.mly
 
@@ -14,5 +14,5 @@ clean:
 	rm -rf ./_build *.byte
 
 test:
-	$(OCB) Test.byte  
+	$(OCB) Test.byte
 	./Test.byte
