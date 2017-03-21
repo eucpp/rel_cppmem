@@ -11,13 +11,13 @@ val mo_of_string : string -> mem_order
 
 module Path :
   sig
-    type 'a at = N | L of 'a | R of 'a
+    type 'a t = N | L of 'a | R of 'a
 
-    type t  = t  at
-    type tl = tl at MiniKanren.logic
-    type ti = (t, tl) MiniKanren.injected
+    type tt = tt t
+    type tl = tl t MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
 
-    val inj : t -> ti
+    val inj : tt -> ti
   end
 
 module Term :

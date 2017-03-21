@@ -36,13 +36,15 @@ module Path =
     type ti = (tt, tl) injected
 
     let fmap = failwith "Not implemented"
+
+    let rec inj path = fmap inj path
   end
 
 module Fmap1 = Fmap1(Path)
 
-let pathn = inj @@ lift @@ Path.N
-let pathl p = inj @@ lift @@ Path.L p
-let pathr p = inj @@ lift @@ Path.R p
+let pathn   = inj @@ Fmap1.distrib @@ Path.N
+let pathl p = inj @@ Fmap1.distrib @@ Path.L p
+let pathr p = inj @@ Fmap1.distrib @@ Path.R p
 
 module Term =
   struct
@@ -64,7 +66,7 @@ module Term =
       | Stuck
 
     type tt   = (int, string, mem_order, loc, tt) t
-    type tl  = (MiniKanren.Nat.logic, string MiniKanren.logic, mem_order MiniKanren.logic, loc MiniKanren.logic, tl MiniKanren.logic) t MiniKanren.logic
+    type tl  = (MiniKanren.Nat.logic, string MiniKanren.logic, mem_order MiniKanren.logic, loc MiniKanren.logic, tl) t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
     let fmap fint fstring fmo floc ft t = failwith "Not implemented"
@@ -106,9 +108,8 @@ let cas mo1 mo2 l t1 t2 = inj @@ Fmap5.distrib @@ Term.Cas (mo1, mo2, l, t1, t2)
 let seq t1 t2           = inj @@ Fmap5.distrib @@ Term.Seq (t1, t2)
 let spw t1 t2           = inj @@ Fmap5.distrib @@ Term.Spw (t1, t2)
 let par t1 t2           = inj @@ Fmap5.distrib @@ Term.Par (t1, t2)
-
-let skip                = inj @@ lift Term.Skip
-let stuck               = inj @@ lift Term.Stuck
+let skip                = inj @@ Fmap5.distrib @@ Term.Skip
+let stuck               = inj @@ Fmap5.distrib @@ Term.Stuck
 
 module Context =
   struct
@@ -126,7 +127,7 @@ module Context =
       | ParR      of 't * 'c
 
     type tt   = (int, string, mem_order, loc, Term.tt, tt) t
-    type tl  = (MiniKanren.Nat.logic, string MiniKanren.logic, mem_order MiniKanren.logic, loc MiniKanren.logic, Term.tl, tl MiniKanren.logic) t
+    type tl  = (MiniKanren.Nat.logic, string MiniKanren.logic, mem_order MiniKanren.logic, loc MiniKanren.logic, Term.tl, tl) t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
     let fmap fint fstring fmo floc ft fc c = failwith "Not implemented"
@@ -143,9 +144,8 @@ let write_ctx mo l t        = inj @@ Fmap6.distrib @@ Context.WriteC (mo, l, t)
 let if_ctx cond l r         = inj @@ Fmap6.distrib @@ Context.IfC (cond, l, r)
 let seq_ctx t1 t2           = inj @@ Fmap6.distrib @@ Context.SeqC (t1, t2)
 let par_left t1 t2          = inj @@ Fmap6.distrib @@ Context.ParL (t1, t2)
-let par_left t1 t2          = inj @@ Fmap6.distrib @@ Context.ParR (t1, t2)
-
-let hole                    = inj @@ lift Context.Hole
+let par_right t1 t2         = inj @@ Fmap6.distrib @@ Context.ParR (t1, t2)
+let hole                    = inj @@ Fmap6.distrib @@ Context.Hole
 
 type t   = Term.tt
 type tl  = Term.tl
@@ -233,8 +233,8 @@ let rec reducibleo t b = Term.(conde [
        (Bool.oro b1 b2 b)
   ]);
 
-  (* ((b === !false) &&& (t === skip));
-  ((b === !false) &&& (t === stuck)); *)
+  ((b === !false) &&& (t === skip));
+  ((b === !false) &&& (t === stuck));
 ])
 
 let rec splito t c rdx = Term.(Context.(conde [
@@ -351,7 +351,7 @@ let rec splito t c rdx = Term.(Context.(conde [
         ]);
 
       fresh (cond btrue bfalse c' t')
-        (t === if_ctx cond btrue bfalse)
+        (t === if' cond btrue bfalse)
         (conde [
           ((c === hole)                   &&& (rdx === t ));
           ((c === if_ctx c' btrue bfalse) &&& (rdx === t') &&& (plugo cond c' t'))
@@ -365,7 +365,7 @@ let rec splito t c rdx = Term.(Context.(conde [
         ]);
 
       fresh (t1 t2 c' t')
-        (t === par (t1, t2))
+        (t === par t1 t2)
         (conde [
            ((c === hole)            &&& (rdx === t ));
            ((c === par_left  c' t2) &&& (rdx === t') &&& (plugo t1 c' t'));
@@ -404,7 +404,7 @@ let rec patho c path = Term.(Context.(
         (c === binop_left op c' t1)   &&& (patho c' path);
         (c === binop_right op t1 c')  &&& (patho c' path);
         (c === pair_left c' t2)       &&& (patho c' path);
-        (c === pair_right t1, c')     &&& (patho c' path);
+        (c === pair_right t1 c')      &&& (patho c' path);
         (c === asgn_ctx t1 c')        &&& (patho c' path);
         (c === write_ctx mo loc c')   &&& (patho c' path);
         (c === if_ctx c' t2 t3)       &&& (patho c' path);
