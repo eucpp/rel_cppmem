@@ -16,13 +16,13 @@ module Path :
     type tt = tt t
     type tl = tl t MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
-
-    val inj : tt -> ti
   end
+
+val inj_path : Path.tt -> Path.ti
 
 module Term :
   sig
-    type ('int, 'string, 'mo, 'loc, 't) t =
+    @type ('int, 'string, 'mo, 'loc, 't) t =
       | Const    of 'int
       | Var      of 'string
       | Binop    of 'string * 't * 't
@@ -38,8 +38,9 @@ module Term :
       | Par      of 't * 't
       | Skip
       | Stuck
+    with gmap
 
-    type tt  = (int, string, mem_order, loc, tt) t
+    type tt  = (MiniKanren.Nat.ground, string, mem_order, loc, tt) t
     type tl  = (MiniKanren.Nat.logic, string MiniKanren.logic, mem_order MiniKanren.logic, loc MiniKanren.logic, tl) t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
@@ -50,7 +51,7 @@ module Term :
 
 module Context :
   sig
-    type ('expr, 'string, 'mo, 'loc, 't, 'c) t =
+    @type ('expr, 'string, 'mo, 'loc, 't, 'c) t =
       | Hole
       | BinopL    of 'string * 'c * 't
       | BinopR    of 'string * 't * 'c
@@ -62,8 +63,9 @@ module Context :
       | SeqC      of 'c * 't
       | ParL      of 'c * 't
       | ParR      of 't * 'c
+    with gmap
 
-    type tt   = (int, string, mem_order, loc, Term.tt, tt) t
+    type tt   = (MiniKanren.Nat.ground, string, mem_order, loc, Term.tt, tt) t
     type tl  = (MiniKanren.Nat.logic, string MiniKanren.logic, mem_order MiniKanren.logic, loc MiniKanren.logic, Term.tl, tl) t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
@@ -80,7 +82,7 @@ type ci  = Context.ti
 
 val preallocate : t -> string list * loc list
 
-val inj_term : Term.tt -> Term.ti
+val inj_term : t -> ti
 val inj_context : c -> ci
 
 val reducibleo : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
