@@ -1,188 +1,176 @@
-open GT
 open MiniKanren
 open Lang
 
 module Registers =
   struct
-    type t   = (string * int) list
-    type lt' = ((string logic * Nat.logic) logic, lt' logic) llist
-    type lt  = lt' logic
-
-    let empty = []
-
-    let (!) = MiniKanren.inj
-
-    let inj = Utils.inj_assoc (!)  (inj_nat)
-    let prj = Utils.prj_assoc (!?) (prj_nat)
-
-    let show = Utils.show_assoc (fun x -> x) (string_of_int)
-
-    let eq = Utils.eq_assoc (=) (=)
-
-    let preallocate regs = List.map (fun a -> (a, 0)) regs
-
-    let from_assoc assoc = assoc
-
-    let geto = Utils.assoco
-
-    let seto = Utils.update_assoco
-
-    let get var regs = run q (fun q  -> geto !var (inj regs) q)
-                             (fun qs -> prj_nat @@ Utils.excl_answ qs)
-
-    let set var v regs = run q (fun q  -> seto !var (inj_nat v) (inj regs) q)
-                               (fun qs -> (prj @@ Utils.excl_answ qs))
+    type tt = (string, MiniKanren.Nat.ground) VarList.tt
+    type tl = (string MiniKanren.logic, MiniKanren.Nat.logic) VarList.tl
+    type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
   end
 
 module ViewFront =
   struct
-    type t   = (loc * tstmp) list
-    type lt' = ((loc logic * Nat.logic) logic, lt' logic) llist
-    type lt  = lt' logic
-
-    let empty = []
-
-    let inj = Utils.inj_assoc (!!)  (inj_nat)
-    let prj = Utils.prj_assoc (!?) (prj_nat)
-
-    let show = Utils.show_assoc (string_of_loc) (string_of_tstmp)
-
-    let eq = Utils.eq_assoc (=) (=)
-
-    let preallocate atomics = List.map (fun a -> (a, 0)) atomics
-
-    let from_assoc assoc = assoc
-
-    let (!) = MiniKanren.inj
-
-    let geto l t ts = Utils.assoc_defaulto l t (inj_nat 0) ts
-
-    let updateo = Utils.update_assoco
-
-    (* let join_loco lts vf vf' =  *)
-    (*   fresh (l ts ts' opt) *)
-    (*     (lts === !(l, ts)) *)
-    (*     (MiniKanren.List.lookupo (Utils.key_eqo l) vf opt) *)
-    (*     (conde [ *)
-    (*       (opt === !None) &&& *)
-    (*       (vf' === lts % vf); *)
-
-    (*       (opt === !(Some !(l, ts'))) &&& *)
-    (*       (conde [ *)
-    (*         Nat.(ts <= ts') &&& (vf' === vf); *)
-    (*         Nat.(ts >  ts') &&& (updateo l ts vf vf'); *)
-    (*       ]); *)
-    (*     ]) *)
-
-    let rec join_loco lts vf vf' =
-      fresh (l l' ts ts')
-        (lts === !(l, ts))
-        (conde [
-          (vf === !MiniKanren.Nil) &&& (vf' === lts % vf);
-
-          fresh (tl tl')
-            (vf === !(l', ts') % tl)
-            (conde [
-              (l === l') &&& conde [
-                Nat.(ts <= ts') &&& (vf' === vf);
-                Nat.(ts >  ts') &&& (vf' === !(l, ts) % tl);
-              ];
-
-              (l =/= l') &&& (vf' === !(l', ts') % tl') &&& (join_loco lts tl tl');
-            ])
-        ])
-
-    let joino t t' joined =
-      MiniKanren.List.foldro join_loco t t' joined
-
-    let get var vf = run q (fun q  -> geto !var (inj vf) q)
-                           (fun qs -> prj_nat @@ Utils.excl_answ qs)
-
-    let update var v vf = run q (fun q  -> updateo !var (inj_nat v) (inj vf) q)
-                                (fun qs -> prj @@ Utils.excl_answ qs)
-
-    let join vf vf' = run q (fun q  -> joino (inj vf) (inj vf') q)
-                            (fun qs -> prj @@ Utils.excl_answ qs)
-
+    type tt = (string, MiniKanren.Nat.ground) VarList.tt
+    type tl = (string MiniKanren.logic, MiniKanren.Nat.logic) VarList.tl
+    type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
   end
 
 module ThreadState =
   struct
-    type t = {
-      regs : Registers.t;
-      curr : ViewFront.t;
-    }
+    module T = struct
+      type ('a, 'b) t = {
+        regs : 'a;
+        curr : 'b;
+      }
 
-    type lt' = {
-      lregs : Registers.lt;
-      lcurr : ViewFront.lt;
-    }
+      let fmap fa fb {regs = a; curr = b} = {regs = fa a; curr = fb b}
+    end
 
-    type lt = lt' logic
+    type tt = (Registers.tt, ViewFront.tt) T.t
 
-    let empty = { regs = Registers.empty; curr = ViewFront.empty; }
+    type tl_inner = (Registers.tl, ViewFront.tl) T.t
 
-    let inj t  = !! { lregs = Registers.inj t.regs; lcurr = ViewFront.inj t.curr; }
+    type tl = tl_inner MiniKanren.logic
 
-    let prj lt =
-      let lt' = !?lt in
-      { regs = Registers.prj lt'.lregs;
-        curr = ViewFront.prj lt'.lcurr; }
+    type ti = (tt, tl) MiniKanren.injected
 
-    let show t = "Registers: " ^ Registers.show t.regs ^ "\nCurrent viewfront: " ^ ViewFront.show t.curr ^ "\n"
+    module Fmap = Fmap2(T)
 
-    let eq t t' = (Registers.eq t.regs t'.regs) && (ViewFront.eq t.curr t'.curr)
+    let thrd_state regs curr = inj @@ Fmap.distrib @@ {T.regs = regs; T.curr = curr}
 
-    let preallocate vars atomics = { regs = Registers.preallocate vars; curr = ViewFront.preallocate atomics; }
+    let create vars atomics =
+      let inj_string_list = List.map (fun s -> !!s) in
+      let rs = VarList.allocate (inj_string_list vars) (inj_nat 0) in
+      let vf = VarList.allocate (inj_string_list atomics) (inj_nat 0) in
+      thrd_state rs vf
 
-    let (!) = (!!)
-
-    let splito t regs curr =
-      (t === !{lregs = regs; lcurr = curr; })
-
-    let get_localo t var v =
+    let get_varo thrd var value =
       fresh (regs curr)
-        (splito t regs curr)
-        (Registers.geto var regs v)
+        (thrd === thrd_state regs curr)
+        (VarList.geto regs var value)
 
-    let assign_localo var v t t' =
+    let set_varo thrd thrd' var value =
       fresh (regs regs' curr)
-        (splito t regs curr)
-        (Registers.seto var v regs regs')
-        (splito t' regs' curr)
+        (thrd  === thrd_state regs  curr)
+        (thrd' === thrd_state regs' curr)
+        (VarList.seto regs regs' var value)
 
-    let get_tstmpo t l ts =
+    let get_tso thrd var ts =
       fresh (regs curr)
-        (splito t regs curr)
-        (ViewFront.geto l curr ts)
+        (thrd === thrd_state regs curr)
+        (VarList.geto curr var ts)
 
-    let update_tstmpo l ts t t' curr' =
-      fresh (regs curr)
-        (splito t  regs curr)
-        (ViewFront.updateo l ts curr curr')
-        (splito t' regs curr')
-
-    let join_viewfronto vf t t' =
+    let set_tso thrd thrd' var ts =
       fresh (regs curr curr')
-        (splito t regs curr)
-        (ViewFront.joino vf curr curr')
-        (splito t' regs curr')
+        (thrd  === thrd_state regs curr)
+        (thrd' === thrd_state regs curr')
+        (VarList.seto curr curr' var ts)
 
-    let spawno t spwn spwn' =
-      fresh (regs curr)
-        (splito t regs curr)
-        (splito spwn (Registers.inj Registers.empty) curr)
-        (spwn' === spwn)
+    let updateo thrd thrd' vf =
+      fresh (regs curr curr')
+        (thrd  === thrd_state regs curr)
+        (thrd' === thrd_state regs curr')
+        (VarList.joino VarList.join_tso vf curr curr')
 
-    let joino t t' joined =
-      fresh (regs regs' curr curr' curr'')
-        (splito t  regs  curr)
-        (splito t' regs' curr')
-        (ViewFront.joino curr curr' curr'')
-        (splito joined (Registers.inj Registers.empty) curr'')
+    let spawno thrd spwn1 spwn2 =
+      (spwn1 === thrd) &&& (spwn2 === thrd)
+
+    let joino thrd1 thrd2 vf =
+      fresh (regs1 regs2 curr1 curr2)
+        (thrd1 === thrd_state regs1 curr1)
+        (thrd2 === thrd_state regs2 curr2)
+        (VarList.joino VarList.join_tso curr1 curr2 vf)
 
   end
 
+module Threads =
+  struct
+    module Tree =
+      struct
+        type ('a, 't) t =
+          | Nil
+          | Node of 'a * 't * 't
+
+        let fmap fa ft = function
+          | Nil            -> Nil
+          | Node (a, l, r) -> Node (fa a, ft l, ft r)
+      end
+
+    type tt = (ThreadState.tt, tt) Tree.t
+    type tl = (ThreadState.tl, tl) Tree.t MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+
+    module Fmap = Fmap2(Tree)
+
+    let nil        = inj @@ Fmap.distrib @@ Nil
+    let node a l r = inj @@ Fmap.distrib @@ Node (a, l, r)
+
+    let rec geto tree path thrd =
+      fresh (thrd' l r path')
+        (tree === node thrd' l r)
+        (conde [
+          (path === Lang.pathn) &&& (thrd === thrd');
+          (conde [
+            (path === Lang.pathl path') &&& (geto l path' thrd);
+            (path === Lang.pathr path') &&& (geto r path' thrd);
+          ])
+        ])
+
+    let rec seto tree tree' path thrd' =
+      fresh (thrd path' l l' r r')
+        (tree  === node thrd  l  r )
+        (tree' === node thrd' l' r')
+        (conde [
+          (path === Lang.pathn) &&& (l === l') &&& (r === r');
+          (conde [
+            (path === Lang.pathl path') &&& (r === r') &&& (seto l l' path' thrd');
+            (path === Lang.pathr path') &&& (l === l') &&& (seto r r' path' thrd');
+          ])
+        ])
+
+    let rec spawno tree tree' path =
+      fresh (thrd l l' r r' path')
+        (tree  === node thrd  l  r )
+        (tree' === node thrd  l' r')
+        (conde [
+          fresh (a b)
+            (path === Lang.pathn)
+            (l  === nil)
+            (r  === nil)
+            (l' === node a nil nil)
+            (r' === node b nil nil)
+            (ThreadState.spawno thrd a b);
+
+          (conde [
+            (path === Lang.pathl path') &&& (spawno l l' path') &&& (r === r');
+            (path === Lang.pathr path') &&& (spawno r r' path') &&& (l === l');
+          ])
+        ])
+
+    let rec joino tree tree' path =
+      fresh (thrd thrd' l l' r r' path')
+        (tree  === node thrd  l  r )
+        (tree' === node thrd' l' r')
+        (conde [
+          fresh (a b vf regs curr)
+            (path  === Lang.pathn)
+            (l  === node a nil nil)
+            (r  === node b nil nil)
+            (l' === nil)
+            (r' === nil)
+            (ThreadState.joino a b vf)
+            (thrd  === ThreadState.thrd_state regs curr)
+            (thrd' === ThreadState.thrd_state regs vf);
+
+          (thrd === thrd') &&&
+          (conde [
+            (path === Lang.pathl path') &&& (r === r') &&& (joino l l' path');
+            (path === Lang.pathr path') &&& (l === l') &&& (joino r r' path');
+          ]);
+        ])
+  end
+
+(*
 module ThreadTree =
   struct
     @type ('a, 't) at = Leaf of 'a | Node of 't * 't with gmap
@@ -576,4 +564,4 @@ module MemState =
 
     let write_rel path l v t = run q (fun q  -> write_relo (Path.inj path) (!l) (inj_nat v) (inj t) q)
                                      (fun qs -> prj @@ Utils.excl_answ qs)
-  end
+  end *)

@@ -1,8 +1,9 @@
 open MiniKanren
 
 type ('a, 'b) tt = ('a * 'b) List.ground
-type ('a, 'b) tl = ('a logic * 'b logic) List.logic
-type ('a, 'b) ti = (('a, 'b) tt, ('a, 'b) tl) MiniKanren.injected
+type ('a, 'b) tl = ('a * 'b) logic List.logic
+
+type ('a, 'b, 'c, 'd) ti = (('a * 'b), ('c * 'd) logic) MiniKanren.List.groundi
 
 let allocate vars default = inj_list @@ List.map (fun var -> inj_pair var default) vars
 

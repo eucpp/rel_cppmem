@@ -1,114 +1,65 @@
-open MiniKanren
-open Lang
-
 module Registers :
   sig
-    type t
-    type lt'
-    type lt  = lt' logic
-
-    val empty : t
-
-    val inj : t -> lt
-    val prj : lt -> t
-
-    val show : t -> string
-    val eq : t -> t -> bool
-
-    val geto : string MiniKanren.logic -> lt -> MiniKanren.Nat.logic -> MiniKanren.goal
-    val seto : string MiniKanren.logic -> MiniKanren.Nat.logic -> lt -> lt -> MiniKanren.goal
-
-    val get : string -> t -> int
-    val set : string -> int -> t -> t
+    type tt = (string, MiniKanren.Nat.ground) VarList.tt
+    type tl = (string MiniKanren.logic, MiniKanren.Nat.logic) VarList.tl
+    type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
   end
 
 module ViewFront :
   sig
-    type t
-    type lt'
-    type lt = lt' MiniKanren.logic
-
-    val empty : t
-
-    val from_assoc : (loc * tstmp) list -> t
-
-    val inj : t -> lt
-    val prj : lt -> t
-
-    val show : t -> string
-    val eq : t -> t -> bool
-
-    val geto    : loc MiniKanren.logic -> lt -> MiniKanren.Nat.logic -> MiniKanren.goal
-    val updateo : loc MiniKanren.logic -> MiniKanren.Nat.logic -> lt -> lt -> MiniKanren.goal
-    val joino   : lt -> lt -> lt -> MiniKanren.goal
-
-    val get    : loc -> t -> tstmp
-    val update : loc -> tstmp -> t -> t
-    val join   : t -> t -> t
+    type tt = (string, MiniKanren.Nat.ground) VarList.tt
+    type tl = (string MiniKanren.logic, MiniKanren.Nat.logic) VarList.tl
+    type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
   end
 
 module ThreadState :
   sig
-    type t = {
-      regs : Registers.t;
-      curr : ViewFront.t;
-    }
+    type tt
 
-    type lt' = {
-      lregs : Registers.lt;
-      lcurr : ViewFront.lt;
-    }
+    type tl_inner
 
-    type lt = lt' MiniKanren.logic
+    type tl = tl_inner MiniKanren.logic
 
-    val empty : t
+    type ti = (tt, tl) MiniKanren.injected
 
-    val inj : t -> lt
-    val prj : lt -> t
+    val create : string list -> string list -> ti
 
-    val show : t -> string
-    val eq : t -> t -> bool
+    val get_varo : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+    val set_varo : ti -> ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
 
-    val join_viewfronto : ViewFront.lt -> lt -> lt -> goal
+    val get_tso : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+    val set_tso : ti -> ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
 
-    val get_localo    : lt -> string logic -> Nat.logic -> goal
-    val assign_localo : string logic -> Nat.logic -> lt -> lt -> goal
+    (** [updateo thrd thrd' vf] joins viewfront of thread [thrd] with [vf] and obtains [thrd']  *)
+    val updateo : ti -> ti -> ViewFront.ti -> MiniKanren.goal
 
-    val get_tstmpo    : lt -> loc logic -> Nat.logic -> goal
-    val update_tstmpo : loc logic -> Nat.logic -> lt -> lt -> ViewFront.lt -> goal
+    (** [joino thrd1 thrd2 vf] joins viewfronts of [thrd1] and [thrd2] into vf *)
+    val joino  : ti -> ti -> ViewFront.ti -> MiniKanren.goal
 
-    val spawno : lt -> lt -> lt -> goal
-    val joino  : lt -> lt -> lt -> goal
+    val spawno : ti -> ti -> ti -> MiniKanren.goal
   end
 
-module ThreadTree :
+module Threads :
   sig
-    @type ('a, 't) at = Leaf of 'a | Node of 't * 't with gmap
+    module Tree :
+      sig
+        type ('a, 't) t =
+          | Nil
+          | Node of 'a * 't * 't
+      end
 
-    type t   = (ThreadState.t, t) at
-    type lt' = (ThreadState.lt, lt' MiniKanren.logic) at
-    type lt  = lt' MiniKanren.logic
+    type tt = (ThreadState.tt, tt) Tree.t
+    type tl = (ThreadState.tl, tl) Tree.t MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
 
-    val empty : t
+    val geto : ti -> Lang.Path.ti -> ThreadState.ti -> MiniKanren.goal
+    val seto : ti -> ti -> Lang.Path.ti -> ThreadState.ti -> MiniKanren.goal
 
-    val inj : t -> lt
-    val prj : lt -> t
-
-    val show : t -> string
-    val eq : t -> t -> bool
-
-    val get_thrdo    : Path.lt -> lt -> ThreadState.lt -> MiniKanren.goal
-    val update_thrdo : Path.lt -> ThreadState.lt -> lt -> lt -> MiniKanren.goal
-
-    val spawn_thrdo : Path.lt -> lt -> lt -> MiniKanren.goal
-    val join_thrdo  : Path.lt -> lt -> lt -> MiniKanren.goal
-
-    val get_thrd    : Path.t -> t -> ThreadState.t
-    val update_thrd : Path.t -> ThreadState.t -> t -> t
-
-    val spawn_thrd : Path.t -> t -> t
-    val join_thrd  : Path.t -> t -> t
+    val spawno : ti -> ti -> Lang.Path.ti -> MiniKanren.goal
+    val joino  : ti -> ti -> Lang.Path.ti -> MiniKanren.goal
   end
+
+(*
 
 module Cell :
   sig
@@ -247,4 +198,4 @@ module MemState :
 
     val read_acq  : Path.t -> string -> t -> (int * t) Stream.t
     val write_rel : Path.t -> string -> int -> t -> t
-  end
+  end *)

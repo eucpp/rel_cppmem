@@ -1,4 +1,5 @@
 open OUnit2
+open Memory
 
 let tests =
   (* "rel_cppmem">::: [LangTest.tests;

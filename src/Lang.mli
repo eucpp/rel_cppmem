@@ -1,4 +1,11 @@
-type loc   = string
+module Loc :
+  sig
+    type tt = string
+    type tl = string MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+  end
+
+type loc   = Loc.tt
 type tstmp = int
 
 type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
@@ -19,6 +26,10 @@ module Path :
   end
 
 val inj_path : Path.tt -> Path.ti
+
+val pathn : Path.ti
+val pathl : Path.ti -> Path.ti
+val pathr : Path.ti -> Path.ti
 
 module Term :
   sig

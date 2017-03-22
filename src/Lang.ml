@@ -1,5 +1,12 @@
 open MiniKanren
 
+module Loc =
+  struct
+    type tt = string
+    type tl = string MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+  end
+
 type loc = string
 type tstmp = int
 
