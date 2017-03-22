@@ -3,29 +3,12 @@ open MiniKanren
 open Memory
 open Lang
 
-(* let thrd_state_tests =  *)
-(*   "thrd_state">::: [ *)
-(*     "test_join_viewfront">:: (fun test_ctx -> *)
-(*       let regs = Registers.empty in *)
-(*       let curr = ViewFront.from_assoc [("x", 0)] in *)
-(*       let vf   = ViewFront.from_assoc [("x", 1)] in *)
-(*       let thrd = { ThreadState.regs = regs; ThreadState.curr = curr } in *)
+(* let regs      = Registers.set "x" 0 Registers.empty in
+let thrd      = { ThreadState.regs = regs; ThreadState.curr = ViewFront.empty } in
+let thrd_tree = ThreadTree.Node (ThreadTree.Leaf thrd, ThreadTree.empty) in *)
 
-(*       let expected = { ThreadState.regs = regs; ThreadState.curr = vf } in *)
-
-(*       let actual = run q (fun q  -> ThreadState.join_viewfronto (ViewFront.inj vf) (ThreadState.inj thrd) q) *)
-(*                          (fun qs -> ThreadState.prj @@ Utils.excl_answ qs) in *)
-
-(*         assert_equal expected actual ~cmp:ThreadState.eq ~printer:ThreadState.show *)
-(*     ) *)
-(*   ] *)
 
 let thrd_tree_tests =
-
-  let regs      = Registers.set "x" 0 Registers.empty in
-  let thrd      = { ThreadState.regs = regs; ThreadState.curr = ViewFront.empty } in
-  let thrd_tree = ThreadTree.Node (ThreadTree.Leaf thrd, ThreadTree.empty) in
-
   "thrd_tree">::: [
     "test_get_1">:: (fun test_ctx ->
       let expected = thrd in

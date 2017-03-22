@@ -22,7 +22,9 @@ module ThreadState :
 
     type ti = (tt, tl) MiniKanren.injected
 
-    val create : string list -> string list -> ti
+    val inj : tt -> ti
+
+    val create : string list -> string list -> tt
 
     val get_varo : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
     val set_varo : ti -> ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
@@ -51,6 +53,8 @@ module Threads :
     type tt = (ThreadState.tt, tt) Tree.t
     type tl = (ThreadState.tl, tl) Tree.t MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
+
+    val inj : tt -> ti
 
     val geto : ti -> Lang.Path.ti -> ThreadState.ti -> MiniKanren.goal
     val seto : ti -> ti -> Lang.Path.ti -> ThreadState.ti -> MiniKanren.goal

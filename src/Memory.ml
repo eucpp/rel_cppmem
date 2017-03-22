@@ -38,6 +38,11 @@ module ThreadState =
 
     let thrd_state regs curr = inj @@ Fmap.distrib @@ {T.regs = regs; T.curr = curr}
 
+    let inj {T.regs = regs; T.curr = curr} =
+      let regs' = prj_ground () regs in
+      let curr' = prj_ground () curr in
+      thrd_state regs' curr
+
     let create vars atomics =
       let inj_string_list = List.map (fun s -> !!s) in
       let rs = VarList.allocate (inj_string_list vars) (inj_nat 0) in
@@ -104,6 +109,9 @@ module Threads =
 
     let nil        = inj @@ Fmap.distrib @@ Nil
     let node a l r = inj @@ Fmap.distrib @@ Node (a, l, r)
+    let leaf a     = inj @@ Fmap.distrib @@ Node (a, nil, nil)
+
+    let rec inj tree = inj @@ Fmap.distrib (Tree.fmap () (inj) tree)
 
     let rec geto tree path thrd =
       fresh (thrd' l r path')
@@ -137,8 +145,8 @@ module Threads =
             (path === Lang.pathn)
             (l  === nil)
             (r  === nil)
-            (l' === node a nil nil)
-            (r' === node b nil nil)
+            (l' === leaf a)
+            (r' === leaf b)
             (ThreadState.spawno thrd a b);
 
           (conde [
@@ -154,8 +162,8 @@ module Threads =
         (conde [
           fresh (a b vf regs curr)
             (path  === Lang.pathn)
-            (l  === node a nil nil)
-            (r  === node b nil nil)
+            (l  === leaf a)
+            (r  === leaf b)
             (l' === nil)
             (r' === nil)
             (ThreadState.joino a b vf)

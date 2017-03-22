@@ -5,6 +5,8 @@ type ('a, 'b) tl = ('a * 'b) logic List.logic
 
 type ('a, 'b, 'c, 'd) ti = (('a * 'b), ('c * 'd) logic) MiniKanren.List.groundi
 
+let inj inj_a inj_b lst = inj_list_p @@ List.map (fun (a, b) -> (inj_a a, inj_b b)) lst
+
 let allocate vars default = inj_list @@ List.map (fun var -> inj_pair var default) vars
 
 let key_eqo k pair b =
