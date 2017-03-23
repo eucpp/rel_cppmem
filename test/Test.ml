@@ -11,7 +11,8 @@ let tests =
                     SCTest.tests;] *)
   "rel_cppmem">::: [LangTest.tests;
                     VarListTest.tests;
-                    MemoryTest.tests]
+                    MemoryTest.tests;
+                    RulesTest.tests]
 
 let () =
   run_test_tt_main tests

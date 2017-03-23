@@ -10,12 +10,19 @@ module Loc =
 type loc = string
 type tstmp = int
 
-type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
+module MemOrder =
+  struct
+    type tt = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
+    type tl = tt MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+  end
+
+type mem_order = MemOrder.tt
 
 let string_of_loc = fun x -> x
 let string_of_tstmp = string_of_int
 
-let string_of_mo = function
+let string_of_mo = MemOrder.(function
   | SC      -> "sc"
   | ACQ     -> "acq"
   | REL     -> "rel"
@@ -23,8 +30,9 @@ let string_of_mo = function
   | CON     -> "con"
   | RLX     -> "rlx"
   | NA      -> "na"
+)
 
-let mo_of_string str =
+let mo_of_string str = MemOrder.(
   let binding = [("sc", SC);
                  ("acq", ACQ);
                  ("rel", REL);
@@ -33,6 +41,7 @@ let mo_of_string str =
                  ("rlx", RLX);
                  ("na", NA)] in
     List.assoc str binding
+)   
 
 module Path =
   struct

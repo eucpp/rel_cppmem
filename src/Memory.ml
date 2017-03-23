@@ -124,13 +124,15 @@ module Threads =
 
     module Fmap = Fmap2(Tree)
 
-    let nil        = inj @@ Fmap.distrib @@ Nil
-    let node a l r = inj @@ Fmap.distrib @@ Node (a, l, r)
-    let leaf a     = inj @@ Fmap.distrib @@ Node (a, nil, nil)
+    let nil        = inj @@ Fmap.distrib @@ Tree.Nil
+    let node a l r = inj @@ Fmap.distrib @@ Tree.Node (a, l, r)
+    let leaf a     = inj @@ Fmap.distrib @@ Tree.Node (a, nil, nil)
 
     let inj' = inj
 
     let rec inj tree = inj' @@ Fmap.distrib (Tree.fmap (ThreadState.inj) (inj) tree)
+
+    let create vars vf = Tree.Node (ThreadState.create vars vf, Tree.Nil, Tree.Nil)
 
     let rec geto tree path thrd =
       fresh (thrd' l r path')

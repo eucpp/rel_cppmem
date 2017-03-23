@@ -1,36 +1,13 @@
-module Make
-  (T : Lang.ATerm)
-  (C : Lang.AContext with type t = T.t with type lt' = T.lt')
-  (S : Lang.AState) :
-  sig
-    type t
 
-    type rule = (C.lc -> T.lt -> S.lt -> C.lc -> T.lt -> S.lt -> MiniKanren.goal)
+type t
 
-    val empty : t
+type rule = (Lang.Context.ti -> Lang.Term.ti -> Memory.MemState.ti ->
+             Lang.Context.ti -> Lang.Term.ti -> Memory.MemState.ti -> MiniKanren.goal)
 
-    val make : (string * rule) list -> t
+val make : (string * rule) list -> t
 
-    val register   : string * rule -> t -> t
-    val deregister : string -> t -> t
+(** Relational single step in given semantics *)
+val stepo : t -> Lang.Term.ti -> Memory.MemState.ti -> Lang.Term.ti -> Memory.MemState.ti -> MiniKanren.goal
 
-    (** Relational single step in given semantics *)
-    val stepo : t -> T.lt -> S.lt -> T.lt -> S.lt -> string MiniKanren.logic -> MiniKanren.goal
-
-    (** Relational step* *)
-    val spaceo : t -> T.lt -> S.lt -> T.lt -> S.lt -> string MiniKanren.logic MiniKanren.List.logic -> MiniKanren.goal
-
-    val reducible : T.t -> bool
-
-    (** Non-relational wrapper for split *)
-    val split : T.t -> (C.c * T.t) MiniKanren.Stream.t
-
-    (** Non-relational wrapper for plugging term into context *)
-    val plug : (C.c * T.t) -> T.t
-
-    (** Non-relational wrapper for stepping *)
-    val step : t -> T.t -> S.t -> (T.t * S.t) MiniKanren.Stream.t
-
-    (** Non-relational wrapper for step* *)
-    val space : t -> T.t -> S.t -> (T.t * S.t) MiniKanren.Stream.t
-  end
+(** Relational step* *)
+val spaceo : t -> Lang.Term.ti -> Memory.MemState.ti -> Lang.Term.ti -> Memory.MemState.ti -> MiniKanren.goal

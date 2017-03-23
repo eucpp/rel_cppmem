@@ -2,37 +2,26 @@ open MiniKanren
 open Memory
 open Lang
 
-open Lang.Term
-open Lang.Context
-
 module Basic =
   struct
-    type t  = Lang.Term.t
-    type lt = Lang.Term.lt
+    type ti = Term.ti
+    type ci = Context.ti
+    type si = MemState.ti
 
-    type c  = Lang.Context.c
-    type lc = Lang.Context.lc
-
-    type s  = MemState.t
-    type ls = MemState.lt
-
-    type rule = (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
-
-    let (!) = (!!)
+    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
     let varo c t s c' t' s' =
       fresh (n x path thrd)
         (c  === c')
         (s  === s')
-        (t  === !(Var x))
-        (t' === !(Const n))
+        (t  === var x)
+        (t' === const n)
         (patho c path)
-        (MemState.get_thrdo path s thrd)
-        (ThreadState.get_localo thrd x n)
+        (MemState.get_localo s path x n)
 
     let var = ("var", varo)
 
-    let binopo c t s c' t' s' =
+    (* let binopo c t s c' t' s' =
       fresh (op x y z)
         (c  === c')
         (s  === s')
@@ -84,20 +73,9 @@ module Basic =
         (t  === !(Repeat body))
         (t' === !(If (body, t, !Skip)))
 
-    let repeat = ("repeat", repeato)
+    let repeat = ("repeat", repeato) *)
 
-    (* let seqo c t s c' t' s' =
-      fresh (t1 t2)
-        (s === s')
-        (t === !(Seq (t1, t2)))
-        (conde [
-          (t1 === !Skip)  &&& (t' === t2)     &&& (c' === c);
-          (t1 === !Stuck) &&& (t' === !Stuck) &&& (c' === !Hole);
-        ])
-
-   let seq = ("seq", seqo) *)
-
-   let spawno c t s c' t' s' =
+   (* let spawno c t s c' t' s' =
      fresh (l r path)
        (c  === c')
        (t  === !(Spw (l, r)))
@@ -117,13 +95,14 @@ module Basic =
        (patho c path)
        (MemState.join_thrdo path s s')
 
-   let join = ("join", joino)
+   let join = ("join", joino) *)
 
-   let all = [var; binop; asgn; if'; repeat; spawn; join]
+   (* let all = [var; binop; asgn; if'; repeat; spawn; join] *)
+   let all = [var]
 
   end
 
-module RelAcq =
+(* module RelAcq =
   struct
     type t  = Lang.Term.t
     type lt = Lang.Term.lt
@@ -198,4 +177,4 @@ module SeqCons =
     let write_sc = ("write_sc", write_sco)
 
     let all = [read_sc; write_sc;]
-  end
+  end *)

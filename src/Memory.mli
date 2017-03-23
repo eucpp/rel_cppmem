@@ -64,6 +64,8 @@ module Threads :
 
     val inj : tt -> ti
 
+    val create : (string * int) list -> (string * int) list -> tt
+
     val geto : ti -> Lang.Path.ti -> ThreadState.ti -> MiniKanren.goal
     val seto : ti -> ti -> Lang.Path.ti -> ThreadState.ti -> MiniKanren.goal
 

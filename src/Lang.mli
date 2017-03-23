@@ -8,7 +8,14 @@ module Loc :
 type loc   = Loc.tt
 type tstmp = int
 
-type mem_order = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
+module MemOrder :
+  sig
+    type tt = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
+    type tl = tt MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+  end
+
+type mem_order = MemOrder.tt
 
 val string_of_loc : loc -> string
 val string_of_tstmp : tstmp -> string
@@ -90,6 +97,22 @@ type ti  = Term.ti
 type c   = Context.tt
 type cl  = Context.tl
 type ci  = Context.ti
+
+val const   : MiniKanren.Nat.groundi -> ti
+val var     : Loc.ti -> ti
+val binop   : Loc.ti -> ti -> ti -> ti
+val asgn    : ti -> ti -> ti
+val pair    : ti -> ti -> ti
+val if'     : ti -> ti -> ti -> ti
+val repeat  : ti -> ti
+val read    : MemOrder.ti -> Loc.ti -> ti
+val write   : MemOrder.ti -> Loc.ti -> ti -> ti
+val cas     : MemOrder.ti -> MemOrder.ti -> Loc.ti -> ti -> ti -> ti
+val seq     : ti -> ti -> ti
+val spw     : ti -> ti -> ti
+val par     : ti -> ti -> ti
+val skip    : ti
+val stuck   : ti
 
 val preallocate : t -> string list * loc list
 
