@@ -22,8 +22,25 @@ let list_diff ?(cmp = (=)) l1 l2 =
   let snd = List.filter (not_in_lst l1) l2 in
   (fst, snd)
 
-let assert_contains show eq xs x =
-  assert_bool (show x) @@ List.exists (eq x) xs
+let assert_lists ?(cmp = (=))
+                 ?printer
+                 expected actual
+   =
+   let diff_plus, diff_minus = list_diff ~cmp expected actual in
+   let diff_plus_msg = match printer with
+     | Some p ->
+       let answers = List.map p diff_plus in
+       Printf.sprintf "Missing answers: %s" (String.concat "; " answers)
+     | None -> "Missing answers"
+   in
+   let diff_minus_msg = match printer with
+     | Some p ->
+       let answers = List.map p diff_minus in
+       Printf.sprintf "Redundant answers: %s" (String.concat "; " answers)
+     | None -> "Redundant answers"
+   in
+   assert_bool diff_plus_msg  (diff_plus = []);
+   assert_bool diff_minus_msg (diff_minus = [])
 
 let assert_stream ?(empty_check = true)
                   ?(cmp = (=))
@@ -32,21 +49,7 @@ let assert_stream ?(empty_check = true)
   =
   let len               = List.length expected in
   let (actual, stream') = Stream.retrieve ~n:len stream in
-  let diff_plus, diff_minus = list_diff ~cmp expected actual in
-  let diff_plus_msg = match printer with
-    | Some p ->
-      let answers = List.map p diff_plus in
-      Printf.sprintf "Missing answers: %s" (String.concat "; " answers)
-    | None -> "Missing answers"
-  in
-  let diff_minus_msg = match printer with
-    | Some p ->
-      let answers = List.map p diff_minus in
-      Printf.sprintf "Redundant answers: %s" (String.concat "; " answers)
-    | None -> "Redundant answers"
-  in
-  assert_bool diff_plus_msg  (diff_plus = []);
-  assert_bool diff_minus_msg (diff_minus = []);
+  assert_lists expected actual ~cmp ?printer;
   if empty_check
    then
       assert_bool "More answers than expected" (Stream.is_empty stream')
@@ -60,19 +63,17 @@ let test_prog sem prog expected test_ctx =
   let rs, vs  = preallocate term in
   let state   = MemState.preallocate rs vs in
   let stream  =
-   run qr (fun q r ->
-              (* fresh (s') *)
-                spaceo sem (inj_term term) (MemState.inj state) q r)
-                (* (List.appendo s' nil s)) *)
-           (fun qs rs -> Stream.zip
-             (prj_stream qs)
-             (prj_stream rs))
+   run qr (fun q  r  -> spaceo sem (inj_term term) (MemState.inj state) q r)
+          (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
   in
-  let stream' = Stream.map (fun (t, s) -> Term.pprint t) stream in
-  let cnt     = ref 0 in
-  Stream.iter (
-      fun (t, s) -> cnt := !cnt + 1;
-      Printf.printf "\n%d: %s" !cnt (Term.pprint t)
-      (* Printf.printf "\n%d: %s\n" !cnt (String.concat " -> " epath) *)
+  let module S = Set.Make(String) in
+  let set = ref S.empty in
+  let cnt = ref 0 in
+  Stream.iter (fun (t, s) ->
+      let answer = Term.pprint t in
+      let set'   = S.add answer !set in
+      cnt := !cnt + 1;
+      set := set';
+      Printf.printf "\n%d: %s" !cnt answer
     ) stream;
-  assert_stream ~empty_check:false expected stream' ~printer:show ~cmp:(=)
+  assert_lists expected (S.elements !set) ~printer:show ~cmp:(=)

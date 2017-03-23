@@ -115,7 +115,7 @@ let rel_acq_tests =
       let mem_story = MemStory.create [("x", loc_story)] in
       let state     = S.create tree mem_story in
       let state'    = S.create tree' mem_story in
-      test_step ~empty_check:false [RelAcq.read_acq] (T.Read (ACQ, "x"), state) [(const 0, state); (const 1, state')]
+      test_step [RelAcq.read_acq] (T.Read (ACQ, "x"), state) [(const 0, state); (const 1, state')]
     );
 
     "write_rel">::(
