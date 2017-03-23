@@ -56,7 +56,7 @@ let assert_stream ?(empty_check = true)
 
 (* module Sem = Semantics.Make(Lang.Term)(Lang.Context)(MemState) *)
 
-let test_prog sem prog expected test_ctx =
+let test_prog ?n sem prog expected test_ctx =
   let show s  = "Outcome is not found among answers: " ^ s in
   let lexbuf  = Lexing.from_string prog in
   let term    = Parser.main Lexer.token lexbuf in
@@ -69,11 +69,15 @@ let test_prog sem prog expected test_ctx =
   let module S = Set.Make(String) in
   let set = ref S.empty in
   let cnt = ref 0 in
-  Stream.iter (fun (t, s) ->
-      let answer = Term.pprint t in
-      let set'   = S.add answer !set in
-      cnt := !cnt + 1;
-      set := set';
-      Printf.printf "\n%d: %s" !cnt answer
-    ) stream;
+  let handler (t, s) =
+    let answer = Term.pprint t in
+    let set'   = S.add answer !set in
+    cnt := !cnt + 1;
+    set := set';
+    Printf.printf "\n%d: %s" !cnt answer
+  in
+  let _ = match n with
+    | Some n -> List.iter handler @@ fst @@ Stream.retrieve ~n:n stream
+    | None   -> Stream.iter handler stream
+  in
   assert_lists expected (S.elements !set) ~printer:show ~cmp:(=)

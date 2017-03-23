@@ -53,7 +53,7 @@ let basic_tests =
 
     "repeat">:: (
       let loop = T.Repeat (const 1) in
-      test_step [Basic.repeat] (loop, mem) [(T.If (const 1, loop, T.Skip), mem)]
+      test_step [Basic.repeat] (loop, mem) [(T.If (const 1, T.Skip, loop), mem)]
     );
 
     "seq_skip">:: test_step Basic.all (T.Seq (T.Skip, T.Skip), mem) [(T.Skip, mem)];

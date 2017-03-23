@@ -1,10 +1,11 @@
 open OUnit2
 open MiniKanren
 open Memory
+open TestUtils
 
 let sem = Semantics.make @@ List.append Rules.Basic.all Rules.RelAcq.all
 
-let test_prog = TestUtils.test_prog sem
+(* let test_prog ?(n:int) = TestUtils.test_prog ~n sem *)
 
 let prog_LB = "
     x_rel := 0;
@@ -25,14 +26,15 @@ let prog_MP = "
     spw {{{
         x_rel := 1;
         f_rel := 1;
-        ret x_rel
+        ret 1
     |||
         repeat f_acq end;
-        ret x_rel
+        r2 := x_acq;
+        ret r2
     }}}"
 
 let tests =
   "relAcq">::: [
-    "LB">:: test_prog prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"];
-    (* "MP">:: test_prog prog_MP ["(1, 1)";]; *)
+    "LB">:: test_prog sem prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"];
+    "MP">:: test_prog ~n:100 sem prog_MP ["(1, 1)";];
   ]

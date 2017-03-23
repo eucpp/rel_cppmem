@@ -76,7 +76,7 @@ module Basic =
         (c  === c')
         (s  === s')
         (t  === repeat body)
-        (t' === if' body t skip)
+        (t' === if' body skip t)
 
     let repeat = ("repeat", repeato)
 
