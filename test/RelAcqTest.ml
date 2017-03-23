@@ -19,8 +19,20 @@ let prog_LB = "
         ret r2
     }}}"
 
-let test_LB =
-  "LB">: OUnitTest.TestCase (OUnitTest.Long, test_prog prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"])
+let prog_MP = "
+    x_rel := 0;
+    f_rel := 0;
+    spw {{{
+        x_rel := 1;
+        f_rel := 1;
+        ret x_rel
+    |||
+        repeat f_acq end;
+        ret x_rel
+    }}}"
 
 let tests =
-  "relAcq">::: [test_LB]
+  "relAcq">::: [
+    "LB">:: test_prog prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"];
+    (* "MP">:: test_prog prog_MP ["(1, 1)";]; *)
+  ]
