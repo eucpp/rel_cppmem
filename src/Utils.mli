@@ -2,7 +2,7 @@ open MiniKanren
 
 val zip3 : 'a Stream.t -> 'b Stream.t -> 'c Stream.t -> ('a * 'b * 'c) Stream.t
 
-val excl_answ : 'a Stream.t -> 'a
+(* val excl_answ : 'a Stream.t -> 'a
 
 val prj_pair : ('a -> 'b) -> ('c -> 'd) -> ('a * 'c) logic -> ('b * 'd)
 
@@ -17,22 +17,21 @@ val eq_assoc : ('a -> 'a -> bool) -> ('b -> 'b -> bool) -> ('a * 'b) list -> ('a
 
 val assoco : 'a logic -> ('a logic  * 'b logic) logic MiniKanren.List.logic -> 'b logic -> MiniKanren.goal
 val assoc_defaulto : 'a logic -> ('a logic  * 'b logic) logic MiniKanren.List.logic -> 'b logic -> 'b logic -> MiniKanren.goal
-val remove_assoco : 'a logic -> ('a logic * 'b logic) logic MiniKanren.List.logic  -> ('a logic * 'b logic) logic MiniKanren.List.logic -> goal 
+val remove_assoco : 'a logic -> ('a logic * 'b logic) logic MiniKanren.List.logic  -> ('a logic * 'b logic) logic MiniKanren.List.logic -> goal
 
 val update_assoco_k : 'a logic -> ('a logic -> 'b logic option logic -> 'b logic -> goal) ->
                       ('a logic * 'b logic) logic MiniKanren.List.logic -> ('a logic * 'b logic) logic MiniKanren.List.logic -> goal
-                                                                                                                                             
+
 val update_assoco : 'a logic -> 'b logic ->
                     ('a logic * 'b logic) logic MiniKanren.List.logic -> ('a logic * 'b logic) logic MiniKanren.List.logic -> goal
 
-val maxo : Nat.logic -> Nat.logic -> Nat.logic -> goal 
+val maxo : Nat.logic -> Nat.logic -> Nat.logic -> goal  *)
 
-module Option : 
+module Option :
   sig
     exception No_value
-    
+
     val is_some : 'a option -> bool
     val is_none : 'a option -> bool
-    val get : 'a option -> 'a    
+    val get : 'a option -> 'a
   end
-

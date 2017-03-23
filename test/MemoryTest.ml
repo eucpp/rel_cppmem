@@ -69,28 +69,38 @@ let thrd_tree_tests =
     )
   ]
 
-(* let loc_story_tests =
-  "loc_story">::: [
-    "test_read_acq_1">:: (fun test_ctx ->
-      let vf = ViewFront.empty in
-      let loc_story = LocStory.from_list [(0, 0, vf); (1, 0, vf)] in
-        TestUtils.assert_stream (LocStory.read_acq loc_story 0) [(0, 0, vf); (1, 0, vf)] ~eq:Cell.eq ~show:Cell.show
-    );
+let loc_story_tests =
+"loc_story">::: [
+  "test_read_acq_1" >:: (fun test_ctx ->
+    let vf = ViewFront.from_list [("x", 0)] in
+    let loc_story = LocStory.create 2 [(0, 0, vf); (1, 1, vf)] in
+    let stream = run qrs (fun q  r  s  -> LocStory.read_acqo (LocStory.inj loc_story) (inj_nat 0) q r s)
+                         (fun qs rs ss -> Utils.zip3 (prj_stream qs) (prj_stream rs) (prj_stream ss))
+    in
+    assert_stream [(Nat.of_int 0, Nat.of_int 0, vf); (Nat.of_int 1, Nat.of_int 1, vf)] stream
+  );
 
-    "test_read_acq_2">:: (fun test_ctx ->
-      let vf = ViewFront.empty in
-      let loc_story = LocStory.from_list [(0, 0, vf); (1, 0, vf)] in
-        TestUtils.assert_stream (LocStory.read_acq loc_story 1) [(1, 0, vf)] ~eq:Cell.eq ~show:Cell.show
-    );
+  "test_read_acq_1" >:: (fun test_ctx ->
+    let vf = ViewFront.from_list [("x", 0)] in
+    let loc_story = LocStory.create 2 [(0, 0, vf); (1, 1, vf)] in
+    let stream = run qrs (fun q  r  s  -> LocStory.read_acqo (LocStory.inj loc_story) (inj_nat 1) q r s)
+                         (fun qs rs ss -> Utils.zip3 (prj_stream qs) (prj_stream rs) (prj_stream ss))
+    in
+    assert_stream [(Nat.of_int 1, Nat.of_int 1, vf)] stream
+  );
 
-    "test_write_rel">:: (fun test_ctx ->
-      let vf = ViewFront.empty in
-      let expected = LocStory.from_list [(0, 0, vf)] in
-        assert_equal (LocStory.write_rel 0 vf LocStory.empty) expected ~cmp:LocStory.eq ~printer:LocStory.show
-    )
-  ]
+  "test_write_rel" >:: (fun test_ctx ->
+    let vf = ViewFront.from_list [("x", 0)] in
+    let story = LocStory.create 0 [] in
+    let expected = LocStory.create 1 [(0, 0, vf)] in
+    let stream = run q (fun q -> LocStory.write_relo (LocStory.inj story) q (inj_nat 0) (ViewFront.inj vf))
+                       prj_stream
+    in
+    assert_single_answer expected stream
+  )
+]
 
-
+(*
 
 let mem_state_tests =
 
@@ -134,6 +144,7 @@ let mem_state_tests =
 let tests =
   "memory">::: [
                 thrd_tree_tests;
+                loc_story_tests;
                 (* loc_story_tests;
                 mem_state_tests *)
   ]

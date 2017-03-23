@@ -21,6 +21,8 @@ module ViewFront =
     let inj = List.inj (fun (var, value) -> inj_pair (!!var) (inj_nat @@ Nat.to_int value))
 
     let allocate atomics = List.of_list @@ List.map (fun s -> (s, Nat.of_int 0)) atomics
+
+    let from_list lst = List.of_list @@ List.map (fun (s, v) -> (s, Nat.of_int v)) lst
   end
 
 module ThreadState =
@@ -194,203 +196,72 @@ module Threads =
         ])
   end
 
-(*
-module ThreadTree =
-  struct
-    @type ('a, 't) at = Leaf of 'a | Node of 't * 't with gmap
-
-    type t   = (ThreadState.t, t) at
-    type lt' = (ThreadState.lt, lt' logic) at
-    type lt  = lt' logic
-
-    let empty = Leaf ThreadState.empty
-
-    let preallocate vars atomics = Leaf (ThreadState.preallocate vars atomics)
-
-    let rec inj t  = !! (gmap(at) (ThreadState.inj) (inj) t)
-    let rec prj lt = gmap(at) (ThreadState.prj) (prj) (!?lt)
-
-    let rec thrd_list' thrds = function
-    | Leaf thrd          -> thrd::thrds
-    | Node (left, right) ->
-      let thrds' = thrd_list' thrds left in
-        thrd_list' thrds' right
-
-    let thrd_list thrd_tree = List.rev @@ thrd_list' [] thrd_tree
-
-    let show thrd_tree =
-      let thrds = thrd_list thrd_tree in
-      let sep = "-------------------------------------------------------------" in
-      let cnt = ref 0 in
-      let show_thrd acc thrd =
-        cnt := !cnt + 1;
-        acc ^ "Thread #" ^ (string_of_int !cnt) ^ ":\n" ^ (ThreadState.show thrd) ^ sep ^ "\n"
-      in
-        List.fold_left show_thrd "" thrds
-
-    let rec eq thrd_tree thrd_tree' = match (thrd_tree, thrd_tree') with
-      | Leaf thrd, Leaf thrd'      -> ThreadState.eq thrd thrd'
-      | Node (l, r), Node (l', r') -> (eq l l') && (eq r r')
-      | _, _ -> false
-
-    let (!) = (!!)
-
-    let rec get_thrdo path thrd_tree thrd = conde [
-      (path === !Path.N) &&& (thrd_tree === !(Leaf thrd));
-      fresh (l r path')
-        (thrd_tree === !(Node (l, r)))
-        (conde [
-          (path === !(Path.L path')) &&& (get_thrdo path' l thrd);
-          (path === !(Path.R path')) &&& (get_thrdo path' r thrd);
-        ])
-    ]
-
-    let rec update_thrdo path thrd thrd_tree thrd_tree' = conde [
-      fresh (thrd')
-        ((path === !Path.N) &&& (thrd_tree === !(Leaf thrd')) &&& (thrd_tree' === !(Leaf thrd)));
-      fresh (l r l' r' path')
-        (thrd_tree === !(Node (l, r)))
-        (conde [
-          (path === !(Path.L path')) &&& (thrd_tree' === !(Node (l', r))) &&& (update_thrdo path' thrd l l');
-          (path === !(Path.R path')) &&& (thrd_tree' === !(Node (l, r'))) &&& (update_thrdo path' thrd r r');
-        ]);
-    ]
-
-    let rec spawn_thrdo path thrd_tree thrd_tree' = conde [
-      fresh (thrd thrd' thrd'')
-        (path === !Path.N)
-        (thrd_tree === !(Leaf thrd))
-        (ThreadState.spawno thrd thrd' thrd'')
-        (thrd_tree' === !(Node (!(Leaf thrd'), !(Leaf thrd''))));
-      fresh (l r l' r' path')
-        (thrd_tree === !(Node (l, r)))
-        (conde [
-           (path === !(Path.L path')) &&& (thrd_tree' === !(Node (l', r ))) &&& (spawn_thrdo path' l l');
-           (path === !(Path.R path')) &&& (thrd_tree' === !(Node (l , r'))) &&& (spawn_thrdo path' r r');
-        ]);
-    ]
-
-    let rec join_thrdo path thrd_tree thrd_tree' = conde [
-      fresh (l r joined)
-        (path === !Path.N)
-        (thrd_tree === !(Node (!(Leaf l), !(Leaf r))))
-        (ThreadState.joino l r joined)
-        (thrd_tree' === !(Leaf joined));
-      fresh (l r l' r' path')
-        (thrd_tree === !(Node (l, r)))
-        (conde [
-          (path === !(Path.L path') &&& (thrd_tree' === !(Node (l', r ))) &&& (join_thrdo path' l l'));
-          (path === !(Path.R path') &&& (thrd_tree' === !(Node (l , r'))) &&& (join_thrdo path' r r'));
-        ])
-    ]
-
-    let get_thrd path thrd_tree = run q (fun q  -> get_thrdo (Path.inj path) (inj thrd_tree) q)
-                                        (fun qs -> ThreadState.prj @@ Utils.excl_answ qs)
-
-    let update_thrd path thrd thrd_tree = run q (fun q  -> update_thrdo (Path.inj path) (ThreadState.inj thrd) (inj thrd_tree) q)
-                                                (fun qs -> prj @@ Utils.excl_answ qs)
-
-    let spawn_thrd path thrd_tree = run q  (fun q  -> spawn_thrdo (Path.inj path) (inj thrd_tree) q)
-                                           (fun qs -> prj @@ Utils.excl_answ qs)
-
-    let join_thrd path thrd_tree = run q (fun q  -> join_thrdo (Path.inj path) (inj thrd_tree) q)
-                                         (fun qs -> prj @@ Utils.excl_answ qs)
-  end
-
-
-module Cell =
-  struct
-    type t   = (tstmp * int * ViewFront.t)
-    type lt' = (Nat.logic * Nat.logic * ViewFront.lt)
-
-    type lt = lt' logic
-
-    let inj (ts, v, vf) = !! (inj_nat ts, inj_nat v, ViewFront.inj vf)
-    let prj lt = !?lt |> fun (lts, lv, lvf) -> (prj_nat lts, prj_nat lv, ViewFront.prj lvf)
-
-    let show (ts, v, vf) = "(" ^ (string_of_tstmp ts) ^ ", " ^ (string_of_int v) ^ ", " ^ ViewFront.show vf ^ ")"
-
-    let eq (ts, v, vf) (ts', v', vf') = (ts = ts') && (v = v') && (ViewFront.eq vf vf')
-  end
-
 module LocStory =
   struct
-    type t = {
-      tsnext : tstmp;
-      story  : (tstmp * int * ViewFront.t) list;
-    }
+    module Cell = struct
+      type tt = (Nat.ground * Nat.ground * ViewFront.tt)
+      type tl = (Nat.logic  * Nat.logic  * ViewFront.tl) logic
+      type ti = (tt, tl) injected
 
-    type lt' = {
-      ltsnext : Nat.logic;
-      lstory  : (Nat.logic * Nat.logic * ViewFront.lt) logic MiniKanren.List.logic;
-    }
+      let inj (ts, value, vf) =
+        inj_triple (inj_nat @@ Nat.to_int ts) (inj_nat @@ Nat.to_int value) (ViewFront.inj vf)
+    end
 
-    type lt = lt' logic
-
-    let empty = { tsnext = 0; story = []; }
-
-    let from_list x =
-      let maxts = List.fold_left (fun a (b, _, _) -> max a b) (-1) x in
-        { tsnext = maxts + 1; story = x; }
-
-    let (!) = (!!)
-
-    let inj t = !! {
-      ltsnext = inj_nat t.tsnext;
-      lstory  = MiniKanren.List.inj Cell.inj @@ MiniKanren.List.of_list t.story;
-    }
-
-    let prj_msg (lts, lv, lvf) = (prj_nat lts, prj_nat lv, ViewFront.prj lvf)
-
-    let prj lt =
-      let lt' = !? lt in {
-        tsnext = prj_nat lt'.ltsnext;
-        story  = MiniKanren.List.to_list @@ MiniKanren.List.prj (fun lmsg -> prj_msg !?lmsg) lt'.lstory;
+    module T = struct
+      type ('a, 'b) t = {
+        tsnext : 'a;
+        story  : 'b;
       }
 
-    let show t =
-      let content = List.fold_left (fun a cell -> a ^ (Cell.show cell)) "" t.story in
-        "{" ^ content ^ "}"
+      let fmap fa fb {tsnext = a; story = b} = {tsnext = fa a; story = fb b}
+    end
 
-    let eq t t' =
-      let
-        check_exists cell = List.exists (Cell.eq cell) t'.story
-      in
-        List.for_all check_exists t.story
+    type tt = (Nat.ground, Cell.tt List.ground) T.t
+    type tl_inner = (Nat.logic, Cell.tl List.logic) T.t
+    type tl = tl_inner MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
 
-    let splito t tsnext story =
-      (t === !{ ltsnext = tsnext; lstory = story; })
+    module Fmap = Fmap2(T)
 
-    let next_tstmpo t ts =
+    let loc_story tsnext story = inj @@ Fmap.distrib @@ {T.tsnext = tsnext; T.story = story}
+
+    let inj {T.tsnext = tsnext; T.story = story} = loc_story (inj_nat @@ Nat.to_int tsnext) (List.inj (Cell.inj) story)
+
+    let create tsnext story = {
+      T.tsnext = Nat.of_int tsnext;
+      T.story  = List.of_list @@ List.map (fun (ts, v, vf) -> (Nat.of_int ts, Nat.of_int v, vf)) story;
+    }
+
+    let preallocate atomics =
+      let vf = ViewFront.allocate atomics in
+      create 1 [(0, 0, vf)]
+
+    let next_tso t ts =
       fresh (story)
-        (splito t ts story)
+        (t === loc_story ts story)
 
-    let visible_msgo ts msg b =
-      fresh (ts' v vf)
-        (msg === !(ts', v, vf))
+    let visibleo ts msg b =
+      fresh (ts' value vf)
+        (msg === inj_triple ts' value vf)
         (Nat.leo ts ts' b)
 
-    let read_acqo t ts ts' v vf =
-      fresh (story story' msg tsnext)
-        (splito t tsnext story)
-        (MiniKanren.List.filtero (visible_msgo ts) story story')
-        (MiniKanren.List.membero story' msg)
-        (msg === !(ts', v, vf))
+    let read_acqo t last_ts ts value vf =
+      fresh (story tsnext visible msg)
+        (t === loc_story tsnext story)
+        (MiniKanren.List.filtero (visibleo last_ts) story visible)
+        (MiniKanren.List.membero visible msg)
+        (msg === inj_triple ts value vf)
 
-    let write_relo v vf t t' =
+    let write_relo t t' value vf =
       fresh (ts ts' story story')
-        (splito t ts story)
-        (ts' === !(S ts))
-        (story' === !(ts, v, vf) % story)
-        (splito t' ts' story')
+        (t  === loc_story ts  story )
+        (t' === loc_story ts' story')
+        (ts' === Nat.s ts)
+        (story' === (inj_triple ts value vf) % story)
 
-    let read_acq t ts = run qrs (fun q  r  s  -> read_acqo (inj t) (inj_nat ts) q r s)
-                                (fun qs rs ss -> Utils.zip3 (Stream.map prj_nat qs) (Stream.map prj_nat rs) (Stream.map ViewFront.prj ss))
-
-    let write_rel v vf t = run q (fun q  -> write_relo (inj_nat v) (ViewFront.inj vf) (inj t) q)
-                                 (fun qs -> prj @@ Utils.excl_answ qs)
   end
 
+(*
 module MemStory =
   struct
     type t   = (loc * LocStory.t) list

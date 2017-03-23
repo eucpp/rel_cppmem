@@ -10,6 +10,10 @@ module ViewFront :
     type tt = (string, MiniKanren.Nat.ground) VarList.tt
     type tl = (string MiniKanren.logic, MiniKanren.Nat.logic) VarList.tl
     type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
+
+    val inj : tt -> ti
+
+    val from_list : (string * int) list -> tt
   end
 
 module ThreadState :
@@ -80,32 +84,34 @@ module Cell :
     val show : t -> string
     val eq : t -> t -> bool
   end
+*)
 
 module LocStory :
   sig
-    type t
-    type lt'
-    type lt = lt' logic
+    type tt
 
-    val empty : t
+    type tl_inner
 
-    val from_list : Cell.t list -> t
+    type tl = tl_inner MiniKanren.logic
 
-    val inj : t -> lt
-    val prj : lt -> t
+    type ti = (tt, tl) MiniKanren.injected
 
-    val show : t -> string
-    val eq : t -> t -> bool
+    val inj : tt -> ti
 
-    val next_tstmpo : lt -> Nat.logic -> goal
+    val create : int -> (int * int * ViewFront.tt) list -> tt
 
-    val read_acqo  : lt -> Nat.logic -> Nat.logic -> Nat.logic -> ViewFront.lt -> goal
-    val write_relo : Nat.logic -> ViewFront.lt -> lt -> lt -> goal
+    val preallocate : string list -> tt
 
-    val read_acq  : t -> tstmp -> Cell.t Stream.t
-    val write_rel : int -> ViewFront.t -> t -> t
+    val next_tso : ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+
+    val read_acqo  : ti -> MiniKanren.Nat.groundi
+                        -> MiniKanren.Nat.groundi -> MiniKanren.Nat.groundi -> ViewFront.ti
+                        -> MiniKanren.goal
+
+    val write_relo : ti -> ti -> MiniKanren.Nat.groundi -> ViewFront.ti -> MiniKanren.goal
   end
 
+(*
 module MemStory :
   sig
     type t
