@@ -403,7 +403,7 @@ module MemState =
         (Threads.geto tree path thrd)
         (Threads.seto tree tree' path thrd')
         (MemStory.next_tso story loc ts)
-        (ThreadState.set_tso thrd  thrd' loc ts)
+        (ThreadState.set_tso thrd thrd' loc ts)
         (ThreadState.curro thrd' vf)
         (MemStory.write_relo story story' loc value vf)
 

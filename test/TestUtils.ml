@@ -1,6 +1,8 @@
 open OUnit2
 open MiniKanren
-(* open Memory *)
+open Lang
+open Memory
+open Semantics
 
 let prj_stream stream = Stream.map (fun r -> r#prj) stream
 
@@ -49,29 +51,28 @@ let assert_stream ?(empty_check = true)
    then
       assert_bool "More answers than expected" (Stream.is_empty stream')
 
-(* module Sem = Semantics.Make(Lang.Term)(Lang.Context)(MemState)
+(* module Sem = Semantics.Make(Lang.Term)(Lang.Context)(MemState) *)
 
 let test_prog sem prog expected test_ctx =
   let show s  = "Outcome is not found among answers: " ^ s in
   let lexbuf  = Lexing.from_string prog in
   let term    = Parser.main Lexer.token lexbuf in
-  let rs, vs  = Lang.Term.preallocate term in
+  let rs, vs  = preallocate term in
   let state   = MemState.preallocate rs vs in
   let stream  =
-   run qrs (fun q  r  s  ->
+   run qr (fun q r ->
               (* fresh (s') *)
-                (Sem.spaceo sem (Lang.Term.inj term) (MemState.inj state) q r nil))
+                spaceo sem (inj_term term) (MemState.inj state) q r)
                 (* (List.appendo s' nil s)) *)
-           (fun qs rs ss -> Utils.zip3
-             (Stream.map Lang.Term.prj qs)
-             (Stream.map MemState.prj rs)
-             ss) in
-  let stream' = Stream.map (fun (t, s, epath) -> Lang.Term.show t) stream in
+           (fun qs rs -> Stream.zip
+             (prj_stream qs)
+             (prj_stream rs))
+  in
+  let stream' = Stream.map (fun (t, s) -> Term.pprint t) stream in
   let cnt     = ref 0 in
-    Printf.printf "%s\n" @@ MemState.show state;
-    Stream.iter (
-        fun (t, s, epath) -> cnt := !cnt + 1;
-        Printf.printf "\n%d" !cnt
-        (* Printf.printf "\n%d: %s\n" !cnt (String.concat " -> " epath) *)
-      ) stream;
-    assert_stream ~empty_check:false stream' expected ~show:show ~eq:(=) *)
+  Stream.iter (
+      fun (t, s) -> cnt := !cnt + 1;
+      Printf.printf "\n%d: %s" !cnt (Term.pprint t)
+      (* Printf.printf "\n%d: %s\n" !cnt (String.concat " -> " epath) *)
+    ) stream;
+  assert_stream ~empty_check:false expected stream' ~printer:show ~cmp:(=)

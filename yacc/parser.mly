@@ -1,6 +1,6 @@
 %token <string> VAR
 %token <string> LOC
-%token <int> INT
+%token <MiniKanren.Nat.ground> INT
 %token <Lang.mem_order> MO
 %token PLUS MINUS TIMES
 %token RET
@@ -17,7 +17,7 @@
 %right SEMICOLON
 
 %start main
-%type <Lang.Term.t> main
+%type <Lang.Term.tt> main
 
 %%
 
