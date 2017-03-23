@@ -7,12 +7,12 @@ module Basic :
     type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
     val var    : string * rule
-    (* val binop  : string * rule
+    val binop  : string * rule
     val asgn   : string * rule
     val if'    : string * rule
     val repeat : string * rule
     val spawn  : string * rule
-    val join   : string * rule *)
+    val join   : string * rule
 
     val all : (string * rule) list
   end

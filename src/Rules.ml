@@ -10,6 +10,8 @@ module Basic =
 
     type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
+    let (!) = (!!)
+
     let varo c t s c' t' s' =
       fresh (n x path thrd)
         (c  === c')
@@ -21,12 +23,12 @@ module Basic =
 
     let var = ("var", varo)
 
-    (* let binopo c t s c' t' s' =
+    let binopo c t s c' t' s' =
       fresh (op x y z)
         (c  === c')
         (s  === s')
-        (t  === !(Binop (op, !(Const x), !(Const y))))
-        (t' === !(Const z))
+        (t  === binop op (const x) (const y))
+        (t' === const z)
         (conde [
           (op === !"+") &&& (Nat.addo x y z);
           (op === !"*") &&& (Nat.mulo x y z);
@@ -35,21 +37,22 @@ module Basic =
     let binop = ("binop", binopo)
 
     let asgno c t s c' t' s' =
+      let var = Lang.var in
       fresh (l r n path e)
         (c  === c')
-        (t  === !(Asgn (l, r)))
-        (t' === !Skip)
+        (t  === asgn l r)
+        (t' === skip)
         (patho c path)
         (conde [
           fresh (x n)
-            (l === !(Var   x))
-            (r === !(Const n))
-            (MemState.assign_localo path x n s s');
+            (l === var x)
+            (r === const n)
+            (MemState.set_localo s s' path x n);
           fresh (x1 x2 n1 n2 s'')
-            (l === !(Pair (!(Var   x1), !(Var   x2))))
-            (r === !(Pair (!(Const n1), !(Const n2))))
-            (MemState.assign_localo path x1 n1 s   s'')
-            (MemState.assign_localo path x2 n2 s'' s' );
+            (l === pair (var   x1) (var   x2))
+            (r === pair (const n1) (const n2))
+            (MemState.set_localo s   s'' path x1 n1)
+            (MemState.set_localo s'' s'  path x2 n2);
         ])
 
     let asgn = ("assign", asgno)
@@ -58,7 +61,7 @@ module Basic =
       fresh (e n btrue bfalse)
         (c === c')
         (s === s')
-        (t === !(If (!(Const n), btrue, bfalse)))
+        (t === if' (const n) btrue bfalse)
         (conde [
           (n =/= (inj_nat 0)) &&& (t' === btrue);
           (n === (inj_nat 0)) &&& (t' === bfalse);
@@ -67,38 +70,38 @@ module Basic =
     let if' = ("if", ifo)
 
     let repeato c t s c' t' s' =
+      let if' = Lang.if' in
       fresh (body)
         (c  === c')
         (s  === s')
-        (t  === !(Repeat body))
-        (t' === !(If (body, t, !Skip)))
+        (t  === repeat body)
+        (t' === if' body t skip)
 
-    let repeat = ("repeat", repeato) *)
+    let repeat = ("repeat", repeato)
 
-   (* let spawno c t s c' t' s' =
+   let spawno c t s c' t' s' =
      fresh (l r path)
        (c  === c')
-       (t  === !(Spw (l, r)))
+       (t  === spw l r)
+       (t' === par l r)
        (patho c path)
-       (t' === !(Par (l, r)))
-       (MemState.spawn_thrdo path s s')
+       (MemState.spawno s s' path)
 
    let spawn = ("spawn", spawno)
 
    let joino c t s c' t' s' =
      fresh (t1 t2 n1 n2 path)
        (c === c')
-       (t1 === !(Const n1))
-       (t2 === !(Const n2))
-       (t  === !(Par  (t1, t2)))
-       (t' === !(Pair (!(Const n1), !(Const n2))))
+       (t1 === const n1)
+       (t2 === const n2)
+       (t  === par t1 t2)
+       (t' === pair (const n1) (const n2))
        (patho c path)
-       (MemState.join_thrdo path s s')
+       (MemState.joino s s' path)
 
-   let join = ("join", joino) *)
+   let join = ("join", joino)
 
-   (* let all = [var; binop; asgn; if'; repeat; spawn; join] *)
-   let all = [var]
+   let all = [var; binop; asgn; if'; repeat; spawn; join]
 
   end
 
