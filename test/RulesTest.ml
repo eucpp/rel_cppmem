@@ -74,18 +74,22 @@ let basic_tests =
       let node = Threads.Tree.Node (thrd, leaf, leaf) in
       let mem' = S.create node (MemStory.preallocate ["x"; "y"]) in
       test_step [Basic.join] (T.Par (const 1, const 2), mem') [(T.Pair (const 1, const 2), mem)]
-    )
+    );
+
+    "spawn_assign">:: (
+      let thrd = ThreadState.create [("r1", 42); ("r2", 1)] [("x", 0); ("y", 0)] in
+      let node = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
+      let mem' = S.create node (MemStory.preallocate ["x"; "y"]) in
+      let pair = T.Pair (T.Var "r1", T.Var "r2") in
+      let stmt = T.Asgn (pair,T.Spw (const 42, const 1)) in
+      test_space Basic.all (stmt, mem) [(T.Skip, mem')]
+    );
 
     (*
-    "spawn_assign">:: (let pair = T.Pair (T.Var "x", T.Var "y") in
-                       let stmt = T.Asgn (pair,T.Spw (
-                           T.Const 42,
-                           T.Const 1
-                         )) in
-                         Tester.test_space Basic.all (stmt, S.empty) [(T.Skip, mem')]);
-
-    "seq_asgn">:: (let stmt = T.Seq ((T.Asgn (T.Var "x", T.Const 42), T.Var "x")) in
-                     Tester.test_space Basic.all (stmt, S.empty) [(T.Const 42, mem)]);
+    "seq_asgn">:: (
+      let stmt = T.Seq ((T.Asgn (T.Var "x", T.Const 42), T.Var "x")) in
+      Tester.test_space Basic.all (stmt, S.empty) [(T.Const 42, mem)]
+    );
 
     "space_all">:: (let pair = T.Pair (T.Var "x", T.Var "y") in
                     let stmt = T.Spw (
@@ -96,30 +100,33 @@ let basic_tests =
 
   ]
 
-(* let rel_acq_tests =
+let rel_acq_tests =
 
-  let vf         = ViewFront.from_assoc [("x", 0)] in
-  let vf'        = ViewFront.from_assoc [("x", 1)] in
-  let thrd       = { ThreadState.regs = Registers.empty; ThreadState.curr = vf; } in
-  let thrd'      = { ThreadState.regs = Registers.empty; ThreadState.curr = vf'; } in
-  let thrd_tree  = ThreadTree.Leaf thrd in
-  let thrd_tree' = ThreadTree.Leaf thrd' in
+  let vf         = ViewFront.from_list [("x", 0)] in
+  let vf'        = ViewFront.from_list [("x", 1)] in
+  let thrd       = ThreadState.create [] [("x", 0)] in
+  let thrd'      = ThreadState.create [] [("x", 1)] in
+  let tree       = Threads.Tree.Node (thrd,  Threads.Tree.Nil, Threads.Tree.Nil) in
+  let tree'      = Threads.Tree.Node (thrd', Threads.Tree.Nil, Threads.Tree.Nil) in
 
   "rel_acq">::: [
-    "read_acq">::
-      (let mem_story = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
-       let state     = { S.thrds = thrd_tree; S.story = mem_story; S.scmem = SCMemory.empty; } in
-       let state'    = { S.thrds = thrd_tree'; S.story = mem_story; S.scmem = SCMemory.empty; } in
-         Tester.test_step ~empty_check:false [RelAcq.read_acq] (T.Read (ACQ, "x"), state) [(T.Const 0, state); (T.Const 1, state')]);
+    "read_acq">:: (
+      let loc_story = LocStory.create 2 [(0, 0, vf); (1, 1, vf')] in
+      let mem_story = MemStory.create [("x", loc_story)] in
+      let state     = S.create tree mem_story in
+      let state'    = S.create tree' mem_story in
+      test_step ~empty_check:false [RelAcq.read_acq] (T.Read (ACQ, "x"), state) [(const 0, state); (const 1, state')]
+    );
 
-    "write_rel">::
-      (let mem_story  = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf)])] in
-       let mem_story' = MemStory.from_assoc [("x", LocStory.from_list [(0, 0, vf); (1, 1, vf')])] in
-       let state      = { S.thrds = thrd_tree; S.story = mem_story; S.scmem = SCMemory.empty; } in
-       let state'     = { S.thrds = thrd_tree'; S.story = mem_story'; S.scmem = SCMemory.empty; } in
-         Tester.test_step [RelAcq.write_rel] (T.Write (REL, "x", T.Const 1), state) [(T.Skip, state')]);
-
-  ] *)
+    "write_rel">::(
+      let loc_story  = LocStory.create 1 [(0, 0, vf)] in
+      let loc_story' = LocStory.create 2 [(1, 1, vf'); (0, 0, vf)] in
+      let mem_story  = MemStory.create [("x", loc_story )] in
+      let mem_story' = MemStory.create [("x", loc_story')] in
+      let state      = S.create tree  mem_story in
+      let state'     = S.create tree' mem_story' in
+      test_step [RelAcq.write_rel] (T.Write (REL, "x", const 1), state) [(T.Skip, state')]);
+  ]
 
 let tests =
-  "rules">::: [basic_tests]
+  "rules">::: [basic_tests; rel_acq_tests]

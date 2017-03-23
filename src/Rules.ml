@@ -1,6 +1,7 @@
 open MiniKanren
 open Memory
 open Lang
+open MemOrder
 
 module Basic =
   struct
@@ -105,38 +106,33 @@ module Basic =
 
   end
 
-(* module RelAcq =
+module RelAcq =
   struct
-    type t  = Lang.Term.t
-    type lt = Lang.Term.lt
+    type ti = Lang.Term.ti
+    type ci = Lang.Context.ti
+    type si = Memory.MemState.ti
 
-    type c  = Lang.Context.c
-    type lc = Lang.Context.lc
-
-    type s  = Memory.MemState.t
-    type ls = Memory.MemState.lt
-
-    type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
+    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
     let (!) = (!!)
 
     let read_acqo c t s c' t' s' =
       fresh (l path n)
         (c  === c')
-        (t  === !(Read (!ACQ, l)))
-        (t' === !(Const n))
+        (t  === read !ACQ l)
+        (t' === const n)
         (patho c path)
-        (MemState.read_acqo path l n s s')
+        (MemState.read_acqo s s' path l n)
 
     let read_acq = ("read_acq", read_acqo)
 
     let write_relo c t s c' t' s' =
       fresh (l n path)
         (c  === c')
-        (t  === !(Write (!REL, l, !(Const n))))
-        (t' === !Skip)
+        (t  === write !REL l (const n))
+        (t' === skip)
         (patho c path)
-        (MemState.write_relo path l n s s')
+        (MemState.write_relo s s' path l n)
 
     let write_rel = ("write_rel", write_relo)
 
@@ -144,6 +140,7 @@ module Basic =
 
   end
 
+(*
 module SeqCons =
   struct
     type t  = Lang.Term.t
