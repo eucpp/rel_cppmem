@@ -10,7 +10,8 @@ let tests =
                     RelAcqTest.tests;
                     SCTest.tests;] *)
   "rel_cppmem">::: [LangTest.tests;
-                    VarListTest.tests;]
+                    VarListTest.tests;
+                    MemoryTest.tests]
 
 let () =
   run_test_tt_main tests

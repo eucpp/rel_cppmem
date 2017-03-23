@@ -24,7 +24,9 @@ module ThreadState :
 
     val inj : tt -> ti
 
-    val create : string list -> string list -> tt
+    val create : (string * int) list -> (string * int) list -> tt
+
+    val preallocate : string list -> string list -> tt
 
     val get_varo : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
     val set_varo : ti -> ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal

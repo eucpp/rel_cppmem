@@ -6,6 +6,10 @@ module Registers =
     type tt = (string, MiniKanren.Nat.ground) VarList.tt
     type tl = (string MiniKanren.logic, MiniKanren.Nat.logic) VarList.tl
     type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
+
+    let inj = List.inj (fun (var, value) -> inj_pair (!!var) (inj_nat @@ Nat.to_int value))
+
+    let allocate vars = List.of_list @@ List.map (fun s -> (s, Nat.of_int 0)) vars
   end
 
 module ViewFront =
@@ -13,6 +17,10 @@ module ViewFront =
     type tt = (string, MiniKanren.Nat.ground) VarList.tt
     type tl = (string MiniKanren.logic, MiniKanren.Nat.logic) VarList.tl
     type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
+
+    let inj = List.inj (fun (var, value) -> inj_pair (!!var) (inj_nat @@ Nat.to_int value))
+
+    let allocate atomics = List.of_list @@ List.map (fun s -> (s, Nat.of_int 0)) atomics
   end
 
 module ThreadState =
@@ -38,16 +46,19 @@ module ThreadState =
 
     let thrd_state regs curr = inj @@ Fmap.distrib @@ {T.regs = regs; T.curr = curr}
 
-    let inj {T.regs = regs; T.curr = curr} =
-      let regs' = prj_ground () regs in
-      let curr' = prj_ground () curr in
-      thrd_state regs' curr
+    let inj {T.regs = regs; T.curr = curr} = thrd_state (Registers.inj regs) (ViewFront.inj curr)
 
-    let create vars atomics =
-      let inj_string_list = List.map (fun s -> !!s) in
-      let rs = VarList.allocate (inj_string_list vars) (inj_nat 0) in
-      let vf = VarList.allocate (inj_string_list atomics) (inj_nat 0) in
-      thrd_state rs vf
+    let convert = List.map (fun (var, value) -> (var, Nat.of_int value))
+
+    let create vars vf = {
+      T.regs = List.of_list (convert vars);
+      T.curr = List.of_list (convert vf);
+    }
+
+    let preallocate vars atomics = {
+      T.regs = Registers.allocate vars;
+      T.curr = ViewFront.allocate atomics;
+    }
 
     let get_varo thrd var value =
       fresh (regs curr)
@@ -111,7 +122,9 @@ module Threads =
     let node a l r = inj @@ Fmap.distrib @@ Node (a, l, r)
     let leaf a     = inj @@ Fmap.distrib @@ Node (a, nil, nil)
 
-    let rec inj tree = inj @@ Fmap.distrib (Tree.fmap () (inj) tree)
+    let inj' = inj
+
+    let rec inj tree = inj' @@ Fmap.distrib (Tree.fmap (ThreadState.inj) (inj) tree)
 
     let rec geto tree path thrd =
       fresh (thrd' l r path')
@@ -124,15 +137,18 @@ module Threads =
           ])
         ])
 
-    let rec seto tree tree' path thrd' =
-      fresh (thrd path' l l' r r')
+    let rec seto tree tree' path thrd_new =
+      fresh (thrd thrd' path' l l' r r')
         (tree  === node thrd  l  r )
         (tree' === node thrd' l' r')
         (conde [
-          (path === Lang.pathn) &&& (l === l') &&& (r === r');
+          (path === Lang.pathn) &&& (thrd' === thrd_new) &&&
+          (l === l') &&& (r === r');
+
+          (thrd' === thrd) &&&
           (conde [
-            (path === Lang.pathl path') &&& (r === r') &&& (seto l l' path' thrd');
-            (path === Lang.pathr path') &&& (l === l') &&& (seto r r' path' thrd');
+            (path === Lang.pathl path') &&& (r === r') &&& (seto l l' path' thrd_new);
+            (path === Lang.pathr path') &&& (l === l') &&& (seto r r' path' thrd_new);
           ])
         ])
 

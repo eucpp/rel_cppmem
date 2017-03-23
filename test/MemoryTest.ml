@@ -2,54 +2,74 @@ open OUnit2
 open MiniKanren
 open Memory
 open Lang
+open TestUtils
 
-(* let regs      = Registers.set "x" 0 Registers.empty in
-let thrd      = { ThreadState.regs = regs; ThreadState.curr = ViewFront.empty } in
-let thrd_tree = ThreadTree.Node (ThreadTree.Leaf thrd, ThreadTree.empty) in *)
-
+module TS = ThreadState
+module TT = Threads.Tree
 
 let thrd_tree_tests =
+  let vars       = ["r1"] in
+  let atomics    = [] in
+  let empty      = ThreadState.preallocate [] [] in
+  let thrd       = ThreadState.preallocate vars atomics in
+  let empty_node = TT.Node (empty, TT.Nil, TT.Nil) in
+  let thrd_node  = TT.Node (thrd, TT.Nil, TT.Nil) in
+  let tree1      = TT.Node (empty, thrd_node, empty_node) in
+  let tree2      = TT.Node (empty, empty_node, thrd_node) in
+  let tree3      = TT.Node (empty, thrd_node, thrd_node) in
+
   "thrd_tree">::: [
     "test_get_1">:: (fun test_ctx ->
-      let expected = thrd in
-      let actual = ThreadTree.get_thrd (Path.L Path.N) thrd_tree in
-        assert_equal expected actual ~cmp:ThreadState.eq ~printer:ThreadState.show
+      let stream   = run q (fun q -> Threads.geto (Threads.inj tree1) (pathl pathn) q)
+                            prj_stream
+      in
+      assert_single_answer thrd stream
     );
 
     "test_get_2">:: (fun test_ctx ->
-      let expected = ThreadState.empty in
-      let actual   = ThreadTree.get_thrd (Path.R Path.N) thrd_tree in
-        assert_equal expected actual ~cmp:ThreadState.eq ~printer:ThreadState.show
+      let stream   = run q (fun q -> Threads.geto (Threads.inj tree2) (pathr pathn) q)
+                            prj_stream
+      in
+      assert_single_answer thrd stream
     );
 
     "test_update_1">:: (fun test_ctx ->
-      let expected = thrd_tree in
-      let actual   = ThreadTree.update_thrd (Path.L Path.N) thrd (ThreadTree.Node (ThreadTree.empty, ThreadTree.empty)) in
-        assert_equal expected actual ~cmp:ThreadTree.eq ~printer:ThreadTree.show
+      let stream   = run q (fun q -> Threads.seto (Threads.inj tree1) q (pathr pathn) (TS.inj thrd))
+                            prj_stream
+      in
+      assert_single_answer tree3 stream
     );
 
     "test_update_2">:: (fun test_ctx ->
-      let expected = ThreadTree.Node (ThreadTree.Leaf thrd, ThreadTree.Leaf thrd) in
-      let actual   = ThreadTree.update_thrd (Path.R Path.N) thrd thrd_tree in
-        assert_equal expected actual ~cmp:ThreadTree.eq ~printer:ThreadTree.show
+      let stream   = run q (fun q -> Threads.seto (Threads.inj tree2) q (pathl pathn) (TS.inj thrd))
+                            prj_stream
+      in
+      assert_single_answer tree3 stream
     );
 
     "test_spawn">:: (fun test_ctx ->
-      let leaf     = ThreadTree.Leaf ThreadState.empty in
-      let expected = ThreadTree.Node (ThreadTree.Node (leaf, leaf), leaf) in
-      let actual   = ThreadTree.spawn_thrd (Path.L Path.N) (ThreadTree.Node (leaf, leaf)) in
-        assert_equal expected actual ~cmp:ThreadTree.eq ~printer:ThreadTree.show
+      let expected = TT.Node (empty, empty_node, empty_node) in
+      let stream   = run q (fun q -> Threads.spawno (Threads.inj empty_node) q pathn)
+                            prj_stream
+      in
+      assert_single_answer expected stream
     );
 
     "test_join">:: (fun test_ctx ->
-      let leaf     = ThreadTree.Leaf ThreadState.empty in
-      let expected = ThreadTree.Node (leaf, leaf) in
-      let actual   = ThreadTree.join_thrd (Path.R Path.N) (ThreadTree.Node (leaf, ThreadTree.Node (leaf, leaf))) in
-        assert_equal expected actual ~cmp:ThreadTree.eq ~printer:ThreadTree.show
+      let leaf a = TT.Node (a, TT.Nil, TT.Nil) in
+      let parent_thrd = TS.create [("r1", 1)] [("x", 0); ("y", 0)] in
+      let thrd1 = TS.create [("r1", 2)] [("x", 1); ("y", 0)] in
+      let thrd2 = TS.create [("r1", 5)] [("x", 0); ("y", 1)] in
+      let tree  = TT.Node (parent_thrd, leaf thrd1, leaf thrd2) in
+      let expected = leaf @@ TS.create [("r1",1)] [("x", 1); ("y", 1)] in
+      let stream   = run q (fun q -> Threads.joino (Threads.inj tree) q pathn)
+                            prj_stream
+      in
+      assert_single_answer expected stream
     )
   ]
 
-let loc_story_tests =
+(* let loc_story_tests =
   "loc_story">::: [
     "test_read_acq_1">:: (fun test_ctx ->
       let vf = ViewFront.empty in
@@ -109,12 +129,11 @@ let mem_state_tests =
         assert_equal exp_mem_state (MemState.write_rel Path.N "x" 1 mem_state) ~cmp:MemState.eq ~printer:MemState.show
     )
 
-  ]
+  ] *)
 
 let tests =
-  "memory">::: [registers_tests;
-                viewfront_tests;
-                (* thrd_state_tests; *)
+  "memory">::: [
                 thrd_tree_tests;
-                loc_story_tests;
-                mem_state_tests]
+                (* loc_story_tests;
+                mem_state_tests *)
+  ]
