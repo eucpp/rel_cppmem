@@ -84,6 +84,10 @@ module ThreadState =
         (thrd' === thrd_state regs curr')
         (VarList.seto curr curr' var ts)
 
+    let curro thrd curr =
+      fresh (regs)
+        (thrd === thrd_state regs curr)
+
     let updateo thrd thrd' vf =
       fresh (regs curr curr')
         (thrd  === thrd_state regs curr)
@@ -261,61 +265,37 @@ module LocStory =
 
   end
 
-(*
 module MemStory =
   struct
-    type t   = (loc * LocStory.t) list
-    type lt' = ((loc logic * LocStory.lt) logic, lt' logic) llist
-    type lt  = lt' logic
+    type tt = (Lang.Loc.tt, LocStory.tt) VarList.tt
+    type tl = (Lang.Loc.tl, LocStory.tl) VarList.tl
+    type ti = (Lang.Loc.tt, LocStory.tt, Lang.Loc.tl, LocStory.tl) VarList.ti
 
-    let empty = []
+    let inj = List.inj (fun (loc, story) -> inj_pair (!!loc) (LocStory.inj story))
 
-    let preallocate atomics = List.map (fun a -> (a, LocStory.empty)) atomics
+    let create = List.of_list
 
-    let from_assoc assoc = assoc
+    let preallocate atomics = List.of_list @@ List.map (fun loc -> (loc, LocStory.preallocate atomics)) atomics
 
-    let (!) = (!!)
-
-    let inj t  = MiniKanren.List.inj (fun (l, story) -> !(!l, LocStory.inj story)) @@ MiniKanren.List.of_list t
-
-    let prj lt = MiniKanren.List.to_list @@ MiniKanren.List.prj (Utils.prj_pair (!?) LocStory.prj) lt
-
-    let show t = List.fold_left (fun a (l, story) -> l ^ ": " ^ (LocStory.show story) ^ "\n") "" t
-
-    let eq t t' =
-      let
-        check_exists (l, story) = List.exists (fun (l', story') -> (l = l') && (LocStory.eq story story')) t'
-      in
-        List.for_all check_exists t
-
-    let next_tstmpo t l ts =
+    let next_tso t loc ts =
       fresh (story)
-        (Utils.assoc_defaulto l t (LocStory.inj LocStory.empty) story)
-        (LocStory.next_tstmpo story ts)
+        (VarList.geto t loc story)
+        (LocStory.next_tso story ts)
 
-    let read_acqo t l ts ts' v vf =
+    let read_acqo t loc last_ts ts value vf =
       fresh (story)
-        (Utils.assoco l t story)
-        (LocStory.read_acqo story ts ts' v vf)
+        (VarList.geto t loc story)
+        (LocStory.read_acqo story last_ts ts value vf)
 
-    let update_k v vf l opt_story story' =
-      fresh (story)
-        (conde [
-          (opt_story === !(Some story));
-          (opt_story === !None) &&& (story === LocStory.inj LocStory.empty);
-        ])
-        (LocStory.write_relo v vf story story')
-
-    let write_relo l v vf t t' = Utils.update_assoco_k l (update_k v vf) t t'
-
-    let read_acq t l ts = run qrs (fun q  r  s  -> read_acqo (inj t) (!l) (inj_nat ts) q r s)
-                                  (fun qs rs ss -> Utils.zip3 (Stream.map prj_nat qs) (Stream.map prj_nat rs) (Stream.map ViewFront.prj ss))
-
-    let write_rel l v vf t = run q (fun q  -> write_relo (!l) (inj_nat v) (ViewFront.inj vf) (inj t) q)
-                                   (fun qs -> prj @@ Utils.excl_answ qs)
+    let write_relo t t' loc value vf  =
+      fresh (story story')
+        (VarList.geto t loc story)
+        (VarList.seto t t' loc story')
+        (LocStory.write_relo story story' value vf)
 
   end
 
+(*
 module SCMemory =
   struct
     type t   = (string * int) list
@@ -346,117 +326,94 @@ module SCMemory =
                                (fun qs -> (prj @@ Utils.excl_answ qs))
   end
 
+*)
+
+
 module MemState =
   struct
-    type t = {
-      thrds : ThreadTree.t;
-      story : MemStory.t;
-      scmem : SCMemory.t
+    module T = struct
+      type ('a, 'b) t = {
+        thrds : 'a;
+        story : 'b;
+      }
+
+      let fmap fa fb {thrds = a; story = b} = {thrds = fa a; story = fb b}
+    end
+
+    type tt = (Threads.tt, MemStory.tt) T.t
+    type tl_inner = (Threads.tl, MemStory.tl) T.t
+    type tl = tl_inner logic
+    type ti = (tt, tl) MiniKanren.injected
+
+    module Fmap = Fmap2(T)
+
+    let mem_state thrds story = inj @@ Fmap.distrib @@ {T.thrds = thrds; T.story = story}
+
+    let inj {T.thrds = thrds; T.story = story} = mem_state (Threads.inj thrds) (MemStory.inj story)
+
+    let create thrds story = {
+      T.thrds = thrds;
+      T.story  = story;
     }
 
-    type lt' = {
-      lthrds : ThreadTree.lt;
-      lstory : MemStory.lt;
-      lscmem : SCMemory.lt
-    }
+    let preallocate vars atomics =
+      let thrd  = ThreadState.preallocate vars atomics in
+      let thrds = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
+      let story = MemStory.preallocate atomics in
+      create thrds story
 
-    type lt = lt' MiniKanren.logic
+    let get_thrdo t path thrd =
+      fresh (tree story)
+        (t === mem_state tree story)
+        (Threads.geto tree path thrd)
 
-    let empty = { thrds = ThreadTree.empty; story = MemStory.empty; scmem = SCMemory.empty }
+    let set_thrdo t t' path thrd =
+      fresh (tree tree' story)
+        (t  === mem_state tree  story)
+        (t' === mem_state tree' story)
+        (Threads.seto tree tree' path thrd)
 
-    let preallocate vars atomics = { thrds = ThreadTree.preallocate vars atomics;
-                                     story = MemStory.preallocate atomics;
-                                     scmem = SCMemory.preallocate atomics }
+    let get_localo t path var value =
+      fresh (thrd)
+        (get_thrdo t path thrd)
+        (ThreadState.get_varo thrd var value)
 
-    let inj t = !! { lthrds = ThreadTree.inj t.thrds; lstory = MemStory.inj t.story; lscmem = SCMemory.inj t.scmem; }
-
-    let prj lt =
-      let lt' = !?lt in
-      { thrds = ThreadTree.prj lt'.lthrds;
-        story = MemStory.prj lt'.lstory;
-        scmem = SCMemory.prj lt'.lscmem; }
-
-    let sep = "-------------------------------------------------------------"
-
-    let show t = Printf.sprintf "Threads:\n%s \n%s \nSCMem:\n%s \n%s \nMemory:\n%s \n%s" sep (ThreadTree.show t.thrds) sep (SCMemory.show t.scmem) sep (MemStory.show t.story)
-
-    let eq t t' = (ThreadTree.eq t.thrds t'.thrds) && (MemStory.eq t.story t'.story)
-
-    let (!) = (!!)
-
-    let splito t thrd_tree story scmem =
-      (t === !{ lthrds = thrd_tree; lstory = story; lscmem = scmem; })
-
-    let get_thrdo path t thrd =
-      fresh (thrd_tree h scmem)
-        (splito t thrd_tree h scmem)
-        (ThreadTree.get_thrdo path thrd_tree thrd)
-
-    let update_thrdo path thrd t t' =
-      fresh (thrd_tree thrd_tree' h scmem)
-        (splito t thrd_tree h scmem)
-        (ThreadTree.update_thrdo path thrd thrd_tree thrd_tree')
-        (splito t' thrd_tree' h scmem)
-
-    let assign_localo path x n t t' =
+    let set_localo t t' path var value =
       fresh (thrd thrd')
-        (get_thrdo path t thrd)
-        (ThreadState.assign_localo x n thrd thrd')
-        (update_thrdo path thrd' t t')
+        (get_thrdo t path thrd)
+        (set_thrdo t t' path thrd')
+        (ThreadState.set_varo thrd thrd' var value)
 
-    let read_acqo path l v t t' =
-      fresh (thrd_tree thrd_tree' story scmem thrd thrd' ts ts' vf)
-        (splito t thrd_tree story scmem)
-        (ThreadTree.get_thrdo path thrd_tree thrd)
-        (ThreadState.get_tstmpo thrd l ts)
-        (MemStory.read_acqo story l ts ts' v vf)
-        (ThreadState.join_viewfronto vf thrd thrd')
-        (ThreadTree.update_thrdo path thrd' thrd_tree thrd_tree')
-        (splito t' thrd_tree' story scmem)
+    let read_acqo t t' path loc value =
+      fresh (tree tree' story story' thrd thrd' last_ts ts vf)
+        (t  === mem_state tree  story)
+        (t' === mem_state tree' story)
+        (Threads.geto tree path thrd)
+        (Threads.seto tree tree' path thrd')
+        (ThreadState.get_tso thrd loc last_ts)
+        (MemStory.read_acqo story loc last_ts ts value vf)
+        (ThreadState.updateo thrd thrd' vf)
 
-    let write_relo path l v t t' =
-      fresh (thrd_tree thrd_tree' story story' scmem thrd thrd' ts vf)
-        (splito t thrd_tree story scmem)
-        (MemStory.next_tstmpo story l ts)
-        (ThreadTree.get_thrdo path thrd_tree thrd)
-        (ThreadState.update_tstmpo l ts thrd thrd' vf)
-        (MemStory.write_relo l v vf story story')
-        (ThreadTree.update_thrdo path thrd' thrd_tree thrd_tree')
-        (splito t' thrd_tree' story' scmem)
+    let write_relo t t' path loc value =
+      fresh (tree tree' story story' thrd thrd' ts vf)
+        (t  === mem_state tree  story)
+        (t' === mem_state tree' story')
+        (Threads.geto tree path thrd)
+        (Threads.seto tree tree' path thrd')
+        (MemStory.next_tso story loc ts)
+        (ThreadState.set_tso thrd  thrd' loc ts)
+        (ThreadState.curro thrd' vf)
+        (MemStory.write_relo story story' loc value vf)
 
-    let read_sco path l v t t' =
-      fresh (thrd_tree story scmem)
-        (splito t thrd_tree story scmem)
-        (SCMemory.geto l scmem v)
-        (t' === t)
+    let spawno t t' path =
+      fresh (tree tree' story)
+        (t  === mem_state tree  story)
+        (t' === mem_state tree' story)
+        (Threads.spawno tree tree' path)
 
-    let write_sco path l v t t' =
-      fresh (thrd_tree story scmem scmem')
-        (splito t thrd_tree story scmem)
-        (SCMemory.seto l v scmem scmem')
-        (splito t' thrd_tree story scmem')
-
-    let spawn_thrdo path t t' =
-      fresh (thrd_tree thrd_tree' h scmem)
-        (splito t thrd_tree h scmem)
-        (ThreadTree.spawn_thrdo path thrd_tree thrd_tree')
-        (splito t' thrd_tree' h scmem)
-
-    let join_thrdo path t t' =
-      fresh (thrd_tree thrd_tree' h scmem)
-        (splito t thrd_tree h scmem)
-        (ThreadTree.join_thrdo path thrd_tree thrd_tree')
-        (splito t' thrd_tree' h scmem)
-
-    let get_thrd path t = run q (fun q  -> get_thrdo (Path.inj path) (inj t) q)
-                                (fun qs -> ThreadState.prj @@ Utils.excl_answ qs)
-
-    let assign_local path x n t = run q (fun q  -> assign_localo (Path.inj path) !x (inj_nat n) (inj t) q)
-                                        (fun qs -> prj @@ Utils.excl_answ qs)
-
-    let read_acq path l t = run qr (fun q  r  -> read_acqo (Path.inj path) (!l) q (inj t) r)
-                                   (fun qs rs -> Stream.zip (Stream.map prj_nat qs) (Stream.map prj rs))
-
-    let write_rel path l v t = run q (fun q  -> write_relo (Path.inj path) (!l) (inj_nat v) (inj t) q)
-                                     (fun qs -> prj @@ Utils.excl_answ qs)
-  end *)
+    let joino t t' path =
+      fresh (tree tree' story)
+        (t  === mem_state tree  story)
+        (t' === mem_state tree' story)
+        (Threads.joino tree tree' path)
+  end

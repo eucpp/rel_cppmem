@@ -38,6 +38,8 @@ module ThreadState :
     val get_tso : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
     val set_tso : ti -> ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
 
+    val curro : ti -> ViewFront.ti -> MiniKanren.goal
+
     (** [updateo thrd thrd' vf] joins viewfront of thread [thrd] with [vf] and obtains [thrd']  *)
     val updateo : ti -> ti -> ViewFront.ti -> MiniKanren.goal
 
@@ -69,23 +71,6 @@ module Threads :
     val joino  : ti -> ti -> Lang.Path.ti -> MiniKanren.goal
   end
 
-(*
-
-module Cell :
-  sig
-    type t   = (tstmp * int * ViewFront.t)
-    type lt' = (Nat.logic * Nat.logic * ViewFront.lt)
-
-    type lt = lt' logic
-
-    val inj : t -> lt
-    val prj : lt -> t
-
-    val show : t -> string
-    val eq : t -> t -> bool
-  end
-*)
-
 module LocStory :
   sig
     type tt
@@ -111,37 +96,27 @@ module LocStory :
     val write_relo : ti -> ti -> MiniKanren.Nat.groundi -> ViewFront.ti -> MiniKanren.goal
   end
 
-(*
 module MemStory :
   sig
-    type t
-    type lt'
-    type lt  = lt' logic
+    type tt = (Lang.Loc.tt, LocStory.tt) VarList.tt
+    type tl = (Lang.Loc.tl, LocStory.tl) VarList.tl
+    type ti = (Lang.Loc.tt, LocStory.tt, Lang.Loc.tl, LocStory.tl) VarList.ti
 
-    val empty : t
+    val inj : tt -> ti
 
-    val from_assoc : (loc * LocStory.t) list -> t
+    val create : (string * LocStory.tt) list -> tt
 
-    val inj : t -> lt
+    val preallocate : string list -> tt
 
-    val prj : lt -> t
+    val next_tso : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
 
-    val show : t -> string
+    val read_acqo : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi
+                       -> MiniKanren.Nat.groundi -> MiniKanren.Nat.groundi -> ViewFront.ti -> MiniKanren.goal
 
-    val eq : t -> t -> bool
-
-    val next_tstmpo : lt -> loc logic -> Nat.logic -> goal
-
-    val read_acqo : lt -> loc logic -> Nat.logic -> Nat.logic -> Nat.logic -> ViewFront.lt -> goal
-
-    val write_relo : loc logic -> Nat.logic -> ViewFront.lt -> lt -> lt -> goal
-
-    val read_acq : t -> loc -> tstmp -> (tstmp * int * ViewFront.t) Stream.t
-
-    val write_rel : loc -> int -> ViewFront.t -> t -> t
-
+    val write_relo : ti -> ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> ViewFront.ti -> MiniKanren.goal
   end
 
+(*
 module SCMemory :
   sig
     type t
@@ -165,49 +140,33 @@ module SCMemory :
     val set : string -> int -> t -> t
   end
 
+*)
+
 module MemState :
   sig
-    type t = {
-      thrds : ThreadTree.t;
-      story : MemStory.t;
-      scmem : SCMemory.t
-    }
+    type tt
 
-    type lt' = {
-      lthrds : ThreadTree.lt;
-      lstory : MemStory.lt;
-      lscmem : SCMemory.lt
-    }
+    type tl_inner
 
-    type lt = lt' logic
+    type tl = tl_inner MiniKanren.logic
 
-    val empty : t
+    type ti = (tt, tl) MiniKanren.injected
 
-    val preallocate : string list -> string list -> t
+    val inj : tt -> ti
 
-    val inj : t -> lt
-    val prj : lt -> t
+    val create : Threads.tt -> MemStory.tt -> tt
 
-    val show : t -> string
-    val eq : t -> t -> bool
+    val preallocate : string list -> string list -> tt
 
-    val get_thrdo : Path.lt -> lt -> ThreadState.lt -> goal
+    val get_localo : ti ->       Lang.Path.ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+    val set_localo : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
 
-    val assign_localo : Path.lt -> string logic -> Nat.logic -> lt -> lt -> goal
+    val read_acqo  : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+    val write_relo : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
 
-    val read_acqo  : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
-    val write_relo : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
+    (* val read_sco  : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
+    val write_sco : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal *)
 
-    val read_sco  : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
-    val write_sco : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
-
-    val spawn_thrdo : Path.lt -> lt -> lt -> goal
-    val join_thrdo  : Path.lt -> lt -> lt -> goal
-
-    val get_thrd : Path.t -> t -> ThreadState.t
-
-    val assign_local : Path.t -> string -> int -> t -> t
-
-    val read_acq  : Path.t -> string -> t -> (int * t) Stream.t
-    val write_rel : Path.t -> string -> int -> t -> t
-  end *)
+    val spawno : ti -> ti -> Lang.Path.ti -> MiniKanren.goal
+    val joino  : ti -> ti -> Lang.Path.ti -> MiniKanren.goal
+  end
