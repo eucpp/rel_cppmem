@@ -33,8 +33,16 @@ let prog_MP = "
         ret r2
     }}}"
 
+let prog_test = "
+    r1 := 42;
+    r2 := r1;
+    r3 := r2;
+    ret r3
+    "
+
 let tests =
   "relAcq">::: [
-    "LB">:: test_prog ~n:1 sem prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"];
+    "test">: OUnitTest.TestCase (OUnitTest.Huge, test_prog ~n:1 sem prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"]);
+    (* "LB">: OUnitTest.TestCase (OUnitTest.Long, test_prog ~n:1 sem prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"]); *)
     (* "MP">:: test_prog ~n:100 sem prog_MP ["(1, 1)";]; *)
   ]

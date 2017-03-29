@@ -41,7 +41,7 @@ let mo_of_string str = MemOrder.(
                  ("rlx", RLX);
                  ("na", NA)] in
     List.assoc str binding
-)   
+)
 
 module Path =
   struct

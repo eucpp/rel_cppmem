@@ -65,12 +65,13 @@ let test_prog ?n sem prog expected test_ctx =
   let stream  =
    run qr (fun q  r  -> spaceo sem (inj_term term) (MemState.inj state) q r)
           (fun qs rs ->
-            let file = open_out "subst.log" in
+            (* let file = open_out "subst.log" in
             (try
               let fmt = Format.formatter_of_out_channel file in
               Stream.iter (fun r -> r#log fmt) qs;
             with
-              | _ -> close_out file);
+              | _ -> close_out file); *)
+            Stream.iter (fun r -> Bdd.print_to_dot (r#encode ()) ~file:"subst.dot") qs;
             Stream.zip (prj_stream qs) (prj_stream rs))
   in
   let module S = Set.Make(String) in
