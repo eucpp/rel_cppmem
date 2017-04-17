@@ -7,9 +7,9 @@ module Registers =
     type tl = (string MiniKanren.logic, MiniKanren.Nat.logic) VarList.tl
     type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
 
-    let inj = List.inj (fun (var, value) -> inj_pair (!!var) (inj_nat @@ Nat.to_int value))
+    let inj = List.inj (fun (var, value) -> inj_pair (!!var) (Nat.inj value))
 
-    let allocate vars = List.of_list @@ List.map (fun s -> (s, Nat.of_int 0)) vars
+    let allocate vars = List.of_list (fun s -> (s, Nat.of_int 0)) vars
   end
 
 module ViewFront =
@@ -18,11 +18,11 @@ module ViewFront =
     type tl = (string MiniKanren.logic, MiniKanren.Nat.logic) VarList.tl
     type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
 
-    let inj = List.inj (fun (var, value) -> inj_pair (!!var) (inj_nat @@ Nat.to_int value))
+    let inj = List.inj (fun (var, value) -> inj_pair (!!var) (Nat.inj value))
 
-    let allocate atomics = List.of_list @@ List.map (fun s -> (s, Nat.of_int 0)) atomics
+    let allocate atomics = List.of_list (fun s -> (s, Nat.of_int 0)) atomics
 
-    let from_list lst = List.of_list @@ List.map (fun (s, v) -> (s, Nat.of_int v)) lst
+    let from_list lst = List.of_list (fun (s, v) -> (s, Nat.of_int v)) lst
   end
 
 module ThreadState =
@@ -50,11 +50,11 @@ module ThreadState =
 
     let inj {T.regs = regs; T.curr = curr} = thrd_state (Registers.inj regs) (ViewFront.inj curr)
 
-    let convert = List.map (fun (var, value) -> (var, Nat.of_int value))
+    let convert = (fun (var, value) -> (var, Nat.of_int value))
 
     let create vars vf = {
-      T.regs = List.of_list (convert vars);
-      T.curr = List.of_list (convert vf);
+      T.regs = List.of_list convert vars;
+      T.curr = List.of_list convert vf;
     }
 
     let preallocate vars atomics = {
@@ -235,7 +235,7 @@ module LocStory =
 
     let create tsnext story = {
       T.tsnext = Nat.of_int tsnext;
-      T.story  = List.of_list @@ List.map (fun (ts, v, vf) -> (Nat.of_int ts, Nat.of_int v, vf)) story;
+      T.story  = List.of_list (fun (ts, v, vf) -> (Nat.of_int ts, Nat.of_int v, vf)) story;
     }
 
     let preallocate atomics =
@@ -262,7 +262,7 @@ module LocStory =
       fresh (ts ts' story story')
         (t  === loc_story ts  story )
         (t' === loc_story ts' story')
-        (ts' === Nat.s ts)
+        (ts' === Nat.succ ts)
         (story' === (inj_triple ts value vf) % story)
 
   end
@@ -275,9 +275,9 @@ module MemStory =
 
     let inj = List.inj (fun (loc, story) -> inj_pair (!!loc) (LocStory.inj story))
 
-    let create = List.of_list
+    let create = List.of_list (fun x -> x)
 
-    let preallocate atomics = List.of_list @@ List.map (fun loc -> (loc, LocStory.preallocate atomics)) atomics
+    let preallocate atomics = List.of_list (fun loc -> (loc, LocStory.preallocate atomics)) atomics
 
     let next_tso t loc ts =
       fresh (story)

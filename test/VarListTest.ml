@@ -7,9 +7,9 @@ let rec to_mk_list = function
   | x::xs -> Cons (x, to_mk_list xs)
   | []    -> Nil
 
-let inj_vars vars = inj_list_p (List.map (fun (k, v) -> (!!k, !!v)) vars)
+let inj_vars vars = inj_listi (List.map (fun (k, v) -> inj_pair !!k !!v) vars)
 
-let inj_viewfront vf = inj_list_p (List.map (fun (k, v) -> (!!k, inj_nat v)) vf)
+let inj_viewfront vf = inj_listi (List.map (fun (k, v) -> inj_pair !!k (inj_nat v)) vf)
 
 let test_get vars var answ test_ctx =
   let stream = run q (fun q -> geto (inj_vars vars) !!var q) prj_stream in
@@ -25,7 +25,7 @@ let test_set vars var value answ test_ctx =
 
 let test_join vars1 vars2 answ test_ctx =
   let stream  = run q (fun q  -> joino join_tso (inj_viewfront vars1) (inj_viewfront vars2) q)
-                      (fun qs -> Stream.map (fun r -> List.prj_ground (fun (k, v) -> (k, Nat.to_int v)) r#prj) qs)
+                      (fun qs -> Stream.map (fun r -> List.to_list (fun (k, v) -> (k, Nat.to_int v)) r#prj) qs)
   in
   match answ with
     | Some vars' -> assert_single_answer vars' stream
