@@ -1,0 +1,9 @@
+SRC src
+SRC test
+SRC yacc
+B _build
+B _build/src
+B _build/test
+PKG ocanren
+PKG oUnit
+FLG -rectypes

@@ -1,6 +1,11 @@
 .PHONY: all test clean
 
-OCB_FLAGS = -use-ocamlfind -syntax camlp5o -cflag "-g" -cflag "-rectypes" -lflag "-g" -pkgs GT.syntax.all -pkgs ocanren.syntax -pkgs oUnit -pkgs ocanren -I src -I test -I yacc
+SRC = -I src -I test -I yacc
+PKGS = -pkgs "GT.syntax.all,ocanren.syntax,oUnit,ocanren"
+CFLGS = -cflags "-g,-rectypes"
+LFLGS = -lflags "-g"
+
+OCB_FLAGS = -use-ocamlfind -use-menhir -syntax camlp5o $(CFLGS) $(LFLGS) $(PKGS) $(SRC)
 OCB = ocamlbuild $(OCB_FLAGS)
 
 LEX  = ocamllex
