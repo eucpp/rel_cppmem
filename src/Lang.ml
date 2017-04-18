@@ -5,43 +5,55 @@ module Loc =
     type tt = string
     type tl = string MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
+
+    let of_string str = str
+    let to_string loc = loc
   end
 
-type loc = string
-type tstmp = int
+module Value =
+  struct
+    type tt = MiniKanren.Nat.ground
+    type tl = MiniKanren.Nat.logic
+    type ti = MiniKanren.Nat.groundi
+
+    let of_string str = Nat.of_int @@ int_of_string str
+
+    let to_string v = string_of_int @@ Nat.to_int v
+  end
+
+module Timestamp =
+  struct
+    type tt = MiniKanren.Nat.ground
+    type tl = MiniKanren.Nat.logic
+    type ti = MiniKanren.Nat.groundi
+  end
 
 module MemOrder =
   struct
     type tt = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
     type tl = tt MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
+
+    let of_string str =
+      let binding = [("sc", SC);
+                     ("acq", ACQ);
+                     ("rel", REL);
+                     ("relAcq", ACQ_REL);
+                     ("con", CON);
+                     ("rlx", RLX);
+                     ("na", NA)]
+      in
+      List.assoc str binding
+
+    let to_string = function
+      | SC      -> "sc"
+      | ACQ     -> "acq"
+      | REL     -> "rel"
+      | ACQ_REL -> "relAcq"
+      | CON     -> "con"
+      | RLX     -> "rlx"
+      | NA      -> "na"
   end
-
-type mem_order = MemOrder.tt
-
-let string_of_loc = fun x -> x
-let string_of_tstmp = string_of_int
-
-let string_of_mo = MemOrder.(function
-  | SC      -> "sc"
-  | ACQ     -> "acq"
-  | REL     -> "rel"
-  | ACQ_REL -> "relAcq"
-  | CON     -> "con"
-  | RLX     -> "rlx"
-  | NA      -> "na"
-)
-
-let mo_of_string str = MemOrder.(
-  let binding = [("sc", SC);
-                 ("acq", ACQ);
-                 ("rel", REL);
-                 ("relAcq", ACQ_REL);
-                 ("con", CON);
-                 ("rlx", RLX);
-                 ("na", NA)] in
-    List.assoc str binding
-)   
 
 module Path =
   struct
@@ -85,29 +97,11 @@ module Term =
       | Stuck
     with gmap
 
-    type tt   = (MiniKanren.Nat.ground, string, mem_order, loc, tt) t
-    type tl  = (MiniKanren.Nat.logic, string MiniKanren.logic, mem_order MiniKanren.logic, loc MiniKanren.logic, tl) t MiniKanren.logic
+    type tt  = (Value.tt, string, MemOrder.tt, Loc.tt, tt) t
+    type tl  = (Value.tl, string MiniKanren.logic, MemOrder.tl, Loc.tl, tl) t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
     let fmap fint fstring fmo floc ft x = GT.gmap(t) (fint) (fstring) (fmo) (floc) (ft) x
-
-    (* let fmap fint fstring fmo floc ft = failwith "Error" *)
-     (* let fmap fint fstring fmo floc ft = function
-      | Const n                       -> Const (fint n)
-      | Var x                         -> Var (fstring x)
-      | Binop (op, l, r)              -> Binop (fstring op, ft l, ft r)
-      | Asgn (l, r)                   -> Asgn (ft l, ft r)
-      | Pair (l, r)                   -> Pair (ft l, ft r)
-      | If (cond, l, r)               -> If (ft cond, ft l, ft r)
-      | Repeat t                      -> Repeat (ft t)
-      | Read (mo, loc)                -> Read (fmo mo, floc loc)
-      | Write (mo, loc, t)            -> Write (fmo mo, floc loc, ft t)
-      | Cas (mo1, mo2, loc, t1, t2)   -> Cas (fmo mo1, fmo mo2, floc loc, ft t1, ft t2)
-      | Seq (t1, t2)                  -> Seq (ft t1, ft t2)
-      | Spw (t1, t2)                  -> Spw (ft t1, ft t2)
-      | Par (t1, t2)                  -> Par (ft t1, ft t2)
-      | Skip                          -> Skip
-      | Stuck                         -> Stuck *)
 
     let pprint t =
       let kwd ff s = Format.fprintf ff "%s" s in
@@ -119,8 +113,8 @@ module Term =
         | Pair (x, y)             -> Format.fprintf ff "@[(%a, %a)@]" s x s y
         | If (cond, t, f)         -> Format.fprintf ff "@[<v>if %a@;then %a@;else %a@]" s cond s t s f
         | Repeat t                -> Format.fprintf ff "@[repeat %a@]" s t
-        | Read (mo, loc)          -> Format.fprintf ff "@[%s_%s@]" (string_of_loc loc) (string_of_mo mo)
-        | Write (mo, loc, t)      -> Format.fprintf ff "@[%s_%s :=@;<1 4>%a@]" (string_of_loc loc) (string_of_mo mo) s t
+        | Read (mo, loc)          -> Format.fprintf ff "@[%s_%s@]" (Loc.to_string loc) (MemOrder.to_string mo)
+        | Write (mo, loc, t)      -> Format.fprintf ff "@[%s_%s :=@;<1 4>%a@]" (Loc.to_string loc) (MemOrder.to_string mo) s t
         | Seq (t, t')             -> Format.fprintf ff "@[<v>%a;@;%a@]" s t s t'
         | Spw (t, t')             -> Format.fprintf ff "@[<v>spw {{{@;<1 4>%a@;|||@;<1 4>%a@;}}}@]" s t s t'
         | Par (t, t')             -> Format.fprintf ff "@[<v>par {{{@;<1 4>%a@;<1 4>|||@;<1 4>%a@;}}}@]" s t s t'
@@ -165,8 +159,8 @@ module Context =
       | ParR      of 't * 'c
     with gmap
 
-    type tt   = (MiniKanren.Nat.ground, string, mem_order, loc, Term.tt, tt) t
-    type tl  = (MiniKanren.Nat.logic, string MiniKanren.logic, mem_order MiniKanren.logic, loc MiniKanren.logic, Term.tl, tl) t MiniKanren.logic
+    type tt  = (Value.tt, string, MemOrder.tt, Loc.tt, Term.tt, tt) t
+    type tl  = (Value.tl, string MiniKanren.logic, MemOrder.tl, Loc.tl, Term.tl, tl) t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
     let fmap fint fstring fmo floc ft fc x = GT.gmap(t) (fint) (fstring) (fmo) (floc) (ft) (fc) x

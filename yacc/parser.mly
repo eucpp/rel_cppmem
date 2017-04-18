@@ -1,7 +1,7 @@
 %token <string> VAR
 %token <string> LOC
-%token <MiniKanren.Nat.ground> INT
-%token <Lang.mem_order> MO
+%token <Lang.Value.tt> INT
+%token <Lang.MemOrder.tt> MO
 %token PLUS MINUS TIMES
 %token RET
 %token SKIP STUCK

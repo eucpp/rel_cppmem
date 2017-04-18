@@ -34,8 +34,8 @@ rule token = parse
   | "{{{"               { TOPEN }
   | "|||"               { TSEP }
   | "}}}"               { TCLOSE }
-  | mo                  { MO(Lang.mo_of_string mo_lxm) }
+  | mo                  { MO(Lang.MemOrder.of_string mo_lxm) }
   | var                 { VAR(var_lxm) }
   | loc                 { LOC(loc_lxm) }
-  | integer             { INT(MiniKanren.Nat.of_int @@ int_of_string int_lxm) }
+  | integer             { INT(Lang.Value.of_string int_lxm) }
   | eof                 { EOF }
