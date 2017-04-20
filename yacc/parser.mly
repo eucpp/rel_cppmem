@@ -5,7 +5,7 @@
 
 %token <Lang.Var.ti> VAR
 %token <Lang.Loc.ti> LOC
-%token <string> LABEL
+%token <char> LABEL
 
 %token <Lang.Value.ti> INT
 %token <Lang.MemOrder.ti> MO
@@ -18,7 +18,7 @@
 %token IF THEN ELSE FI
 %token REPEAT END
 %token SPW TOPEN TSEP TCLOSE
-%token HOPEN HCLOSE
+%token HOPEN HCLOSE QUESTION_MARK
 %token EOF
 
 %left PLUS MINUS
@@ -42,14 +42,12 @@ parse_partial:
     { s }
 ;
 stmt:
-  | e = expr
-    { e }
   | RET; e = expr
     { e }
   | IF; e = expr; THEN; s1 = stmt; ELSE; s2 = stmt; FI
     { fun map -> if' (e map) (s1 map) (s2 map) }
-  | REPEAT s = stmt END
-    { fun map -> repeat (s map) }
+  | REPEAT e = expr END
+    { fun map -> repeat (e map) }
   | v = VAR; ASSIGN; e = expr
     { fun map -> asgn (var v) (e map) }
   | l = LOC; UNDERSCORE; mo = MO; ASSIGN; e = expr
@@ -62,8 +60,8 @@ stmt:
     { fun _ -> skip }
   | STUCK
     { fun _ -> stuck }
-  | HOPEN; l = LABEL; HCLOSE
-    { fun map -> Mapping.subst map l }
+  | QUESTION_MARK; lab = LABEL
+    { fun map -> Mapping.subst map (Char.escaped lab) }
 ;
 expr:
   | n = INT
@@ -78,7 +76,7 @@ expr:
     { fun map -> binop !!"-" (e1 map) (e2 map) }
   | e1 = expr; TIMES; e2 = expr
     { fun map -> binop !!"*" (e1 map) (e2 map) }
-  | HOPEN; l = LABEL; HCLOSE
-    { fun map -> Mapping.subst map l }
+  | QUESTION_MARK; lab = LABEL
+    { fun map -> Mapping.subst map (Char.escaped lab) }
 ;
 %%

@@ -9,12 +9,10 @@ let uc = ['A' - 'Z']
 
 let digit = ['0' - '9']
 
-let identifier = lc(lc|digit)*
-
-let integer    = digit+ as int_lxm
-let loc = identifier as loc_lxm
-let var = 'r'(lc|digit)* as var_lxm
-let label = identifier as label_lxm
+let integer   = digit+ as int_lxm
+let loc       = lc(lc|digit)* as loc_lxm
+let var       = 'r'(lc|digit)* as var_lxm
+let label     = 'p'|'q'|'r'|'s'|'t' as label_lxm
 
 let mo = "sc"|"acq"|"rel"|"relAcq"|"con"|"rlx"|"na" as mo_lxm
 
@@ -41,9 +39,10 @@ rule token = parse
   | "}}}"               { TCLOSE }
   | "<?"                { HOPEN }
   | ">"                 { HCLOSE }
+  | '?'                 { QUESTION_MARK }
   | mo                  { MO(!!(MemOrder.of_string mo_lxm)) }
+  | label               { LABEL(label_lxm) }
   | var                 { VAR(!!var_lxm) }
   | loc                 { LOC(!!loc_lxm) }
-  | label               { LABEL(label_lxm) }
   | integer             { INT(Nat.inj (Value.of_string int_lxm)) }
   | eof                 { EOF }

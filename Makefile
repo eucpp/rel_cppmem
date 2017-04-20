@@ -9,7 +9,7 @@ OCB_FLAGS = -use-ocamlfind -use-menhir -syntax camlp5o $(CFLGS) $(LFLGS) $(PKGS)
 OCB = ocamlbuild $(OCB_FLAGS)
 
 LEX  = ocamllex
-YACC = ocamlyacc -v
+YACC = menhir -v
 
 all:
 	$(LEX) yacc/lexer.mll
