@@ -33,22 +33,25 @@ let prog_MP = "
         ret r2
     }}}"
 
-let prog_MP_partial = "
+(* let prog_MP_partial = "
   x_rel := 0;
   f_rel := 0;
   spw {{{
-      x_rel := 1;
-      <? 1 >;
+      ?q;
+      f_rel := 1;
       ret 1
   |||
       repeat f_acq end;
       r2 := x_acq;
       ret r2
   }}}
-"
+" *)
+
+let prog_MP_partial = "?q; ret r2"
 
 let tests =
   "relAcq">::: [
     "LB">:: test_prog sem prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"];
     "MP">:: test_prog ~n:100 sem prog_MP ["(1, 1)";];
+    "MP_partial">:: test_prog_synthesis ~n:10 sem prog_MP ["f_rel := 1"];
   ]
