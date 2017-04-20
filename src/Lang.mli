@@ -8,6 +8,13 @@ module Loc :
     val to_string : tt -> string
   end
 
+module Var :
+  sig
+    type tt = string
+    type tl = string MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+  end
+
 module Value :
   sig
     type tt = MiniKanren.Nat.ground
@@ -70,14 +77,25 @@ module Term :
       | Stuck
     with gmap
 
-    type tt  = (Value.tt, string, MemOrder.tt, Loc.tt, tt) t
-    type tl  = (Value.tl, string MiniKanren.logic, MemOrder.tl, Loc.tl, tl) t MiniKanren.logic
+    type tt  = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, tt) t
+    type tl  = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, tl) t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
     val fmap : ('a -> 'q) -> ('b -> 'r) -> ('c -> 's) -> ('d -> 't) -> ('e -> 'u) ->
                ('a, 'b, 'c, 'd, 'e) t -> ('q, 'r, 's, 't, 'u) t
 
     val pprint : tt -> string
+  end
+
+module Mapping :
+  sig
+    type t
+
+    val empty : t
+    val from_assoc : (string * Term.ti) list -> t
+
+    val subst : t -> string -> Term.ti
+    val bind  : t -> string -> Term.ti -> t
   end
 
 module Context :
@@ -96,8 +114,8 @@ module Context :
       | ParR      of 't * 'c
     with gmap
 
-    type tt  = (Value.tt, string, MemOrder.tt, Loc.tt, Term.tt, tt) t
-    type tl  = (Value.tl, string MiniKanren.logic, MemOrder.tl, Loc.tl, Term.tl, tl) t MiniKanren.logic
+    type tt  = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, Term.tt, tt) t
+    type tl  = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, Term.tl, tl) t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
     val fmap : ('a -> 'q) -> ('b -> 'r) -> ('c -> 's) -> ('d -> 't) -> ('e -> 'u) -> ('f -> 'v) ->

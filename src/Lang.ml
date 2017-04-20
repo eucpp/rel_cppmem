@@ -10,6 +10,13 @@ module Loc =
     let to_string loc = loc
   end
 
+module Var =
+  struct
+    type tt = string
+    type tl = string MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+  end
+
 module Value =
   struct
     type tt = MiniKanren.Nat.ground
@@ -97,8 +104,8 @@ module Term =
       | Stuck
     with gmap
 
-    type tt  = (Value.tt, string, MemOrder.tt, Loc.tt, tt) t
-    type tl  = (Value.tl, string MiniKanren.logic, MemOrder.tl, Loc.tl, tl) t MiniKanren.logic
+    type tt  = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, tt) t
+    type tl  = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, tl) t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
     let fmap fint fstring fmo floc ft x = GT.gmap(t) (fint) (fstring) (fmo) (floc) (ft) x
@@ -143,6 +150,17 @@ let par t1 t2           = inj @@ Fmap5.distrib @@ Term.Par (t1, t2)
 let skip                = inj @@ Fmap5.distrib @@ Term.Skip
 let stuck               = inj @@ Fmap5.distrib @@ Term.Stuck
 
+module Mapping =
+  struct
+    type t = (string * Term.ti) list
+
+    let empty = []
+    let from_assoc assoc = assoc
+
+    let subst map label = List.assoc label map
+    let bind  map label term = (label, term)::map
+  end
+
 module Context =
   struct
     @type ('expr, 'string, 'mo, 'loc, 't, 'c) t =
@@ -159,8 +177,8 @@ module Context =
       | ParR      of 't * 'c
     with gmap
 
-    type tt  = (Value.tt, string, MemOrder.tt, Loc.tt, Term.tt, tt) t
-    type tl  = (Value.tl, string MiniKanren.logic, MemOrder.tl, Loc.tl, Term.tl, tl) t MiniKanren.logic
+    type tt  = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, Term.tt, tt) t
+    type tl  = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, Term.tl, tl) t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
     let fmap fint fstring fmo floc ft fc x = GT.gmap(t) (fint) (fstring) (fmo) (floc) (ft) (fc) x
