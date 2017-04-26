@@ -3,6 +3,9 @@ open Memory
 open Lang
 open MemOrder
 
+open Term
+open Context
+
 module Basic =
   struct
     type ti = Term.ti
@@ -12,6 +15,26 @@ module Basic =
     type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
     let (!) = (!!)
+
+    let asgno c t s c' t' s' =
+      fresh (l r n path e)
+        (c  === c')
+        (t  === asgn l r)
+        (t' === skip ())
+        (patho c path)
+        (conde [
+          fresh (x n)
+            (l === var x)
+            (r === const n)
+            (MemState.set_localo s s' path x n);
+          fresh (x1 x2 n1 n2 s'')
+            (l === pair (var   x1) (var   x2))
+            (r === pair (const n1) (const n2))
+            (MemState.set_localo s   s'' path x1 n1)
+            (MemState.set_localo s'' s'  path x2 n2);
+        ])
+
+    let asgn = ("assign", asgno)
 
     let varo c t s c' t' s' =
       fresh (n x path thrd)
@@ -37,26 +60,14 @@ module Basic =
 
     let binop = ("binop", binopo)
 
-    let asgno c t s c' t' s' =
-      let var = Lang.var in
-      fresh (l r n path e)
+    let repeato c t s c' t' s' =
+      fresh (body)
         (c  === c')
-        (t  === asgn l r)
-        (t' === skip)
-        (patho c path)
-        (conde [
-          fresh (x n)
-            (l === var x)
-            (r === const n)
-            (MemState.set_localo s s' path x n);
-          fresh (x1 x2 n1 n2 s'')
-            (l === pair (var   x1) (var   x2))
-            (r === pair (const n1) (const n2))
-            (MemState.set_localo s   s'' path x1 n1)
-            (MemState.set_localo s'' s'  path x2 n2);
-        ])
+        (s  === s')
+        (t  === repeat body)
+        (t' === if' body (skip ()) t)
 
-    let asgn = ("assign", asgno)
+    let repeat = ("repeat", repeato)
 
     let ifo c t s c' t' s' =
       fresh (e n btrue bfalse)
@@ -69,16 +80,6 @@ module Basic =
         ])
 
     let if' = ("if", ifo)
-
-    let repeato c t s c' t' s' =
-      let if' = Lang.if' in
-      fresh (body)
-        (c  === c')
-        (s  === s')
-        (t  === repeat body)
-        (t' === if' body skip t)
-
-    let repeat = ("repeat", repeato)
 
    let spawno c t s c' t' s' =
      fresh (l r path)
@@ -130,7 +131,7 @@ module RelAcq =
       fresh (l n path)
         (c  === c')
         (t  === write !REL l (const n))
-        (t' === skip)
+        (t' === skip ())
         (patho c path)
         (MemState.write_relo s s' path l n)
 

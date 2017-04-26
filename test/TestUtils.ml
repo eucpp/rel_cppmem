@@ -4,7 +4,7 @@ open Lang
 open Memory
 open Semantics
 
-module T = Lang.Term
+module T = Lang.Term.T
 
 let prj_stream stream = Stream.map (fun r -> r#prj) stream
 
@@ -61,18 +61,18 @@ let assert_stream ?(empty_check = true)
 let test_prog ?n sem prog expected test_ctx =
   let show s  = "Outcome is not found among answers: " ^ s in
   let lexbuf  = Lexing.from_string prog in
-  let term    = Parser.parse Lexer.token lexbuf in
-  let rs, vs  = preallocate term in
+  let term    = Term.from_logic @@ Parser.parse Lexer.token lexbuf in
+  let rs, vs  = Term.preallocate term in
   let state   = MemState.preallocate rs vs in
   let stream  =
-   run qr (fun q  r  -> spaceo sem (inj_term term) (MemState.inj state) q r)
+   run qr (fun q  r  -> spaceo sem (Term.inj term) (MemState.inj state) q r)
           (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
   in
   let module S = Set.Make(String) in
   let set = ref S.empty in
   let cnt = ref 0 in
   let handler (t, s) =
-    let answer = Term.pprint t in
+    let answer = Term.pprint @@ Term.to_logic t in
     let set'   = S.add answer !set in
     cnt := !cnt + 1;
     set := set';
@@ -84,7 +84,7 @@ let test_prog ?n sem prog expected test_ctx =
   in
   assert_lists expected (S.elements !set) ~printer:show ~cmp:(=)
 
-let test_prog_synthesis ?n sem prog expected test_ctx =
+(* let test_prog_synthesis ?n sem prog expected test_ctx =
   let show s  = "Outcome is not found among answers: " ^ s in
   let lexbuf  = Lexing.from_string prog in
   let part_term = Parser.parse_partial Lexer.token lexbuf in
@@ -113,4 +113,4 @@ let test_prog_synthesis ?n sem prog expected test_ctx =
     | Some n -> List.iter handler @@ fst @@ Stream.retrieve ~n:n stream
     | None   -> Stream.iter handler stream
   in
-  assert_lists expected (S.elements !set) ~printer:show ~cmp:(=)
+  assert_lists expected (S.elements !set) ~printer:show ~cmp:(=) *)

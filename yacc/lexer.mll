@@ -12,7 +12,7 @@ let digit = ['0' - '9']
 let integer   = digit+ as int_lxm
 let loc       = lc(lc|digit)* as loc_lxm
 let var       = 'r'(lc|digit)* as var_lxm
-let label     = 'p'|'q'|'r'|'s'|'t' as label_lxm
+let label     = '?'(digit+ as label_n)
 
 let mo = "sc"|"acq"|"rel"|"relAcq"|"con"|"rlx"|"na" as mo_lxm
 
@@ -40,9 +40,9 @@ rule token = parse
   | "<?"                { HOPEN }
   | ">"                 { HCLOSE }
   | '?'                 { QUESTION_MARK }
-  | mo                  { MO(!!(MemOrder.of_string mo_lxm)) }
-  | label               { LABEL(label_lxm) }
-  | var                 { VAR(!!var_lxm) }
-  | loc                 { LOC(!!loc_lxm) }
-  | integer             { INT(Nat.inj (Value.of_string int_lxm)) }
+  | label               { LABEL(int_of_string label_n) }
+  | mo                  { MO(Value (MemOrder.of_string mo_lxm)) }
+  | var                 { VAR(Value var_lxm) }
+  | loc                 { LOC(Value loc_lxm) }
+  | integer             { INT(Value.to_logic (Value.of_string int_lxm)) }
   | eof                 { EOF }

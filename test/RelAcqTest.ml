@@ -53,5 +53,5 @@ let tests =
   "relAcq">::: [
     "LB">:: test_prog sem prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"];
     "MP">:: test_prog ~n:100 sem prog_MP ["(1, 1)";];
-    "MP_partial">:: test_prog_synthesis ~n:10 sem prog_MP ["f_rel := 1"];
+    (* "MP_partial">:: test_prog_synthesis ~n:10 sem prog_MP ["f_rel := 1"]; *)
   ]

@@ -23,6 +23,8 @@ module Value :
 
     val of_string : string -> tt
     val to_string : tt -> string
+
+    val to_logic : tt -> tl
   end
 
 module Timestamp :
@@ -44,112 +46,111 @@ module MemOrder :
 
 module Path :
   sig
-    type 'a t = N | L of 'a | R of 'a
+    module T :
+      sig
+        type 'a t = N | L of 'a | R of 'a
+      end
 
-    type tt = tt t
-    type tl = tl t MiniKanren.logic
+    type tt = tt T.t
+    type tl = tl T.t MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
+
+    val pathn : unit -> ti
+    val pathl : ti -> ti
+    val pathr : ti -> ti
+
+    val inj : tt -> ti
   end
-
-val inj_path : Path.tt -> Path.ti
-
-val pathn : Path.ti
-val pathl : Path.ti -> Path.ti
-val pathr : Path.ti -> Path.ti
 
 module Term :
   sig
-    @type ('int, 'string, 'mo, 'loc, 't) t =
-      | Const    of 'int
-      | Var      of 'string
-      | Binop    of 'string * 't * 't
-      | Asgn     of 't * 't
-      | Pair     of 't * 't
-      | If       of 't * 't * 't
-      | Repeat   of 't
-      | Read     of 'mo * 'loc
-      | Write    of 'mo * 'loc * 't
-      | Cas      of 'mo * 'mo * 'loc * 't * 't
-      | Seq      of 't * 't
-      | Spw      of 't * 't
-      | Par      of 't * 't
-      | Skip
-      | Stuck
-    with gmap
+    module T :
+      sig
+        type ('int, 'string, 'mo, 'loc, 't) t =
+          | Const    of 'int
+          | Var      of 'string
+          | Binop    of 'string * 't * 't
+          | Asgn     of 't * 't
+          | Pair     of 't * 't
+          | If       of 't * 't * 't
+          | Repeat   of 't
+          | Read     of 'mo * 'loc
+          | Write    of 'mo * 'loc * 't
+          | Cas      of 'mo * 'mo * 'loc * 't * 't
+          | Seq      of 't * 't
+          | Spw      of 't * 't
+          | Par      of 't * 't
+          | Skip
+          | Stuck
+        (* with gmap *)
+      end
 
-    type tt  = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, tt) t
-    type tl  = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, tl) t MiniKanren.logic
+    (* include (module type of MiniKanren.Fmap5(T)) *)
+
+    type tt  = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, tt) T.t
+    type tl  = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, tl) T.t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
-    val fmap : ('a -> 'q) -> ('b -> 'r) -> ('c -> 's) -> ('d -> 't) -> ('e -> 'u) ->
-               ('a, 'b, 'c, 'd, 'e) t -> ('q, 'r, 's, 't, 'u) t
+    val const   : Value.ti -> ti
+    val var     : Loc.ti -> ti
+    val binop   : Loc.ti -> ti -> ti -> ti
+    val asgn    : ti -> ti -> ti
+    val pair    : ti -> ti -> ti
+    val if'     : ti -> ti -> ti -> ti
+    val repeat  : ti -> ti
+    val read    : MemOrder.ti -> Loc.ti -> ti
+    val write   : MemOrder.ti -> Loc.ti -> ti -> ti
+    val cas     : MemOrder.ti -> MemOrder.ti -> Loc.ti -> ti -> ti -> ti
+    val seq     : ti -> ti -> ti
+    val spw     : ti -> ti -> ti
+    val par     : ti -> ti -> ti
+    val skip    : unit -> ti
+    val stuck   : unit -> ti
 
-    val pprint : tt -> string
-  end
+    val inj : tt -> ti
+    val inj_logic : MiniKanren.Mapping.t -> tl -> ti
 
-module Mapping :
-  sig
-    type t
+    val to_logic   : tt -> tl
+    val from_logic : tl -> tt
 
-    val empty : t
-    val from_assoc : (string * Term.ti) list -> t
+    val preallocate : tt -> Var.tt list * Loc.tt list
 
-    val subst : t -> string -> Term.ti
-    val bind  : t -> string -> Term.ti -> t
+    val pprint : tl -> string
   end
 
 module Context :
   sig
-    @type ('expr, 'string, 'mo, 'loc, 't, 'c) t =
-      | Hole
-      | BinopL    of 'string * 'c * 't
-      | BinopR    of 'string * 't * 'c
-      | PairL     of 'c * 't
-      | PairR     of 't * 'c
-      | AsgnC     of 't * 'c
-      | WriteC    of 'mo * 'loc * 'c
-      | IfC       of 'c * 't * 't
-      | SeqC      of 'c * 't
-      | ParL      of 'c * 't
-      | ParR      of 't * 'c
-    with gmap
+    module T :
+      sig
+        type ('expr, 'string, 'mo, 'loc, 't, 'c) t =
+          | Hole
+          | BinopL    of 'string * 'c * 't
+          | BinopR    of 'string * 't * 'c
+          | PairL     of 'c * 't
+          | PairR     of 't * 'c
+          | AsgnC     of 't * 'c
+          | WriteC    of 'mo * 'loc * 'c
+          | IfC       of 'c * 't * 't
+          | SeqC      of 'c * 't
+          | ParL      of 'c * 't
+          | ParR      of 't * 'c
+        (* with gmap *)
+      end
 
-    type tt  = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, Term.tt, tt) t
-    type tl  = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, Term.tl, tl) t MiniKanren.logic
+    type tt  = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, Term.tt, tt) T.t
+    type tl  = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, Term.tl, tl) T.t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
-    val fmap : ('a -> 'q) -> ('b -> 'r) -> ('c -> 's) -> ('d -> 't) -> ('e -> 'u) -> ('f -> 'v) ->
-               ('a, 'b, 'c, 'd, 'e, 'f) t -> ('q, 'r, 's, 't, 'u, 'v) t
+    val inj : tt -> ti
   end
 
-type t   = Term.tt
+type tt  = Term.tt
 type tl  = Term.tl
 type ti  = Term.ti
 
-type c   = Context.tt
+type ct  = Context.tt
 type cl  = Context.tl
 type ci  = Context.ti
-
-val const   : Value.ti -> ti
-val var     : Loc.ti -> ti
-val binop   : Loc.ti -> ti -> ti -> ti
-val asgn    : ti -> ti -> ti
-val pair    : ti -> ti -> ti
-val if'     : ti -> ti -> ti -> ti
-val repeat  : ti -> ti
-val read    : MemOrder.ti -> Loc.ti -> ti
-val write   : MemOrder.ti -> Loc.ti -> ti -> ti
-val cas     : MemOrder.ti -> MemOrder.ti -> Loc.ti -> ti -> ti -> ti
-val seq     : ti -> ti -> ti
-val spw     : ti -> ti -> ti
-val par     : ti -> ti -> ti
-val skip    : ti
-val stuck   : ti
-
-val preallocate : t -> string list * Loc.tt list
-
-val inj_term : t -> ti
-val inj_context : c -> ci
 
 val reducibleo : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
 

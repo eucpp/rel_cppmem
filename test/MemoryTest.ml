@@ -2,7 +2,9 @@ open OUnit2
 open MiniKanren
 open Memory
 open Lang
+open Lang.Path
 open TestUtils
+
 
 module TS = ThreadState
 module TT = Threads.Tree
@@ -20,28 +22,28 @@ let thrd_tree_tests =
 
   "thrd_tree">::: [
     "test_get_1">:: (fun test_ctx ->
-      let stream   = run q (fun q -> Threads.geto (Threads.inj tree1) (pathl pathn) q)
+      let stream   = run q (fun q -> Threads.geto (Threads.inj tree1) (pathl @@ pathn ()) q)
                             prj_stream
       in
       assert_single_answer thrd stream
     );
 
     "test_get_2">:: (fun test_ctx ->
-      let stream   = run q (fun q -> Threads.geto (Threads.inj tree2) (pathr pathn) q)
+      let stream   = run q (fun q -> Threads.geto (Threads.inj tree2) (pathr @@ pathn ()) q)
                             prj_stream
       in
       assert_single_answer thrd stream
     );
 
     "test_update_1">:: (fun test_ctx ->
-      let stream   = run q (fun q -> Threads.seto (Threads.inj tree1) q (pathr pathn) (TS.inj thrd))
+      let stream   = run q (fun q -> Threads.seto (Threads.inj tree1) q (pathr @@ pathn ()) (TS.inj thrd))
                             prj_stream
       in
       assert_single_answer tree3 stream
     );
 
     "test_update_2">:: (fun test_ctx ->
-      let stream   = run q (fun q -> Threads.seto (Threads.inj tree2) q (pathl pathn) (TS.inj thrd))
+      let stream   = run q (fun q -> Threads.seto (Threads.inj tree2) q (pathl @@ pathn ()) (TS.inj thrd))
                             prj_stream
       in
       assert_single_answer tree3 stream
@@ -49,7 +51,7 @@ let thrd_tree_tests =
 
     "test_spawn">:: (fun test_ctx ->
       let expected = TT.Node (empty, empty_node, empty_node) in
-      let stream   = run q (fun q -> Threads.spawno (Threads.inj empty_node) q pathn)
+      let stream   = run q (fun q -> Threads.spawno (Threads.inj empty_node) q @@ pathn ())
                             prj_stream
       in
       assert_single_answer expected stream
@@ -62,7 +64,7 @@ let thrd_tree_tests =
       let thrd2 = TS.create [("r1", 5)] [("x", 0); ("y", 1)] in
       let tree  = TT.Node (parent_thrd, leaf thrd1, leaf thrd2) in
       let expected = leaf @@ TS.create [("r1",1)] [("x", 1); ("y", 1)] in
-      let stream   = run q (fun q -> Threads.joino (Threads.inj tree) q pathn)
+      let stream   = run q (fun q -> Threads.joino (Threads.inj tree) q (pathn ()))
                             prj_stream
       in
       assert_single_answer expected stream

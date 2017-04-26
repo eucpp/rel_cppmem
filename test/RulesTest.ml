@@ -6,20 +6,20 @@ open Lang
 open Semantics
 open TestUtils
 
-module T = Lang.Term
-module C = Lang.Context
+module T = Lang.Term.T
+module C = Lang.Context.T
 module S = Memory.MemState
 
 let test_step ?empty_check rules (t, s) expected test_ctx =
   let sem    = make rules in
-  let stream = run qr (fun q  r  -> stepo sem (inj_term t) (S.inj s) q r)
+  let stream = run qr (fun q  r  -> stepo sem (Term.inj t) (S.inj s) q r)
                       (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
   in
   TestUtils.assert_stream ?empty_check expected stream
 
 let test_space ?empty_check rules (t, s) expected test_ctx =
   let sem    = make rules in
-  let stream = run qr (fun q  r  -> spaceo sem (inj_term t) (S.inj s) q r)
+  let stream = run qr (fun q  r  -> spaceo sem (Term.inj t) (S.inj s) q r)
                       (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
   in
   TestUtils.assert_stream ?empty_check expected stream

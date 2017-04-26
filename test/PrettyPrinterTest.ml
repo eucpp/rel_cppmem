@@ -4,10 +4,10 @@ open Lang.MemOrder
 open OUnit2
 open Memory
 
-module T = Lang.Term
+module T = Lang.Term.T
 
 let test_pprint term s test_ctx =
-  assert_equal s (T.pprint term) ~printer:(fun x -> x)
+  assert_equal s (Term.pprint @@ Term.to_logic term) ~printer:(fun x -> x)
 
 let const n = T.Const (Nat.of_int n)
 

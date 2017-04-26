@@ -134,39 +134,41 @@ module Threads =
 
     let create vars vf = Tree.Node (ThreadState.create vars vf, Tree.Nil, Tree.Nil)
 
-    let rec geto tree path thrd =
+    let rec geto tree path thrd = Path.(
       fresh (thrd' l r path')
         (tree === node thrd' l r)
         (conde [
-          (path === Lang.pathn) &&& (thrd === thrd');
+          (path === pathn ()) &&& (thrd === thrd');
           (conde [
-            (path === Lang.pathl path') &&& (geto l path' thrd);
-            (path === Lang.pathr path') &&& (geto r path' thrd);
+            (path === pathl path') &&& (geto l path' thrd);
+            (path === pathr path') &&& (geto r path' thrd);
           ])
         ])
+      )
 
-    let rec seto tree tree' path thrd_new =
+    let rec seto tree tree' path thrd_new = Path.(
       fresh (thrd thrd' path' l l' r r')
         (tree  === node thrd  l  r )
         (tree' === node thrd' l' r')
         (conde [
-          (path === Lang.pathn) &&& (thrd' === thrd_new) &&&
+          (path === pathn ()) &&& (thrd' === thrd_new) &&&
           (l === l') &&& (r === r');
 
           (thrd' === thrd) &&&
           (conde [
-            (path === Lang.pathl path') &&& (r === r') &&& (seto l l' path' thrd_new);
-            (path === Lang.pathr path') &&& (l === l') &&& (seto r r' path' thrd_new);
+            (path === pathl path') &&& (r === r') &&& (seto l l' path' thrd_new);
+            (path === pathr path') &&& (l === l') &&& (seto r r' path' thrd_new);
           ])
         ])
+      )
 
-    let rec spawno tree tree' path =
+    let rec spawno tree tree' path = Path.(
       fresh (thrd l l' r r' path')
         (tree  === node thrd  l  r )
         (tree' === node thrd  l' r')
         (conde [
           fresh (a b)
-            (path === Lang.pathn)
+            (path === pathn ())
             (l  === nil)
             (r  === nil)
             (l' === leaf a)
@@ -174,18 +176,19 @@ module Threads =
             (ThreadState.spawno thrd a b);
 
           (conde [
-            (path === Lang.pathl path') &&& (spawno l l' path') &&& (r === r');
-            (path === Lang.pathr path') &&& (spawno r r' path') &&& (l === l');
+            (path === pathl path') &&& (spawno l l' path') &&& (r === r');
+            (path === pathr path') &&& (spawno r r' path') &&& (l === l');
           ])
         ])
+      )
 
-    let rec joino tree tree' path =
+    let rec joino tree tree' path = Path.(
       fresh (thrd thrd' l l' r r' path')
         (tree  === node thrd  l  r )
         (tree' === node thrd' l' r')
         (conde [
           fresh (a b vf regs curr)
-            (path  === Lang.pathn)
+            (path  === pathn ())
             (l  === leaf a)
             (r  === leaf b)
             (l' === nil)
@@ -196,10 +199,11 @@ module Threads =
 
           (thrd === thrd') &&&
           (conde [
-            (path === Lang.pathl path') &&& (r === r') &&& (joino l l' path');
-            (path === Lang.pathr path') &&& (l === l') &&& (joino r r' path');
+            (path === pathl path') &&& (r === r') &&& (joino l l' path');
+            (path === pathr path') &&& (l === l') &&& (joino r r' path');
           ]);
         ])
+      )
   end
 
 module LocStory =

@@ -1,14 +1,14 @@
 %{
-  open Lang
+  open Lang.Term.T
   open MiniKanren
 %}
 
-%token <Lang.Var.ti> VAR
-%token <Lang.Loc.ti> LOC
-%token <char> LABEL
+%token <Lang.Var.tl> VAR
+%token <Lang.Loc.tl> LOC
+%token <int> LABEL
 
-%token <Lang.Value.ti> INT
-%token <Lang.MemOrder.ti> MO
+%token <Lang.Value.tl> INT
+%token <Lang.MemOrder.tl> MO
 
 %token PLUS MINUS TIMES
 %token RET
@@ -26,57 +26,51 @@
 %right SEMICOLON
 
 %start parse
-%type <Lang.Term.tt> parse
-
-%start parse_partial
-%type <Lang.Mapping.t -> Lang.Term.ti> parse_partial
+%type <Lang.Term.tl> parse
 
 %%
 
 parse:
   | s = stmt; EOF
-    { MiniKanren.prj @@ s Mapping.empty }
-;
-parse_partial:
-  | s = stmt; EOF
     { s }
+;
 ;
 stmt:
   | RET; e = expr
     { e }
   | IF; e = expr; THEN; s1 = stmt; ELSE; s2 = stmt; FI
-    { fun map -> if' (e map) (s1 map) (s2 map) }
+    { Value (If (e, s1, s2)) }
   | REPEAT e = expr END
-    { fun map -> repeat (e map) }
+    { Value (Repeat e) }
   | v = VAR; ASSIGN; e = expr
-    { fun map -> asgn (var v) (e map) }
+    { Value (Asgn ((Value (Var v)), e)) }
   | l = LOC; UNDERSCORE; mo = MO; ASSIGN; e = expr
-    { fun map -> write mo l (e map) }
+    { Value (Write (mo, l, e)) }
   | s1 = stmt; SEMICOLON; s2 = stmt
-    { fun map -> seq (s1 map) (s2 map) }
+    { Value (Seq (s1, s2)) }
   | SPW; TOPEN; s1 = stmt; TSEP; s2 = stmt; TCLOSE
-    { fun map -> spw (s1 map) (s2 map) }
+    { Value (Spw (s1, s2)) }
   | SKIP
-    { fun _ -> skip }
+    { Value Skip }
   | STUCK
-    { fun _ -> stuck }
-  | QUESTION_MARK; lab = LABEL
-    { fun map -> Mapping.subst map (Char.escaped lab) }
+    { Value Stuck }
+  | label = LABEL
+    { Var (label, []) }
 ;
 expr:
   | n = INT
-    { fun _ -> const n }
+    { Value (Const n) }
   | v = VAR
-    { fun _ -> var v }
+    { Value (Var v) }
   | l = LOC; UNDERSCORE; mo = MO
-    { fun _ -> read mo l }
+    { Value (Read (mo, l)) }
   | e1 = expr; PLUS; e2 = expr
-    { fun map -> binop !!"+" (e1 map) (e2 map) }
+    { Value (Binop ((Value "+"), e1, e2)) }
   | e1 = expr; MINUS; e2 = expr
-    { fun map -> binop !!"-" (e1 map) (e2 map) }
+    { Value (Binop ((Value "-"), e1, e2)) }
   | e1 = expr; TIMES; e2 = expr
-    { fun map -> binop !!"*" (e1 map) (e2 map) }
-  | QUESTION_MARK; lab = LABEL
-    { fun map -> Mapping.subst map (Char.escaped lab) }
+    { Value (Binop ((Value "*"), e1, e2)) }
+  | label = LABEL
+    { Var (label, []) }
 ;
 %%

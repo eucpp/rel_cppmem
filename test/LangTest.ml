@@ -4,24 +4,24 @@ open Lang
 open MemOrder
 open TestUtils
 
-open Term
-open Context
+open Term.T
+open Context.T
 
 let test_reducible pairs test_ctx =
-  let reducible t = run q (fun q  -> reducibleo (inj_term t) q) prj_stream in
+  let reducible t = run q (fun q  -> reducibleo (Term.inj t) q) prj_stream in
   List.iter (fun (t, b) -> assert_single_answer b (reducible t)) pairs
 
 let test_split term expected test_ctx =
-  let split t = run qr (fun q  r  -> splito (inj_term t) q r)
+  let split t = run qr (fun q  r  -> splito (Term.inj t) q r)
                        (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
   in
   let stream = split term in
   assert_single_answer expected stream
 
 let test_plug ctx_term expected test_ctx =
-  let plug (c, t) = run q (fun q  -> plugo q (inj_context c) (inj_term t)) prj_stream in
+  let plug (c, t) = run q (fun q  -> plugo q (Context.inj c) (Term.inj t)) prj_stream in
   let stream = plug ctx_term in
-  assert_single_answer ~printer:Term.pprint expected stream
+  assert_single_answer ~printer:(fun t -> Term.pprint @@ Term.to_logic t)  expected stream
 
 let const n = Const (Nat.of_int n)
 
@@ -67,7 +67,7 @@ let tests =
     "test_plug_skip">:: test_plug (Hole, Skip) Skip;
 
     "test_preallocate">:: (fun test_ctx ->
-                            let vars, atomics = preallocate (Spw (Seq (Var "r1", Read (SC, "x")), Seq (Var "r1", Var "r2"))) in
+                            let vars, atomics = Term.preallocate (Spw (Seq (Var "r1", Read (SC, "x")), Seq (Var "r1", Var "r2"))) in
                             assert_equal ["r2";"r1"] vars ~cmp:(=) ~printer:(String.concat ",");
                             assert_equal ["x"] atomics ~cmp:(=) ~printer:(String.concat ","))
   ]

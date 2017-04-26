@@ -2,25 +2,21 @@ open MiniKanren
 open OUnit2
 open Lang
 
-module T = Lang.Term
-module C = Lang.Context
+module T = Lang.Term.T
+module C = Lang.Context.T
 module S = Memory.MemState
 
 let parse str =
   let lexbuf = Lexing.from_string str in
   Parser.parse Lexer.token lexbuf
 
-let parse_partial str =
-  let lexbuf = Lexing.from_string str in
-  Parser.parse_partial Lexer.token lexbuf
-
 let test_parse str expected test_ctx =
-  assert_equal expected (parse str) ~printer:T.pprint
+  let actual = Term.from_logic @@ parse str in
+  assert_equal expected actual ~printer:(fun t -> Term.pprint @@ Term.to_logic t)
 
-let test_parse_partial str mapping expected test_ctx =
-  let parsed = parse_partial str in
-  let actual = prj (parsed @@ Mapping.from_assoc mapping) in
-  assert_equal expected actual ~printer:T.pprint
+let test_parse_logic str expected test_ctx =
+  let actual = parse str in
+  assert_equal expected actual ~printer:Term.pprint
 
 let const n = T.Const (Nat.of_int n)
 
@@ -35,15 +31,14 @@ let parser_tests =
 
     "test_repeat">:: test_parse "repeat 1 end" (T.Repeat (const 1));
 
-    "test_read">:: test_parse "ret x_acq" (T.Read (ACQ, "x"));
-    "test_write">:: test_parse "x_rel := 1" (T.Write (REL, "x", const 1));
+    "test_read">:: test_parse "ret x_acq" (T.Read (MemOrder.ACQ, "x"));
+    "test_write">:: test_parse "x_rel := 1" (T.Write (MemOrder.REL, "x", const 1));
 
     "test_seq">:: test_parse "skip; stuck" (T.Seq (T.Skip, T.Stuck));
     "test_spw">:: test_parse "spw {{{ skip ||| stuck }}}" (T.Spw (T.Skip, T.Stuck));
 
     "test_partial">:: (
-        let asgn = (T.Asgn (T.Var "r1", const 42)) in
-        test_parse_partial "?q; ret r1" [("q", inj_term asgn)] (T.Seq (asgn, T.Var "r1"))
+        test_parse_logic "?1; ret r1" (Value (T.Seq (Var (1, []), Value (T.Var (Value "r1")))))
       )
   ]
 
