@@ -41,9 +41,14 @@ let tests =
                              in
                                test_split e (BinopL ("+", Hole, const 42), Var "x"));
 
-    "test_split_seq"  >:: test_split (Seq (Skip, Skip)) (SeqC (Hole, Skip), Skip);
+    "test_split_repeat" >:: test_split (Repeat (const 1)) (Hole, Repeat (const 1));
 
-    "test_plug_seq"  >:: test_plug (SeqC (Hole, Skip), Skip) Skip;
+    (* "test_split_seq"  >:: test_split (Seq (Skip, Skip)) (SeqC (Hole, Skip), Skip); *)
+
+    (* "test_plug_seq"  >:: test_plug (SeqC (Hole, Skip), Skip) Skip; *)
+
+    "test_split_asgn">:: (let stmt = Asgn (Var "x", const 1) in
+                              test_split stmt (Hole, stmt));
 
     "test_plug_const"   >:: test_plug (Hole, const 1) (const 1);
 
@@ -60,9 +65,6 @@ let tests =
 
     "test_plug_binop_4" >:: (let e = Binop ("+", const 1, Var "x") in
                                test_plug (BinopR ("+", const 1, Hole), Var "x") e);
-
-    "test_split_asgn">:: (let stmt = Asgn (Var "x", const 1) in
-                              test_split stmt (Hole, stmt));
 
     "test_plug_skip">:: test_plug (Hole, Skip) Skip;
 

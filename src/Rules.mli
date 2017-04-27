@@ -11,6 +11,7 @@ module Basic :
     val asgn   : string * rule
     val if'    : string * rule
     val repeat : string * rule
+    val seq    : string * rule
     val spawn  : string * rule
     val join   : string * rule
 

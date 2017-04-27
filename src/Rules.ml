@@ -81,18 +81,29 @@ module Basic =
 
     let if' = ("if", ifo)
 
-   let spawno c t s c' t' s' =
-     fresh (l r path)
+    let seqo c t s c' t' s' =
+      fresh (t1 t2)
+        (s === s')
+        (t === seq t1 t2)
+        (conde [
+          (t1 === skip ())  &&& (t' === t2)       &&& (c' === c);
+          (t1 === stuck ()) &&& (t' === stuck ()) &&& (c' === hole ());
+        ])
+
+    let seq = ("seq", seqo)
+
+    let spawno c t s c' t' s' =
+      fresh (l r path)
        (c  === c')
        (t  === spw l r)
        (t' === par l r)
        (patho c path)
        (MemState.spawno s s' path)
 
-   let spawn = ("spawn", spawno)
+    let spawn = ("spawn", spawno)
 
-   let joino c t s c' t' s' =
-     fresh (t1 t2 n1 n2 path)
+    let joino c t s c' t' s' =
+      fresh (t1 t2 n1 n2 path)
        (c === c')
        (t1 === const n1)
        (t2 === const n2)
@@ -103,7 +114,7 @@ module Basic =
 
    let join = ("join", joino)
 
-   let all = [var; binop; asgn; if'; repeat; spawn; join]
+   let all = [var; binop; asgn; if'; repeat; seq; spawn; join]
 
   end
 

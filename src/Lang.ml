@@ -336,7 +336,7 @@ let rec splito term c rdx = Term.(Context.(conde [
   fresh (t1 t2 c' t')
     (term === pair t1 t2)
     (conde [
-      ((c === hole ())             &&& (reducibleo t1 !false) &&& (reducibleo t2 !false) &&& (rdx === term));
+      ((c === hole ())          &&& (reducibleo t1 !false) &&& (reducibleo t2 !false) &&& (rdx === term));
       ((c === pair_left c' t2)  &&& (reducibleo t1 !true)
         &&& (rdx === t') &&& (splito t1 c' t'));
       ((c === pair_right t1 c') &&& (reducibleo t1 !false) &&& (reducibleo t2 !true)
@@ -346,34 +346,35 @@ let rec splito term c rdx = Term.(Context.(conde [
   fresh (l r c' t')
     (term === asgn l r)
     (conde [
-      ((c === hole ())          &&& (reducibleo r !false) &&& (rdx === term));
+      ((c === hole ())       &&& (reducibleo r !false) &&& (rdx === term));
       ((c === asgn_ctx l c') &&& (reducibleo r !true) &&& (rdx === t') &&& (splito r c' t'));
     ]);
 
   fresh (mo loc e c' t')
     (term === write mo loc e)
     (conde [
-      ((c === hole ())                &&& (rdx === term ));
+      ((c === hole ())             &&& (rdx === term ));
       ((c === write_ctx mo loc c') &&& (rdx === t') &&& (splito e c' t'));
     ]);
 
   fresh (cond btrue bfalse c' t')
     (term === if' cond btrue bfalse)
     (conde [
-      ((c === hole ())                   &&& (rdx === term ));
+      ((c === hole ())                &&& (rdx === term ));
       ((c === if_ctx c' btrue bfalse) &&& (rdx === t') &&& (splito cond c' t'))
     ]);
 
   fresh (t1 t2 c' t')
     (term === seq t1 t2)
-    (c === seq_ctx c' t2)
-    (rdx === t')
-    (splito t1 c' t');
+    (conde [
+      (c === hole ())       &&& (rdx === term);
+      (c === seq_ctx c' t2) &&& (rdx === t') &&& (splito t1 c' t');
+      ]);
 
   fresh (t1 t2 c' t')
     (term === par t1 t2)
     (conde [
-       ((c === hole ())            &&& (rdx === term ));
+       ((c === hole ())         &&& (rdx === term ));
        ((c === par_left  c' t2) &&& (rdx === t') &&& (splito t1 c' t'));
        ((c === par_right t1 c') &&& (rdx === t') &&& (splito t2 c' t'));
     ]);
@@ -408,7 +409,7 @@ let rec splito term c rdx = Term.(Context.(conde [
       fresh (op l r c' t')
         (term === binop op l r)
         (conde [
-          ((c === hole ())                 &&& (rdx === term));
+          ((c === hole ())              &&& (rdx === term));
           ((c === binop_left  op c' r)  &&& (rdx === t') &&& (plugo l c' t'));
           ((c === binop_right op l c')  &&& (rdx === t') &&& (plugo r c' t'));
         ]);
@@ -416,7 +417,7 @@ let rec splito term c rdx = Term.(Context.(conde [
       fresh (t1 t2 c' t')
         (term === pair t1 t2)
         (conde [
-          ((c === hole ())             &&& (rdx === term ));
+          ((c === hole ())          &&& (rdx === term ));
           ((c === pair_left  c' t2) &&& (rdx === t') &&& (plugo t1 c' t'));
           ((c === pair_right t1 c') &&& (rdx === t') &&& (plugo t2 c' t'));
         ]);
@@ -424,35 +425,40 @@ let rec splito term c rdx = Term.(Context.(conde [
       fresh (l r c' t')
         (term === asgn l r)
         (conde [
-          ((c === hole ())          &&& (rdx === term ));
+          ((c === hole ())       &&& (rdx === term ));
           ((c === asgn_ctx l c') &&& (rdx === t') &&& (plugo r c' t'));
         ]);
 
       fresh (mo loc e c' t')
         (term === write mo loc e)
         (conde [
-          ((c === hole ())                &&& (rdx === term ));
+          ((c === hole ())             &&& (rdx === term ));
           ((c === write_ctx mo loc c') &&& (rdx === t') &&& (plugo e c' t'));
         ]);
 
       fresh (cond btrue bfalse c' t')
         (term === if' cond btrue bfalse)
         (conde [
-          ((c === hole ())                   &&& (rdx === term ));
+          ((c === hole ())                &&& (rdx === term));
           ((c === if_ctx c' btrue bfalse) &&& (rdx === t') &&& (plugo cond c' t'))
         ]);
 
       fresh (t1 t2 c')
-        ((c === seq_ctx c' t2) &&& conde [
+        (term === seq t1 t2)
+        (conde [
+          ((c === hole ())                &&& (rdx === term));
+          ((c === seq_ctx c' t2)          &&& (plugo t1 c' rdx))
+        ]);
+        (* ((c === seq_ctx c' t2) &&& conde [
           (rdx =/= skip ()) &&& (rdx =/= stuck ()) &&& (term === seq t1 t2) &&& (plugo t1 c' rdx);
           (rdx === skip ())  &&& (term === t2);
           (rdx === stuck ()) &&& (term === stuck ());
-        ]);
+        ]); *)
 
       fresh (t1 t2 c' t')
         (term === par t1 t2)
         (conde [
-           ((c === hole ())            &&& (rdx === term ));
+           ((c === hole ())         &&& (rdx === term ));
            ((c === par_left  c' t2) &&& (rdx === t') &&& (plugo t1 c' t'));
            ((c === par_right t1 c') &&& (rdx === t') &&& (plugo t2 c' t'));
         ]);

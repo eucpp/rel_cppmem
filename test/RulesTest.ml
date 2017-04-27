@@ -3,25 +3,28 @@ open MiniKanren
 open Memory
 open Rules
 open Lang
-open Semantics
 open TestUtils
 
 module T = Lang.Term.T
 module C = Lang.Context.T
 module S = Memory.MemState
 
-let test_step ?empty_check rules (t, s) expected test_ctx =
-  let sem    = make rules in
-  let stream = run qr (fun q  r  -> stepo sem (Term.inj t) (S.inj s) q r)
-                      (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
-  in
-  TestUtils.assert_stream ?empty_check expected stream
+let test_step ?empty_check _ (t, s) expected test_ctx =
+  let module Sem = Semantics.Make(Semantics.OperationalStep) in
+  let t, s = Term.inj t, S.inj s in
+  let stream = Sem.(
+    run qr (fun q  r  -> (t, s) --> (q, r))
+           (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
+  ) in
+  TestUtils.assert_stream expected stream ?empty_check ~printer:(fun (t,s) -> Term.pprint @@ Term.to_logic t)
 
-let test_space ?empty_check rules (t, s) expected test_ctx =
-  let sem    = make rules in
-  let stream = run qr (fun q  r  -> spaceo sem (Term.inj t) (S.inj s) q r)
-                      (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
-  in
+let test_space ?empty_check _ (t, s) expected test_ctx =
+  let module Sem = Semantics.Make(Semantics.OperationalStep) in
+  let t, s = Term.inj t, S.inj s in
+  let stream = Sem.(
+    run qr (fun q  r  -> (t, s) -->* (q, r))
+           (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
+  ) in
   TestUtils.assert_stream ?empty_check expected stream
 
 let const n = T.Const (Nat.of_int n)

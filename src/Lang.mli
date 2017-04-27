@@ -142,6 +142,8 @@ module Context :
     type ti  = (tt, tl) MiniKanren.injected
 
     val inj : tt -> ti
+
+    val hole : unit -> ti
   end
 
 type tt  = Term.tt

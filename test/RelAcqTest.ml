@@ -3,7 +3,7 @@ open MiniKanren
 open Memory
 open TestUtils
 
-let sem = Semantics.make @@ List.append Rules.Basic.all Rules.RelAcq.all
+(* let sem = Semantics.make @@ List.append Rules.Basic.all Rules.RelAcq.all *)
 
 (* let test_prog ?(n:int) = TestUtils.test_prog ~n sem *)
 
@@ -49,9 +49,11 @@ let prog_MP = "
 
 let prog_MP_partial = "?q; ret r2"
 
+(* let step = (module Semantics.OperationalStep : Semantics.Step) *)
+
 let tests =
   "relAcq">::: [
-    "LB">:: test_prog sem prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"];
-    "MP">:: test_prog ~n:100 sem prog_MP ["(1, 1)";];
+    "LB">:: test_prog prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"];
+    "MP">:: test_prog ~n:100 prog_MP ["(1, 1)";];
     (* "MP_partial">:: test_prog_synthesis ~n:10 sem prog_MP ["f_rel := 1"]; *)
   ]

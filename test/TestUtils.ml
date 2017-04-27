@@ -2,9 +2,8 @@ open OUnit2
 open MiniKanren
 open Lang
 open Memory
-open Semantics
 
-module T = Lang.Term.T
+(* module T = Lang.Term.T *)
 
 let prj_stream stream = Stream.map (fun r -> r#prj) stream
 
@@ -58,16 +57,18 @@ let assert_stream ?(empty_check = true)
 
 (* module Sem = Semantics.Make(Lang.Term)(Lang.Context)(MemState) *)
 
-let test_prog ?n sem prog expected test_ctx =
+let test_prog ?n prog expected test_ctx =
+  let module Sem = Semantics.Make(Semantics.OperationalStep) in
   let show s  = "Outcome is not found among answers: " ^ s in
   let lexbuf  = Lexing.from_string prog in
   let term    = Term.from_logic @@ Parser.parse Lexer.token lexbuf in
   let rs, vs  = Term.preallocate term in
-  let state   = MemState.preallocate rs vs in
-  let stream  =
-   run qr (fun q  r  -> spaceo sem (Term.inj term) (MemState.inj state) q r)
+  let term    = Term.inj term in
+  let state   = MemState.inj @@ MemState.preallocate rs vs in
+  let stream  = Sem.(
+   run qr (fun q  r  -> (term, state) -->* (q, r))
           (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
-  in
+  ) in
   let module S = Set.Make(String) in
   let set = ref S.empty in
   let cnt = ref 0 in
