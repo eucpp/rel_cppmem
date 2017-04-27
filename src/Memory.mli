@@ -3,6 +3,8 @@ module Registers :
     type tt = (string, MiniKanren.Nat.ground) VarList.tt
     type tl = (string MiniKanren.logic, MiniKanren.Nat.logic) VarList.tl
     type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
+
+    val reseto : ti -> ti -> MiniKanren.goal
   end
 
 module ViewFront :
@@ -28,25 +30,51 @@ module ThreadState :
 
     val inj : tt -> ti
 
-    val create : (string * int) list -> (string * int) list -> tt
+    val create : vars:(string * int) list ->
+                 curr:(string * int) list ->
+                 rel: (string * int) list  ->
+                 acq: (string * int) list  -> tt
 
+    (** [preallocate vars atomics] creates new thread state
+          that has list of initialized local variables
+          and initialized viewfronts for atomic variables  *)
     val preallocate : string list -> string list -> tt
 
+    (** [get_varo thrd var val] performs read of thread-local variable *)
     val get_varo : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+
+    (** [set_varo thrd thrd' var value] performs write of thread-local variable *)
     val set_varo : ti -> ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
 
-    val get_tso : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
-    val set_tso : ti -> ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+    (** [last_tso thrd loc ts] obtains last timestamp [ts] at [loc] that was seen by thread [thrd] *)
+    val last_tso : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
 
-    val curro : ti -> ViewFront.ti -> MiniKanren.goal
+    (** [updateo thrd thrd' loc ts] updates thread's viewfronts at [loc] by new timestamp [ts] *)
+    val updateo : ti -> ti -> Lang.Loc.ti -> Lang.Timestamp.ti -> MiniKanren.goal
 
-    (** [updateo thrd thrd' vf] joins viewfront of thread [thrd] with [vf] and obtains [thrd']  *)
-    val updateo : ti -> ti -> ViewFront.ti -> MiniKanren.goal
+    (** [front_relo thrd loc rel] obtains release front [rel] of thread [thrd] for location [loc] *)
+    val front_relo : ti -> Lang.Loc.ti -> ViewFront.ti -> MiniKanren.goal
 
-    (** [joino thrd1 thrd2 vf] joins viewfronts of [thrd1] and [thrd2] into vf *)
-    val joino  : ti -> ti -> ViewFront.ti -> MiniKanren.goal
+    (** [update_acqo thrd thrd' vf] joins acquire viewfront of thread [thrd] with [vf] and obtains [thrd']  *)
+    val update_acqo : ti -> ti -> ViewFront.ti -> MiniKanren.goal
 
+    (** [fence_acqo thrd thrd'] performs merge of thread's acquire front into its current front *)
+    val fence_acqo : ti -> ti -> MiniKanren.goal
+
+    (** [fence_relo thrd thrd'] performs merge of thread's current front into all its release front *)
+    val fence_relo : ti -> ti -> MiniKanren.goal
+
+    (** [fence_loc_relo thrd thrd'] performs merge of thread's current front into its release front for location [loc] *)
+    val fence_loc_relo : ti -> ti -> Lang.Loc.ti -> MiniKanren.goal
+
+    (** [spawno thrd thrd1 thrd2] spawns two new child threads with viewfronts equal to parent's viewfronts
+          and local variables initialized to zeroes *)
     val spawno : ti -> ti -> ti -> MiniKanren.goal
+
+    (** [joino thrd thrd' thrd1 thrd2] joins all viewfronts of [thrd1] and [thrd2]
+          into corresponding viewfronts of parent [thrd]
+          obtaining new parent thread [thrd'] *)
+    val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal
   end
 
 module Threads :
@@ -89,13 +117,13 @@ module LocStory :
 
     val preallocate : string list -> tt
 
-    val next_tso : ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+    val next_tso : ti -> Lang.Timestamp.ti -> MiniKanren.goal
 
-    val read_acqo  : ti -> MiniKanren.Nat.groundi
-                        -> MiniKanren.Nat.groundi -> MiniKanren.Nat.groundi -> ViewFront.ti
-                        -> MiniKanren.goal
+    val reado  : ti -> Lang.Timestamp.ti
+                    -> Lang.Timestamp.ti -> Lang.Value.ti -> ViewFront.ti
+                    -> MiniKanren.goal
 
-    val write_relo : ti -> ti -> MiniKanren.Nat.groundi -> ViewFront.ti -> MiniKanren.goal
+    val writeo : ti -> ti -> Lang.Value.ti -> ViewFront.ti -> MiniKanren.goal
   end
 
 module MemStory :
@@ -112,10 +140,11 @@ module MemStory :
 
     val next_tso : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
 
-    val read_acqo : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi
-                       -> MiniKanren.Nat.groundi -> MiniKanren.Nat.groundi -> ViewFront.ti -> MiniKanren.goal
+    val reado : ti -> Lang.Loc.ti -> Lang.Timestamp.ti
+                   -> Lang.Timestamp.ti -> Lang.Value.ti -> ViewFront.ti
+                   -> MiniKanren.goal
 
-    val write_relo : ti -> ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> ViewFront.ti -> MiniKanren.goal
+    val writeo : ti -> ti -> Lang.Loc.ti -> Lang.Value.ti -> ViewFront.ti -> MiniKanren.goal
   end
 
 (*
@@ -160,11 +189,17 @@ module MemState :
 
     val preallocate : string list -> string list -> tt
 
-    val get_localo : ti ->       Lang.Path.ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
-    val set_localo : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+    val get_localo : ti ->       Lang.Path.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val set_localo : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
 
-    val read_acqo  : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
-    val write_relo : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+    val read_rlxo  : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val write_rlxo : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+
+    val read_acqo  : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val write_relo : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+
+    val fence_acqo : ti -> ti -> Lang.Path.ti -> MiniKanren.goal
+    val fence_relo : ti -> ti -> Lang.Path.ti -> MiniKanren.goal
 
     (* val read_sco  : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
     val write_sco : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal *)

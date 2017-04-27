@@ -10,6 +10,14 @@ module Registers =
     let inj = List.inj (fun (var, value) -> inj_pair (!!var) (Nat.inj value))
 
     let allocate vars = List.of_list (fun s -> (s, Nat.of_int 0)) vars
+
+    let reset_varo p p' = Nat.(
+      fresh (var value)
+        (p  === inj_pair var value)
+        (p' === inj_pair var (inj_nat 0))
+      )
+
+    let reseto = VarList.mapo reset_varo
   end
 
 module ViewFront =
@@ -28,80 +36,117 @@ module ViewFront =
 module ThreadState =
   struct
     module T = struct
-      type ('a, 'b) t = {
+      type ('a, 'b, 'c, 'd) t = {
         regs : 'a;
         curr : 'b;
+        rel  : 'c;
+        acq  : 'd;
       }
 
-      let fmap fa fb {regs = a; curr = b} = {regs = fa a; curr = fb b}
+      let fmap fa fb fc fd {regs = a; curr = b; rel = c; acq = d} =
+        {regs = fa a; curr = fb b; rel = fc c; acq = fd d}
     end
 
-    type tt = (Registers.tt, ViewFront.tt) T.t
+    type tt = (Registers.tt, ViewFront.tt, ViewFront.tt, ViewFront.tt) T.t
 
-    type tl_inner = (Registers.tl, ViewFront.tl) T.t
+    type tl_inner = (Registers.tl, ViewFront.tl, ViewFront.tl, ViewFront.tl) T.t
 
     type tl = tl_inner MiniKanren.logic
 
     type ti = (tt, tl) MiniKanren.injected
 
-    module Fmap = Fmap2(T)
+    module Fmap = Fmap4(T)
 
-    let thrd_state regs curr = inj @@ Fmap.distrib @@ {T.regs = regs; T.curr = curr}
+    let thrd_state regs curr rel acq =
+      inj @@ Fmap.distrib @@ {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq}
 
-    let inj {T.regs = regs; T.curr = curr} = thrd_state (Registers.inj regs) (ViewFront.inj curr)
+    let inj {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq} =
+      thrd_state (Registers.inj regs) (ViewFront.inj curr) (ViewFront.inj rel) (ViewFront.inj acq)
 
     let convert = (fun (var, value) -> (var, Nat.of_int value))
 
-    let create vars vf = {
+    let create ~vars ~curr ~rel ~acq = {
       T.regs = List.of_list convert vars;
-      T.curr = List.of_list convert vf;
+      T.curr = List.of_list convert curr;
+      T.rel  = List.of_list convert rel;
+      T.acq  = List.of_list convert acq;
     }
 
     let preallocate vars atomics = {
       T.regs = Registers.allocate vars;
       T.curr = ViewFront.allocate atomics;
+      T.rel  = ViewFront.allocate atomics;
+      T.acq  = ViewFront.allocate atomics;
     }
 
     let get_varo thrd var value =
-      fresh (regs curr)
-        (thrd === thrd_state regs curr)
+      fresh (regs curr rel acq)
+        (thrd === thrd_state regs curr rel acq)
         (VarList.geto regs var value)
 
     let set_varo thrd thrd' var value =
-      fresh (regs regs' curr)
-        (thrd  === thrd_state regs  curr)
-        (thrd' === thrd_state regs' curr)
+      fresh (regs regs' curr rel acq)
+        (thrd  === thrd_state regs  curr rel acq)
+        (thrd' === thrd_state regs' curr rel acq)
         (VarList.seto regs regs' var value)
 
-    let get_tso thrd var ts =
-      fresh (regs curr)
-        (thrd === thrd_state regs curr)
-        (VarList.geto curr var ts)
+    let last_tso thrd loc ts =
+      fresh (regs curr rel acq)
+        (thrd === thrd_state regs curr rel acq)
+        (VarList.geto curr loc ts)
 
-    let set_tso thrd thrd' var ts =
-      fresh (regs curr curr')
-        (thrd  === thrd_state regs curr)
-        (thrd' === thrd_state regs curr')
-        (VarList.seto curr curr' var ts)
+    let updateo thrd thrd' loc ts =
+      fresh (regs curr curr' rel rel' acq acq')
+        (thrd  === thrd_state regs curr  rel  acq )
+        (thrd' === thrd_state regs curr' rel' acq')
+        (VarList.seto curr curr' loc ts)
+        (VarList.seto curr rel'  loc ts)
+        (VarList.seto curr acq'  loc ts)
 
-    let curro thrd curr =
-      fresh (regs)
-        (thrd === thrd_state regs curr)
+    let front_relo thrd loc rel =
+      fresh (regs curr acq)
+        (thrd === thrd_state regs curr rel acq)
 
-    let updateo thrd thrd' vf =
-      fresh (regs curr curr')
-        (thrd  === thrd_state regs curr)
-        (thrd' === thrd_state regs curr')
-        (VarList.joino VarList.join_tso vf curr curr')
+    let update_acqo thrd thrd' vf =
+      fresh (regs curr rel acq acq')
+        (thrd  === thrd_state regs curr rel acq )
+        (thrd' === thrd_state regs curr rel acq')
+        (VarList.map2o VarList.join_tso vf acq acq')
 
-    let spawno thrd spwn1 spwn2 =
-      (spwn1 === thrd) &&& (spwn2 === thrd)
+    let fence_acqo thrd thrd' =
+      fresh (regs curr rel acq)
+        (thrd  === thrd_state regs curr rel acq)
+        (thrd' === thrd_state regs acq  rel acq)
 
-    let joino thrd1 thrd2 vf =
-      fresh (regs1 regs2 curr1 curr2)
-        (thrd1 === thrd_state regs1 curr1)
-        (thrd2 === thrd_state regs2 curr2)
-        (VarList.joino VarList.join_tso curr1 curr2 vf)
+    let fence_loc_relo thrd thrd' loc =
+      fresh (regs curr rel acq)
+        (thrd  === thrd_state regs curr rel  acq)
+        (thrd' === thrd_state regs curr curr acq)
+
+    let fence_relo thrd thrd' =
+      fresh (regs curr rel acq)
+        (thrd  === thrd_state regs curr rel  acq)
+        (thrd' === thrd_state regs curr curr acq)
+
+    let spawno thrd child1 child2 =
+      fresh (regs regs' curr rel acq)
+        (thrd   === thrd_state regs  curr rel acq)
+        (child1 === thrd_state regs' curr rel acq)
+        (child1 === child2)
+        (Registers.reseto regs regs')
+
+    let joino thrd thrd' child1 child2 =
+      fresh (regs       regs1 regs2
+             curr curr' curr1 curr2
+             rel  rel' rel1 rel2
+             acq  acq' acq1 acq2)
+        (thrd   === thrd_state regs  curr  rel  acq )
+        (thrd'  === thrd_state regs  curr' rel' acq')
+        (child1 === thrd_state regs1 curr1 rel1 acq1)
+        (child2 === thrd_state regs2 curr2 rel2 acq2)
+        (VarList.map2o VarList.join_tso curr1 curr2 curr')
+        (VarList.map2o VarList.join_tso rel1  rel2  rel' )
+        (VarList.map2o VarList.join_tso acq1  acq2  acq' )
 
   end
 
@@ -132,7 +177,7 @@ module Threads =
 
     let rec inj tree = inj' @@ Fmap.distrib (Tree.fmap (ThreadState.inj) (inj) tree)
 
-    let create vars vf = Tree.Node (ThreadState.create vars vf, Tree.Nil, Tree.Nil)
+    let create vars  = Tree.Node (ThreadState.create vars vf, Tree.Nil, Tree.Nil)
 
     let rec geto tree path thrd = Path.(
       fresh (thrd' l r path')
@@ -187,15 +232,13 @@ module Threads =
         (tree  === node thrd  l  r )
         (tree' === node thrd' l' r')
         (conde [
-          fresh (a b vf regs curr)
+          fresh (a b)
             (path  === pathn ())
             (l  === leaf a)
             (r  === leaf b)
             (l' === nil)
             (r' === nil)
-            (ThreadState.joino a b vf)
-            (thrd  === ThreadState.thrd_state regs curr)
-            (thrd' === ThreadState.thrd_state regs vf);
+            (ThreadState.joino thrd thrd' a b);
 
           (thrd === thrd') &&&
           (conde [
@@ -255,14 +298,14 @@ module LocStory =
         (msg === inj_triple ts' value vf)
         (Nat.leo ts ts' b)
 
-    let read_acqo t last_ts ts value vf =
+    let reado t last_ts ts value vf =
       fresh (story tsnext visible msg)
         (t === loc_story tsnext story)
         (MiniKanren.List.filtero (visibleo last_ts) story visible)
         (MiniKanren.List.membero visible msg)
         (msg === inj_triple ts value vf)
 
-    let write_relo t t' value vf =
+    let writeo t t' value vf =
       fresh (ts ts' story story')
         (t  === loc_story ts  story )
         (t' === loc_story ts' story')
@@ -288,16 +331,16 @@ module MemStory =
         (VarList.geto t loc story)
         (LocStory.next_tso story ts)
 
-    let read_acqo t loc last_ts ts value vf =
+    let reado t loc last_ts ts value vf =
       fresh (story)
         (VarList.geto t loc story)
-        (LocStory.read_acqo story last_ts ts value vf)
+        (LocStory.reado story last_ts ts value vf)
 
-    let write_relo t t' loc value vf  =
+    let writeo t t' loc value vf  =
       fresh (story story')
         (VarList.geto t loc story)
         (VarList.seto t t' loc story')
-        (LocStory.write_relo story story' value vf)
+        (LocStory.writeo story story' value vf)
 
   end
 
@@ -390,26 +433,60 @@ module MemState =
         (set_thrdo t t' path thrd')
         (ThreadState.set_varo thrd thrd' var value)
 
-    let read_acqo t t' path loc value =
+    let read_rlxo t t' path loc value =
       fresh (tree tree' story story' thrd thrd' last_ts ts vf)
         (t  === mem_state tree  story)
         (t' === mem_state tree' story)
         (Threads.geto tree path thrd)
         (Threads.seto tree tree' path thrd')
-        (ThreadState.get_tso thrd loc last_ts)
-        (MemStory.read_acqo story loc last_ts ts value vf)
-        (ThreadState.updateo thrd thrd' vf)
+        (ThreadState.last_tso thrd loc last_ts)
+        (MemStory.reado story loc last_ts ts value vf)
+        (ThreadState.update_acqo thrd thrd' vf)
 
-    let write_relo t t' path loc value =
-      fresh (tree tree' story story' thrd thrd' ts vf)
+    let write_rlxo t t' path loc value =
+      fresh (tree tree' story story' thrd thrd' ts rel)
         (t  === mem_state tree  story)
         (t' === mem_state tree' story')
         (Threads.geto tree path thrd)
         (Threads.seto tree tree' path thrd')
         (MemStory.next_tso story loc ts)
-        (ThreadState.set_tso thrd thrd' loc ts)
-        (ThreadState.curro thrd' vf)
-        (MemStory.write_relo story story' loc value vf)
+        (ThreadState.updateo thrd thrd' loc ts)
+        (ThreadState.front_relo thrd loc rel)
+        (MemStory.writeo story story' loc value rel)
+
+    let fence_acqo t t' path =
+      fresh (tree tree' story thrd thrd')
+        (t  === mem_state  tree  story)
+        (t' === mem_state  tree' story)
+        (Threads.geto tree       path thrd )
+        (Threads.seto tree tree' path thrd')
+        (ThreadState.fence_acqo  thrd thrd')
+
+    let fence_relo t t' path =
+      fresh (tree tree' story thrd thrd')
+        (t  === mem_state  tree  story)
+        (t' === mem_state  tree' story)
+        (Threads.geto tree       path thrd )
+        (Threads.seto tree tree' path thrd')
+        (ThreadState.fence_relo  thrd thrd')
+
+    let fence_loc_relo t t' path loc =
+      fresh (tree tree' story thrd thrd')
+        (t  === mem_state  tree  story)
+        (t' === mem_state  tree' story)
+        (Threads.geto tree       path thrd )
+        (Threads.seto tree tree' path thrd')
+        (ThreadState.fence_loc_relo thrd thrd' loc)
+
+    let read_acqo t t'' path loc value =
+      fresh (t')
+        (read_rlxo t t' path loc value)
+        (fence_acqo t' t'' path)
+
+    let write_relo t t'' path loc value =
+      fresh (t')
+        (fence_loc_relo t t' path loc)
+        (write_rlxo t' t'' path loc value)
 
     let spawno t t' path =
       fresh (tree tree' story)

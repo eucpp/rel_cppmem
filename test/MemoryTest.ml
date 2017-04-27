@@ -76,7 +76,7 @@ let loc_story_tests =
   "test_read_acq_1" >:: (fun test_ctx ->
     let vf = ViewFront.from_list [("x", 0)] in
     let loc_story = LocStory.create 2 [(0, 0, vf); (1, 1, vf)] in
-    let stream = run qrs (fun q  r  s  -> LocStory.read_acqo (LocStory.inj loc_story) (inj_nat 0) q r s)
+    let stream = run qrs (fun q  r  s  -> LocStory.reado (LocStory.inj loc_story) (inj_nat 0) q r s)
                          (fun qs rs ss -> Utils.zip3 (prj_stream qs) (prj_stream rs) (prj_stream ss))
     in
     assert_stream [(Nat.of_int 0, Nat.of_int 0, vf); (Nat.of_int 1, Nat.of_int 1, vf)] stream
@@ -85,7 +85,7 @@ let loc_story_tests =
   "test_read_acq_1" >:: (fun test_ctx ->
     let vf = ViewFront.from_list [("x", 0)] in
     let loc_story = LocStory.create 2 [(0, 0, vf); (1, 1, vf)] in
-    let stream = run qrs (fun q  r  s  -> LocStory.read_acqo (LocStory.inj loc_story) (inj_nat 1) q r s)
+    let stream = run qrs (fun q  r  s  -> LocStory.reado (LocStory.inj loc_story) (inj_nat 1) q r s)
                          (fun qs rs ss -> Utils.zip3 (prj_stream qs) (prj_stream rs) (prj_stream ss))
     in
     assert_stream [(Nat.of_int 1, Nat.of_int 1, vf)] stream
@@ -95,7 +95,7 @@ let loc_story_tests =
     let vf = ViewFront.from_list [("x", 0)] in
     let story = LocStory.create 0 [] in
     let expected = LocStory.create 1 [(0, 0, vf)] in
-    let stream = run q (fun q -> LocStory.write_relo (LocStory.inj story) q (inj_nat 0) (ViewFront.inj vf))
+    let stream = run q (fun q -> LocStory.writeo (LocStory.inj story) q (inj_nat 0) (ViewFront.inj vf))
                        prj_stream
     in
     assert_single_answer expected stream

@@ -44,12 +44,21 @@ let join_tso p1 p2 p' = Nat.(
     ])
   )
 
-let rec joino join vars1 vars2 vars' = conde [
+let rec mapo relo vars vars' = conde [
+  (vars === nil ()) &&& (vars' === nil ());
+  (fresh (hd tl hd' vars'')
+    (vars === hd % tl)
+    (relo hd hd')
+    (vars' === hd' % vars'')
+    (mapo relo tl vars''));
+  ]
+
+let rec map2o relo vars1 vars2 vars' = conde [
   (vars1 === nil ()) &&& (vars2 === nil ()) &&& (vars' === nil ());
   (fresh (hd1 tl1 hd2 tl2 hd' vars'')
     (vars1 === hd1 % tl1)
     (vars2 === hd2 % tl2)
-    (join hd1 hd2 hd')
+    (relo hd1 hd2 hd')
     (vars' === hd' % vars'')
-    (joino join tl1 tl2 vars''));
+    (map2o relo tl1 tl2 vars''));
   ]

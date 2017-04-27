@@ -24,7 +24,7 @@ let test_set vars var value answ test_ctx =
     | None       -> assert_bool "Redundant answers in the stream (expected none)" (Stream.is_empty stream)
 
 let test_join vars1 vars2 answ test_ctx =
-  let stream  = run q (fun q  -> joino join_tso (inj_viewfront vars1) (inj_viewfront vars2) q)
+  let stream  = run q (fun q  -> map2o join_tso (inj_viewfront vars1) (inj_viewfront vars2) q)
                       (fun qs -> Stream.map (fun r -> List.to_list (fun (k, v) -> (k, Nat.to_int v)) r#prj) qs)
   in
   match answ with
