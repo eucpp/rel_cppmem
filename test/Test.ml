@@ -9,7 +9,7 @@ let tests =
     ParserTest.tests;
     PrettyPrinterTest.tests;
     RulesTest.tests;
-    (* RelAcqTest.tests; *)
+    RelAcqTest.tests;
   ]
 
 let () =

@@ -65,7 +65,15 @@ module ThreadState =
 
     let convert = (fun (var, value) -> (var, Nat.of_int value))
 
-    let create ~vars ~curr ~rel ~acq = {
+    let create ?(rel) ?(acq) vars curr =
+      let rel = match rel with
+        | Some rel -> rel
+        | None     -> curr
+      in
+      let acq = match acq with
+        | Some acq -> acq
+        | None     -> curr
+      in {
       T.regs = List.of_list convert vars;
       T.curr = List.of_list convert curr;
       T.rel  = List.of_list convert rel;
@@ -100,8 +108,8 @@ module ThreadState =
         (thrd  === thrd_state regs curr  rel  acq )
         (thrd' === thrd_state regs curr' rel' acq')
         (VarList.seto curr curr' loc ts)
-        (VarList.seto curr rel'  loc ts)
-        (VarList.seto curr acq'  loc ts)
+        (VarList.seto rel  rel'  loc ts)
+        (VarList.seto acq  acq'  loc ts)
 
     let front_relo thrd loc rel =
       fresh (regs curr acq)
@@ -177,7 +185,8 @@ module Threads =
 
     let rec inj tree = inj' @@ Fmap.distrib (Tree.fmap (ThreadState.inj) (inj) tree)
 
-    let create vars  = Tree.Node (ThreadState.create vars vf, Tree.Nil, Tree.Nil)
+    let create ?rel ?acq vars curr =
+      Tree.Node (ThreadState.create ?rel ?acq vars curr, Tree.Nil, Tree.Nil)
 
     let rec geto tree path thrd = Path.(
       fresh (thrd' l r path')
@@ -451,7 +460,7 @@ module MemState =
         (Threads.seto tree tree' path thrd')
         (MemStory.next_tso story loc ts)
         (ThreadState.updateo thrd thrd' loc ts)
-        (ThreadState.front_relo thrd loc rel)
+        (ThreadState.front_relo thrd' loc rel)
         (MemStory.writeo story story' loc value rel)
 
     let fence_acqo t t' path =

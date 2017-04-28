@@ -30,10 +30,10 @@ module ThreadState :
 
     val inj : tt -> ti
 
-    val create : vars:(string * int) list ->
-                 curr:(string * int) list ->
-                 rel: (string * int) list  ->
-                 acq: (string * int) list  -> tt
+    val create : ?rel: (string * int) list ->
+                 ?acq: (string * int) list ->
+                  (string * int) list ->
+                  (string * int) list -> tt
 
     (** [preallocate vars atomics] creates new thread state
           that has list of initialized local variables
@@ -92,7 +92,10 @@ module Threads :
 
     val inj : tt -> ti
 
-    val create : (string * int) list -> (string * int) list -> tt
+    val create : ?rel: (string * int) list ->
+                 ?acq: (string * int) list ->
+                  (string * int) list ->
+                  (string * int) list -> tt
 
     val geto : ti -> Lang.Path.ti -> ThreadState.ti -> MiniKanren.goal
     val seto : ti -> ti -> Lang.Path.ti -> ThreadState.ti -> MiniKanren.goal

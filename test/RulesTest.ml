@@ -80,7 +80,7 @@ let basic_tests =
     );
 
     "spawn_assign">:: (
-      let thrd = ThreadState.create ~vars:[("r1", 42); ("r2", 1)] ~curr:[("x", 0); ("y", 0)] in
+      let thrd = ThreadState.create [("r1", 42); ("r2", 1)] [("x", 0); ("y", 0)] in
       let node = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
       let mem' = S.create node (MemStory.preallocate ["x"; "y"]) in
       let pair = T.Pair (T.Var "r1", T.Var "r2") in
@@ -108,9 +108,11 @@ let rel_acq_tests =
   let vf         = ViewFront.from_list [("x", 0)] in
   let vf'        = ViewFront.from_list [("x", 1)] in
   let thrd       = ThreadState.preallocate [] ["x"] in
-  let thrd'      = ThreadState.create ~vars:[] ~curr:[("x", 1)] ~acq:[("x", 1)] ~rel:[("x", 0)] in
-  let tree       = Threads.Tree.Node (thrd,  Threads.Tree.Nil, Threads.Tree.Nil) in
-  let tree'      = Threads.Tree.Node (thrd', Threads.Tree.Nil, Threads.Tree.Nil) in
+  let thrd'      = ThreadState.create [] [("x", 1)] ~acq:[("x", 1)] ~rel:[("x", 0)] in
+  let thrd''     = ThreadState.create [] [("x", 1)] ~acq:[("x", 1)] ~rel:[("x", 1)] in
+  let tree       = Threads.Tree.Node (thrd,   Threads.Tree.Nil, Threads.Tree.Nil) in
+  let tree'      = Threads.Tree.Node (thrd',  Threads.Tree.Nil, Threads.Tree.Nil) in
+  let tree''     = Threads.Tree.Node (thrd'', Threads.Tree.Nil, Threads.Tree.Nil) in
 
   "rel_acq">::: [
     "read_acq">:: (
@@ -126,8 +128,8 @@ let rel_acq_tests =
       let loc_story' = LocStory.create 2 [(1, 1, vf'); (0, 0, vf)] in
       let mem_story  = MemStory.create [("x", loc_story )] in
       let mem_story' = MemStory.create [("x", loc_story')] in
-      let state      = S.create tree  mem_story in
-      let state'     = S.create tree' mem_story' in
+      let state      = S.create tree   mem_story in
+      let state'     = S.create tree'' mem_story' in
       test_step [RelAcq.write_rel] (T.Write (REL, "x", const 1), state) [(T.Skip, state')]);
   ]
 
