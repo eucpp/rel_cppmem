@@ -323,6 +323,12 @@ module LocStory =
         (ts' === Nat.succ ts)
         (story' === (inj_triple ts value vf) % story)
 
+    let last_valueo t value =
+      fresh (ts ts' story msg tail vf)
+        (t   === loc_story  ts  story)
+        (msg === inj_triple ts' value vf)
+        (story === msg % tail)
+
   end
 
 module MemStory =
@@ -352,6 +358,11 @@ module MemStory =
         (VarList.geto t loc story)
         (VarList.seto t t' loc story')
         (LocStory.writeo story story' value vf)
+
+    let last_valueo t loc value =
+      fresh (story story)
+        (VarList.geto t loc story)
+        (LocStory.last_valueo story value)
 
   end
 
@@ -499,6 +510,11 @@ module MemState =
       fresh (t')
         (fence_loc_relo t t' path loc)
         (write_rlxo t' t'' path loc value)
+
+    let last_valueo t loc value =
+      fresh (tree tree story)
+        (t  === mem_state tree story)
+        (MemStory.last_valueo story loc value)
 
     let spawno t t' path =
       fresh (tree tree' story)

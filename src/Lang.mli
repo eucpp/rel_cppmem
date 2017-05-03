@@ -113,7 +113,9 @@ module Term :
     val to_logic   : tt -> tl
     val from_logic : tl -> tt
 
-    val preallocate : tt -> Var.tt list * Loc.tt list
+    val reify : MiniKanren.helper -> ti -> tl
+
+    val preallocate : tl -> Var.tt list * Loc.tt list
 
     val pprint : tl -> string
   end

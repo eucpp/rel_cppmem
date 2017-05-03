@@ -127,6 +127,8 @@ module LocStory :
                     -> MiniKanren.goal
 
     val writeo : ti -> ti -> Lang.Value.ti -> ViewFront.ti -> MiniKanren.goal
+
+    val last_valueo : ti -> Lang.Value.ti -> MiniKanren.goal
   end
 
 module MemStory :
@@ -148,6 +150,8 @@ module MemStory :
                    -> MiniKanren.goal
 
     val writeo : ti -> ti -> Lang.Loc.ti -> Lang.Value.ti -> ViewFront.ti -> MiniKanren.goal
+
+    val last_valueo : ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
   end
 
 (*
@@ -192,8 +196,8 @@ module MemState :
 
     val preallocate : string list -> string list -> tt
 
-    val get_localo : ti ->       Lang.Path.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
-    val set_localo : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val get_localo : ti ->       Lang.Path.ti -> Lang.Var.ti -> Lang.Value.ti -> MiniKanren.goal
+    val set_localo : ti -> ti -> Lang.Path.ti -> Lang.Var.ti -> Lang.Value.ti -> MiniKanren.goal
 
     val read_rlxo  : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
     val write_rlxo : ti -> ti -> Lang.Path.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
@@ -203,6 +207,8 @@ module MemState :
 
     val fence_acqo : ti -> ti -> Lang.Path.ti -> MiniKanren.goal
     val fence_relo : ti -> ti -> Lang.Path.ti -> MiniKanren.goal
+
+    val last_valueo : ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
 
     (* val read_sco  : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal
     val write_sco : Path.lt -> loc logic -> Nat.logic -> lt -> lt -> goal *)

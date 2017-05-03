@@ -157,39 +157,54 @@ module Term =
       let f x = Value x in
       Value (T.fmap (Nat.to_logic) (f) (f) (f) (to_logic) x)
 
-    let rec preallocate' vars atomics = T.(function
-      | Read  (_, x)
-      | Write (_, x, _) ->
+    let reify' = reify
+
+    let rec reify x = ManualReifiers.(reify' (Nat.reify) (string_reifier) (simple_reifier) (string_reifier) (reify) x)
+
+    let rec prealloc_t vars atomics = T.(function
+      | Read  (_, Value x)
+      | Write (_, Value x, _) ->
         if List.mem x atomics then (vars, atomics) else (vars, x::atomics)
-      | Var x ->
+      | Var (Value x) ->
         if List.mem x vars then (vars, atomics) else (x::vars, atomics)
       | Repeat t1 ->
-        preallocate' vars atomics t1
+        prealloc_l vars atomics t1
       | Binop (_, t1, t2)
       | Asgn  (t1, t2)
       | Pair  (t1, t2)
       | Seq   (t1, t2)
       | Spw   (t1, t2)
       | Par   (t1, t2) ->
-        let (vars', atomics') = preallocate' vars atomics t1 in
-          preallocate' vars' atomics' t2
+        let (vars', atomics') = prealloc_l vars atomics t1 in
+          prealloc_l vars' atomics' t2
       | If (t1, t2, t3) ->
-        let (vars' , atomics')  = preallocate' vars atomics t1 in
-        let (vars'', atomics'') = preallocate' vars' atomics' t2 in
-        preallocate' vars'' atomics'' t3
+        let (vars' , atomics')  = prealloc_l vars atomics t1 in
+        let (vars'', atomics'') = prealloc_l vars' atomics' t2 in
+        prealloc_l vars'' atomics'' t3
       | _  -> (vars, atomics)
     )
+    and prealloc_l vars atomics = function
+      | Value t     -> prealloc_t vars atomics t
+      | Var (i, []) -> (vars, atomics)
 
-    let preallocate = preallocate' [] []
+    let preallocate = prealloc_l [] []
 
     let pprint term = T.(
-      let pprint_logic s ff = function
+      let rec pprint_logic s ff = function
         | Value x         -> Format.fprintf ff "%a" s x
-        | Var (i, cstrs)  -> Format.fprintf ff "?%d" i
+        | Var (i, [])  -> Format.fprintf ff "?%d {}" i
+        | Var (i, ctrs)  ->
+          Format.fprintf ff "?%d{" i;
+          List.iter (fun ctr -> Format.fprintf ff "%a; " (pprint_logic s) ctr) ctrs;
+          Format.fprintf ff "}"
       in
-      let const ff n = match n with
+      let rec const ff n = match n with
         | Value _         -> Format.fprintf ff "%d" (Nat.to_int @@ Nat.from_logic n)
-        | Var (i, cstrs)  -> Format.fprintf ff "?%d" i
+        | Var (i, [])  -> Format.fprintf ff "?%d" i
+        | Var (i, ctrs)  ->
+          Format.fprintf ff "?%d{" i;
+          List.iter (fun ctr -> Format.fprintf ff "%a; " const ctr) ctrs;
+          Format.fprintf ff "}"
       in
       let kwd ff x    = pprint_logic (fun ff s -> Format.fprintf ff "%s" s) ff x in
       let var ff x    = pprint_logic (fun ff s -> Format.fprintf ff "%s" s) ff x in

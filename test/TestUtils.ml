@@ -65,9 +65,9 @@ let test_prog ?n ?(negative=false) prog expected test_ctx =
   let module Sem = Semantics.Make(Semantics.OperationalStep) in
   let show s  = s in
   let lexbuf  = Lexing.from_string prog in
-  let term    = Term.from_logic @@ Parser.parse Lexer.token lexbuf in
+  let term    = Parser.parse Lexer.token lexbuf in
   let rs, vs  = Term.preallocate term in
-  let term    = Term.inj term in
+  let term    = Term.inj @@ Term.from_logic term in
   let state   = MemState.inj @@ MemState.preallocate rs vs in
   let stream  = Sem.(
    run qr (fun q  r  -> (term, state) -->* (q, r))

@@ -69,7 +69,7 @@ let tests =
     "test_plug_skip">:: test_plug (Hole, Skip) Skip;
 
     "test_preallocate">:: (fun test_ctx ->
-                            let vars, atomics = Term.preallocate (Spw (Seq (Var "r1", Read (SC, "x")), Seq (Var "r1", Var "r2"))) in
+                            let vars, atomics = Term.preallocate @@ Term.to_logic (Spw (Seq (Var "r1", Read (SC, "x")), Seq (Var "r1", Var "r2"))) in
                             assert_equal ["r2";"r1"] vars ~cmp:(=) ~printer:(String.concat ",");
                             assert_equal ["x"] atomics ~cmp:(=) ~printer:(String.concat ","))
   ]

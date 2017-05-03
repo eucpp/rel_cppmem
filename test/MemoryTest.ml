@@ -147,6 +147,5 @@ let tests =
   "memory">::: [
                 thrd_tree_tests;
                 loc_story_tests;
-                (* loc_story_tests;
-                mem_state_tests *)
+                (*mem_state_tests *)
   ]

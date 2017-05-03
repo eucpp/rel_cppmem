@@ -1,6 +1,5 @@
 open OUnit2
 open MiniKanren
-open Memory
 open TestUtils
 
 let prog_SB = "
@@ -132,7 +131,7 @@ let prog_CoRR_rlx = "
 (* let test_CoRR_rlx = test_prog ~negative:true prog_CoRR_rlx ["((1, 2), (2, 1))"; "((2, 1), (1, 2))"] *)
 
 let tests =
-  "relAcq">::: [
+  "Litmus">::: [
     "SB">:: test_SB;
     "LB">:: test_LB;
     "LB_rlx">:: test_LB_rlx;
