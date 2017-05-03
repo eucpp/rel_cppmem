@@ -11,6 +11,7 @@
 %token <Lang.MemOrder.tl> MO
 
 %token PLUS MINUS TIMES
+%token EQ NEQ LT LE GT GE
 %token RET
 %token SKIP STUCK
 %token ASSIGN
@@ -18,7 +19,6 @@
 %token IF THEN ELSE FI
 %token REPEAT END
 %token SPW TOPEN TSEP TCLOSE
-%token HOPEN HCLOSE QUESTION_MARK
 %token EOF
 
 %left PLUS MINUS
@@ -70,6 +70,18 @@ expr:
     { Value (Binop ((Value "-"), e1, e2)) }
   | e1 = expr; TIMES; e2 = expr
     { Value (Binop ((Value "*"), e1, e2)) }
+  | e1 = expr; EQ; e2 = expr
+    { Value (Binop ((Value "="), e1, e2)) }
+  | e1 = expr; NEQ; e2 = expr
+    { Value (Binop ((Value "!="), e1, e2)) }
+  | e1 = expr; LT; e2 = expr
+    { Value (Binop ((Value "<"), e1, e2)) }
+  | e1 = expr; LE; e2 = expr
+    { Value (Binop ((Value "<="), e1, e2)) }
+  | e1 = expr; GT; e2 = expr
+    { Value (Binop ((Value ">"), e1, e2)) }
+  | e1 = expr; GE; e2 = expr
+    { Value (Binop ((Value ">="), e1, e2)) }
   | label = LABEL
     { Var (label, []) }
 ;

@@ -18,6 +18,20 @@ module Basic :
     val all : (string * rule) list
   end
 
+module Rlx :
+  sig
+    type ti = Lang.Term.ti
+    type ci = Lang.Context.ti
+    type si = Memory.MemState.ti
+
+    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
+
+    val read_rlx  : string * rule
+    val write_rlx : string * rule
+
+    val all : (string * rule) list
+  end
+
 module RelAcq :
   sig
     type ti = Lang.Term.ti

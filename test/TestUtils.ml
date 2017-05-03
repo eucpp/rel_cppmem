@@ -79,6 +79,7 @@ let test_prog ?n prog expected test_ctx =
     set := set';
     Printf.printf "\n%d: %s" !cnt answer
   in
+  let _ = Printf.printf "\n\nTest program:%s\nOutput:" prog in
   let _ = match n with
     | Some n -> List.iter handler @@ fst @@ Stream.retrieve ~n:n stream
     | None   -> Stream.iter handler stream

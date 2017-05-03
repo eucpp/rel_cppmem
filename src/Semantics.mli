@@ -16,11 +16,11 @@ module BasicStep :
   sig
     type tt = Lang.Term.tt
     type tl = Lang.Term.tl
-    type ti = (tt, tl) MiniKanren.injected
+    type ti = (Lang.Term.tt, Lang.Term.tl) MiniKanren.injected
 
     type st = Memory.MemState.tt
     type sl = Memory.MemState.tl
-    type si = (st, sl) MiniKanren.injected
+    type si = (Memory.MemState.tt, Memory.MemState.tl) MiniKanren.injected
 
     val (->?) : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
     val (-->) : ti * si -> ti * si -> MiniKanren.goal

@@ -109,7 +109,7 @@ let rel_acq_tests =
   let vf'        = ViewFront.from_list [("x", 1)] in
   let thrd       = ThreadState.preallocate [] ["x"] in
   let thrd'      = ThreadState.create [] [("x", 1)] ~acq:[("x", 1)] ~rel:[("x", 0)] in
-  let thrd''     = ThreadState.create [] [("x", 1)] ~acq:[("x", 1)] ~rel:[("x", 1)] in
+  let thrd''     = ThreadState.create [] [("x", 1)] ~acq:[("x", 1)] ~rel:[("x", 0)] in
   let tree       = Threads.Tree.Node (thrd,   Threads.Tree.Nil, Threads.Tree.Nil) in
   let tree'      = Threads.Tree.Node (thrd',  Threads.Tree.Nil, Threads.Tree.Nil) in
   let tree''     = Threads.Tree.Node (thrd'', Threads.Tree.Nil, Threads.Tree.Nil) in
@@ -125,7 +125,7 @@ let rel_acq_tests =
 
     "write_rel">::(
       let loc_story  = LocStory.create 1 [(0, 0, vf)] in
-      let loc_story' = LocStory.create 2 [(1, 1, vf'); (0, 0, vf)] in
+      let loc_story' = LocStory.create 2 [(1, 1, vf); (0, 0, vf)] in
       let mem_story  = MemStory.create [("x", loc_story )] in
       let mem_story' = MemStory.create [("x", loc_story')] in
       let state      = S.create tree   mem_story in

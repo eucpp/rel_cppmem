@@ -21,10 +21,16 @@ rule token = parse
   | '+'                 { PLUS }
   | '-'                 { MINUS }
   | '*'                 { TIMES }
+  | ":="                { ASSIGN }
+  | "!="                { NEQ }
+  | '='                 { EQ }
+  | "<="                { LE }
+  | '<'                 { LT }
+  | ">="                { GE }
+  | '>'                 { GT }
   | "ret"               { RET }
   | "skip"              { SKIP }
   | "stuck"             { STUCK }
-  | ":="                { ASSIGN }
   | ';'                 { SEMICOLON }
   | '_'                 { UNDERSCORE }
   | "if"                { IF }
@@ -37,9 +43,6 @@ rule token = parse
   | "{{{"               { TOPEN }
   | "|||"               { TSEP }
   | "}}}"               { TCLOSE }
-  | "<?"                { HOPEN }
-  | ">"                 { HCLOSE }
-  | '?'                 { QUESTION_MARK }
   | label               { LABEL(int_of_string label_n) }
   | mo                  { MO(Value (MemOrder.of_string mo_lxm)) }
   | var                 { VAR(Value var_lxm) }

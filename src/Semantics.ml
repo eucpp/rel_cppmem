@@ -36,7 +36,7 @@ module OperationalStep =
     type si = (st, sl) MiniKanren.injected
 
     let (->?) = reducibleo
-    let (-->) = stepo (Rules.Basic.all @ Rules.RelAcq.all)
+    let (-->) = stepo (Rules.Basic.all @ Rules.Rlx.all @ Rules.RelAcq.all)
   end
 
 module type Step =

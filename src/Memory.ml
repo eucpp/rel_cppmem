@@ -31,6 +31,8 @@ module ViewFront =
     let allocate atomics = List.of_list (fun s -> (s, Nat.of_int 0)) atomics
 
     let from_list lst = List.of_list (fun (s, v) -> (s, Nat.of_int v)) lst
+
+    let mergeo t1 t2 t = VarList.map2o VarList.join_tso t1 t2 t
   end
 
 module ThreadState =
@@ -106,9 +108,9 @@ module ThreadState =
     let updateo thrd thrd' loc ts =
       fresh (regs curr curr' rel rel' acq acq')
         (thrd  === thrd_state regs curr  rel  acq )
-        (thrd' === thrd_state regs curr' rel' acq')
+        (thrd' === thrd_state regs curr' rel  acq')
         (VarList.seto curr curr' loc ts)
-        (VarList.seto rel  rel'  loc ts)
+        (* (VarList.seto rel  rel'  loc ts) *)
         (VarList.seto acq  acq'  loc ts)
 
     let front_relo thrd loc rel =
@@ -119,7 +121,7 @@ module ThreadState =
       fresh (regs curr rel acq acq')
         (thrd  === thrd_state regs curr rel acq )
         (thrd' === thrd_state regs curr rel acq')
-        (VarList.map2o VarList.join_tso vf acq acq')
+        (ViewFront.mergeo vf acq acq')
 
     let fence_acqo thrd thrd' =
       fresh (regs curr rel acq)
@@ -152,9 +154,9 @@ module ThreadState =
         (thrd'  === thrd_state regs  curr' rel' acq')
         (child1 === thrd_state regs1 curr1 rel1 acq1)
         (child2 === thrd_state regs2 curr2 rel2 acq2)
-        (VarList.map2o VarList.join_tso curr1 curr2 curr')
-        (VarList.map2o VarList.join_tso rel1  rel2  rel' )
-        (VarList.map2o VarList.join_tso acq1  acq2  acq' )
+        (ViewFront.mergeo curr1 curr2 curr')
+        (ViewFront.mergeo rel1  rel2  rel' )
+        (ViewFront.mergeo acq1  acq2  acq' )
 
   end
 
@@ -443,14 +445,15 @@ module MemState =
         (ThreadState.set_varo thrd thrd' var value)
 
     let read_rlxo t t' path loc value =
-      fresh (tree tree' story story' thrd thrd' last_ts ts vf)
+      fresh (tree tree' story story' thrd thrd' thrd'' last_ts ts vf)
         (t  === mem_state tree  story)
         (t' === mem_state tree' story)
         (Threads.geto tree path thrd)
-        (Threads.seto tree tree' path thrd')
+        (Threads.seto tree tree' path thrd'')
         (ThreadState.last_tso thrd loc last_ts)
         (MemStory.reado story loc last_ts ts value vf)
-        (ThreadState.update_acqo thrd thrd' vf)
+        (ThreadState.updateo thrd thrd' loc ts)
+        (ThreadState.update_acqo thrd thrd'' vf)
 
     let write_rlxo t t' path loc value =
       fresh (tree tree' story story' thrd thrd' ts rel)

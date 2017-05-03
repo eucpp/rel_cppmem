@@ -48,14 +48,20 @@ module Basic =
     let var = ("var", varo)
 
     let binopo c t s c' t' s' =
-      fresh (op x y z)
+      fresh (op x y z )
         (c  === c')
         (s  === s')
         (t  === binop op (const x) (const y))
         (t' === const z)
         (conde [
-          (op === !"+") &&& (Nat.addo x y z);
-          (op === !"*") &&& (Nat.mulo x y z);
+          (op === !"+")  &&& (Nat.addo x y z);
+          (op === !"*")  &&& (Nat.mulo x y z);
+          (op === !"=")  &&& (conde [(x === y) &&& (z === (inj_nat 1)); (x =/= y) &&& (z === (inj_nat 0))]);
+          (op === !"!=") &&& (conde [(x =/= y) &&& (z === (inj_nat 1)); (x === y) &&& (z === (inj_nat 0))]);
+          (op === !"<")  &&& (conde [(Nat.lto x y !!true) &&& (z === (inj_nat 1)); (Nat.lto x y !!false) &&& (z === (inj_nat 0))]);
+          (op === !"<=") &&& (conde [(Nat.leo x y !!true) &&& (z === (inj_nat 1)); (Nat.leo x y !!false) &&& (z === (inj_nat 0))]);
+          (op === !">")  &&& (conde [(Nat.gto x y !!true) &&& (z === (inj_nat 1)); (Nat.gto x y !!false) &&& (z === (inj_nat 0))]);
+          (op === !">=") &&& (conde [(Nat.geo x y !!true) &&& (z === (inj_nat 1)); (Nat.geo x y !!false) &&& (z === (inj_nat 0))]);
         ])
 
     let binop = ("binop", binopo)
@@ -116,6 +122,37 @@ module Basic =
 
    let all = [var; binop; asgn; if'; repeat; seq; spawn; join]
 
+  end
+
+module Rlx =
+  struct
+    type ti = Lang.Term.ti
+    type ci = Lang.Context.ti
+    type si = Memory.MemState.ti
+
+    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
+
+    let read_rlxo c t s c' t' s' =
+      fresh (l path n)
+        (c  === c')
+        (t  === read !!RLX l)
+        (t' === const n)
+        (patho c path)
+        (MemState.read_rlxo s s' path l n)
+
+    let read_rlx = ("read_rlx", read_rlxo)
+
+    let write_rlxo c t s c' t' s' =
+      fresh (l n path)
+        (c  === c')
+        (t  === write !!RLX l (const n))
+        (t' === skip ())
+        (patho c path)
+        (MemState.write_rlxo s s' path l n)
+
+    let write_rlx = ("write_rlx", write_rlxo)
+
+    let all = [read_rlx; write_rlx; ]
   end
 
 module RelAcq =
