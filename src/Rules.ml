@@ -16,23 +16,25 @@ module Basic =
 
     let (!) = (!!)
 
+    let rec asgno' l r s s' path = conde [
+      fresh (x n)
+        (l === var x)
+        (r === const n)
+        (MemState.set_localo s s' path x n);
+      fresh (x1 t n1 e s'')
+        (l === pair (var   x1) t)
+        (r === pair (const n1) e)
+        (MemState.set_localo s  s'' path x1 n1)
+        (asgno' t e s'' s' path);
+    ]
+
     let asgno c t s c' t' s' =
       fresh (l r n path e)
         (c  === c')
         (t  === asgn l r)
         (t' === skip ())
         (patho c path)
-        (conde [
-          fresh (x n)
-            (l === var x)
-            (r === const n)
-            (MemState.set_localo s s' path x n);
-          fresh (x1 x2 n1 n2 s'')
-            (l === pair (var   x1) (var   x2))
-            (r === pair (const n1) (const n2))
-            (MemState.set_localo s   s'' path x1 n1)
-            (MemState.set_localo s'' s'  path x2 n2);
-        ])
+        (asgno' l r s s' path)
 
     let asgn = ("assign", asgno)
 
@@ -109,14 +111,27 @@ module Basic =
     let spawn = ("spawn", spawno)
 
     let joino c t s c' t' s' =
-      fresh (t1 t2 n1 n2 path)
-       (c === c')
-       (t1 === const n1)
-       (t2 === const n2)
-       (t  === par t1 t2)
-       (t' === pair (const n1) (const n2))
-       (patho c path)
-       (MemState.joino s s' path)
+      let rec expro t = conde [
+        fresh (n)
+          (t === const n);
+        fresh (t1 t2)
+          (t === pair t1 t2)
+          (expro t1)
+          (expro t2);
+      ] in
+      fresh (t1 t2 path)
+        (t === par t1 t2)
+        (conde [
+          (t1 === stuck ())                       &&& (t' === stuck ()) &&& (c' === hole ());
+          (t1 =/= stuck ()) &&& (t2 === stuck ()) &&& (t' === stuck ()) &&& (c' === hole ());
+          (t1 =/= stuck ()) &&& (t2 =/= stuck ()) &&& (c === c') &&& (conde [
+            (t1 === skip ())                      &&& (t' === t2);
+            (t1 =/= skip ()) &&& (t2 === skip ()) &&& (t' === t1);
+            (expro t1)       &&& (expro t2)       &&& (t' === pair t1 t2);
+          ])
+        ])
+        (patho c path)
+        (MemState.joino s s' path)
 
    let join = ("join", joino)
 

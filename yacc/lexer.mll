@@ -33,6 +33,7 @@ rule token = parse
   | "stuck"             { STUCK }
   | ';'                 { SEMICOLON }
   | '_'                 { UNDERSCORE }
+  | ','                 { COMMA }
   | "if"                { IF }
   | "then"              { THEN }
   | "else"              { ELSE }
@@ -43,6 +44,8 @@ rule token = parse
   | "{{{"               { TOPEN }
   | "|||"               { TSEP }
   | "}}}"               { TCLOSE }
+  | '('                 { BOPEN }
+  | ')'                 { BCLOSE }
   | label               { LABEL(int_of_string label_n) }
   | mo                  { MO(Value (MemOrder.of_string mo_lxm)) }
   | var                 { VAR(Value var_lxm) }

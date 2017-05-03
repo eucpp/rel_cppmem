@@ -23,10 +23,7 @@ let list_diff ?(cmp = (=)) l1 l2 =
   let snd = List.filter (not_in_lst l1) l2 in
   (fst, snd)
 
-let assert_lists ?(cmp = (=))
-                 ?printer
-                 expected actual
-   =
+let assert_lists ?(cmp = (=)) ?printer expected actual =
    let diff_plus, diff_minus = list_diff ~cmp expected actual in
    let diff_plus_msg = match printer with
      | Some p ->
@@ -43,6 +40,13 @@ let assert_lists ?(cmp = (=))
    assert_bool diff_plus_msg  (diff_plus = []);
    assert_bool diff_minus_msg (diff_minus = [])
 
+let assert_not_in ?(cmp = (=)) ?printer lst elem =
+  let show x = match printer with
+    | Some p -> "Impossible outcome found: " ^ (p x)
+    | None   -> "Impossible outcome found"
+  in
+  List.iter (fun x -> assert_bool (show elem) @@ not (x = elem)) lst
+
 let assert_stream ?(empty_check = true)
                   ?(cmp = (=))
                   ?printer
@@ -57,9 +61,9 @@ let assert_stream ?(empty_check = true)
 
 (* module Sem = Semantics.Make(Lang.Term)(Lang.Context)(MemState) *)
 
-let test_prog ?n prog expected test_ctx =
+let test_prog ?n ?(negative=false) prog expected test_ctx =
   let module Sem = Semantics.Make(Semantics.OperationalStep) in
-  let show s  = "Outcome is not found among answers: " ^ s in
+  let show s  = s in
   let lexbuf  = Lexing.from_string prog in
   let term    = Term.from_logic @@ Parser.parse Lexer.token lexbuf in
   let rs, vs  = Term.preallocate term in
@@ -84,7 +88,11 @@ let test_prog ?n prog expected test_ctx =
     | Some n -> List.iter handler @@ fst @@ Stream.retrieve ~n:n stream
     | None   -> Stream.iter handler stream
   in
-  assert_lists expected (S.elements !set) ~printer:show ~cmp:(=)
+  let actual = S.elements !set in
+  if not negative then
+    assert_lists expected actual ~printer:show ~cmp:(=)
+  else
+    List.iter (fun elem -> assert_not_in ~printer:show ~cmp:(=) expected elem) actual
 
 (* let test_prog_synthesis ?n sem prog expected test_ctx =
   let show s  = "Outcome is not found among answers: " ^ s in
