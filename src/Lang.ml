@@ -402,10 +402,11 @@ let rec splito term c rdx = Term.(Context.(conde [
 
     (term === stuck ());
   ]);
-]))
+  ]))
 
-  let rec plugo term c rdx = Term.(Context.(
-    (conde [
+  let rec plugo term c rdx = Term.(Context.(conde [
+    (term === stuck ()) &&& (rdx === stuck ());
+    (term =/= stuck ()) &&& (rdx =/= stuck ()) &&& (conde [
       fresh (op l r c' t')
         (term === binop op l r)
         (conde [
@@ -447,7 +448,7 @@ let rec splito term c rdx = Term.(Context.(conde [
         (term === seq t1 t2)
         (conde [
           ((c === hole ())                &&& (rdx === term));
-          ((c === seq_ctx c' t2)          &&& (plugo t1 c' rdx))
+          ((c === seq_ctx c' t2)          &&& (plugo t1 c' rdx));
         ]);
         (* ((c === seq_ctx c' t2) &&& conde [
           (rdx =/= skip ()) &&& (rdx =/= stuck ()) &&& (term === seq t1 t2) &&& (plugo t1 c' rdx);
@@ -483,10 +484,8 @@ let rec splito term c rdx = Term.(Context.(conde [
           (term === spw t1 t2);
 
         (term === skip ());
-
-        (term === stuck ());
       ]);
-    ])))
+    ])]))
 
 let rec patho c path = Term.(Context.(Path.(
     fresh (op mo loc t1 t2 t3 t' c' path')

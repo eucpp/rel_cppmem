@@ -12,6 +12,18 @@ module Basic :
     val if'    : string * rule
     val repeat : string * rule
     val seq    : string * rule
+
+    val all : (string * rule) list
+  end
+
+module ThreadSpawning :
+  sig
+    type ti = Lang.Term.ti
+    type ci = Lang.Context.ti
+    type si = Memory.MemState.ti
+
+    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
+
     val spawn  : string * rule
     val join   : string * rule
 

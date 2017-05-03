@@ -90,15 +90,23 @@ module Basic =
     let if' = ("if", ifo)
 
     let seqo c t s c' t' s' =
-      fresh (t1 t2)
-        (s === s')
-        (t === seq t1 t2)
-        (conde [
-          (t1 === skip ())  &&& (t' === t2)       &&& (c' === c);
-          (t1 === stuck ()) &&& (t' === stuck ()) &&& (c' === hole ());
-        ])
+      (s === s') &&&
+      (c === c') &&&
+      (t === seq (skip ()) t')
 
     let seq = ("seq", seqo)
+
+   let all = [var; binop; asgn; if'; repeat; seq;]
+
+  end
+
+module ThreadSpawning =
+  struct
+    type ti = Lang.Term.ti
+    type ci = Lang.Context.ti
+    type si = Memory.MemState.ti
+
+    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
     let spawno c t s c' t' s' =
       fresh (l r path)
@@ -135,8 +143,7 @@ module Basic =
 
    let join = ("join", joino)
 
-   let all = [var; binop; asgn; if'; repeat; seq; spawn; join]
-
+   let all = [spawn; join]
   end
 
 module Rlx =

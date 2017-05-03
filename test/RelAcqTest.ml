@@ -112,26 +112,6 @@ let test_MP_rel_seq = test_prog prog_MP_rel_seq ["(1, 1)"]
 let prog_CoRR_rlx = "
   x_rlx := 0;
   spw {{{
-      spw {{{
-        x_rlx := 1
-      |||
-        x_rlx := 2
-      }}}
-  |||
-      spw {{{
-        r1 := x_rlx;
-        r2 := x_rlx;
-        ret (r1, r2)
-      |||
-        r3 := x_rlx;
-        r4 := x_rlx;
-        ret (r3, r4)
-      }}}
-  }}}"
-
-(* let prog_CoRR_rlx = "
-  x_rlx := 0;
-  spw {{{
     spw {{{
       x_rlx := 1
     |||
@@ -147,9 +127,9 @@ let prog_CoRR_rlx = "
       r4 := x_rlx;
       ret (r3, r4)
     }}}
-  }}}" *)
+  }}}"
 
-let test_CoRR_rlx = test_prog ~negative:true prog_CoRR_rlx ["((1, 2), (2, 1))"; "((2, 1), (1, 2))"]
+(* let test_CoRR_rlx = test_prog ~negative:true prog_CoRR_rlx ["((1, 2), (2, 1))"; "((2, 1), (1, 2))"] *)
 
 let tests =
   "relAcq">::: [
@@ -160,5 +140,5 @@ let tests =
     "MP_rlx_1">:: test_MP_rlx_1;
     "MP_rlx_2">:: test_MP_rlx_2;
     "MP_rel_seq">:: test_MP_rel_seq;
-    "CoRR_rlx">: OUnitTest.TestCase (OUnitTest.Huge, test_CoRR_rlx);
+    (* "CoRR_rlx">: OUnitTest.TestCase (OUnitTest.Short, test_CoRR_rlx); *)
   ]

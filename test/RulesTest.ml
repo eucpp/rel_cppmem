@@ -61,32 +61,7 @@ let basic_tests =
 
     "seq_skip">:: test_step Basic.all (T.Seq (T.Skip, T.Skip), mem) [(T.Skip, mem)];
 
-    "seq_stuck">:: test_step Basic.all (T.Seq (T.Stuck, T.Skip), mem) [(T.Stuck, mem)];
-
-    "spawn">:: (
-      let thrd = ThreadState.preallocate ["r1"; "r2"] ["x"; "y"] in
-      let leaf = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
-      let node = Threads.Tree.Node (thrd, leaf, leaf) in
-      let mem' = S.create node (MemStory.preallocate ["x"; "y"]) in
-      test_step [Basic.spawn] (T.Spw (T.Skip, T.Skip), mem) [(T.Par (T.Skip, T.Skip), mem')]
-    );
-
-    "join">:: (
-      let thrd = ThreadState.preallocate ["r1"; "r2"] ["x"; "y"] in
-      let leaf = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
-      let node = Threads.Tree.Node (thrd, leaf, leaf) in
-      let mem' = S.create node (MemStory.preallocate ["x"; "y"]) in
-      test_step [Basic.join] (T.Par (const 1, const 2), mem') [(T.Pair (const 1, const 2), mem)]
-    );
-
-    "spawn_assign">:: (
-      let thrd = ThreadState.create [("r1", 42); ("r2", 1)] [("x", 0); ("y", 0)] in
-      let node = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
-      let mem' = S.create node (MemStory.preallocate ["x"; "y"]) in
-      let pair = T.Pair (T.Var "r1", T.Var "r2") in
-      let stmt = T.Asgn (pair,T.Spw (const 42, const 1)) in
-      test_space Basic.all (stmt, mem) [(T.Skip, mem')]
-    );
+    (* "seq_stuck">:: test_step Basic.all (T.Seq (T.Stuck, T.Skip), mem) [(T.Stuck, mem)]; *)
 
     (*
     "seq_asgn">:: (
@@ -101,6 +76,36 @@ let basic_tests =
                    ) in
                       Tester.test_space ~empty_check:false Basic.all (stmt, S.empty) [(T.Pair (T.Const 42, T.Const 1), S.empty)]); *)
 
+  ]
+
+let thrd_spawning_tests =
+  let mem  = S.preallocate ["r1"; "r2"] ["x"; "y"] in
+
+  "thrd_spawning">::: [
+    "spawn">:: (
+      let thrd = ThreadState.preallocate ["r1"; "r2"] ["x"; "y"] in
+      let leaf = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
+      let node = Threads.Tree.Node (thrd, leaf, leaf) in
+      let mem' = S.create node (MemStory.preallocate ["x"; "y"]) in
+      test_step [ThreadSpawning.spawn] (T.Spw (T.Skip, T.Skip), mem) [(T.Par (T.Skip, T.Skip), mem')]
+    );
+
+    "join">:: (
+      let thrd = ThreadState.preallocate ["r1"; "r2"] ["x"; "y"] in
+      let leaf = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
+      let node = Threads.Tree.Node (thrd, leaf, leaf) in
+      let mem' = S.create node (MemStory.preallocate ["x"; "y"]) in
+      test_step [ThreadSpawning.join] (T.Par (const 1, const 2), mem') [(T.Pair (const 1, const 2), mem)]
+    );
+
+    "spawn_assign">:: (
+      let thrd = ThreadState.create [("r1", 42); ("r2", 1)] [("x", 0); ("y", 0)] in
+      let node = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
+      let mem' = S.create node (MemStory.preallocate ["x"; "y"]) in
+      let pair = T.Pair (T.Var "r1", T.Var "r2") in
+      let stmt = T.Asgn (pair,T.Spw (const 42, const 1)) in
+      test_space (ThreadSpawning.all @ Basic.all) (stmt, mem) [(T.Skip, mem')]
+    );
   ]
 
 let rel_acq_tests =
@@ -134,4 +139,4 @@ let rel_acq_tests =
   ]
 
 let tests =
-  "rules">::: [basic_tests; rel_acq_tests]
+  "rules">::: [basic_tests; thrd_spawning_tests; rel_acq_tests]
