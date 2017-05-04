@@ -12,8 +12,8 @@ LEX  = ocamllex
 YACC = menhir -v
 
 all:
-	$(LEX) yacc/lexer.mll
-	$(YACC) yacc/parser.mly
+	$(OCB) Main.byte
+	$(OCB) Main.native
 
 clean:
 	rm -rf ./_build *.byte

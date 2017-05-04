@@ -459,18 +459,20 @@ module MemState =
       fresh (tree tree' story story' thrd thrd' thrd'' last_ts ts vf)
         (t  === mem_state tree  story)
         (t' === mem_state tree' story)
-        (Threads.geto tree path thrd)
+        (Threads.geto tree       path thrd)
         (Threads.seto tree tree' path thrd'')
         (ThreadState.last_tso thrd loc last_ts)
         (MemStory.reado story loc last_ts ts value vf)
-        (ThreadState.updateo thrd thrd' loc ts)
-        (ThreadState.update_acqo thrd thrd'' vf)
+
+        (ThreadState.update_acqo thrd thrd' vf)
+        (ThreadState.updateo thrd' thrd'' loc ts)
+
 
     let write_rlxo t t' path loc value =
       fresh (tree tree' story story' thrd thrd' ts rel)
         (t  === mem_state tree  story)
         (t' === mem_state tree' story')
-        (Threads.geto tree path thrd)
+        (Threads.geto tree       path thrd)
         (Threads.seto tree tree' path thrd')
         (MemStory.next_tso story loc ts)
         (ThreadState.updateo thrd thrd' loc ts)

@@ -44,8 +44,8 @@ stmt:
     { Value (Repeat e) }
   | e1 = expr; ASSIGN; e2 = expr
     { Value (Asgn (e1, e2)) }
-  | l = LOC; UNDERSCORE; mo = MO; ASSIGN; e = expr
-    { Value (Write (mo, l, e)) }
+  | l = LOC; UNDERSCORE; m = MO; ASSIGN; e = expr
+    { Value (Write (m, l, e)) }
   | s1 = stmt; SEMICOLON; s2 = stmt
     { Value (Seq (s1, s2)) }
   | SPW; TOPEN; s1 = stmt; TSEP; s2 = stmt; TCLOSE
@@ -62,8 +62,8 @@ expr:
     { Value (Const n) }
   | v = VAR
     { Value (Var v) }
-  | l = LOC; UNDERSCORE; mo = MO
-    { Value (Read (mo, l)) }
+  | l = LOC; UNDERSCORE; m = mo
+    { Value (Read (m, l)) }
   | BOPEN; e = expr; BCLOSE
     { e }
   | e1 = expr; PLUS; e2 = expr
@@ -89,4 +89,9 @@ expr:
   | label = LABEL
     { Var (label, []) }
 ;
+mo:
+  | m = MO
+    { m }
+  | label = LABEL
+    { Var (label, []) }
 %%

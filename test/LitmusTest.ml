@@ -2,6 +2,20 @@ open OUnit2
 open MiniKanren
 open TestUtils
 
+let prog_rel_acq = "
+    x_rlx := 0;
+    f_rlx := 0;
+    spw {{{
+        x_rel := 1;
+        f_rel := 1
+    |||
+        r1 := f_acq;
+        r2 := x_rlx;
+        ret (r1, r2)
+    }}}"
+
+let test_rel_acq = test_prog prog_rel_acq ["(0, 0)"; "(0, 1)"; "(1, 1)";]
+
 let prog_SB = "
   x_rlx := 0;
   y_rlx := 0;
@@ -17,7 +31,7 @@ let prog_SB = "
 
 let test_SB = test_prog prog_SB ["(0, 0)"; "(1, 0)"; "(0, 1)"; "(1, 1)"]
 
-let prog_LB = "
+let prog_LB_rel_acq = "
     x_rlx := 0;
     y_rlx := 0;
     spw {{{
@@ -30,9 +44,9 @@ let prog_LB = "
         ret r2
     }}}"
 
-let test_LB = test_prog prog_LB ["(0, 0)"; "(1, 0)"; "(0, 1)"]
+let test_LB_rel_acq = test_prog prog_LB_rel_acq ["(0, 0)"; "(1, 0)"; "(0, 1)"]
 
-let prog_LB_rlx = "
+let prog_LB_rel_acq_rlx = "
     x_rlx := 0;
     y_rlx := 0;
     spw {{{
@@ -45,7 +59,7 @@ let prog_LB_rlx = "
         ret r2
     }}}"
 
-let test_LB_rlx = test_prog prog_LB_rlx ["(0, 0)"; "(1, 0)"; "(0, 1)"]
+let test_LB_rel_acq_rlx = test_prog prog_LB_rel_acq_rlx ["(0, 0)"; "(1, 0)"; "(0, 1)"]
 
 let prog_MP = "
     x_rlx := 0;
@@ -132,9 +146,10 @@ let prog_CoRR_rlx = "
 
 let tests =
   "Litmus">::: [
+    "rel_acq">:: test_rel_acq;
     "SB">:: test_SB;
-    "LB">:: test_LB;
-    "LB_rlx">:: test_LB_rlx;
+    "LB_rel_acq">:: test_LB_rel_acq;
+    "LB_rel_acq_rlx">:: test_LB_rel_acq_rlx;
     "MP">:: test_MP;
     "MP_rlx_1">:: test_MP_rlx_1;
     "MP_rlx_2">:: test_MP_rlx_2;

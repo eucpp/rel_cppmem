@@ -39,7 +39,7 @@ let join_tso p1 p2 p' = Nat.(
     (p1 === inj_pair var ts1)
     (p2 === inj_pair var ts2)
     (conde [
-        (ts1 > ts2)  &&& (p' === p1);
+        (ts1 >  ts2) &&& (p' === p1);
         (ts1 <= ts2) &&& (p' === p2);
     ])
   )

@@ -192,10 +192,10 @@ module Term =
     let pprint term = T.(
       let rec pprint_logic s ff = function
         | Value x         -> Format.fprintf ff "%a" s x
-        | Var (i, [])  -> Format.fprintf ff "?%d {}" i
+        | Var (i, [])  -> Format.fprintf ff "?%d" i
         | Var (i, ctrs)  ->
           Format.fprintf ff "?%d{" i;
-          List.iter (fun ctr -> Format.fprintf ff "%a; " (pprint_logic s) ctr) ctrs;
+          List.iter (fun ctr -> Format.fprintf ff "=/= %a; " (pprint_logic s) ctr) ctrs;
           Format.fprintf ff "}"
       in
       let rec const ff n = match n with
@@ -203,7 +203,7 @@ module Term =
         | Var (i, [])  -> Format.fprintf ff "?%d" i
         | Var (i, ctrs)  ->
           Format.fprintf ff "?%d{" i;
-          List.iter (fun ctr -> Format.fprintf ff "%a; " const ctr) ctrs;
+          List.iter (fun ctr -> Format.fprintf ff "=/= %a; " const ctr) ctrs;
           Format.fprintf ff "}"
       in
       let kwd ff x    = pprint_logic (fun ff s -> Format.fprintf ff "%s" s) ff x in
@@ -218,7 +218,7 @@ module Term =
         | Asgn (x, y)             -> Format.fprintf ff "@[<hv>%a := %a@]" sl x sl y
         | Pair (x, y)             -> Format.fprintf ff "@[(%a, %a)@]" sl x sl y
         | If (cond, t, f)         -> Format.fprintf ff "@[<v>if %a@;then %a@;else %a@]" sl cond sl t sl f
-        | Repeat t                -> Format.fprintf ff "@[repeat %a@]" sl t
+        | Repeat t                -> Format.fprintf ff "@[repeat %a end@]" sl t
         | Read (m, l)             -> Format.fprintf ff "@[%a_%a@]" loc l mo m
         | Write (m, l, t)         -> Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" loc l mo m sl t
         | Seq (t, t')             -> Format.fprintf ff "@[<v>%a;@;%a@]" sl t sl t'
