@@ -4,7 +4,11 @@ module Registers :
     type tl = (string MiniKanren.logic, MiniKanren.Nat.logic) VarList.tl
     type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
 
+    val to_logic   : tt -> tl
+
     val reseto : ti -> ti -> MiniKanren.goal
+
+    val pprint : tl -> string
   end
 
 module ViewFront :
@@ -15,7 +19,11 @@ module ViewFront :
 
     val inj : tt -> ti
 
+    val to_logic   : tt -> tl
+
     val from_list : (string * int) list -> tt
+
+    val pprint : tl -> string
   end
 
 module ThreadState :
@@ -30,6 +38,8 @@ module ThreadState :
 
     val inj : tt -> ti
 
+    val to_logic   : tt -> tl
+
     val create : ?rel: (string * int) list ->
                  ?acq: (string * int) list ->
                   (string * int) list ->
@@ -39,6 +49,8 @@ module ThreadState :
           that has list of initialized local variables
           and initialized viewfronts for atomic variables  *)
     val preallocate : string list -> string list -> tt
+
+    val pprint : tl -> string
 
     (** [get_varo thrd var val] performs read of thread-local variable *)
     val get_varo : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
@@ -96,6 +108,8 @@ module Threads :
                  ?acq: (string * int) list ->
                   (string * int) list ->
                   (string * int) list -> tt
+
+    val pprint : tl -> string
 
     val geto : ti -> Lang.Path.ti -> ThreadState.ti -> MiniKanren.goal
     val seto : ti -> ti -> Lang.Path.ti -> ThreadState.ti -> MiniKanren.goal

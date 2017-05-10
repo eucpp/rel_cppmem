@@ -1,4 +1,5 @@
 open MiniKanren
+open Utils
 
 module Loc =
   struct
@@ -190,27 +191,14 @@ module Term =
     let preallocate = prealloc_l [] []
 
     let pprint term = T.(
-      let rec pprint_logic s ff = function
-        | Value x         -> Format.fprintf ff "%a" s x
-        | Var (i, [])  -> Format.fprintf ff "?%d" i
-        | Var (i, ctrs)  ->
-          Format.fprintf ff "?%d{" i;
-          List.iter (fun ctr -> Format.fprintf ff "=/= %a; " (pprint_logic s) ctr) ctrs;
-          Format.fprintf ff "}"
-      in
-      let rec const ff n = match n with
-        | Value _         -> Format.fprintf ff "%d" (Nat.to_int @@ Nat.from_logic n)
-        | Var (i, [])  -> Format.fprintf ff "?%d" i
-        | Var (i, ctrs)  ->
-          Format.fprintf ff "?%d{" i;
-          List.iter (fun ctr -> Format.fprintf ff "=/= %a; " const ctr) ctrs;
-          Format.fprintf ff "}"
-      in
-      let kwd ff x    = pprint_logic (fun ff s -> Format.fprintf ff "%s" s) ff x in
-      let var ff x    = pprint_logic (fun ff s -> Format.fprintf ff "%s" s) ff x in
-      let loc ff x    = pprint_logic (fun ff s -> Format.fprintf ff "%s" s) ff x in
-      let mo ff x     = pprint_logic (fun ff m -> Format.fprintf ff "%s" (MemOrder.to_string m)) ff x in
-      let rec sl ff x = pprint_logic s ff x
+      let rec const   = pprint_nat    in
+      let kwd         = pprint_string in
+      let var         = pprint_string in
+      let loc         = pprint_string in
+
+      let mo ff x         = pprint_logic (fun ff m -> Format.fprintf ff "%s" (MemOrder.to_string m)) ff x in
+      let rec sl ff x     = pprint_logic s ff x
+      
       and s ff = function
         | Const n                 -> Format.fprintf ff "@[%a@]" const n
         | Var x                   -> Format.fprintf ff "@[%a@]" var x

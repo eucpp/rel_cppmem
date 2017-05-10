@@ -1,5 +1,6 @@
 open MiniKanren
 open Lang
+open Utils
 
 module Registers =
   struct
@@ -8,6 +9,8 @@ module Registers =
     type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
 
     let inj = List.inj (fun (var, value) -> inj_pair (!!var) (Nat.inj value))
+
+    let to_logic = List.to_logic (fun (var, value) -> Value (Value var, Nat.to_logic value))
 
     let allocate vars = List.of_list (fun s -> (s, Nat.of_int 0)) vars
 
@@ -18,6 +21,16 @@ module Registers =
       )
 
     let reseto = VarList.mapo reset_varo
+
+    let printer =
+      let pp ff (var, value) = Format.fprintf ff "%a=%a" pprint_string var pprint_nat value in
+      let ppl = pprint_logic pp in
+      pprint_llist ppl
+
+    let pprint xs =
+      printer Format.str_formatter xs;
+      Format.flush_str_formatter ()
+
   end
 
 module ViewFront =
@@ -28,11 +41,23 @@ module ViewFront =
 
     let inj = List.inj (fun (var, value) -> inj_pair (!!var) (Nat.inj value))
 
+    let to_logic = List.to_logic (fun (loc, ts) -> Value (Value loc, Nat.to_logic ts))
+
     let allocate atomics = List.of_list (fun s -> (s, Nat.of_int 0)) atomics
 
     let from_list lst = List.of_list (fun (s, v) -> (s, Nat.of_int v)) lst
 
     let mergeo t1 t2 t = VarList.map2o VarList.join_tso t1 t2 t
+
+    let printer =
+      let pp ff (var, value) = Format.fprintf ff "%a:%a" pprint_string var pprint_nat value in
+      let ppl = pprint_logic pp in
+      pprint_llist ppl
+
+    let pprint xs =
+      printer Format.str_formatter xs;
+      Format.flush_str_formatter ()
+
   end
 
 module ThreadState =
@@ -65,6 +90,14 @@ module ThreadState =
     let inj {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq} =
       thrd_state (Registers.inj regs) (ViewFront.inj curr) (ViewFront.inj rel) (ViewFront.inj acq)
 
+    let to_logic {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq} =
+      Value {
+        T.regs = Registers.to_logic regs;
+        T.curr = ViewFront.to_logic curr;
+        T.rel  = ViewFront.to_logic rel;
+        T.acq  = ViewFront.to_logic acq
+      }
+
     let convert = (fun (var, value) -> (var, Nat.of_int value))
 
     let create ?(rel) ?(acq) vars curr =
@@ -88,6 +121,20 @@ module ThreadState =
       T.rel  = ViewFront.allocate atomics;
       T.acq  = ViewFront.allocate atomics;
     }
+
+    let printer =
+      let pp ff {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq} =
+        Format.fprintf ff "@[<v>regs: %a @; cur: %a @; acq: %a @; rel: %a @]"
+          Registers.printer regs
+          ViewFront.printer curr
+          ViewFront.printer acq
+          ViewFront.printer rel
+      in
+      pprint_logic pp
+
+    let pprint thrd =
+      printer Format.str_formatter thrd;
+      Format.flush_str_formatter ()
 
     let get_varo thrd var value =
       fresh (regs curr rel acq)
@@ -189,6 +236,31 @@ module Threads =
 
     let create ?rel ?acq vars curr =
       Tree.Node (ThreadState.create ?rel ?acq vars curr, Tree.Nil, Tree.Nil)
+
+    let threads_list thrd_tree =
+      let q = Queue.create () in
+      let lst = ref [] in
+      Queue.push thrd_tree q;
+      while not @@ Queue.is_empty q do
+        match Queue.pop q with
+        | Value (Tree.Node (thrd, l, r)) ->
+          lst := thrd :: !lst;
+          Queue.push l q;
+          Queue.push r q
+        | Value Tree.Nil  -> ()
+        | Var (i, _) ->
+          lst := (Var (i, [])) :: !lst
+      done;
+      List.rev !lst
+
+    let pprint thrd_tree =
+      let cnt = ref 1 in
+      let pp ff thrd =
+        Format.fprintf ff "@[<v>Thread %d:@;<1 4>%a@]" !cnt ThreadState.printer thrd;
+        cnt := !cnt + 1
+      in
+      List.iter (pp Format.str_formatter) @@ threads_list thrd_tree;
+      Format.flush_str_formatter ()
 
     let rec geto tree path thrd = Path.(
       fresh (thrd' l r path')
