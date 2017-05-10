@@ -50,7 +50,7 @@ module ViewFront =
     let mergeo t1 t2 t = VarList.map2o VarList.join_tso t1 t2 t
 
     let printer =
-      let pp ff (var, value) = Format.fprintf ff "%a:%a" pprint_string var pprint_nat value in
+      let pp ff (var, value) = Format.fprintf ff "%a@%a" pprint_string var pprint_nat value in
       let ppl = pprint_logic pp in
       pprint_llist ppl
 
@@ -124,7 +124,7 @@ module ThreadState =
 
     let printer =
       let pp ff {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq} =
-        Format.fprintf ff "@[<v>regs: %a @; cur: %a @; acq: %a @; rel: %a @]"
+        Format.fprintf ff "@[<v>reg: %a @; cur: %a @; acq: %a @; rel: %a @]"
           Registers.printer regs
           ViewFront.printer curr
           ViewFront.printer acq
@@ -253,13 +253,16 @@ module Threads =
       done;
       List.rev !lst
 
-    let pprint thrd_tree =
+    let printer ff thrd_tree =
       let cnt = ref 1 in
       let pp ff thrd =
-        Format.fprintf ff "@[<v>Thread %d:@;<1 4>%a@]" !cnt ThreadState.printer thrd;
+        Format.fprintf ff "@[<v>Thread %d:@;<1 4>%a@;@]" !cnt ThreadState.printer thrd;
         cnt := !cnt + 1
       in
-      List.iter (pp Format.str_formatter) @@ threads_list thrd_tree;
+      List.iter (pp ff) @@ threads_list thrd_tree
+
+    let pprint thrd_tree =
+      printer (Format.str_formatter) thrd_tree;
       Format.flush_str_formatter ()
 
     let rec geto tree path thrd = Path.(
@@ -335,12 +338,24 @@ module Threads =
 module LocStory =
   struct
     module Cell = struct
-      type tt = (Nat.ground * Nat.ground * ViewFront.tt)
-      type tl = (Nat.logic  * Nat.logic  * ViewFront.tl) logic
+      type tt = (Timestamp.tt * Value.tt * ViewFront.tt)
+      type tl = (Timestamp.tl * Value.tl * ViewFront.tl) logic
       type ti = (tt, tl) injected
 
       let inj (ts, value, vf) =
         inj_triple (inj_nat @@ Nat.to_int ts) (inj_nat @@ Nat.to_int value) (ViewFront.inj vf)
+
+      let to_logic (ts, value, vf) = Value (Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
+
+      let printer var =
+        let pp ff (ts, value, vf) =
+          Format.fprintf ff "@[<h>{%a@%a=%a, %a}@]"
+            pprint_string var
+            pprint_nat ts
+            pprint_nat value
+            ViewFront.printer vf
+        in
+        pprint_logic pp
     end
 
     module T = struct
@@ -363,6 +378,9 @@ module LocStory =
 
     let inj {T.tsnext = tsnext; T.story = story} = loc_story (inj_nat @@ Nat.to_int tsnext) (List.inj (Cell.inj) story)
 
+    let to_logic {T.tsnext = tsnext; T.story = story} =
+      Value {T.tsnext = Nat.to_logic tsnext; T.story = List.to_logic Cell.to_logic story}
+
     let create tsnext story = {
       T.tsnext = Nat.of_int tsnext;
       T.story  = List.of_list (fun (ts, v, vf) -> (Nat.of_int ts, Nat.of_int v, vf)) story;
@@ -371,6 +389,16 @@ module LocStory =
     let preallocate atomics =
       let vf = ViewFront.allocate atomics in
       create 1 [(0, 0, vf)]
+
+    let printer var =
+      let pp ff {T.story = story} =
+        pprint_llist (Cell.printer var) ff story
+      in
+      pprint_logic pp
+
+    let pprint var story =
+      printer var Format.str_formatter story;
+      Format.flush_str_formatter ()
 
     let next_tso t ts =
       fresh (story)
@@ -411,9 +439,19 @@ module MemStory =
 
     let inj = List.inj (fun (loc, story) -> inj_pair (!!loc) (LocStory.inj story))
 
+    let to_logic = List.to_logic (fun (var, story) -> Value (Value var, LocStory.to_logic story))
+
     let create = List.of_list (fun x -> x)
 
     let preallocate atomics = List.of_list (fun loc -> (loc, LocStory.preallocate atomics)) atomics
+
+    let printer ff story =
+      let pp ff (var, story) = LocStory.printer var ff story in
+      Format.fprintf ff "@[<v>Memory :@;<1 4>%a@;@]" (pprint_llist (pprint_logic pp)) story
+
+    let pprint story =
+      printer Format.str_formatter story;
+      Format.flush_str_formatter ()
 
     let next_tso t loc ts =
       fresh (story)
@@ -504,6 +542,16 @@ module MemState =
       let thrds = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
       let story = MemStory.preallocate atomics in
       create thrds story
+
+    let printer ff story =
+      let pp ff {T.thrds = thrds; T.story = story} =
+        Format.fprintf ff "@[<v>%a@;%a@]" Threads.printer thrds MemStory.printer story
+      in
+      pprint_logic pp
+
+    let pprint story =
+      printer Format.str_formatter story;
+      Format.flush_str_formatter ()
 
     let get_thrdo t path thrd =
       fresh (tree story)

@@ -41,12 +41,23 @@ let lang_tests =
 
 let mem_tests =
   "memory">::: [
-    "test_thrd">:: (
-      fun test_ctx ->
-        let thrd = ThreadState.create [("r1", 0); ("r2", 42)] [("x", 1); ("y", 0)] ~acq:[("x", 1); ("y", 1)] ~rel:[("x", 0); ("y", 0)] in
-        let str = ThreadState.pprint @@ ThreadState.to_logic thrd in
-        Printf.printf "\ntest_thrd:\n%s\n" str
-      )
+    "test_thrd">:: (fun test_ctx ->
+      let thrd = ThreadState.create [("r1", 0); ("r2", 42)] [("x", 1); ("y", 0)] ~acq:[("x", 1); ("y", 1)] ~rel:[("x", 0); ("y", 0)] in
+      let str = ThreadState.pprint @@ ThreadState.to_logic thrd in
+      Printf.printf "\nTEST_THRD:\n%s\n" str
+    );
+
+    "test_thrds">:: Threads.(Tree.(fun test_ctx ->
+      let thrd1 = ThreadState.to_logic @@ ThreadState.preallocate ["r1"] ["x"] in
+      let thrd2 = ThreadState.to_logic @@ ThreadState.preallocate ["r1"] ["x"] in
+      let thrds = Value (Node (thrd1, Var (0, []), Value (Node (thrd2, Value Nil, Value Nil)))) in
+      Printf.printf "\nTEST_THRDS:\n%s\n" (Threads.pprint thrds)
+    ));
+
+    "test_mem_story">:: (fun test_ctx ->
+      let story = MemStory.to_logic @@ MemStory.preallocate ["x"; "y"] in
+      Printf.printf "\nTEST_MEMSTORY:\n%s\n" (MemStory.pprint story)
+    )
   ]
 
 let tests =

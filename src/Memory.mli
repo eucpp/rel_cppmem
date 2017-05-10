@@ -130,9 +130,13 @@ module LocStory :
 
     val inj : tt -> ti
 
+    val to_logic : tt -> tl
+
     val create : int -> (int * int * ViewFront.tt) list -> tt
 
     val preallocate : string list -> tt
+
+    val pprint : Lang.Loc.tl -> tl -> string
 
     val next_tso : ti -> Lang.Timestamp.ti -> MiniKanren.goal
 
@@ -153,9 +157,13 @@ module MemStory :
 
     val inj : tt -> ti
 
+    val to_logic : tt -> tl
+
     val create : (string * LocStory.tt) list -> tt
 
     val preallocate : string list -> tt
+
+    val pprint : tl -> string
 
     val next_tso : ti -> Lang.Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
 
@@ -209,6 +217,8 @@ module MemState :
     val create : Threads.tt -> MemStory.tt -> tt
 
     val preallocate : string list -> string list -> tt
+
+    val pprint : tl -> string
 
     val get_localo : ti ->       Lang.Path.ti -> Lang.Var.ti -> Lang.Value.ti -> MiniKanren.goal
     val set_localo : ti -> ti -> Lang.Path.ti -> Lang.Var.ti -> Lang.Value.ti -> MiniKanren.goal

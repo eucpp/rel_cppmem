@@ -9,13 +9,17 @@ let rec pprint_logic pp ff = function
     Format.fprintf ff "}"
 
 let pprint_llist'' pp pp_tail ff = function
-  | Cons (x, xs) -> Format.fprintf ff "%a; %a" pp x pp_tail xs
+  | Cons (x, xs) -> Format.fprintf ff "%a;@;<1>%a" pp x pp_tail xs
   | Nil          -> ()
 
 let rec pprint_llist' pp ff xs =
   pprint_logic (pprint_llist'' pp (pprint_llist' pp)) ff xs
 
-let pprint_llist pp ff xs = Format.fprintf ff "@[<h>[ %a]@]" (pprint_llist' pp) xs
+let pprint_llist_generic fmt fmt_cell pp ff xs =
+  Format.fprintf ff fmt (pprint_llist' fmt_cell pp) xs
+
+(* let pprint_llist = pprint_llist_generic "@[<h>[ %a]@]" "%a; %a" *)
+let pprint_llist pp ff xs = Format.fprintf ff "@[<hv>[ %a]@]" (pprint_llist' pp) xs
 
 let rec pprint_nat ff n =
   let pp ff _ = Format.fprintf ff "%d" (Nat.to_int @@ Nat.from_logic n) in
