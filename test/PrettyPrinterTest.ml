@@ -57,7 +57,15 @@ let mem_tests =
     "test_mem_story">:: (fun test_ctx ->
       let story = MemStory.to_logic @@ MemStory.preallocate ["x"; "y"] in
       Printf.printf "\nTEST_MEMSTORY:\n%s\n" (MemStory.pprint story)
-    )
+    );
+
+    "test_memstate">:: Threads.(Tree.(fun test_ctx ->
+      let thrd  = ThreadState.preallocate ["r"] ["x"] in
+      let thrds = Node (thrd, Nil, Nil) in
+      let story = MemStory.preallocate ["x"] in
+      let state = MemState.to_logic @@ MemState.create thrds story in
+      Printf.printf "\nTEST_MEMSTATE:\n%s\n" (MemState.pprint state)
+    ))
   ]
 
 let tests =

@@ -3,10 +3,8 @@ open MiniKanren
 open TestUtils
 
 let prog_rel_acq = "
-    x_rlx := 0;
-    f_rlx := 0;
     spw {{{
-        x_rel := 1;
+        x_rlx := 1;
         f_rel := 1
     |||
         r1 := f_acq;

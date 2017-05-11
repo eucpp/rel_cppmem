@@ -104,6 +104,8 @@ module Threads :
 
     val inj : tt -> ti
 
+    val to_logic : tt -> tl
+
     val create : ?rel: (string * int) list ->
                  ?acq: (string * int) list ->
                   (string * int) list ->
@@ -213,6 +215,8 @@ module MemState :
     type ti = (tt, tl) MiniKanren.injected
 
     val inj : tt -> ti
+
+    val to_logic : tt -> tl
 
     val create : Threads.tt -> MemStory.tt -> tt
 

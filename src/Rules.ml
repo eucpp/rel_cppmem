@@ -133,9 +133,9 @@ module ThreadSpawning =
           (t1 === stuck ())                       &&& (t' === stuck ()) &&& (c' === hole ());
           (t1 =/= stuck ()) &&& (t2 === stuck ()) &&& (t' === stuck ()) &&& (c' === hole ());
           (t1 =/= stuck ()) &&& (t2 =/= stuck ()) &&& (c === c') &&& (conde [
-            (t1 === skip ())                      &&& (t' === t2);
-            (t1 =/= skip ()) &&& (t2 === skip ()) &&& (t' === t1);
-            (expro t1)       &&& (expro t2)       &&& (t' === pair t1 t2);
+            (t1 === skip ()) &&& (expro t2) &&& (t' === t2);
+            (expro t1) &&& (t2 === skip ()) &&& (t' === t1);
+            (expro t1) &&& (expro t2)       &&& (t' === pair t1 t2);
           ])
         ])
         (patho c path)

@@ -47,6 +47,19 @@ module ViewFront =
 
     let from_list lst = List.of_list (fun (s, v) -> (s, Nat.of_int v)) lst
 
+    let rec updateo t t' loc' ts' = Nat.(
+      fresh (hd tl tl' loc ts)
+        (t  === hd % tl)
+        (hd === inj_pair loc ts)
+        (conde [
+          (loc === loc') &&& (conde [
+            (ts' >  ts) &&& (t' === (inj_pair loc' ts') % tl);
+            (ts' <= ts) &&& (t' === t);
+          ]);
+          (loc =/= loc') &&& (t' === hd % tl') &&& (updateo tl tl' loc' ts');
+        ])
+      )
+
     let mergeo t1 t2 t = VarList.map2o VarList.join_tso t1 t2 t
 
     let printer =
@@ -156,9 +169,9 @@ module ThreadState =
       fresh (regs curr curr' rel rel' acq acq')
         (thrd  === thrd_state regs curr  rel  acq )
         (thrd' === thrd_state regs curr' rel  acq')
-        (VarList.seto curr curr' loc ts)
+        (ViewFront.updateo curr curr' loc ts)
         (* (VarList.seto rel  rel'  loc ts) *)
-        (VarList.seto acq  acq'  loc ts)
+        (ViewFront.updateo acq  acq'  loc ts)
 
     let front_relo thrd loc rel =
       fresh (regs curr acq)
@@ -233,6 +246,8 @@ module Threads =
     let inj' = inj
 
     let rec inj tree = inj' @@ Fmap.distrib (Tree.fmap (ThreadState.inj) (inj) tree)
+
+    let rec to_logic tree = Value (Tree.fmap (ThreadState.to_logic) (to_logic) tree)
 
     let create ?rel ?acq vars curr =
       Tree.Node (ThreadState.create ?rel ?acq vars curr, Tree.Nil, Tree.Nil)
@@ -532,6 +547,9 @@ module MemState =
 
     let inj {T.thrds = thrds; T.story = story} = mem_state (Threads.inj thrds) (MemStory.inj story)
 
+    let to_logic {T.thrds = thrds; T.story = story} =
+      Value {T.thrds = Threads.to_logic thrds; T.story = MemStory.to_logic story}
+
     let create thrds story = {
       T.thrds = thrds;
       T.story  = story;
@@ -543,7 +561,7 @@ module MemState =
       let story = MemStory.preallocate atomics in
       create thrds story
 
-    let printer ff story =
+    let printer =
       let pp ff {T.thrds = thrds; T.story = story} =
         Format.fprintf ff "@[<v>%a@;%a@]" Threads.printer thrds MemStory.printer story
       in
@@ -583,7 +601,6 @@ module MemState =
         (Threads.seto tree tree' path thrd'')
         (ThreadState.last_tso thrd loc last_ts)
         (MemStory.reado story loc last_ts ts value vf)
-
         (ThreadState.update_acqo thrd thrd' vf)
         (ThreadState.updateo thrd' thrd'' loc ts)
 

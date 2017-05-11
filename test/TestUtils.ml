@@ -78,10 +78,11 @@ let test_prog ?n ?(negative=false) prog expected test_ctx =
   let cnt = ref 0 in
   let handler (t, s) =
     let answer = Term.pprint @@ Term.to_logic t in
+    let memory = MemState.pprint @@ MemState.to_logic s in
     let set'   = S.add answer !set in
     cnt := !cnt + 1;
     set := set';
-    Printf.printf "\n%d: %s" !cnt answer
+    Printf.printf "\n%d: %s\n%s\n" !cnt answer memory
   in
   let _ = Printf.printf "\n\nTest program:%s\nOutput:" prog in
   let _ = match n with

@@ -151,4 +151,48 @@ let test_test () = test_synth ~n:1 prog_MP_part
                     (MemState.last_valueo mem !!"x" (inj_nat 0))
                 ] *)
 
-let _ = test_test ()
+(* {f@1=1, [ f@0; x@1; ]}; {f@0=0, [ f@0; x@0; ]}; *)
+(* {x@1=1, [ f@0; x@0; ]}; {x@0=0, [ f@0; x@0; ]}; *)
+
+let story_f = LocStory.create 2 [
+  (1, 1, ViewFront.from_list [("f", 0); ("x", 1)]);
+  (0, 0, ViewFront.from_list [("f", 0); ("x", 0)])
+]
+
+let story_x = LocStory.create 2 [
+  (1, 1, ViewFront.from_list [("f", 0); ("x", 0)]);
+  (0, 0, ViewFront.from_list [("f", 0); ("x", 0)])
+]
+
+let thrd = ThreadState.create [("r1", 0); ("r2", 0)] [("f", 0); ("x", 0)] ~acq:[("f", 1); ("x", 1)]
+
+let thrds = Threads.(Tree.(Node (ThreadState.preallocate ["r1"; "r2"] ["f";"x"], Nil, Nil)))
+
+(* let thrds = Threads.(Tree.(Node (thrd, Nil, Nil))) *)
+
+let mem1 = MemState.create thrds @@ MemStory.preallocate ["f"; "x"]
+
+let mem2 = MemState.create thrds @@ MemStory.create [("f", story_f); ("x", story_x)]
+
+let prog1 =
+  let lexbuf = Lexing.from_string "spw {{{ x_rlx := 1; f_rel := 1 ||| r1 := f_acq; r2 := x_rlx; ret (r1, r2) }}}" in
+  Term.from_logic @@ Parser.parse Lexer.token lexbuf
+
+let prog2 =
+  let lexbuf = Lexing.from_string "r1 := f_acq; r2 := x_rlx" in
+  Term.from_logic @@ Parser.parse Lexer.token lexbuf
+
+let _ =
+  let module Sem = Semantics.Make(Semantics.OperationalStep) in
+  let t = Term.inj prog1 in
+  let s = MemState.inj mem1 in
+  let handler (t, s) =
+    let answer = Term.pprint @@ Term.to_logic t in
+    let memory = MemState.pprint @@ MemState.to_logic s in
+    Printf.printf "%s\n%s\n" answer memory
+  in
+  let stream  = Sem.(
+   run qr (fun q  r  -> (t, s) -->* (q, r))
+          (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
+  ) in
+  List.iter handler @@ fst @@ Stream.retrieve stream
