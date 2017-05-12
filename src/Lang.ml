@@ -26,7 +26,7 @@ module Var =
 
     let inj = (!!)
 
-    let to_logic x = Value x 
+    let to_logic x = Value x
   end
 
 module Value =
@@ -76,6 +76,8 @@ module MemOrder =
       | CON     -> "con"
       | RLX     -> "rlx"
       | NA      -> "na"
+
+    let inj = (!!)
   end
 
 module Path =

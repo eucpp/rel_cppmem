@@ -3,62 +3,89 @@
 
 open Pcaml
 open Printf
-open MiniKanren
+(* open MiniKanren *)
 open Lang
 open Lang.Term
 
-(* | <:expr< $anti:e$ >> ->             <:expr< $anti:s e$ >> *)
-(* | <:expr< $e1$ \:= $e2$ >> -> <:expr< asgn $s e1$ $s e2$ >> *)
+(* let op s = <:expr<  >> *)
 
-let rec subst_cppmem expr =
-  let s = subst_cppmem in
-  let loc = MLast.loc_of_expr expr in
-  match expr with
-    | <:expr< $int:i$ >>      ->
-      let n = <:expr< Value.inj (Value.of_string $str:i$) >> in
-      <:expr< const $n$ >>
-
-    | <:expr< $lid:ident$ >> ->
-      let x = <:expr< Var.inj (Var.of_string $str:ident$) >> in
-      <:expr< var $x$ >>
-
-    | <:expr< $lid:ident$ $e1$ $e2$ >> ->
-      (match ident with
-        | "+" | "*" | "=" | "!=" | "<" | "<=" | ">" | ">=" ->
-          let op = <:expr< Var.inj (Var.of_string $str:ident$) >> in
-          <:expr< binop $op$ $s e1$ $s e2$ >>
-        (* | ":=" -> *)
-          (* let op = <:expr< Var.inj (Var.of_string $str:ident$) >> in *)
-          (* <:expr< asgn $s e1$ $s e2$ >> *)
-        | _ -> expr
-      )
-    | _ ->
-        Stdpp.raise_with_loc loc
-          (Failure
-             "syntax not supported due to the \
-              lack of Camlp5 documentation")
-
+let gram = Grammar.gcreate (Plexer.gmake ());;
+let term_eoi = Grammar.Entry.create gram "cppmem";;
+let term = Grammar.Entry.create gram "cppmem";;
+let term_antiquot = Grammar.Entry.create gram "cppmem";;
 EXTEND
-  GLOBAL: expr;
+  term_eoi: [ [ x = term; EOI -> x ] ];
+  term: [ [
+        n = INT   ->
+        <:expr< const ( Value.inj (Value.of_string $str:n$)) >>
 
-  expr: LEVEL "expr1" [
-    [ "cppmem"; "{"; e = expr; "}" -> subst_cppmem e ]
-  ];
+      | "?"; q = term_antiquot -> q
 
-END;
+      | x = LIDENT ->
+        if String.contains x '_' then
+          let var::mo::[] = String.split_on_char '_' x in
+          <:expr< read (MemOrder.inj (MemOrder.of_string $str:mo$)) (Var.inj (Var.of_string $str:var$)) >>
+        else
+          <:expr< var (Var.inj (Var.of_string $str:x$)) >>
 
-(* EXTEND
-  GLOBAL: expr;
+      | x = LIDENT; ":="; t = term ->
+        if String.contains x '_' then
+          let var::mo::[] = String.split_on_char '_' x in
+          <:expr< write (MemOrder.inj (MemOrder.of_string $str:mo$)) (Var.inj (Var.of_string $str:var$)) $t$ >>
+        else
+          <:expr< asgn (var (Var.inj (Var.of_string $str:x$))) $t$ >>
 
-  expr: LEVEL "expr1" [
-    [ "skip" ->
-      let fuck = <:expr< Value.inj (Value.of_string "1") >> in
-      <:expr< const $fuck$ >>
-    ]
-    (* | *)
-    (* [ "defer"; subj=expr LEVEL "." ->
-      <:expr< delay (fun () -> $subj$) >>
-    ] *)
-  ];
+      (* | "?"; q = term_antiquot -> q *)
 
-END; *)
+
+      | t1 = term; ":="; t2 = term ->
+        <:expr< asgn $t1$ $t2$ >>
+
+      | t1 = term; "+" ; t2 = term ->
+        <:expr< binop (Var.inj (Var.of_string "+")) $t1$ $t2$ >>
+      | t1 = term; "*" ; t2 = term ->
+        <:expr< binop (Var.inj (Var.of_string "*")) $t1$ $t2$ >>
+      | t1 = term; "=" ; t2 = term ->
+        <:expr< binop (Var.inj (Var.of_string "=")) $t1$ $t2$ >>
+      | t1 = term; "!=" ; t2 = term ->
+        <:expr< binop (Var.inj (Var.of_string "!=")) $t1$ $t2$ >>
+      | t1 = term; "<" ; t2 = term ->
+        <:expr< binop (Var.inj (Var.of_string "<")) $t1$ $t2$ >>
+      | t1 = term; "<=" ; t2 = term ->
+        <:expr< binop (Var.inj (Var.of_string "<=")) $t1$ $t2$ >>
+      | t1 = term; ">" ; t2 = term ->
+        <:expr< binop (Var.inj (Var.of_string ">")) $t1$ $t2$ >>
+      | t1 = term; ">=" ; t2 = term ->
+        <:expr< binop (Var.inj (Var.of_string ">=")) $t1$ $t2$ >>
+
+      | "("; t1 = term; ","; t2 = term; ")" ->
+        <:expr< pair $t1$ $t2$ >>
+
+      | "if"; t1 = term; "then"; t2 = term; "else"; t3 = term; "fi" ->
+        <:expr< if' $t1$ $t2$ $t3$ >>
+
+      | "repeat"; t = term; "end" ->
+        <:expr< repeat $t$ >>
+
+      | t1 = term; ";"; t2 = term ->
+        <:expr< seq $t1$ $t2$ >>
+
+      | "spw"; "{";"{";"{"; t1 = term; "|||"; t2 = term; "}";"}";"}" ->
+        <:expr< spw $t1$ $t2$ >>
+  ] ];
+
+  term_antiquot: [ [
+    x = LIDENT ->
+      let ast =
+        let loc = Ploc.make_unlined (0, String.length x) in
+        <:expr< $lid:x$ >>
+      in
+      <:expr< $anti:ast$ >>
+  ] ];
+
+END;;
+
+let cppmem_exp s = Grammar.Entry.parse term_eoi (Stream.of_string s);;
+let cppmem_pat s = failwith "not implemented cppmem_pat";;
+Quotation.add "cppmem" (Quotation.ExAst (cppmem_exp, cppmem_pat));;
+(* Quotation.default := "term";; *)

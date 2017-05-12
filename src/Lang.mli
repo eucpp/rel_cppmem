@@ -51,6 +51,8 @@ module MemOrder :
 
     val of_string : string -> tt
     val to_string : tt -> string
+
+    val inj : tt -> ti
   end
 
 module Path :

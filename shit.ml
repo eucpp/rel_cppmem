@@ -2,14 +2,22 @@ open MiniKanren
 open Lang
 open Lang.Term
 
-let t = cppmem {
-  if 1 = 1 then 1 else 0 fi
-}
+let t = fun q ->
+<:cppmem<
+  spw {{{
+      ? q := 2;
+      x_rel := 1 + 2;
+      r := y_acq
+    |||
+      if x then 1 else 0 fi;
+      repeat 1 end
+    }}}
+>>
 
  (* let t = skip *)
 
 let _ =
-  let some_fuck = pprint @@ to_logic @@ prj t in
+  let some_fuck = pprint @@ to_logic @@ prj (t @@ var !!"r") in
   print_endline some_fuck
 
 (* let _ =
