@@ -1,0 +1,22 @@
+opam-version: "1.2"
+
+authors: [ "https://github.com/eucpp" ]
+name: "relcppmem"
+version: "0.0.1"
+maintainer: "evg.moiseenko94@gmail.com"
+homepage:    "https://github.com/dboulytchev/ocanren"
+bug-reports: "https://github.com/eucpp/rel_cppmem/issues"
+dev-repo:    "https://github.com/eucpp/rel_cppmem.git"
+
+build: [make]
+build-test: [make "test"]
+
+install: [make "PREFIX=%{prefix}%" "install"]
+remove:  [make "PREFIX=%{prefix}%" "uninstall"]
+
+depends: [
+  "ocamlfind" {build}
+  "camlp5"
+  "ocanren"
+  "GT"
+]

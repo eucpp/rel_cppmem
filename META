@@ -1,0 +1,12 @@
+version = "0.1"
+description = "relcppmem"
+requires = "GT ocanren"
+archive(byte) = "relcppmem.cma"
+archive(native) = "relcppmem.cmxa"
+
+package "syntax" (
+  description="cppmem DSL"
+  requires="camlp5"
+  archive(syntax,preprocessor) = "pa_cppmem.cmo"
+  archive(syntax,toploop)      = "pa_cppmem.cmo"
+)
