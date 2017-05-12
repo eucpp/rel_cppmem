@@ -13,6 +13,13 @@ module Var :
     type tt = string
     type tl = string MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
+
+    val of_string : string -> tt
+    val to_string : tt -> string
+
+    val inj : tt -> ti
+
+    val to_logic : tt -> tl
   end
 
 module Value :
@@ -23,6 +30,8 @@ module Value :
 
     val of_string : string -> tt
     val to_string : tt -> string
+
+    val inj : tt -> ti
 
     val to_logic : tt -> tl
   end

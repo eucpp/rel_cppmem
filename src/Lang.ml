@@ -9,6 +9,10 @@ module Loc =
 
     let of_string str = str
     let to_string loc = loc
+
+    let inj = (!!)
+
+    let to_logic x = Value x
   end
 
 module Var =
@@ -16,6 +20,13 @@ module Var =
     type tt = string
     type tl = string MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
+
+    let of_string str = str
+    let to_string loc = loc
+
+    let inj = (!!)
+
+    let to_logic x = Value x 
   end
 
 module Value =
@@ -27,6 +38,8 @@ module Value =
     let of_string str = Nat.of_int @@ int_of_string str
 
     let to_string v = string_of_int @@ Nat.to_int v
+
+    let inj = Nat.inj
 
     let to_logic = Nat.to_logic
   end
@@ -198,7 +211,7 @@ module Term =
 
       let mo ff x         = pprint_logic (fun ff m -> Format.fprintf ff "%s" (MemOrder.to_string m)) ff x in
       let rec sl ff x     = pprint_logic s ff x
-      
+
       and s ff = function
         | Const n                 -> Format.fprintf ff "@[%a@]" const n
         | Var x                   -> Format.fprintf ff "@[%a@]" var x
