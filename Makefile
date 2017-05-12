@@ -1,30 +1,30 @@
-.PHONY: all test clean
-
-SRC = -I src -I test -I yacc -I camlp5
+SRC = -I src -I test -I yacc
 PKGS = -pkgs "GT.syntax.all,ocanren.syntax,oUnit,ocanren"
-CFLGS = -cflags "-g,-rectypes"
+CFLGS = -cflags "-g"
 LFLGS = -lflags "-g"
 
 OCB_FLAGS = -use-ocamlfind -use-menhir -syntax camlp5o $(CFLGS) $(LFLGS) $(PKGS) $(SRC)
 OCB = ocamlbuild $(OCB_FLAGS)
 
-all:
-	$(OCB) Main.byte
-	$(OCB) Main.native
+BYTE_TARGETS = relcppmem.cma
+NATIVE_TARGETS = relcppmem.cmxa
+
+.PHONY: all test clean
+
+all: relcppmem plugin
 
 clean:
-	rm -rf ./_build *.byte
+	rm -rf ./_build *.byte *.native
+
+relcppmem:
+	$(OCB) $(OCB_FLAGS) $(BYTE_TARGETS) $(NATIVE_TARGETS)
+
+plugin: relcppmem
+	$(OCB) $(OCB_FLAGS) -I camlp5 camlp5/pa_cppmem.cmo
 
 test:
 	$(OCB) Test.byte
 	./Test.byte
-
-FUCK = ocamlbuild -use-ocamlfind -plugin-tag "package(str)" -classic-display
-
-plugin:
-	$(FUCK) $(OCB_FLAGS) camlp5/pa_cppmem.cmo
-
-NAME=cppmem
 
 shit:
 	# camlp5o -I . pr_o.cmo _build/camlp5/pa_$(NAME).cmo shit.ml -o shit.ppo
