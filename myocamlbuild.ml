@@ -6,7 +6,13 @@ let () = dispatch (function
      ()
 
  | After_rules ->
-     flag ["hack_pr_o"; "compile"] (S[A"-ppopt"; A"pr_o.cmo"]); 
+     flag ["hack_pr_o"; "compile"] (S[A"-ppopt"; A"pr_o.cmo"; ]);
+
+     flag ["ocamldep"; "use_pa_cppmem"]
+      (S[A"-pp";A"camlp5o ./camlp5/pa_cppmem.cmo"]);
+
+     flag ["compile"; "ocaml"; "use_pa_cppmem"] (S[A"-pp";A"camlp5o ./camlp5/pa_cppmem.cmo";]);
+     (* dep ["ocaml"; "ocamldep"; "use_cppmem"] ["pa_cppmem.cmo"]; *)
    ()
  | _ -> ()
 )

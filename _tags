@@ -1,3 +1,7 @@
 true: use_menhir, explain
 
 #<src/Lang.mli>: hack_pr_o
+
+<camlp5/pa_cppmem.*>: syntax(camlp5o), package(camlp5)
+
+<shit.ml>: camlp5o, use_pa_cppmem
