@@ -3,8 +3,8 @@ PKGNAME=relcppmem
 MKDIR ?= mkdir -vp
 CP    ?= cp
 
-SRC = -I src -I test -I yacc
-PKGS = -pkgs "GT.syntax.all,ocanren.syntax,oUnit,ocanren"
+SRC = -I src -I yacc
+PKGS = -pkgs "GT.syntax.all,ocanren.syntax,ocanren"
 CFLGS = -cflags "-g"
 LFLGS = -lflags "-g"
 
@@ -28,19 +28,20 @@ plugin: relcppmem
 	$(OCB) $(OCB_FLAGS) -I camlp5 camlp5/pa_cppmem.cmo
 
 test:
-	$(OCB) Test.byte
+	$(OCB) -I test -pkgs "oUnit,relcppmem,relcppmem.syntax" Test.byte
 	./Test.byte
 
 shit:
 	# camlp5o -I . pr_o.cmo _build/camlp5/pa_$(NAME).cmo shit.ml -o shit.ppo
 	# camlp5o -I . pr_r.cmo _build/camlp5/pa_$(NAME).cmo shit.ml -o shit.ppr
-	$(OCB) -I . shit.byte
+	$(OCB) -I . -pkgs "relcppmem,relcppmem.syntax"  shit.byte
 	# ocamlfind opt -I src -rectypes -o sort -syntax camlp5o -package ocanren,ocanren.syntax,GT -linkpkg shit.ml
 	# ocamlopt -dtypes -o shit -pp 'camlp5o -I . _build/camlp5/pa_$(NAME).cmo' shit.ml
 
 ######################## Installation related stuff ##########################
 INSTALL_TARGETS = META \
 	_build/relcppmem.cmo \
+	_build/relcppmem.cma \
 	_build/relcppmem.cmx \
 	_build/relcppmem.cmi \
 	_build/relcppmem.o \

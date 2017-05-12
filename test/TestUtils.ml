@@ -61,13 +61,10 @@ let assert_stream ?(empty_check = true)
 
 (* module Sem = Semantics.Make(Lang.Term)(Lang.Context)(MemState) *)
 
-let test_prog ?n ?(negative=false) prog expected test_ctx =
+let test_prog ?n ?(negative=false) term expected test_ctx =
   let module Sem = Semantics.Make(Semantics.OperationalStep) in
   let show s  = s in
-  let lexbuf  = Lexing.from_string prog in
-  let term    = Parser.parse Lexer.token lexbuf in
-  let rs, vs  = Term.preallocate term in
-  let term    = Term.inj @@ Term.from_logic term in
+  let rs, vs  = ["r1";"r2";"r3";"r4"], ["x";"y";"z";"f"] in
   let state   = MemState.inj @@ MemState.preallocate rs vs in
   let stream  = Sem.(
    run qr (fun q  r  -> (term, state) -->* (q, r))
@@ -84,7 +81,7 @@ let test_prog ?n ?(negative=false) prog expected test_ctx =
     set := set';
     Printf.printf "\n%d: %s\n%s\n" !cnt answer memory
   in
-  let _ = Printf.printf "\n\nTest program:%s\nOutput:" prog in
+  let _ = Printf.printf "\n\nTest program:%s\nOutput:" (Term.pprint @@ Term.to_logic @@ prj term) in
   let _ = match n with
     | Some n -> List.iter handler @@ fst @@ Stream.retrieve ~n:n stream
     | None   -> Stream.iter handler stream

@@ -19,8 +19,6 @@ EXTEND
         n = INT   ->
         <:expr< const ( Value.inj (Value.of_string $str:n$)) >>
 
-      | "?"; q = term_antiquot -> q
-
       | x = LIDENT ->
         if String.contains x '_' then
           let var::mo::[] = String.split_on_char '_' x in
@@ -34,9 +32,6 @@ EXTEND
           <:expr< write (MemOrder.inj (MemOrder.of_string $str:mo$)) (Var.inj (Var.of_string $str:var$)) $t$ >>
         else
           <:expr< asgn (var (Var.inj (Var.of_string $str:x$))) $t$ >>
-
-      (* | "?"; q = term_antiquot -> q *)
-
 
       | t1 = term; ":="; t2 = term ->
         <:expr< asgn $t1$ $t2$ >>
@@ -72,6 +67,10 @@ EXTEND
 
       | "spw"; "{";"{";"{"; t1 = term; "|||"; t2 = term; "}";"}";"}" ->
         <:expr< spw $t1$ $t2$ >>
+
+      | "ret"; t = term -> t
+
+      | "?"; q = term_antiquot -> q
   ] ];
 
   term_antiquot: [ [

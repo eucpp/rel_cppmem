@@ -2,25 +2,19 @@ open OUnit2
 open MiniKanren
 open TestUtils
 open Lang
+open Lang.Term
 open Memory
 
-let test_synth ?n ?(mem_cstrs=[fun s -> success]) ?(holes_cstrs=[fun m -> success]) prog expected test_ctx =
+let test_synth ?n ?(mem_cstrs=[fun s -> success]) ?(holes_cstrs=[fun m -> success]) term expected test_ctx =
   let module Sem = Semantics.Make(Semantics.OperationalStep) in
-  let parse s =
-    let lexbuf  = Lexing.from_string s in
-    Parser.parse Lexer.token lexbuf
-  in
-  let term    = parse prog in
-  let rs, vs  = Term.preallocate term in
+  let rs, vs  = ["r1";"r2";"r3";"r4"], ["x";"y";"z";"f"] in
   let state   = MemState.inj @@ MemState.preallocate rs vs in
   let stream  = Sem.(
-   run_with_env q
-    (fun env q ->
-      let mapping = Mapping.create env in
-      let term = Lang.Term.inj_logic mapping term in
+   run q
+    (fun q ->
+      let term = term q in
       fresh (term' state')
-        (q === term)
-        (conde @@ List.map (fun cstro -> cstro mapping) holes_cstrs)
+        (conde @@ List.map (fun cstro -> cstro q) holes_cstrs)
         ((term, state) -->* (term', state'))
         (conde @@ List.map (fun cstro -> cstro state') mem_cstrs)
     )
@@ -33,21 +27,22 @@ let test_synth ?n ?(mem_cstrs=[fun s -> success]) ?(holes_cstrs=[fun m -> succes
     let answer = Term.pprint t in
     if not @@ Hashtbl.mem tbl t then
       cnt := !cnt + 1;
-      actual := t::(!actual);
+      actual := answer::(!actual);
       Hashtbl.add tbl t answer;
       Printf.printf "\n---------------------------------\n";
       Printf.printf "%s" answer;
       Printf.printf "\n---------------------------------\n";
   in
-  let _ = Printf.printf "\n\nTest program: %s" prog in
+  (* let _ = Printf.printf "\n\nTest program: %s" (Term.pprint @@ Term.to_logic @@ prj (term @@ var ) in *)
   let _ = match n with
     | Some n -> List.iter handler @@ fst @@ Stream.retrieve ~n:n stream
     | None   -> Stream.iter handler stream
   in
-  let expected = List.map parse expected in
-  assert_lists expected !actual ~printer:Term.pprint ~cmp:(=)
+  assert_lists expected !actual ~printer:(fun s -> s) ~cmp:(=)
 
-let test_ASGN = test_synth ~n:1 "?1; ret r1" ["r1 := 1; ret r1"]
+let prog_ASGN = fun q -> <:cppmem< ? q; ret r1 >>
+
+let test_ASGN = test_synth ~n:1 prog_ASGN ["r1 := 1"]
                 ~mem_cstrs:[
                   fun mem -> MemState.get_localo mem (Path.pathn ()) !!"r1" (inj_nat 1)
                 ]
@@ -72,31 +67,19 @@ let well_termo t = Term.(conde [
     (well_expro t);
   ])
 
-let prog_MP = "
+let prog_MP_part = fun q r -> <:cppmem<
     x_rlx := 0;
     f_rlx := 0;
     spw {{{
         x_rlx := 1;
-        f_rel := 1;
+        ? q;
         ret 1
     |||
-        repeat f_acq end;
+        repeat ? r end;
         r2 := x_rlx;
         ret r2
-    }}}"
-
-let prog_MP_part = "
-    x_rlx := 0;
-    f_rlx := 0;
-    spw {{{
-        x_rlx := 1;
-        ?1;
-        ret 1
-    |||
-        repeat ?2 end;
-        r2 := x_rlx;
-        ret r2
-    }}}"
+    }}}
+>>
 
 (* let test_MP = test_synth ~n:2 prog_MP_part [prog_MP]
               ~holes_cstrs:[
