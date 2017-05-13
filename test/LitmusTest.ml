@@ -154,7 +154,7 @@ let prog_CoRR_rlx = <:cppmem<
   }}}
 >>
 
-(* let test_CoRR_rlx = test_prog ~negative:true prog_CoRR_rlx ["((1, 2), (2, 1))"; "((2, 1), (1, 2))"] *)
+let test_CoRR_rlx = test_prog ~negative:true prog_CoRR_rlx ["((1, 2), (2, 1))"; "((2, 1), (1, 2))"]
 
 let tests =
   "Litmus">::: [
@@ -166,5 +166,5 @@ let tests =
     "MP_rlx_1">:: test_MP_rlx_1;
     "MP_rlx_2">:: test_MP_rlx_2;
     "MP_rel_seq">:: test_MP_rel_seq;
-    (* "CoRR_rlx">: OUnitTest.TestCase (OUnitTest.Short, test_CoRR_rlx); *)
+    "CoRR_rlx">: OUnitTest.TestCase (OUnitTest.Short, test_CoRR_rlx);
   ]
