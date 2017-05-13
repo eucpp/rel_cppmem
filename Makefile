@@ -31,13 +31,6 @@ test:
 	$(OCB) -I test -pkgs "oUnit,relcppmem,relcppmem.syntax" Test.byte
 	./Test.byte
 
-shit:
-	# camlp5o -I . pr_o.cmo _build/camlp5/pa_$(NAME).cmo shit.ml -o shit.ppo
-	# camlp5o -I . pr_r.cmo _build/camlp5/pa_$(NAME).cmo shit.ml -o shit.ppr
-	$(OCB) -I . -pkgs "relcppmem,relcppmem.syntax"  shit.byte
-	# ocamlfind opt -I src -rectypes -o sort -syntax camlp5o -package ocanren,ocanren.syntax,GT -linkpkg shit.ml
-	# ocamlopt -dtypes -o shit -pp 'camlp5o -I . _build/camlp5/pa_$(NAME).cmo' shit.ml
-
 ######################## Installation related stuff ##########################
 INSTALL_TARGETS = META \
 	_build/relcppmem.cmo \
