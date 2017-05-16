@@ -158,15 +158,10 @@ module Term =
 
     let rec inj t  = inj' @@ distrib (T.fmap (Nat.inj) (!!) (!!) (!!) (inj) t)
 
-    let inj_logic m x =
-      let fi = MiniKanren.inj_logic in
-      let rec inj_logic' m = inj_logic (Nat.inj_logic) (fi) (fi) (fi) (inj_logic') m in
-      inj_logic' m x
-
-    let prj_logic' = prj_logic
+    let from_logic' = from_logic
 
     let rec from_logic = function
-      | Value x    -> T.fmap (Nat.from_logic) (prj_logic') (prj_logic') (prj_logic') (from_logic) x
+      | Value x    -> T.fmap (Nat.from_logic) (from_logic') (from_logic') (from_logic') (from_logic) x
       | Var (_, _) -> raise Not_a_value
 
     let rec to_logic x =

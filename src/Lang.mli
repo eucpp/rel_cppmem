@@ -119,7 +119,6 @@ module Term :
     val stuck   : unit -> ti
 
     val inj : tt -> ti
-    val inj_logic : MiniKanren.Mapping.t -> tl -> ti
 
     val to_logic   : tt -> tl
     val from_logic : tl -> tt
