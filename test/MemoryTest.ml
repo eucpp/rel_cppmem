@@ -2,7 +2,7 @@ open OUnit2
 open MiniKanren
 open Memory
 open Lang
-open Lang.Path
+open Memory.Path
 open TestUtils
 
 

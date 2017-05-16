@@ -1,6 +1,6 @@
 open MiniKanren
 open Lang
-open Lang.MemOrder
+open Memory.MemOrder
 open OUnit2
 open Memory
 

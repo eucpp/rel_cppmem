@@ -12,7 +12,7 @@ module type Step =
     val (-->) : ti * si -> ti * si -> MiniKanren.goal
   end
 
-module BasicStep :
+(* module BasicStep :
   sig
     type tt = Lang.Term.tt
     type tl = Lang.Term.tl
@@ -38,7 +38,7 @@ module OperationalStep :
 
     val (->?) : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
     val (-->) : ti * si -> ti * si -> MiniKanren.goal
-  end
+  end *)
 
 module Make(S : Step) :
   sig

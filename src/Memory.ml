@@ -1,12 +1,117 @@
 open MiniKanren
-open Lang
 open Utils
+
+module Loc =
+  struct
+    type tt = string
+    type tl = string MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+
+    let of_string str = str
+    let to_string loc = loc
+
+    let inj = (!!)
+
+    let to_logic x = Value x
+  end
+
+module Var =
+  struct
+    type tt = string
+    type tl = string MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+
+    let of_string str = str
+    let to_string loc = loc
+
+    let inj = (!!)
+
+    let to_logic x = Value x
+  end
+
+module Value =
+  struct
+    type tt = MiniKanren.Nat.ground
+    type tl = MiniKanren.Nat.logic
+    type ti = MiniKanren.Nat.groundi
+
+    let of_string str = Nat.of_int @@ int_of_string str
+
+    let to_string v = string_of_int @@ Nat.to_int v
+
+    let inj = Nat.inj
+
+    let to_logic = Nat.to_logic
+  end
+
+module Timestamp =
+  struct
+    type tt = MiniKanren.Nat.ground
+    type tl = MiniKanren.Nat.logic
+    type ti = MiniKanren.Nat.groundi
+  end
+
+module MemOrder =
+  struct
+    type tt = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
+    type tl = tt MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+
+    let of_string str =
+      let binding = [("sc", SC);
+                     ("acq", ACQ);
+                     ("rel", REL);
+                     ("relAcq", ACQ_REL);
+                     ("con", CON);
+                     ("rlx", RLX);
+                     ("na", NA)]
+      in
+      List.assoc str binding
+
+    let to_string = function
+      | SC      -> "sc"
+      | ACQ     -> "acq"
+      | REL     -> "rel"
+      | ACQ_REL -> "relAcq"
+      | CON     -> "con"
+      | RLX     -> "rlx"
+      | NA      -> "na"
+
+    let inj = (!!)
+  end
+
+module Path =
+  struct
+    module T =
+      struct
+        type 'a t = N | L of 'a | R of 'a
+
+        let fmap ft = function
+          | N   -> N
+          | L p -> L (ft p)
+          | R p -> R (ft p)
+      end
+
+    type tt = tt T.t
+    type tl = tl T.t logic
+    type ti = (tt, tl) injected
+
+    include Fmap1(T)
+
+    let inj' = inj
+
+    let rec inj p = inj' @@ distrib (T.fmap (inj) p)
+
+    let pathn ()  = inj' @@ distrib @@ T.N
+    let pathl p   = inj' @@ distrib @@ T.L p
+    let pathr p   = inj' @@ distrib @@ T.R p
+  end
 
 module Registers =
   struct
-    type tt = (string, MiniKanren.Nat.ground) VarList.tt
-    type tl = (string MiniKanren.logic, MiniKanren.Nat.logic) VarList.tl
-    type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
+    type tt = (Var.tt, Value.tt) VarList.tt
+    type tl = (Var.tl, Value.tl) VarList.tl
+    type ti = (Var.tt, Value.tt, Var.tl, Value.tl) VarList.ti
 
     let inj = List.inj (fun (var, value) -> inj_pair (!!var) (Nat.inj value))
 
@@ -35,9 +140,9 @@ module Registers =
 
 module ViewFront =
   struct
-    type tt = (string, MiniKanren.Nat.ground) VarList.tt
-    type tl = (string MiniKanren.logic, MiniKanren.Nat.logic) VarList.tl
-    type ti = (string, MiniKanren.Nat.ground, string MiniKanren.logic, MiniKanren.Nat.logic) VarList.ti
+    type tt = (Loc.tt, Timestamp.tt) VarList.tt
+    type tl = (Loc.tl, Timestamp.tl) VarList.tl
+    type ti = (Loc.tt, Timestamp.tt, Loc.tl, Timestamp.tl) VarList.ti
 
     let inj = List.inj (fun (var, value) -> inj_pair (!!var) (Nat.inj value))
 
@@ -448,9 +553,9 @@ module LocStory =
 
 module MemStory =
   struct
-    type tt = (Lang.Loc.tt, LocStory.tt) VarList.tt
-    type tl = (Lang.Loc.tl, LocStory.tl) VarList.tl
-    type ti = (Lang.Loc.tt, LocStory.tt, Lang.Loc.tl, LocStory.tl) VarList.ti
+    type tt = (Loc.tt, LocStory.tt) VarList.tt
+    type tl = (Loc.tl, LocStory.tl) VarList.tl
+    type ti = (Loc.tt, LocStory.tt, Loc.tl, LocStory.tl) VarList.ti
 
     let inj = List.inj (fun (loc, story) -> inj_pair (!!loc) (LocStory.inj story))
 

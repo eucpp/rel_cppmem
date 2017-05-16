@@ -1,10 +1,11 @@
 open MiniKanren
 open OUnit2
 open Lang
+open Memory
 
 module T = Lang.Term.T
 module C = Lang.Context.T
-module S = Memory.MemState
+module S = MemState
 
 let parse str =
   let lexbuf = Lexing.from_string str in

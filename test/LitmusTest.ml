@@ -4,6 +4,7 @@ open TestUtils
 
 open Lang
 open Lang.Term
+open Memory
 
 let prog_rel_acq = <:cppmem<
     x_rlx := 0;

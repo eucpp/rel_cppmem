@@ -2,6 +2,7 @@
     open MiniKanren
     open Parser        (* The type token is defined in parser.mli *)
     open Lang
+    open Memory
 }
 
 let lc = ['a' - 'z']

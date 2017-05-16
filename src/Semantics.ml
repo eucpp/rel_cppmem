@@ -1,5 +1,4 @@
 open MiniKanren
-open Lang
 
 module type Step =
   sig
@@ -46,7 +45,7 @@ module Make(S : Step) =
       spaceo_tabled t s t' s'
   end
 
-let stepo reductiono (t, s) (t', s') =
+(* let stepo reductiono (t, s) (t', s') =
   fresh (c c' rdx rdx')
     (splito t c rdx)
     (reducibleo rdx !!true)
@@ -86,4 +85,4 @@ module OperationalStep =
     let (-->) =
       let rules = Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.Rlx.all @ Rules.RelAcq.all in
       stepo (reduction_relation rules)
-  end
+  end *)

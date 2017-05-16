@@ -9,8 +9,9 @@ module T = Lang.Term.T
 module C = Lang.Context.T
 module S = Memory.MemState
 
-let test_step ?empty_check _ (t, s) expected test_ctx =
-  let module Sem = Semantics.Make(Semantics.OperationalStep) in
+let test_step ?empty_check rules (t, s) expected test_ctx =
+  let module Step = (val make_reduction_relation rules) in
+  let module Sem = Semantics.Make(Step) in
   let t, s = Term.inj t, S.inj s in
   let stream = Sem.(
     run qr (fun q  r  -> (t, s) --> (q, r))
@@ -18,8 +19,9 @@ let test_step ?empty_check _ (t, s) expected test_ctx =
   ) in
   TestUtils.assert_stream expected stream ?empty_check ~printer:(fun (t,s) -> Term.pprint @@ Term.to_logic t)
 
-let test_space ?empty_check _ (t, s) expected test_ctx =
-  let module Sem = Semantics.Make(Semantics.OperationalStep) in
+let test_space ?empty_check rules (t, s) expected test_ctx =
+  let module Step = (val make_reduction_relation rules) in
+  let module Sem = Semantics.Make(Step) in
   let t, s = Term.inj t, S.inj s in
   let stream = Sem.(
     run qr (fun q  r  -> (t, s) -->* (q, r))

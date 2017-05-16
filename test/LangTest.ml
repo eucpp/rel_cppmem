@@ -1,25 +1,25 @@
 open OUnit2
 open MiniKanren
 open Lang
-open MemOrder
+open Memory.MemOrder
 open TestUtils
 
 open Term.T
 open Context.T
 
 let test_reducible pairs test_ctx =
-  let reducible t = run q (fun q  -> reducibleo (Term.inj t) q) prj_stream in
+  let reducible t = run q (fun q  -> Context.reducibleo (Term.inj t) q) prj_stream in
   List.iter (fun (t, b) -> assert_single_answer b (reducible t)) pairs
 
 let test_split term expected test_ctx =
-  let split t = run qr (fun q  r  -> splito (Term.inj t) q r)
+  let split t = run qr (fun q  r  -> Context.splito (Term.inj t) q r)
                        (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
   in
   let stream = split term in
   assert_single_answer expected stream
 
 let test_plug ctx_term expected test_ctx =
-  let plug (c, t) = run q (fun q  -> plugo q (Context.inj c) (Term.inj t)) prj_stream in
+  let plug (c, t) = run q (fun q  -> Context.plugo q (Context.inj c) (Term.inj t)) prj_stream in
   let stream = plug ctx_term in
   assert_single_answer ~printer:(fun t -> Term.pprint @@ Term.to_logic t)  expected stream
 

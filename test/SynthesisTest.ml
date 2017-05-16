@@ -6,7 +6,9 @@ open Lang.Term
 open Memory
 
 let test_synth ?n ?(mem_cstrs=[fun s -> success]) ?(holes_cstrs=[fun m -> success]) term expected test_ctx =
-  let module Sem = Semantics.Make(Semantics.OperationalStep) in
+  let rules = Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.Rlx.all @ Rules.RelAcq.all in
+  let module Step = (val make_reduction_relation rules) in
+  let module Sem = Semantics.Make(Step) in
   let rs, vs  = ["r1";"r2";"r3";"r4"], ["x";"y";"z";"f"] in
   let state   = MemState.inj @@ MemState.preallocate rs vs in
   let stream  = Sem.(

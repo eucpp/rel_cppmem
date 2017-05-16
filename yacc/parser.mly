@@ -3,12 +3,12 @@
   open MiniKanren
 %}
 
-%token <Lang.Var.tl> VAR
-%token <Lang.Loc.tl> LOC
+%token <Memory.Var.tl> VAR
+%token <Memory.Loc.tl> LOC
 %token <int> LABEL
 
-%token <Lang.Value.tl> INT
-%token <Lang.MemOrder.tl> MO
+%token <Memory.Value.tl> INT
+%token <Memory.MemOrder.tl> MO
 
 %token PLUS MINUS TIMES
 %token EQ NEQ LT LE GT GE

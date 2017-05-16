@@ -1,78 +1,3 @@
-module Loc :
-  sig
-    type tt = string
-    type tl = string MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    val of_string : string -> tt
-    val to_string : tt -> string
-  end
-
-module Var :
-  sig
-    type tt = string
-    type tl = string MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    val of_string : string -> tt
-    val to_string : tt -> string
-
-    val inj : tt -> ti
-
-    val to_logic : tt -> tl
-  end
-
-module Value :
-  sig
-    type tt = MiniKanren.Nat.ground
-    type tl = MiniKanren.Nat.logic
-    type ti = MiniKanren.Nat.groundi
-
-    val of_string : string -> tt
-    val to_string : tt -> string
-
-    val inj : tt -> ti
-
-    val to_logic : tt -> tl
-  end
-
-module Timestamp :
-  sig
-    type tt = MiniKanren.Nat.ground
-    type tl = MiniKanren.Nat.logic
-    type ti = MiniKanren.Nat.groundi
-  end
-
-module MemOrder :
-  sig
-    type tt = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
-    type tl = tt MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    val of_string : string -> tt
-    val to_string : tt -> string
-
-    val inj : tt -> ti
-  end
-
-module Path :
-  sig
-    module T :
-      sig
-        type 'a t = N | L of 'a | R of 'a
-      end
-
-    type tt = tt T.t
-    type tl = tl T.t MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    val pathn : unit -> ti
-    val pathl : ti -> ti
-    val pathr : ti -> ti
-
-    val inj : tt -> ti
-  end
-
 module Term :
   sig
     module T :
@@ -98,20 +23,20 @@ module Term :
 
     (* include (module type of MiniKanren.Fmap5(T)) *)
 
-    type tt  = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, tt) T.t
-    type tl  = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, tl) T.t MiniKanren.logic
+    type tt  = (Memory.Value.tt, Memory.Var.tt, Memory.MemOrder.tt, Memory.Loc.tt, tt) T.t
+    type tl  = (Memory.Value.tl, Memory.Var.tl, Memory.MemOrder.tl, Memory.Loc.tl, tl) T.t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
-    val const   : Value.ti -> ti
-    val var     : Loc.ti -> ti
-    val binop   : Loc.ti -> ti -> ti -> ti
+    val const   : Memory.Value.ti -> ti
+    val var     : Memory.Loc.ti -> ti
+    val binop   : Memory.Loc.ti -> ti -> ti -> ti
     val asgn    : ti -> ti -> ti
     val pair    : ti -> ti -> ti
     val if'     : ti -> ti -> ti -> ti
     val repeat  : ti -> ti
-    val read    : MemOrder.ti -> Loc.ti -> ti
-    val write   : MemOrder.ti -> Loc.ti -> ti -> ti
-    val cas     : MemOrder.ti -> MemOrder.ti -> Loc.ti -> ti -> ti -> ti
+    val read    : Memory.MemOrder.ti -> Memory.Loc.ti -> ti
+    val write   : Memory.MemOrder.ti -> Memory.Loc.ti -> ti -> ti
+    val cas     : Memory.MemOrder.ti -> Memory.MemOrder.ti -> Memory.Loc.ti -> ti -> ti -> ti
     val seq     : ti -> ti -> ti
     val spw     : ti -> ti -> ti
     val par     : ti -> ti -> ti
@@ -125,7 +50,7 @@ module Term :
 
     val reify : MiniKanren.helper -> ti -> tl
 
-    val preallocate : tl -> Var.tt list * Loc.tt list
+    val preallocate : tl -> Memory.Var.tt list * Memory.Loc.tt list
 
     val pprint : tl -> string
   end
@@ -149,16 +74,23 @@ module Context :
         (* with gmap *)
       end
 
-    type tt  = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, Term.tt, tt) T.t
-    type tl  = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, Term.tl, tl) T.t MiniKanren.logic
+    type tt  = (Memory.Value.tt, Memory.Var.tt, Memory.MemOrder.tt, Memory.Loc.tt, Term.tt, tt) T.t
+    type tl  = (Memory.Value.tl, Memory.Var.tl, Memory.MemOrder.tl, Memory.Loc.tl, Term.tl, tl) T.t MiniKanren.logic
     type ti  = (tt, tl) MiniKanren.injected
 
     val inj : tt -> ti
 
     val hole : unit -> ti
+
+    val reducibleo : Term.ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+
+    val splito : Term.ti -> ti -> Term.ti -> MiniKanren.goal
+    val plugo  : Term.ti -> ti -> Term.ti -> MiniKanren.goal
+
+    val patho : ti -> Memory.Path.ti -> MiniKanren.goal
   end
 
-type tt  = Term.tt
+(* type tt  = Term.tt
 type tl  = Term.tl
 type ti  = Term.ti
 
@@ -166,9 +98,17 @@ type ct  = Context.tt
 type cl  = Context.tl
 type ci  = Context.ti
 
-val reducibleo : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+type st = Memory.MemState.tt
+type sl = Memory.MemState.tl
+type si = Memory.MemState.ti *)
 
-val splito : ti -> ci -> ti -> MiniKanren.goal
-val plugo  : ti -> ci -> ti -> MiniKanren.goal
+type rule =  (Context.ti -> Term.ti -> Memory.MemState.ti ->
+              Context.ti -> Term.ti -> Memory.MemState.ti -> MiniKanren.goal)
 
-val patho : ci -> Path.ti -> MiniKanren.goal
+val make_reduction_relation : (string * rule) list -> (
+  module Semantics.Step          with
+    type tt = Term.tt            and
+    type tl = Term.tl            and
+    type st = Memory.MemState.tt and
+    type sl = Memory.MemState.tl
+)
