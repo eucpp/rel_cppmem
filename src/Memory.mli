@@ -293,6 +293,8 @@ module MemState :
 
     val to_logic : tt -> tl
 
+    val refine : (tt, tl) MiniKanren.refined -> tl
+
     val create : Threads.tt -> MemStory.tt -> tt
 
     val preallocate : string list -> string list -> tt

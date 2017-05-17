@@ -48,7 +48,7 @@ module Term :
     val to_logic   : tt -> tl
     val from_logic : tl -> tt
 
-    val reify : MiniKanren.helper -> ti -> tl
+    val refine : (tt, tl) MiniKanren.refined -> tl
 
     val preallocate : tl -> Memory.Var.tt list * Memory.Loc.tt list
 

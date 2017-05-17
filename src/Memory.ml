@@ -117,6 +117,8 @@ module Registers =
 
     let to_logic = List.to_logic (fun (var, value) -> Value (Value var, Nat.to_logic value))
 
+    let reify h = ManualReifiers.(List.reify (pair_reifier (string_reifier) (Nat.reify)) h)
+
     let allocate vars = List.of_list (fun s -> (s, Nat.of_int 0)) vars
 
     let reset_varo p p' = Nat.(
@@ -147,6 +149,8 @@ module ViewFront =
     let inj = List.inj (fun (var, value) -> inj_pair (!!var) (Nat.inj value))
 
     let to_logic = List.to_logic (fun (loc, ts) -> Value (Value loc, Nat.to_logic ts))
+
+    let reify h = ManualReifiers.(List.reify (pair_reifier (string_reifier) (Nat.reify)) h)
 
     let allocate atomics = List.of_list (fun s -> (s, Nat.of_int 0)) atomics
 
@@ -200,10 +204,10 @@ module ThreadState =
 
     type ti = (tt, tl) MiniKanren.injected
 
-    module Fmap = Fmap4(T)
+    include Fmap4(T)
 
     let thrd_state regs curr rel acq =
-      inj @@ Fmap.distrib @@ {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq}
+      inj @@ distrib @@ {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq}
 
     let inj {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq} =
       thrd_state (Registers.inj regs) (ViewFront.inj curr) (ViewFront.inj rel) (ViewFront.inj acq)
@@ -215,6 +219,8 @@ module ThreadState =
         T.rel  = ViewFront.to_logic rel;
         T.acq  = ViewFront.to_logic acq
       }
+
+    let reify h = reify Registers.reify ViewFront.reify ViewFront.reify ViewFront.reify h
 
     let convert = (fun (var, value) -> (var, Nat.of_int value))
 
@@ -342,17 +348,21 @@ module Threads =
     type tl = (ThreadState.tl, tl) Tree.t MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
 
-    module Fmap = Fmap2(Tree)
+    include Fmap2(Tree)
 
-    let nil        = inj @@ Fmap.distrib @@ Tree.Nil
-    let node a l r = inj @@ Fmap.distrib @@ Tree.Node (a, l, r)
-    let leaf a     = inj @@ Fmap.distrib @@ Tree.Node (a, nil, nil)
+    let nil        = inj @@ distrib @@ Tree.Nil
+    let node a l r = inj @@ distrib @@ Tree.Node (a, l, r)
+    let leaf a     = inj @@ distrib @@ Tree.Node (a, nil, nil)
 
     let inj' = inj
 
-    let rec inj tree = inj' @@ Fmap.distrib (Tree.fmap (ThreadState.inj) (inj) tree)
+    let rec inj tree = inj' @@ distrib (Tree.fmap (ThreadState.inj) (inj) tree)
 
     let rec to_logic tree = Value (Tree.fmap (ThreadState.to_logic) (to_logic) tree)
+
+    let reify' = reify
+
+    let rec reify h = reify' ThreadState.reify reify h
 
     let create ?rel ?acq vars curr =
       Tree.Node (ThreadState.create ?rel ?acq vars curr, Tree.Nil, Tree.Nil)
@@ -467,6 +477,8 @@ module LocStory =
 
       let to_logic (ts, value, vf) = Value (Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
 
+      let reify = ManualReifiers.triple_reifier Nat.reify Nat.reify ViewFront.reify
+
       let printer var =
         let pp ff (ts, value, vf) =
           Format.fprintf ff "@[<h>{%a@%a=%a, %a}@]"
@@ -492,14 +504,16 @@ module LocStory =
     type tl = tl_inner MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
 
-    module Fmap = Fmap2(T)
+    include Fmap2(T)
 
-    let loc_story tsnext story = inj @@ Fmap.distrib @@ {T.tsnext = tsnext; T.story = story}
+    let loc_story tsnext story = inj @@ distrib @@ {T.tsnext = tsnext; T.story = story}
 
     let inj {T.tsnext = tsnext; T.story = story} = loc_story (inj_nat @@ Nat.to_int tsnext) (List.inj (Cell.inj) story)
 
     let to_logic {T.tsnext = tsnext; T.story = story} =
       Value {T.tsnext = Nat.to_logic tsnext; T.story = List.to_logic Cell.to_logic story}
+
+    let reify h = reify Nat.reify (List.reify Cell.reify) h
 
     let create tsnext story = {
       T.tsnext = Nat.of_int tsnext;
@@ -560,6 +574,8 @@ module MemStory =
     let inj = List.inj (fun (loc, story) -> inj_pair (!!loc) (LocStory.inj story))
 
     let to_logic = List.to_logic (fun (var, story) -> Value (Value var, LocStory.to_logic story))
+
+    let reify h = ManualReifiers.(List.reify (pair_reifier (string_reifier) (LocStory.reify)) h)
 
     let create = List.of_list (fun x -> x)
 
@@ -646,14 +662,16 @@ module MemState =
     type tl = tl_inner logic
     type ti = (tt, tl) MiniKanren.injected
 
-    module Fmap = Fmap2(T)
+    include Fmap2(T)
 
-    let mem_state thrds story = inj @@ Fmap.distrib @@ {T.thrds = thrds; T.story = story}
+    let mem_state thrds story = inj @@ distrib @@ {T.thrds = thrds; T.story = story}
 
     let inj {T.thrds = thrds; T.story = story} = mem_state (Threads.inj thrds) (MemStory.inj story)
 
     let to_logic {T.thrds = thrds; T.story = story} =
       Value {T.thrds = Threads.to_logic thrds; T.story = MemStory.to_logic story}
+
+    let refine rr = rr#refine (reify Threads.reify MemStory.reify) ~inj:to_logic
 
     let create thrds story = {
       T.thrds = thrds;

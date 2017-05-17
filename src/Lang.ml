@@ -63,9 +63,9 @@ module Term =
       let f x = Value x in
       Value (T.fmap (Nat.to_logic) (f) (f) (f) (to_logic) x)
 
-    let reify' = reify
+    let rec reify' h = ManualReifiers.(reify (Nat.reify) (string_reifier) (simple_reifier) (string_reifier) (reify') h)
 
-    let rec reify x = ManualReifiers.(reify' (Nat.reify) (string_reifier) (simple_reifier) (string_reifier) (reify) x)
+    let refine rr = rr#refine reify' ~inj:to_logic
 
     let rec prealloc_t vars atomics = T.(function
       | Read  (_, Value x)

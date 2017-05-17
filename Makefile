@@ -28,17 +28,20 @@ plugin: relcppmem
 	$(OCB) $(OCB_FLAGS) -I camlp5 camlp5/pa_cppmem.cmo
 
 test:
-	$(OCB) -I test -pkgs "oUnit,relcppmem,relcppmem.syntax" Test.byte
-	./Test.byte
+	$(OCB) -I test -pkgs "oUnit,relcppmem,relcppmem.syntax" Test.native
+	./Test.native
 
 ######################## Installation related stuff ##########################
 INSTALL_TARGETS = META \
-	_build/relcppmem.cmo \
-	_build/relcppmem.cma \
-	_build/relcppmem.cmx \
 	_build/relcppmem.cmi \
+	_build/relcppmem.cmo \
+	_build/relcppmem.cmx \
+	_build/relcppmem.cma \
+	_build/relcppmem.cmxa \
 	_build/relcppmem.o \
-	_build/camlp5/pa_cppmem.cmo \
+	_build/relcppmem.a \
+	_build/camlp5/pa_cppmem.cmi \
+	_build/camlp5/pa_cppmem.cmo 
 
 BUNDLEDIR = _build/bundle/$(PKGNAME)
 
