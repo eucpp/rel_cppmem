@@ -155,7 +155,7 @@ module ThreadState :
     val fence_loc_relo : ti -> ti -> Loc.ti -> MiniKanren.goal
 
     (** [promiseo thrd thrd' loc value] makes new promise *)
-    val promiseo : ti -> ti -> Loc.ti -> Value.ti -> MiniKanren.goal
+    val promiseo : ti -> ti -> Loc.ti -> Timestamp.ti -> Value.ti -> ViewFront.ti -> MiniKanren.goal
 
     (** [fulfillo thrd thrd'] nondeterministically fulfills one of thread's promises *)
     val fulfillo : ti -> ti -> MiniKanren.goal
@@ -168,23 +168,6 @@ module ThreadState :
           into corresponding viewfronts of parent [thrd]
           obtaining new parent thread [thrd'] *)
     val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal
-  end
-
-module PromiseSet :
-  sig
-    type tt
-
-    type tl_inner
-
-    type tl = tl_inner MiniKanren.logic
-
-    type ti = (tt, tl) MiniKanren.injected
-
-    val inj : tt -> ti
-
-    val to_logic   : tt -> tl
-
-    val
   end
 
 module Threads :

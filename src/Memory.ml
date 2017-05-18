@@ -209,17 +209,11 @@ module Promise =
 
   module PromiseSet :
     sig
-      type tt
-      type tl_inner
-      type tl = tl_inner MiniKanren.logic
+      type tt = Promise.tt List.ground
+      type tl = Promise.tl List.logic
       type ti = (tt, tl) MiniKanren.injected
 
-      val inj : tt -> ti
-
-      val to_logic : tt -> tl
-
-      val geto : ti -> Promise.ti -> MiniKanren.goal
-      val
+      let inj = List.inj (Promise.inj)
     end
 
 module ThreadState =
@@ -237,9 +231,9 @@ module ThreadState =
         {regs = fa a; curr = fb b; rel = fc c; acq = fd d; prm = fe e}
     end
 
-    type tt = (Registers.tt, ViewFront.tt, ViewFront.tt, ViewFront.tt) T.t
+    type tt = (Registers.tt, ViewFront.tt, ViewFront.tt, ViewFront.tt, PromiseSet.tt) T.t
 
-    type tl_inner = (Registers.tl, ViewFront.tl, ViewFront.tl, ViewFront.tl) T.t
+    type tl_inner = (Registers.tl, ViewFront.tl, ViewFront.tl, ViewFront.tl, PromiseSet.tl) T.t
 
     type tl = tl_inner MiniKanren.logic
 
@@ -247,21 +241,22 @@ module ThreadState =
 
     include Fmap5(T)
 
-    let thrd_state regs curr rel acq =
-      inj @@ distrib @@ {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq}
+    let thrd_state regs curr rel acq prm =
+      inj @@ distrib @@ {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; T.prm = prm }
 
-    let inj {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq} =
-      thrd_state (Registers.inj regs) (ViewFront.inj curr) (ViewFront.inj rel) (ViewFront.inj acq)
+    let inj {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; T.prm = prm } =
+      thrd_state (Registers.inj regs) (ViewFront.inj curr) (ViewFront.inj rel) (ViewFront.inj acq) (PromiseSet.inj prm)
 
-    let to_logic {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq} =
+    let to_logic {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; T.prm = prm } =
       Value {
         T.regs = Registers.to_logic regs;
         T.curr = ViewFront.to_logic curr;
         T.rel  = ViewFront.to_logic rel;
         T.acq  = ViewFront.to_logic acq
+        T.prm  = PromiseSet.to_logic prm;
       }
 
-    let reify h = reify Registers.reify ViewFront.reify ViewFront.reify ViewFront.reify h
+    let reify h = reify Registers.reify ViewFront.reify ViewFront.reify ViewFront.reify PromiseSet.reify h
 
     let convert = (fun (var, value) -> (var, Nat.of_int value))
 
@@ -302,58 +297,65 @@ module ThreadState =
       Format.flush_str_formatter ()
 
     let get_varo thrd var value =
-      fresh (regs curr rel acq)
-        (thrd === thrd_state regs curr rel acq)
+      fresh (regs curr rel acq prm)
+        (thrd === thrd_state regs curr rel acq prm)
         (VarList.geto regs var value)
 
     let set_varo thrd thrd' var value =
-      fresh (regs regs' curr rel acq)
-        (thrd  === thrd_state regs  curr rel acq)
-        (thrd' === thrd_state regs' curr rel acq)
+      fresh (regs regs' curr rel acq prm)
+        (thrd  === thrd_state regs  curr rel acq prm)
+        (thrd' === thrd_state regs' curr rel acq prm)
         (VarList.seto regs regs' var value)
 
     let last_tso thrd loc ts =
-      fresh (regs curr rel acq)
-        (thrd === thrd_state regs curr rel acq)
+      fresh (regs curr rel acq prm)
+        (thrd === thrd_state regs curr rel acq prm)
         (VarList.geto curr loc ts)
 
     let updateo thrd thrd' loc ts =
-      fresh (regs curr curr' rel rel' acq acq')
-        (thrd  === thrd_state regs curr  rel  acq )
-        (thrd' === thrd_state regs curr' rel  acq')
+      fresh (regs curr curr' rel rel' acq acq' prm)
+        (thrd  === thrd_state regs curr  rel  acq  prm)
+        (thrd' === thrd_state regs curr' rel  acq' prm)
         (ViewFront.updateo curr curr' loc ts)
         (* (VarList.seto rel  rel'  loc ts) *)
         (ViewFront.updateo acq  acq'  loc ts)
 
     let front_relo thrd loc rel =
-      fresh (regs curr acq)
-        (thrd === thrd_state regs curr rel acq)
+      fresh (regs curr acq prm)
+        (thrd === thrd_state regs curr rel acq prm)
 
     let update_acqo thrd thrd' vf =
-      fresh (regs curr rel acq acq')
-        (thrd  === thrd_state regs curr rel acq )
-        (thrd' === thrd_state regs curr rel acq')
+      fresh (regs curr rel acq acq' prm)
+        (thrd  === thrd_state regs curr rel acq  prm)
+        (thrd' === thrd_state regs curr rel acq' prm)
         (ViewFront.mergeo vf acq acq')
 
     let fence_acqo thrd thrd' =
-      fresh (regs curr rel acq)
-        (thrd  === thrd_state regs curr rel acq)
-        (thrd' === thrd_state regs acq  rel acq)
+      fresh (regs curr rel acq prm)
+        (thrd  === thrd_state regs curr rel acq prm)
+        (thrd' === thrd_state regs acq  rel acq prm)
 
     let fence_loc_relo thrd thrd' loc =
-      fresh (regs curr rel acq)
-        (thrd  === thrd_state regs curr rel  acq)
-        (thrd' === thrd_state regs curr curr acq)
+      fresh (regs curr rel acq prm)
+        (thrd  === thrd_state regs curr rel  acq prm)
+        (thrd' === thrd_state regs curr curr acq prm)
 
     let fence_relo thrd thrd' =
-      fresh (regs curr rel acq)
-        (thrd  === thrd_state regs curr rel  acq)
-        (thrd' === thrd_state regs curr curr acq)
+      fresh (regs curr rel acq prm)
+        (thrd  === thrd_state regs curr rel  acq prm)
+        (thrd' === thrd_state regs curr curr acq prm)
+
+    let promiseo thrd thrd' loc ts value vf =
+      fresh (regs curr rel acq prm prm' p)
+        (thrd  === thrd_state regs curr rel  acq prm)
+        (thrd' === thrd_state regs curr curr acq prm')
+        (p === Promise.promise loc value ts' vf)
+        (prm' === p % prm)
 
     let spawno thrd child1 child2 =
-      fresh (regs regs' curr rel acq)
-        (thrd   === thrd_state regs  curr rel acq)
-        (child1 === thrd_state regs' curr rel acq)
+      fresh (regs regs' curr rel acq prm)
+        (thrd   === thrd_state regs  curr rel acq prm)
+        (child1 === thrd_state regs' curr rel acq prm)
         (child1 === child2)
         (Registers.reseto regs regs')
 
@@ -362,10 +364,10 @@ module ThreadState =
              curr curr' curr1 curr2
              rel  rel' rel1 rel2
              acq  acq' acq1 acq2)
-        (thrd   === thrd_state regs  curr  rel  acq )
-        (thrd'  === thrd_state regs  curr' rel' acq')
-        (child1 === thrd_state regs1 curr1 rel1 acq1)
-        (child2 === thrd_state regs2 curr2 rel2 acq2)
+        (thrd   === thrd_state regs  curr  rel  acq  prm)
+        (thrd'  === thrd_state regs  curr' rel' acq' prm)
+        (child1 === thrd_state regs1 curr1 rel1 acq1 prm)
+        (child2 === thrd_state regs2 curr2 rel2 acq2 prm)
         (ViewFront.mergeo curr1 curr2 curr')
         (ViewFront.mergeo rel1  rel2  rel' )
         (ViewFront.mergeo acq1  acq2  acq' )
