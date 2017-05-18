@@ -182,18 +182,59 @@ module ViewFront =
 
   end
 
+module Promise =
+  struct
+    module T = struct
+      type ('a, 'b, 'c, 'd) t = 'a * 'b * 'c * 'd
+
+      let fmap fa fb fc fd (a, b, c, d) = (fa a, fb b, fc c, fd d)
+    end
+
+    type tt = (Loc.tt, Timestamp.tt, Value.tt, ViewFront.tt) T.t
+    type tl = (Loc.tl, Timestamp.tl, Value.tl, ViewFront.tl) T.t MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+
+    include Fmap4(T)
+
+    let promise loc ts value vf =
+      inj @@ distrib @@ (loc, ts, value, vf)
+
+    let inj (loc, ts, value, vf) =
+      promise (!!loc) (inj_nat ts) (inj_nat value) (ViewFront.inj vf)
+
+    let to_logic (loc, ts, value, vf) = Value (!!loc, Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
+
+    let reify = reify ManualReifiers.string_reifier Nat.reify Nat.reify ViewFront.reify
+  end
+
+  module PromiseSet :
+    sig
+      type tt
+      type tl_inner
+      type tl = tl_inner MiniKanren.logic
+      type ti = (tt, tl) MiniKanren.injected
+
+      val inj : tt -> ti
+
+      val to_logic : tt -> tl
+
+      val geto : ti -> Promise.ti -> MiniKanren.goal
+      val
+    end
+
 module ThreadState =
   struct
     module T = struct
-      type ('a, 'b, 'c, 'd) t = {
+      type ('a, 'b, 'c, 'd, 'e) t = {
         regs : 'a;
         curr : 'b;
         rel  : 'c;
         acq  : 'd;
+        prm  : 'e;
       }
 
-      let fmap fa fb fc fd {regs = a; curr = b; rel = c; acq = d} =
-        {regs = fa a; curr = fb b; rel = fc c; acq = fd d}
+      let fmap fa fb fc fd fe {regs = a; curr = b; rel = c; acq = d; prm = e} =
+        {regs = fa a; curr = fb b; rel = fc c; acq = fd d; prm = fe e}
     end
 
     type tt = (Registers.tt, ViewFront.tt, ViewFront.tt, ViewFront.tt) T.t
@@ -204,7 +245,7 @@ module ThreadState =
 
     type ti = (tt, tl) MiniKanren.injected
 
-    include Fmap4(T)
+    include Fmap5(T)
 
     let thrd_state regs curr rel acq =
       inj @@ distrib @@ {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq}
@@ -611,40 +652,6 @@ module MemStory =
         (LocStory.last_valueo story value)
 
   end
-
-(*
-module SCMemory =
-  struct
-    type t   = (string * int) list
-    type lt' = ((string logic * Nat.logic) logic, lt' logic) llist
-    type lt  = lt' logic
-
-    let empty = []
-
-    let preallocate atomics = List.map (fun a -> (a, 0)) atomics
-
-    let (!) = MiniKanren.inj
-
-    let inj = Utils.inj_assoc (!)  (inj_nat)
-    let prj = Utils.prj_assoc (!?) (prj_nat)
-
-    let show = Utils.show_assoc (fun x -> x) (string_of_int)
-
-    let eq = Utils.eq_assoc (=) (=)
-
-    let geto = Utils.assoco
-
-    let seto = Utils.update_assoco
-
-    let get var regs = run q (fun q  -> geto !var (inj regs) q)
-                             (fun qs -> prj_nat @@ Utils.excl_answ qs)
-
-    let set var v regs = run q (fun q  -> seto !var (inj_nat v) (inj regs) q)
-                               (fun qs -> (prj @@ Utils.excl_answ qs))
-  end
-
-*)
-
 
 module MemState =
   struct

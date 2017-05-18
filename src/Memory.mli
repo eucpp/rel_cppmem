@@ -113,7 +113,7 @@ module ThreadState :
 
     val inj : tt -> ti
 
-    val to_logic   : tt -> tl
+    val to_logic : tt -> tl
 
     val create : ?rel: (string * int) list ->
                  ?acq: (string * int) list ->
@@ -154,6 +154,12 @@ module ThreadState :
     (** [fence_loc_relo thrd thrd'] performs merge of thread's current front into its release front for location [loc] *)
     val fence_loc_relo : ti -> ti -> Loc.ti -> MiniKanren.goal
 
+    (** [promiseo thrd thrd' loc value] makes new promise *)
+    val promiseo : ti -> ti -> Loc.ti -> Value.ti -> MiniKanren.goal
+
+    (** [fulfillo thrd thrd'] nondeterministically fulfills one of thread's promises *)
+    val fulfillo : ti -> ti -> MiniKanren.goal
+
     (** [spawno thrd thrd1 thrd2] spawns two new child threads with viewfronts equal to parent's viewfronts
           and local variables initialized to zeroes *)
     val spawno : ti -> ti -> ti -> MiniKanren.goal
@@ -162,6 +168,23 @@ module ThreadState :
           into corresponding viewfronts of parent [thrd]
           obtaining new parent thread [thrd'] *)
     val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal
+  end
+
+module PromiseSet :
+  sig
+    type tt
+
+    type tl_inner
+
+    type tl = tl_inner MiniKanren.logic
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    val inj : tt -> ti
+
+    val to_logic   : tt -> tl
+
+    val
   end
 
 module Threads :
@@ -252,32 +275,6 @@ module MemStory :
 
     val last_valueo : ti -> Loc.ti -> Value.ti -> MiniKanren.goal
   end
-
-(*
-module SCMemory :
-  sig
-    type t
-    type lt'
-    type lt  = lt' logic
-
-    val empty : t
-
-    val preallocate : string list -> t
-
-    val inj : t -> lt
-    val prj : lt -> t
-
-    val show : t -> string
-    val eq : t -> t -> bool
-
-    val geto : string MiniKanren.logic -> lt -> MiniKanren.Nat.logic -> MiniKanren.goal
-    val seto : string MiniKanren.logic -> MiniKanren.Nat.logic -> lt -> lt -> MiniKanren.goal
-
-    val get : string -> t -> int
-    val set : string -> int -> t -> t
-  end
-
-*)
 
 module MemState :
   sig

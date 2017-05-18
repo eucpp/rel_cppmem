@@ -58,21 +58,16 @@ module RelAcq :
     val all : (string * rule) list
   end
 
-(* module SeqCons :
+module Promise :
   sig
-    type t  = Lang.Term.t
-    type lt = Lang.Term.lt
+    type ti = Lang.Term.ti
+    type ci = Lang.Context.ti
+    type si = Memory.MemState.ti
 
-    type c  = Lang.Context.c
-    type lc = Lang.Context.lc
+    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
-    type s  = Memory.MemState.t
-    type ls = Memory.MemState.lt
-
-    type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
-
-    val read_sc  : string * rule
-    val write_sc : string * rule
+    val promise : string * rule
+    val fulfill : string * rule
 
     val all : (string * rule) list
-  end *)
+  end

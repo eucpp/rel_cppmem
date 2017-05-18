@@ -185,12 +185,10 @@ module RelAcq =
 
     type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
-    let (!) = (!!)
-
     let read_acqo c t s c' t' s' =
       fresh (l path n)
         (c  === c')
-        (t  === read !ACQ l)
+        (t  === read !!ACQ l)
         (t' === const n)
         (patho c path)
         (MemState.read_acqo s s' path l n)
@@ -200,7 +198,7 @@ module RelAcq =
     let write_relo c t s c' t' s' =
       fresh (l n path)
         (c  === c')
-        (t  === write !REL l (const n))
+        (t  === write !!REL l (const n))
         (t' === skip ())
         (patho c path)
         (MemState.write_relo s s' path l n)
@@ -211,41 +209,29 @@ module RelAcq =
 
   end
 
-(*
-module SeqCons =
+module Promise =
   struct
-    type t  = Lang.Term.t
-    type lt = Lang.Term.lt
+    type ti = Lang.Term.ti
+    type ci = Lang.Context.ti
+    type si = Memory.MemState.ti
 
-    type c  = Lang.Context.c
-    type lc = Lang.Context.lc
+    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
-    type s  = Memory.MemState.t
-    type ls = Memory.MemState.lt
-
-    type rule =  (lc -> lt -> ls -> lc -> lt -> ls -> MiniKanren.goal)
-
-    let (!) = (!!)
-
-    let read_sco c t s c' t' s' =
-      fresh (l path n)
+    let promiseo c t s c' t' s' =
+      fresh (l n mo path)
         (c  === c')
-        (t  === !(Read (!SC, l)))
-        (t' === !(Const n))
+        (t  === write !!RLX l (const n))
+        (t' === skip ())
         (patho c path)
-        (MemState.read_sco path l n s s')
+        (MemState.promiseo s s' path l n)
 
-    let read_sc = ("read_sc", read_sco)
+    let promise = ("promise", promiseo)
 
-    let write_sco c t s c' t' s' =
-      fresh (l n path)
-        (c  === c')
-        (t  === !(Write (!SC, l, !(Const n))))
-        (t' === !Skip)
-        (patho c path)
-        (MemState.write_sco path l n s s')
+    let fulfillo c t s c' t' s' =
+      (c  === c')
+      (t  === t')
+      (MemState.fulfillo s s')
 
-    let write_sc = ("write_sc", write_sco)
+    let fulfill = ("fulfill", fulfillo)
 
-    let all = [read_sc; write_sc;]
-  end *)
+  end
