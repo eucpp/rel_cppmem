@@ -61,10 +61,13 @@ let assert_stream ?(empty_check = true)
 
 (* module Sem = Semantics.Make(Lang.Term)(Lang.Context)(MemState) *)
 
-let test_prog ?n ?(negative=false) term expected test_ctx =
-  let rules = Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.Rlx.all @ Rules.RelAcq.all in
-  let module Step = (val make_reduction_relation rules) in
-  let module Sem = Semantics.Make(Step) in
+let test_prog (module S: Semantics.Step with
+    type tt = Term.tt            and
+    type tl = Term.tl            and
+    type st = Memory.MemState.tt and
+    type sl = Memory.MemState.tl
+  ) ?n ?(negative=false) term expected test_ctx =
+  let module Sem = Semantics.Make(S) in
   let show s  = s in
   let rs, vs  = ["r1";"r2";"r3";"r4"], ["x";"y";"z";"f"] in
   let state   = MemState.inj @@ MemState.preallocate rs vs in

@@ -200,21 +200,44 @@ module Promise =
       inj @@ distrib @@ (loc, ts, value, vf)
 
     let inj (loc, ts, value, vf) =
-      promise (!!loc) (inj_nat ts) (inj_nat value) (ViewFront.inj vf)
+      promise (!!loc) (Nat.inj ts) (Nat.inj value) (ViewFront.inj vf)
 
-    let to_logic (loc, ts, value, vf) = Value (!!loc, Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
+    let to_logic (loc, ts, value, vf) = Value (Loc.to_logic loc, Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
 
     let reify = reify ManualReifiers.string_reifier Nat.reify Nat.reify ViewFront.reify
+
+    let printer =
+      let pp ff (loc, ts, value, vf) =
+        Format.fprintf ff "@[<h>{%a@%a=%a, %a}@]"
+          pprint_string loc
+          pprint_nat ts
+          pprint_nat value
+          ViewFront.printer vf
+      in
+      pprint_logic pp
+
   end
 
-  module PromiseSet :
-    sig
-      type tt = Promise.tt List.ground
-      type tl = Promise.tl List.logic
-      type ti = (tt, tl) MiniKanren.injected
+module PromiseSet =
+  struct
+    type tt = Promise.tt List.ground
+    type tl = Promise.tl List.logic
+    type ti = (Promise.tt, Promise.tl) List.groundi
 
-      let inj = List.inj (Promise.inj)
-    end
+    let inj = List.inj (Promise.inj)
+
+    let to_logic = List.to_logic (Promise.to_logic)
+
+    let reify = List.reify (Promise.reify)
+
+    let printer =
+      pprint_llist Promise.printer
+      (* let pp ff prm =
+        pprint_llist Promise.printer ff prm
+      in
+      pprint_logic pp *)
+
+  end
 
 module ThreadState =
   struct
@@ -247,12 +270,12 @@ module ThreadState =
     let inj {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; T.prm = prm } =
       thrd_state (Registers.inj regs) (ViewFront.inj curr) (ViewFront.inj rel) (ViewFront.inj acq) (PromiseSet.inj prm)
 
-    let to_logic {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; T.prm = prm } =
+    let to_logic { T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; T.prm = prm } =
       Value {
         T.regs = Registers.to_logic regs;
         T.curr = ViewFront.to_logic curr;
         T.rel  = ViewFront.to_logic rel;
-        T.acq  = ViewFront.to_logic acq
+        T.acq  = ViewFront.to_logic acq;
         T.prm  = PromiseSet.to_logic prm;
       }
 
@@ -273,6 +296,7 @@ module ThreadState =
       T.curr = List.of_list convert curr;
       T.rel  = List.of_list convert rel;
       T.acq  = List.of_list convert acq;
+      T.prm  = Nil;
     }
 
     let preallocate vars atomics = {
@@ -280,15 +304,17 @@ module ThreadState =
       T.curr = ViewFront.allocate atomics;
       T.rel  = ViewFront.allocate atomics;
       T.acq  = ViewFront.allocate atomics;
+      T.prm  = Nil;
     }
 
     let printer =
-      let pp ff {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq} =
-        Format.fprintf ff "@[<v>reg: %a @; cur: %a @; acq: %a @; rel: %a @]"
+      let pp ff {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; T.prm = prm } =
+        Format.fprintf ff "@[<v>reg: %a @; cur: %a @; acq: %a @; rel: %a @; prm: %a @]"
           Registers.printer regs
           ViewFront.printer curr
           ViewFront.printer acq
           ViewFront.printer rel
+          PromiseSet.printer prm
       in
       pprint_logic pp
 
@@ -313,7 +339,7 @@ module ThreadState =
         (VarList.geto curr loc ts)
 
     let updateo thrd thrd' loc ts =
-      fresh (regs curr curr' rel rel' acq acq' prm)
+      fresh (regs curr curr' rel acq acq' prm)
         (thrd  === thrd_state regs curr  rel  acq  prm)
         (thrd' === thrd_state regs curr' rel  acq' prm)
         (ViewFront.updateo curr curr' loc ts)
@@ -347,15 +373,48 @@ module ThreadState =
 
     let promiseo thrd thrd' loc ts value vf =
       fresh (regs curr rel acq prm prm' p)
-        (thrd  === thrd_state regs curr rel  acq prm)
+        (thrd  === thrd_state regs curr rel  acq prm )
         (thrd' === thrd_state regs curr curr acq prm')
-        (p === Promise.promise loc value ts' vf)
+        (p === Promise.promise loc ts value vf)
         (prm' === p % prm)
 
+    (* let betweeno ts_lb ts_ub ts =
+      fresh (sum n d d')
+        (Rational.lto ts_lb ts_ub !!true)
+        (ts  === n %% d')
+        (sum === n %% d )
+        (Rational.addo ts_lb ts_ub sum)
+        (Nat.mulo d 2 d') *)
+
+    let removeo prm prm' p =
+      let pred p' b = conde [
+        (p =/= p') &&& (b === !!true);
+        (p === p') &&& (b === !!false);
+      ] in
+      List.filtero pred prm prm'
+
+    let fulfillo thrd thrd' = Nat.(
+      fresh (regs curr rel acq prm prm' p loc ts last_ts value vf)
+        (thrd  === thrd_state regs curr rel acq prm )
+        (thrd' === thrd_state regs curr rel acq prm')
+        (List.membero prm p)
+        (p === Promise.promise loc ts value vf)
+        (last_tso thrd loc last_ts)
+        (ts < last_ts)
+        (vf === rel)
+        (removeo prm prm' p)
+        (* (updateo thrd thrd' loc ts) *)
+      )
+
+    let certifyo thrd =
+      fresh (regs curr rel acq prm)
+        (thrd  === thrd_state regs curr rel acq prm)
+        (prm   === nil ())
+
     let spawno thrd child1 child2 =
-      fresh (regs regs' curr rel acq prm)
-        (thrd   === thrd_state regs  curr rel acq prm)
-        (child1 === thrd_state regs' curr rel acq prm)
+      fresh (regs regs' curr rel acq)
+        (thrd   === thrd_state regs  curr rel acq (nil ()))
+        (child1 === thrd_state regs' curr rel acq (nil ()))
         (child1 === child2)
         (Registers.reseto regs regs')
 
@@ -364,10 +423,10 @@ module ThreadState =
              curr curr' curr1 curr2
              rel  rel' rel1 rel2
              acq  acq' acq1 acq2)
-        (thrd   === thrd_state regs  curr  rel  acq  prm)
-        (thrd'  === thrd_state regs  curr' rel' acq' prm)
-        (child1 === thrd_state regs1 curr1 rel1 acq1 prm)
-        (child2 === thrd_state regs2 curr2 rel2 acq2 prm)
+        (thrd   === thrd_state regs  curr  rel  acq  (nil ()))
+        (thrd'  === thrd_state regs  curr' rel' acq' (nil ()))
+        (child1 === thrd_state regs1 curr1 rel1 acq1 (nil ()))
+        (child2 === thrd_state regs2 curr2 rel2 acq2 (nil ()))
         (ViewFront.mergeo curr1 curr2 curr')
         (ViewFront.mergeo rel1  rel2  rel' )
         (ViewFront.mergeo acq1  acq2  acq' )
@@ -736,7 +795,6 @@ module MemState =
         (ThreadState.update_acqo thrd thrd' vf)
         (ThreadState.updateo thrd' thrd'' loc ts)
 
-
     let write_rlxo t t' path loc value =
       fresh (tree tree' story story' thrd thrd' ts rel)
         (t  === mem_state tree  story)
@@ -744,8 +802,8 @@ module MemState =
         (Threads.geto tree       path thrd)
         (Threads.seto tree tree' path thrd')
         (MemStory.next_tso story loc ts)
+        (ThreadState.front_relo thrd loc rel)
         (ThreadState.updateo thrd thrd' loc ts)
-        (ThreadState.front_relo thrd' loc rel)
         (MemStory.writeo story story' loc value rel)
 
     let fence_acqo t t' path =
@@ -771,6 +829,31 @@ module MemState =
         (Threads.geto tree       path thrd )
         (Threads.seto tree tree' path thrd')
         (ThreadState.fence_loc_relo thrd thrd' loc)
+
+    let promiseo t t' path loc value =
+      fresh (tree tree' story story' thrd thrd' ts rel)
+        (t  === mem_state  tree  story )
+        (t' === mem_state  tree' story')
+        (Threads.geto tree       path thrd )
+        (Threads.seto tree tree' path thrd')
+        (MemStory.next_tso story loc ts)
+        (ThreadState.front_relo thrd loc rel)
+        (ThreadState.promiseo thrd thrd' loc ts value rel)
+        (MemStory.writeo story story' loc value rel)
+
+    let fulfillo t t' path =
+      fresh (tree tree' story thrd thrd' ts)
+        (t  === mem_state  tree  story)
+        (t' === mem_state  tree' story)
+        (Threads.geto tree       path thrd )
+        (Threads.seto tree tree' path thrd')
+        (ThreadState.fulfillo thrd thrd')
+
+    let certifyo t path =
+      fresh (tree story thrd)
+        (t  === mem_state tree story)
+        (Threads.geto tree path thrd)
+        (ThreadState.certifyo thrd)
 
     let read_acqo t t'' path loc value =
       fresh (t')

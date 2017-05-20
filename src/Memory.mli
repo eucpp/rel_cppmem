@@ -154,11 +154,13 @@ module ThreadState :
     (** [fence_loc_relo thrd thrd'] performs merge of thread's current front into its release front for location [loc] *)
     val fence_loc_relo : ti -> ti -> Loc.ti -> MiniKanren.goal
 
-    (** [promiseo thrd thrd' loc value] makes new promise *)
+    (** [promiseo thrd thrd' loc ts value vf ts_lb] makes new promise to write message {[loc]@[ts]=[value], [vf]} such that [ts_lb] < [ts] *)
     val promiseo : ti -> ti -> Loc.ti -> Timestamp.ti -> Value.ti -> ViewFront.ti -> MiniKanren.goal
 
     (** [fulfillo thrd thrd'] nondeterministically fulfills one of thread's promises *)
     val fulfillo : ti -> ti -> MiniKanren.goal
+
+    val certifyo : ti -> MiniKanren.goal
 
     (** [spawno thrd thrd1 thrd2] spawns two new child threads with viewfronts equal to parent's viewfronts
           and local variables initialized to zeroes *)
@@ -292,6 +294,12 @@ module MemState :
 
     val fence_acqo : ti -> ti -> Path.ti -> MiniKanren.goal
     val fence_relo : ti -> ti -> Path.ti -> MiniKanren.goal
+
+    val promiseo : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
+
+    val fulfillo : ti -> ti -> Path.ti -> MiniKanren.goal
+
+    val certifyo : ti -> Path.ti -> MiniKanren.goal
 
     val last_valueo : ti -> Loc.ti -> Value.ti -> MiniKanren.goal
 

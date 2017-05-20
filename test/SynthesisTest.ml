@@ -20,7 +20,7 @@ let test_synth ?n ?(mem_cstrs=[fun s -> success]) ?(holes_cstrs=[fun m -> succes
         ((term, state) -->* (term', state'))
         (conde @@ List.map (fun cstro -> cstro state') mem_cstrs)
     )
-    (fun qs -> Stream.map (fun rr -> rr#refine Term.reify ~inj:Term.to_logic) qs)
+    (fun qs -> Stream.map Term.refine qs)
   ) in
   let tbl = Hashtbl.create 31 in
   let actual = ref [] in

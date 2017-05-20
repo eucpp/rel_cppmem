@@ -139,7 +139,8 @@ module Context =
           | AsgnC     of 't * 'c
           | WriteC    of 'mo * 'loc * 'c
           | IfC       of 'c * 't * 't
-          | SeqC      of 'c * 't
+          | SeqL      of 'c * 't
+          | SeqR      of 't * 'c
           | ParL      of 'c * 't
           | ParR      of 't * 'c
         with gmap
@@ -160,7 +161,8 @@ module Context =
     let asgn_ctx l r            = inj @@ distrib @@ T.AsgnC (l, r)
     let write_ctx mo l c        = inj @@ distrib @@ T.WriteC (mo, l, c)
     let if_ctx cond l r         = inj @@ distrib @@ T.IfC (cond, l, r)
-    let seq_ctx t1 t2           = inj @@ distrib @@ T.SeqC (t1, t2)
+    let seq_left t1 t2          = inj @@ distrib @@ T.SeqL (t1, t2)
+    let seq_right t1 t2         = inj @@ distrib @@ T.SeqR (t1, t2)
     let par_left t1 t2          = inj @@ distrib @@ T.ParL (t1, t2)
     let par_right t1 t2         = inj @@ distrib @@ T.ParR (t1, t2)
     let hole ()                 = inj @@ distrib @@ T.Hole
@@ -266,9 +268,9 @@ module Context =
       fresh (t1 t2 c' t')
         (term === seq t1 t2)
         (conde [
-          (c === hole ())       &&& (rdx === term);
-          (c === seq_ctx c' t2) &&& (rdx === t') &&& (splito t1 c' t');
-          ]);
+          (c === hole ())        &&& (rdx === term);
+          (c === seq_left c' t2) &&& (rdx === t') &&& (splito t1 c' t');
+        ]);
 
       fresh (t1 t2 c' t')
         (term === par t1 t2)
@@ -346,8 +348,9 @@ module Context =
           fresh (t1 t2 c')
             (term === seq t1 t2)
             (conde [
-              ((c === hole ())                &&& (rdx === term));
-              ((c === seq_ctx c' t2)          &&& (plugo t1 c' rdx));
+              ((c === hole ())                 &&& (rdx === term));
+              ((c === seq_left  c' t2)         &&& (plugo t1 c' rdx));
+              ((c === seq_right t1 c')         &&& (plugo t2 c' rdx));
             ]);
             (* ((c === seq_ctx c' t2) &&& conde [
               (rdx =/= skip ()) &&& (rdx =/= stuck ()) &&& (term === seq t1 t2) &&& (plugo t1 c' rdx);
@@ -397,7 +400,8 @@ module Context =
             (c === asgn_ctx t1 c')        &&& (patho c' path);
             (c === write_ctx mo loc c')   &&& (patho c' path);
             (c === if_ctx c' t2 t3)       &&& (patho c' path);
-            (c === seq_ctx c' t1)         &&& (patho c' path);
+            (c === seq_left  c' t1)       &&& (patho c' path);
+            (c === seq_right t1 c')       &&& (patho c' path);
             (c === par_left c' t1)        &&& (path === pathl path') &&& (patho c' path');
             (c === par_right t1 c')       &&& (path === pathr path') &&& (patho c' path');
           ])
@@ -420,7 +424,44 @@ type si = Memory.MemState.ti *)
 type rule =  (Context.ti -> Term.ti -> Memory.MemState.ti ->
               Context.ti -> Term.ti -> Memory.MemState.ti -> goal)
 
-let make_reduction_relation rules = (module
+let make_step_relation :
+  (Context.ti -> MiniKanren.goal) -> (string * rule) list -> (
+    module Semantics.Step with
+      type tt = Term.tt            and
+      type tl = Term.tl            and
+      type st = Memory.MemState.tt and
+      type sl = Memory.MemState.tl
+    ) =
+  fun constrainto rules -> (module
+    struct
+      type tt = Term.tt
+      type tl = Term.tl
+      type ti = (tt, tl) MiniKanren.injected
+
+      type st = Memory.MemState.tt
+      type sl = Memory.MemState.tl
+      type si = (st, sl) MiniKanren.injected
+
+      let (->?) = Context.reducibleo
+
+      let (-->) (t, s) (t', s') =
+        fresh (c c' rdx rdx')
+          (Context.splito t c rdx)
+          (Context.reducibleo rdx !!true)
+          (constrainto c)
+          (* (rdx =/= rdx') *)
+          (conde @@ List.map (fun (name, rule) -> rule c rdx s c' rdx' s') rules)
+          (Context.plugo t' c' rdx')
+
+    end : Semantics.Step with
+      type tt = Term.tt            and
+      type tl = Term.tl            and
+      type st = Memory.MemState.tt and
+      type sl = Memory.MemState.tl)
+
+let make_reduction_relation = make_step_relation (fun c -> success)
+
+let make_certified_relation reduction_rules certification_rules = (module
   struct
     type tt = Term.tt
     type tl = Term.tl
@@ -430,15 +471,54 @@ let make_reduction_relation rules = (module
     type sl = Memory.MemState.tl
     type si = (st, sl) MiniKanren.injected
 
+    (* let reduction_rules = rules @ Rules.Promise.all
+
+    let certification_rules = rules @ [Rules.Promise.fulfill] *)
+
+    let certifyo t s path =
+      let module CertStep = (val make_step_relation (fun c -> Context.patho c path) certification_rules) in
+      let module Cert     = Semantics.Make(CertStep) in
+      Cert.(
+        fresh (t' s')
+          (Memory.MemState.certifyo s' path)
+          ((t, s) -->* (t', s'))
+      )
+
+    let rec pick_prmo term c loc n = Term.(Context.(conde [
+        (term === write !!MemOrder.RLX loc (const n)) &&& (c === hole ());
+
+        fresh (t1 t2 c')
+          (term === seq t1 t2)
+          (conde [
+            (c === seq_left  c' t2) &&& (pick_prmo t1 c' loc n);
+            (c === seq_right t1 c') &&& (pick_prmo t2 c' loc n);
+          ]);
+
+        fresh (t1 t2 c')
+          (term === par t1 t2)
+          (conde [
+            (c === par_left  c' t2) &&& (pick_prmo t1 c' loc n);
+            (c === par_right t1 c') &&& (pick_prmo t2 c' loc n);
+          ]);
+      ]))
+
     let (->?) = Context.reducibleo
 
-    let (-->) (t, s) (t', s') =
-      fresh (c c' rdx rdx')
+    let (-->) (t, s) (t', s') = conde [
+      fresh (c c' rdx rdx' path)
         (Context.splito t c rdx)
         (Context.reducibleo rdx !!true)
-        (rdx =/= rdx')
-        (conde @@ List.map (fun (name, rule) -> rule c rdx s c' rdx' s') rules)
+        (conde @@ List.map (fun (name, rule) -> rule c rdx s c' rdx' s') reduction_rules)
         (Context.plugo t' c' rdx')
+        (Context.patho c' path);
+        (* (certifyo t' s' path); *)
+
+      fresh (c path loc n)
+        (pick_prmo t c loc n)
+        (Context.patho c path)
+        (Context.plugo t' c (Term.skip ()))
+        (MemState.promiseo s s' path loc n);
+    ]
 
   end : Semantics.Step with
     type tt = Term.tt            and

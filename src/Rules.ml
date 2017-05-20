@@ -228,10 +228,14 @@ module Promise =
     let promise = ("promise", promiseo)
 
     let fulfillo c t s c' t' s' =
-      (c  === c')
-      (t  === t')
-      (MemState.fulfillo s s')
+      fresh (path)
+        (c  === c')
+        (t  === t')
+        (patho c path)
+        (MemState.fulfillo s s' path)
 
     let fulfill = ("fulfill", fulfillo)
+
+    let all = [promise; fulfill]
 
   end

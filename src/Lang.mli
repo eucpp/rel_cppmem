@@ -68,7 +68,8 @@ module Context :
           | AsgnC     of 't * 'c
           | WriteC    of 'mo * 'loc * 'c
           | IfC       of 'c * 't * 't
-          | SeqC      of 'c * 't
+          | SeqL      of 'c * 't
+          | SeqR      of 't * 'c
           | ParL      of 'c * 't
           | ParR      of 't * 'c
         (* with gmap *)
@@ -106,6 +107,14 @@ type rule =  (Context.ti -> Term.ti -> Memory.MemState.ti ->
               Context.ti -> Term.ti -> Memory.MemState.ti -> MiniKanren.goal)
 
 val make_reduction_relation : (string * rule) list -> (
+  module Semantics.Step          with
+    type tt = Term.tt            and
+    type tl = Term.tl            and
+    type st = Memory.MemState.tt and
+    type sl = Memory.MemState.tl
+)
+
+val make_certified_relation : (string * rule) list -> (string * rule) list -> (
   module Semantics.Step          with
     type tt = Term.tt            and
     type tl = Term.tl            and
