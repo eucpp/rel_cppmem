@@ -27,8 +27,8 @@ relcppmem:
 plugin: relcppmem
 	$(OCB) $(OCB_FLAGS) -I camlp5 camlp5/pa_cppmem.cmo
 
-test:
-	$(OCB) -I test -pkgs "oUnit,relcppmem,relcppmem.syntax" Test.native
+test: relcppmem plugin
+	$(OCB) -I test -pkgs "oUnit" Test.native
 	./Test.native
 
 ######################## Installation related stuff ##########################
@@ -41,7 +41,7 @@ INSTALL_TARGETS = META \
 	_build/relcppmem.o \
 	_build/relcppmem.a \
 	_build/camlp5/pa_cppmem.cmi \
-	_build/camlp5/pa_cppmem.cmo 
+	_build/camlp5/pa_cppmem.cmo
 
 BUNDLEDIR = _build/bundle/$(PKGNAME)
 

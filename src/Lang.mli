@@ -84,9 +84,12 @@ module Context :
     val hole : unit -> ti
 
     val reducibleo : Term.ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val thrd_reducibleo : Term.ti -> Memory.Path.ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
 
     val splito : Term.ti -> ti -> Term.ti -> MiniKanren.goal
     val plugo  : Term.ti -> ti -> Term.ti -> MiniKanren.goal
+
+    val pick_prmo : Term.ti -> ti -> Memory.Loc.ti -> Memory.Value.ti -> MiniKanren.goal
 
     val patho : ti -> Memory.Path.ti -> MiniKanren.goal
   end
@@ -106,6 +109,14 @@ type si = Memory.MemState.ti *)
 type rule =  (Context.ti -> Term.ti -> Memory.MemState.ti ->
               Context.ti -> Term.ti -> Memory.MemState.ti -> MiniKanren.goal)
 
+val make_thread_step : (string * rule) list -> Memory.Path.ti -> (
+  module Semantics.Step          with
+    type tt = Term.tt            and
+    type tl = Term.tl            and
+    type st = Memory.MemState.tt and
+    type sl = Memory.MemState.tl
+)
+
 val make_reduction_relation : (string * rule) list -> (
   module Semantics.Step          with
     type tt = Term.tt            and
@@ -114,7 +125,7 @@ val make_reduction_relation : (string * rule) list -> (
     type sl = Memory.MemState.tl
 )
 
-val make_certified_relation : (string * rule) list -> (string * rule) list -> (
+val make_certified_relation : (string * rule) list -> (
   module Semantics.Step          with
     type tt = Term.tt            and
     type tl = Term.tl            and

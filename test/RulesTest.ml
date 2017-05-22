@@ -19,6 +19,22 @@ let test_step ?empty_check rules (t, s) expected test_ctx =
   ) in
   TestUtils.assert_stream expected stream ?empty_check ~printer:(fun (t,s) -> Term.pprint @@ Term.to_logic t)
 
+let test_thrd_space ?empty_check rules path (t, s) expected test_ctx =
+  let module Step = (val make_thread_step rules (Path.inj path)) in
+  let module Sem = Semantics.Make(Step) in
+  let t, s = Term.inj t, S.inj s in
+  let stream = Sem.(
+    run qr (fun q  r  -> (t, s) -->* (q, r))
+           (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
+  ) in
+  (* let handler (t, s) =
+    let t' = Term.pprint @@ Term.to_logic t in
+    let s' = MemState.pprint @@ MemState.to_logic s in
+    Printf.printf "\n%s\n%s\n" t' s'
+  in
+  let _ = Stream.iter handler stream in *)
+  TestUtils.assert_stream ?empty_check expected stream
+
 let test_space ?empty_check rules (t, s) expected test_ctx =
   let module Step = (val make_reduction_relation rules) in
   let module Sem = Semantics.Make(Step) in
@@ -62,6 +78,19 @@ let basic_tests =
     );
 
     "seq_skip">:: test_step Basic.all (T.Seq (T.Skip, T.Skip), mem) [(T.Skip, mem)];
+
+    "thrd_space">:: (
+      let thrd   = ThreadState.create [("r1",  0)] [] in
+      let thrd'  = ThreadState.create [("r1", 42)] [] in
+      let thrds  = Threads.(Tree.(Node (thrd, Node (thrd , Nil, Nil),  Node (thrd, Nil, Nil)))) in
+      let thrds' = Threads.(Tree.(Node (thrd, Node (thrd', Nil, Nil),  Node (thrd, Nil, Nil)))) in
+      let story  = MemStory.preallocate [] in
+      let memx    = MemState.create thrds  story in
+      let memx'   = MemState.create thrds' story in
+      let thrd_code = T.Seq (T.Asgn (T.Var "r1", const 42), T.Var "r1") in
+      (* let thrd_code = T.Skip in *)
+      test_thrd_space Basic.all Path.(L N) (T.Par (thrd_code, T.Skip), memx) [(T.Par (const 42, T.Skip), memx')]
+    )
 
     (* "seq_stuck">:: test_step Basic.all (T.Seq (T.Stuck, T.Skip), mem) [(T.Stuck, mem)]; *)
 

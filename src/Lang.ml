@@ -124,6 +124,8 @@ module Term =
       Format.flush_str_formatter ()
     )
 
+
+
   end
 
 module Context =
@@ -254,30 +256,33 @@ module Context =
       fresh (mo loc e c' t')
         (term === write mo loc e)
         (conde [
-          ((c === hole ())             &&& (rdx === term ));
-          ((c === write_ctx mo loc c') &&& (rdx === t') &&& (splito e c' t'));
+          ((c === hole ())             &&& (reducibleo e !false) &&& (rdx === term ));
+          ((c === write_ctx mo loc c') &&& (reducibleo e !true ) &&& (rdx === t') &&& (splito e c' t'));
         ]);
 
       fresh (cond btrue bfalse c' t')
         (term === if' cond btrue bfalse)
         (conde [
-          ((c === hole ())                &&& (rdx === term ));
-          ((c === if_ctx c' btrue bfalse) &&& (rdx === t') &&& (splito cond c' t'))
+          ((c === hole ())                &&& (reducibleo cond !false) &&& (rdx === term ));
+          ((c === if_ctx c' btrue bfalse) &&& (reducibleo cond !true ) &&& (rdx === t') &&& (splito cond c' t'))
         ]);
 
       fresh (t1 t2 c' t')
         (term === seq t1 t2)
         (conde [
-          (c === hole ())        &&& (rdx === term);
-          (c === seq_left c' t2) &&& (rdx === t') &&& (splito t1 c' t');
+          (c === hole ())        &&& (reducibleo t1 !false) &&& (rdx === term);
+          (c === seq_left c' t2) &&& (reducibleo t1 !true)  &&& (rdx === t'  ) &&& (splito t1 c' t');
         ]);
 
       fresh (t1 t2 c' t')
         (term === par t1 t2)
         (conde [
-           ((c === hole ())         &&& (rdx === term ));
-           ((c === par_left  c' t2) &&& (rdx === t') &&& (splito t1 c' t'));
-           ((c === par_right t1 c') &&& (rdx === t') &&& (splito t2 c' t'));
+           (* (c === hole ())         &&& (reducibleo t1 !false) &&& (reducibleo t2 !false) &&& (rdx === term );
+           (c === par_left  c' t2) &&& (reducibleo t1 !true)  &&& (rdx === t') &&& (splito t1 c' t');
+           (c === par_right t1 c') &&& (reducibleo t2 !true)  &&& (rdx === t') &&& (splito t2 c' t'); *)
+           (c === hole ())         &&& (rdx === term);
+           (c === par_left  c' t2) &&& (rdx === t') &&& (splito t1 c' t');
+           (c === par_right t1 c') &&& (rdx === t') &&& (splito t2 c' t');
         ]);
 
       ((c === hole ()) &&& (rdx === term) &&& conde [
@@ -407,6 +412,30 @@ module Context =
           ])
       ))
 
+    let thrd_reducibleo t path b =
+      fresh (c rdx)
+        (splito t c rdx)
+        (patho c path)
+        (reducibleo rdx b)
+
+    let rec pick_prmo term c loc n = Term.(conde [
+        (term === write !!MemOrder.RLX loc (const n)) &&& (c === hole ());
+
+        fresh (t1 t2 c')
+          (term === seq t1 t2)
+          (conde [
+            (c === seq_left  c' t2) &&& (pick_prmo t1 c' loc n);
+            (c === seq_right t1 c') &&& (pick_prmo t2 c' loc n);
+          ]);
+
+        fresh (t1 t2 c')
+          (term === par t1 t2)
+          (conde [
+            (c === par_left  c' t2) &&& (pick_prmo t1 c' loc n);
+            (c === par_right t1 c') &&& (pick_prmo t2 c' loc n);
+          ]);
+      ])
+
   end
 
 (* type tt  = Term.tt
@@ -425,14 +454,15 @@ type rule =  (Context.ti -> Term.ti -> Memory.MemState.ti ->
               Context.ti -> Term.ti -> Memory.MemState.ti -> goal)
 
 let make_step_relation :
-  (Context.ti -> MiniKanren.goal) -> (string * rule) list -> (
-    module Semantics.Step with
+  reducibleo:(Term.ti -> Bool.groundi -> MiniKanren.goal) ->
+  stepo:(Term.ti * Memory.MemState.ti -> Term.ti * Memory.MemState.ti -> MiniKanren.goal) ->
+  (module Semantics.Step with
       type tt = Term.tt            and
       type tl = Term.tl            and
       type st = Memory.MemState.tt and
       type sl = Memory.MemState.tl
-    ) =
-  fun constrainto rules -> (module
+  ) =
+  fun ~reducibleo ~stepo -> (module
     struct
       type tt = Term.tt
       type tl = Term.tl
@@ -442,16 +472,8 @@ let make_step_relation :
       type sl = Memory.MemState.tl
       type si = (st, sl) MiniKanren.injected
 
-      let (->?) = Context.reducibleo
-
-      let (-->) (t, s) (t', s') =
-        fresh (c c' rdx rdx')
-          (Context.splito t c rdx)
-          (Context.reducibleo rdx !!true)
-          (constrainto c)
-          (* (rdx =/= rdx') *)
-          (conde @@ List.map (fun (name, rule) -> rule c rdx s c' rdx' s') rules)
-          (Context.plugo t' c' rdx')
+      let (->?) = reducibleo
+      let (-->) = stepo
 
     end : Semantics.Step with
       type tt = Term.tt            and
@@ -459,9 +481,70 @@ let make_step_relation :
       type st = Memory.MemState.tt and
       type sl = Memory.MemState.tl)
 
-let make_reduction_relation = make_step_relation (fun c -> success)
+let make_thread_step rules thrd_path =
+  let reducibleo t b = Context.thrd_reducibleo t thrd_path b in
+  let stepo (t, s) (t', s') =
+    fresh (c c' rdx rdx')
+      (Context.splito t c rdx)
+      (Context.patho c thrd_path)
+      (Context.reducibleo rdx !!true)
+      (conde @@ List.map (fun (name, rule) -> rule c rdx s c' rdx' s') rules)
+      (Context.plugo t' c' rdx')
+  in
+  make_step_relation ~reducibleo ~stepo
 
-let make_certified_relation reduction_rules certification_rules = (module
+let make_reduction_relation rules =
+  let reducibleo = Context.reducibleo in
+  let stepo (t, s) (t', s') =
+    fresh (c c' rdx rdx')
+      (Context.splito t c rdx)
+      (Context.reducibleo rdx !!true)
+      (conde @@ List.map (fun (name, rule) -> rule c rdx s c' rdx' s') rules)
+      (Context.plugo t' c' rdx')
+  in
+  make_step_relation ~reducibleo ~stepo
+
+let make_certified_relation rules =
+  let reducibleo = Context.reducibleo in
+
+  let certifyo t s thrd_path =
+    let module CertStep = (val make_thread_step rules thrd_path) in
+    let module Cert     = Semantics.Make(CertStep) in
+    Cert.(
+      fresh (t' s')
+        (Memory.MemState.certifyo s' thrd_path)
+        ((t, s) -->* (t', s'))
+    )
+  in
+
+  let stepo (t, s) (t', s') = conde [
+    
+
+    fresh (c c' rdx rdx' path path')
+      (Context.splito t c rdx)
+      (Context.reducibleo rdx !!true)
+      (conde @@ List.map (fun (name, rule) -> rule c rdx s c' rdx' s') rules)
+      (Context.plugo t' c' rdx')
+      (Context.patho c  path )
+      (Context.patho c' path')
+      (conde [
+        (* We've made thread local step and must re-certify *)
+        (c === c') &&& (certifyo t' s' path);
+        (* We've spawn/join threads *)
+        (c )
+      ])
+
+
+
+    fresh (c path loc n)
+      (Context.pick_prmo t c loc n)
+      (Context.patho c path)
+      (Context.plugo t' c (Term.skip ()))
+      (MemState.promiseo s s' path loc n);
+  ] in
+  make_step_relation ~reducibleo ~stepo
+
+(* let make_certified_relation reduction_rules certification_rules = (module
   struct
     type tt = Term.tt
     type tl = Term.tl
@@ -476,31 +559,13 @@ let make_certified_relation reduction_rules certification_rules = (module
     let certification_rules = rules @ [Rules.Promise.fulfill] *)
 
     let certifyo t s path =
-      let module CertStep = (val make_step_relation (fun c -> Context.patho c path) certification_rules) in
+      let module CertStep = (val make_step_relation (fun c -> success) certification_rules) in
       let module Cert     = Semantics.Make(CertStep) in
       Cert.(
         fresh (t' s')
           (Memory.MemState.certifyo s' path)
           ((t, s) -->* (t', s'))
       )
-
-    let rec pick_prmo term c loc n = Term.(Context.(conde [
-        (term === write !!MemOrder.RLX loc (const n)) &&& (c === hole ());
-
-        fresh (t1 t2 c')
-          (term === seq t1 t2)
-          (conde [
-            (c === seq_left  c' t2) &&& (pick_prmo t1 c' loc n);
-            (c === seq_right t1 c') &&& (pick_prmo t2 c' loc n);
-          ]);
-
-        fresh (t1 t2 c')
-          (term === par t1 t2)
-          (conde [
-            (c === par_left  c' t2) &&& (pick_prmo t1 c' loc n);
-            (c === par_right t1 c') &&& (pick_prmo t2 c' loc n);
-          ]);
-      ]))
 
     let (->?) = Context.reducibleo
 
@@ -510,11 +575,12 @@ let make_certified_relation reduction_rules certification_rules = (module
         (Context.reducibleo rdx !!true)
         (conde @@ List.map (fun (name, rule) -> rule c rdx s c' rdx' s') reduction_rules)
         (Context.plugo t' c' rdx')
-        (Context.patho c' path);
-        (* (certifyo t' s' path); *)
+        (Context.patho c' path)
+        (* (certifyo t' s' path) *)
+        ;
 
       fresh (c path loc n)
-        (pick_prmo t c loc n)
+        (Context.pick_prmo t c loc n)
         (Context.patho c path)
         (Context.plugo t' c (Term.skip ()))
         (MemState.promiseo s s' path loc n);
@@ -524,4 +590,4 @@ let make_certified_relation reduction_rules certification_rules = (module
     type tt = Term.tt            and
     type tl = Term.tl            and
     type st = Memory.MemState.tt and
-    type sl = Memory.MemState.tl)
+    type sl = Memory.MemState.tl) *)

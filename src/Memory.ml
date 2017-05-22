@@ -393,17 +393,17 @@ module ThreadState =
       ] in
       List.filtero pred prm prm'
 
-    let fulfillo thrd thrd' = Nat.(
-      fresh (regs curr rel acq prm prm' p loc ts last_ts value vf)
+    let fulfillo thrd thrd'' = Nat.(
+      fresh (thrd' regs curr rel acq prm prm' p loc ts last_ts value vf)
         (thrd  === thrd_state regs curr rel acq prm )
         (thrd' === thrd_state regs curr rel acq prm')
         (List.membero prm p)
         (p === Promise.promise loc ts value vf)
         (last_tso thrd loc last_ts)
-        (ts < last_ts)
-        (vf === rel)
+        (last_ts < ts)
+        (* (vf === rel) *)
         (removeo prm prm' p)
-        (* (updateo thrd thrd' loc ts) *)
+        (updateo thrd' thrd'' loc ts)
       )
 
     let certifyo thrd =
@@ -422,14 +422,16 @@ module ThreadState =
       fresh (regs       regs1 regs2
              curr curr' curr1 curr2
              rel  rel' rel1 rel2
-             acq  acq' acq1 acq2)
+             acq  acq' acq1 acq2
+             prm prm1 prm2)
         (thrd   === thrd_state regs  curr  rel  acq  (nil ()))
-        (thrd'  === thrd_state regs  curr' rel' acq' (nil ()))
+        (thrd'  === thrd_state regs  curr' rel' acq' (nil ()) )
         (child1 === thrd_state regs1 curr1 rel1 acq1 (nil ()))
         (child2 === thrd_state regs2 curr2 rel2 acq2 (nil ()))
         (ViewFront.mergeo curr1 curr2 curr')
         (ViewFront.mergeo rel1  rel2  rel' )
         (ViewFront.mergeo acq1  acq2  acq' )
+        (* (List.appendo prm1 prm2 prm) *)
 
   end
 

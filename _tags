@@ -1,9 +1,7 @@
 true: use_menhir, explain, rectypes
 
-#<src/Lang.mli>: hack_pr_o
-
 <camlp5/pa_cppmem.*>: syntax(camlp5), package(camlp5)
 
 <src/*.ml>: for-pack(Relcppmem)
 
-<shit.ml>: use_pa_cppmem
+<test/*.ml>: use_pa_cppmem
