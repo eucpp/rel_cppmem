@@ -146,6 +146,37 @@ module ThreadSpawning =
    let all = [spawn; join]
   end
 
+module NonAtomic =
+  struct
+    type ti = Lang.Term.ti
+    type ci = Lang.Context.ti
+    type si = Memory.MemState.ti
+
+    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
+
+    let read_nao c t s c' t' s' =
+      fresh (l path n)
+        (c  === c')
+        (t  === read !!NA l)
+        (t' === const n)
+        (patho c path)
+        (MemState.read_nao s s' path l n)
+
+    let read_na = ("read_na", read_nao)
+
+    let write_nao c t s c' t' s' =
+      fresh (l n path)
+        (c  === c')
+        (t  === write !!NA l (const n))
+        (t' === skip ())
+        (patho c path)
+        (MemState.write_nao s s' path l n)
+
+    let write_na = ("write_na", write_nao)
+
+    let all = [read_na; write_na; ]
+  end
+
 module Rlx =
   struct
     type ti = Lang.Term.ti

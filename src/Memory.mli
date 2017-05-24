@@ -304,6 +304,9 @@ module MemState :
     val get_localo : ti ->       Path.ti -> Var.ti -> Value.ti -> MiniKanren.goal
     val set_localo : ti -> ti -> Path.ti -> Var.ti -> Value.ti -> MiniKanren.goal
 
+    val read_nao  : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
+    val write_nao : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
+
     val read_rlxo  : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
     val write_rlxo : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
 
