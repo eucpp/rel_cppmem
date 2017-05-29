@@ -157,7 +157,7 @@ let prog_CoRR_rlx = <:cppmem<
 
 (* let test_CoRR_rlx step = test_prog step ~negative:true prog_CoRR_rlx ["((1, 2), (2, 1))"; "((2, 1), (1, 2))"] *)
 
-(* let prog_LB = <:cppmem<
+let prog_LB = <:cppmem<
   spw {{{
     r1 := x_rlx;
     y_rlx := 1;
@@ -166,30 +166,35 @@ let prog_CoRR_rlx = <:cppmem<
     r2 := y_rlx;
     x_rlx := r2
   }}}
->> *)
-
-let prog_LB = <:cppmem<
-  spw {{{
-    x_rlx := 1;
-    ret 2
-  |||
-    y_rlx := 1
-  }}}
 >>
 
 let test_LB step = test_prog step prog_LB ["0"; "1"]
 
-let rlx_rules = Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.Rlx.all
+let prog_LBd = <:cppmem<
+  spw {{{
+    r1 := x_rlx;
+    y_rlx := r1;
+    ret r1
+  |||
+    r2 := y_rlx;
+    x_rlx := r2
+  }}}
+>>
+
+let test_LBd step = test_prog step prog_LBd ["0";]
+
+let rlx_rules = Rules.Basic.all @ Rules.Rlx.all
 let rlx_relAcq_rules = rlx_rules @ Rules.RelAcq.all
 
 let promising_rules = rlx_rules @ [Rules.Promise.fulfill]
 
-let relAcqStep = make_reduction_relation rlx_relAcq_rules
-let promisingStep = make_certified_relation promising_rules
+let relAcqStep = make_reduction_relation (rlx_relAcq_rules @ Rules.ThreadSpawning.all)
+let promisingStep = make_certified_relation promising_rules Rules.ThreadSpawning.all
 
 let tests =
   "Litmus">::: [
     "LB">: OUnitTest.TestCase (OUnitTest.Huge, test_LB promisingStep);
+    "LBd">: OUnitTest.TestCase (OUnitTest.Huge, test_LBd promisingStep);
 
     "rel_acq">:: test_rel_acq relAcqStep;
     "SB">:: test_SB relAcqStep;

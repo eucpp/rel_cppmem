@@ -125,7 +125,7 @@ val make_reduction_relation : (string * rule) list -> (
     type sl = Memory.MemState.tl
 )
 
-val make_certified_relation : (string * rule) list -> (
+val make_certified_relation : (string * rule) list -> (string * rule) list -> (
   module Semantics.Step          with
     type tt = Term.tt            and
     type tl = Term.tl            and

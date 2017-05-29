@@ -504,11 +504,11 @@ let make_reduction_relation rules =
   in
   make_step_relation ~reducibleo ~stepo
 
-let make_certified_relation rules =
+let make_certified_relation thrd_rules spw_join_rules =
   let reducibleo = Context.reducibleo in
 
   let certifyo t s thrd_path =
-    let module CertStep = (val make_thread_step rules thrd_path) in
+    let module CertStep = (val make_thread_step thrd_rules thrd_path) in
     let module Cert     = Semantics.Make(CertStep) in
     Cert.(
       fresh (t' s')
@@ -517,31 +517,32 @@ let make_certified_relation rules =
     )
   in
 
-  let stepo (t, s) (t', s') = conde [
-    
-
-    fresh (c c' rdx rdx' path path')
-      (Context.splito t c rdx)
-      (Context.reducibleo rdx !!true)
-      (conde @@ List.map (fun (name, rule) -> rule c rdx s c' rdx' s') rules)
-      (Context.plugo t' c' rdx')
-      (Context.patho c  path )
-      (Context.patho c' path')
-      (conde [
-        (* We've made thread local step and must re-certify *)
-        (c === c') &&& (certifyo t' s' path);
-        (* We've spawn/join threads *)
-        (c )
-      ])
-
-
-
+  let prm_stepo (t, s) (t', s') =
     fresh (c path loc n)
       (Context.pick_prmo t c loc n)
       (Context.patho c path)
       (Context.plugo t' c (Term.skip ()))
-      (MemState.promiseo s s' path loc n);
-  ] in
+      (MemState.promiseo s s' path loc n)
+  in
+
+  let stepo' rules (t, c, s) (t', c', s') =
+    fresh (rdx rdx')
+      (Context.splito t c rdx)
+      (Context.reducibleo rdx !!true)
+      (conde @@ List.map (fun (name, rule) -> rule c rdx s c' rdx' s') rules)
+      (Context.plugo t' c' rdx')
+  in
+
+  let stepo (t, s) (t', s') =
+    let thrd_stepo = stepo' thrd_rules in
+    let spw_join_stepo = stepo' spw_join_rules in
+    fresh (c c' path)
+      (conde [
+        (prm_stepo (t, s) (t', s'));
+        (thrd_stepo (t, c, s) (t', c', s')) &&& (Context.patho c path) &&& (certifyo t' s' path);
+        (spw_join_stepo (t, c, s) (t', c', s'));
+      ])
+  in
   make_step_relation ~reducibleo ~stepo
 
 (* let make_certified_relation reduction_rules certification_rules = (module
