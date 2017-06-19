@@ -1,4 +1,4 @@
-module type Step =
+module type StepRelation =
   sig
     type tt
     type tl
@@ -8,39 +8,24 @@ module type Step =
     type sl
     type si = (st, sl) MiniKanren.injected
 
-    val (->?) : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val (->?) : ti * si -> MiniKanren.Bool.groundi -> MiniKanren.goal
     val (-->) : ti * si -> ti * si -> MiniKanren.goal
   end
 
-(* module BasicStep :
-  sig
-    type tt = Lang.Term.tt
-    type tl = Lang.Term.tl
-    type ti = (Lang.Term.tt, Lang.Term.tl) MiniKanren.injected
+module UnionRelation
+  (S1 : StepRelation)
+  (S2 : StepRelation with
+    type tt = S1.tt  and
+    type tl = S1.tl  and
+    type st = S1.st  and
+    type sl = S1.sl)
+  : StepRelation with
+    type tt = S1.tt  and
+    type tl = S1.tl  and
+    type st = S1.st  and
+    type sl = S1.sl
 
-    type st = Memory.MemState.tt
-    type sl = Memory.MemState.tl
-    type si = (Memory.MemState.tt, Memory.MemState.tl) MiniKanren.injected
-
-    val (->?) : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
-    val (-->) : ti * si -> ti * si -> MiniKanren.goal
-  end
-
-module OperationalStep :
-  sig
-    type tt = Lang.Term.tt
-    type tl = Lang.Term.tl
-    type ti = (tt, tl) MiniKanren.injected
-
-    type st = Memory.MemState.tt
-    type sl = Memory.MemState.tl
-    type si = (st, sl) MiniKanren.injected
-
-    val (->?) : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
-    val (-->) : ti * si -> ti * si -> MiniKanren.goal
-  end *)
-
-module Make(S : Step) :
+module Make(S : StepRelation) :
   sig
     type tt = S.tt
     type tl = S.tl
@@ -50,7 +35,7 @@ module Make(S : Step) :
     type sl = S.sl
     type si = S.si
 
-    val (->?)  : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val (->?)  : ti * si -> MiniKanren.Bool.groundi -> MiniKanren.goal
     val (-->)  : ti * si -> ti * si -> MiniKanren.goal
     val (-->*) : ti * si -> ti * si -> MiniKanren.goal
   end

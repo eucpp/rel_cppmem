@@ -10,7 +10,7 @@ module type Step =
     type sl
     type si = (st, sl) MiniKanren.injected
 
-    val (->?) : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val (->?) : ti * si -> MiniKanren.Bool.groundi -> MiniKanren.goal
     val (-->) : ti * si -> ti * si -> MiniKanren.goal
   end
 
@@ -26,9 +26,9 @@ module Make(S : Step) =
 
     let spaceo_norec spaceo t s t'' s'' = S.(
       conde [
-        (t ->? !!false) &&& (t === t'') &&& (s === s'');
+        ((t, s) ->? !!false) &&& (t === t'') &&& (s === s'');
         (fresh (t' s' rl)
-          (t ->? !!true)
+          ((t, s) ->? !!true)
           ((t, s) --> (t', s'))
           (delay @@ fun () -> spaceo t' s' t'' s''));
       ]
@@ -44,45 +44,3 @@ module Make(S : Step) =
       relo := spaceo_tabled;
       spaceo_tabled t s t' s'
   end
-
-(* let stepo reductiono (t, s) (t', s') =
-  fresh (c c' rdx rdx')
-    (splito t c rdx)
-    (reducibleo rdx !!true)
-    (rdx =/= rdx')
-    (reductiono c rdx s c' rdx' s')
-    (plugo t' c' rdx')
-
-let reduction_relation rules c rdx s c' rdx' s' =
-  let apply (name, rule) = rule c rdx s c' rdx' s' in
-  conde @@ List.map apply rules
-
-module BasicStep =
-  struct
-    type tt = Lang.Term.tt
-    type tl = Lang.Term.tl
-    type ti = (tt, tl) MiniKanren.injected
-
-    type st = Memory.MemState.tt
-    type sl = Memory.MemState.tl
-    type si = (st, sl) MiniKanren.injected
-
-    let (->?) = reducibleo
-    let (-->) = stepo (reduction_relation Rules.Basic.all)
-  end
-
-module OperationalStep =
-  struct
-    type tt = Lang.Term.tt
-    type tl = Lang.Term.tl
-    type ti = (tt, tl) MiniKanren.injected
-
-    type st = Memory.MemState.tt
-    type sl = Memory.MemState.tl
-    type si = (st, sl) MiniKanren.injected
-
-    let (->?) = reducibleo
-    let (-->) =
-      let rules = Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.Rlx.all @ Rules.RelAcq.all in
-      stepo (reduction_relation rules)
-  end *)

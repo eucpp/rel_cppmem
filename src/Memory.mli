@@ -296,8 +296,9 @@ module MemState :
     val fence_relo : ti -> ti -> Path.ti -> MiniKanren.goal
 
     val promiseo : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
+    val fulfillo : ti -> ti -> Path.ti                       -> MiniKanren.goal
 
-    val fulfillo : ti -> ti -> Path.ti -> MiniKanren.goal
+    val laggingo : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
 
     val certifyo : ti -> Path.ti -> MiniKanren.goal
 

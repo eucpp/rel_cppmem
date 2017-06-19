@@ -124,7 +124,67 @@ module Term =
       Format.flush_str_formatter ()
     )
 
+    let rec reducibleo' term b = conde [
+      fresh (n)
+        (b === !!false)
+        (term === const n);
+      fresh (x)
+        (b === !!true)
+        (term === var x);
+      fresh (op l r)
+        (b === !!true)
+        (term === binop op l r);
+      fresh (l r)
+        (b === !!true)
+        (term === asgn l r);
+      fresh (e t1 t2)
+        (b === !!true)
+        (term === if' e t1 t2);
+      fresh (t')
+        (b === !!true)
+        (term === repeat t');
+      fresh (mo l)
+        (b === !!true)
+        (term === read mo l);
+      fresh (mo l t')
+        (b === !!true)
+        (term === write mo l t');
+      fresh (mo1 mo2 l e1 e2)
+        (b === !!true)
+        (term === cas mo1 mo2 l e1 e2);
+      fresh (t1 t2)
+        (b === !!true)
+        (term === seq t1 t2);
+      fresh (t1 t2)
+        (b === !!true)
+        (term === spw t1 t2);
+      fresh (t1 t2)
+        (b === !!true)
+        (term === par t1 t2);
 
+      (conde [
+         fresh (t1 t2 b1 b2)
+           (term === pair t1 t2)
+           (reducibleo' t1 b1)
+           (reducibleo' t2 b2)
+           (Bool.oro b1 b2 b)
+      ]);
+
+      ((b === !!false) &&& (term === skip ()));
+      ((b === !!false) &&& (term === stuck ()));
+    ]
+
+    let rec reducibleo ?path t b = Path.(
+      match path with
+        | Some p ->
+          fresh (p' l r) (conde [
+            (p === pathn ()) &&& (reducibleo' t b);
+            (p === pathl p') &&& (t === par l r) &&& (reducibleo ~path:p' l b);
+            (p === pathr p') &&& (t === par l r) &&& (reducibleo ~path:p' r b);
+          ])
+        | None ->
+          reducibleo' t b
+    )
 
   end
 
@@ -173,113 +233,61 @@ module Context =
 
     let rec inj c = inj' @@ distrib (T.fmap (Nat.inj) (!!) (!!) (!!) (Term.inj) (inj) c)
 
-    let (!) = (!!)
-
-    let rec reducibleo term b = Term.(conde [
-      fresh (n)
-        (b === !false)
-        (term === const n);
-      fresh (x)
-        (b === !true)
-        (term === var x);
-      fresh (op l r)
-        (b === !true)
-        (term === binop op l r);
-      fresh (l r)
-        (b === !true)
-        (term === asgn l r);
-      fresh (e t1 t2)
-        (b === !true)
-        (term === if' e t1 t2);
-      fresh (t')
-        (b === !true)
-        (term === repeat t');
-      fresh (mo l)
-        (b === !true)
-        (term === read mo l);
-      fresh (mo l t')
-        (b === !true)
-        (term === write mo l t');
-      fresh (mo1 mo2 l e1 e2)
-        (b === !true)
-        (term === cas mo1 mo2 l e1 e2);
-      fresh (t1 t2)
-        (b === !true)
-        (term === seq t1 t2);
-      fresh (t1 t2)
-        (b === !true)
-        (term === spw t1 t2);
-      fresh (t1 t2)
-        (b === !true)
-        (term === par t1 t2);
-
-      (conde [
-         fresh (t1 t2 b1 b2)
-           (term === pair t1 t2)
-           (reducibleo t1 b1)
-           (reducibleo t2 b2)
-           (Bool.oro b1 b2 b)
-      ]);
-
-      ((b === !false) &&& (term === skip ()));
-      ((b === !false) &&& (term === stuck ()));
-    ])
-
     let rec splito term c rdx = Term.(conde [
       fresh (op l r c' t')
         (term === binop op l r)
         (conde [
-          ((c === hole ()) &&& (reducibleo l !false) &&& (reducibleo r !false) &&& (rdx === term));
-          ((c === binop_left op c' r) &&& (reducibleo l !true)
+          ((c === hole ()) &&& (reducibleo l !!false) &&& (reducibleo r !!false) &&& (rdx === term));
+          ((c === binop_left op c' r) &&& (reducibleo l !!true)
             &&& (rdx === t') &&& (splito l c' t'));
-          ((c === binop_right op l c') &&& (reducibleo l !false) &&& (reducibleo r !true)
+          ((c === binop_right op l c') &&& (reducibleo l !!false) &&& (reducibleo r !!true)
             &&& (rdx === t') &&& (splito r c' t'));
         ]);
 
       fresh (t1 t2 c' t')
         (term === pair t1 t2)
         (conde [
-          ((c === hole ())          &&& (reducibleo t1 !false) &&& (reducibleo t2 !false) &&& (rdx === term));
-          ((c === pair_left c' t2)  &&& (reducibleo t1 !true)
+          ((c === hole ())          &&& (reducibleo t1 !!false) &&& (reducibleo t2 !!false) &&& (rdx === term));
+          ((c === pair_left c' t2)  &&& (reducibleo t1 !!true)
             &&& (rdx === t') &&& (splito t1 c' t'));
-          ((c === pair_right t1 c') &&& (reducibleo t1 !false) &&& (reducibleo t2 !true)
+          ((c === pair_right t1 c') &&& (reducibleo t1 !!false) &&& (reducibleo t2 !!true)
             &&& (rdx === t') &&& (splito t2 c' t'));
         ]);
 
       fresh (l r c' t')
         (term === asgn l r)
         (conde [
-          ((c === hole ())       &&& (reducibleo r !false) &&& (rdx === term));
-          ((c === asgn_ctx l c') &&& (reducibleo r !true) &&& (rdx === t') &&& (splito r c' t'));
+          ((c === hole ())       &&& (reducibleo r !!false) &&& (rdx === term));
+          ((c === asgn_ctx l c') &&& (reducibleo r !!true) &&& (rdx === t') &&& (splito r c' t'));
         ]);
 
       fresh (mo loc e c' t')
         (term === write mo loc e)
         (conde [
-          ((c === hole ())             &&& (reducibleo e !false) &&& (rdx === term ));
-          ((c === write_ctx mo loc c') &&& (reducibleo e !true ) &&& (rdx === t') &&& (splito e c' t'));
+          ((c === hole ())             &&& (reducibleo e !!false) &&& (rdx === term ));
+          ((c === write_ctx mo loc c') &&& (reducibleo e !!true ) &&& (rdx === t') &&& (splito e c' t'));
         ]);
 
       fresh (cond btrue bfalse c' t')
         (term === if' cond btrue bfalse)
         (conde [
-          ((c === hole ())                &&& (reducibleo cond !false) &&& (rdx === term ));
-          ((c === if_ctx c' btrue bfalse) &&& (reducibleo cond !true ) &&& (rdx === t') &&& (splito cond c' t'))
+          ((c === hole ())                &&& (reducibleo cond !!false) &&& (rdx === term ));
+          ((c === if_ctx c' btrue bfalse) &&& (reducibleo cond !!true ) &&& (rdx === t') &&& (splito cond c' t'))
         ]);
 
       fresh (t1 t2 c' t')
         (term === seq t1 t2)
         (conde [
-          (c === hole ())        &&& (reducibleo t1 !false) &&& (rdx === term);
-          (c === seq_left c' t2) &&& (reducibleo t1 !true)  &&& (rdx === t'  ) &&& (splito t1 c' t');
+          (c === hole ())        &&& (reducibleo t1 !!false) &&& (rdx === term);
+          (c === seq_left c' t2) &&& (reducibleo t1 !!true)  &&& (rdx === t'  ) &&& (splito t1 c' t');
         ]);
 
       fresh (t1 t2 c' t')
         (term === par t1 t2)
         (conde [
-           (* (c === hole ())         &&& (reducibleo t1 !false) &&& (reducibleo t2 !false) &&& (rdx === term );
-           (c === par_left  c' t2) &&& (reducibleo t1 !true)  &&& (rdx === t') &&& (splito t1 c' t');
-           (c === par_right t1 c') &&& (reducibleo t2 !true)  &&& (rdx === t') &&& (splito t2 c' t'); *)
+           (* (c === hole ())         &&& (reducibleo t1 !!false) &&& (reducibleo t2 !!false) &&& (rdx === term );
+           (c === par_left  c' t2) &&& (reducibleo t1 !!true)  &&& (rdx === t') &&& (splito t1 c' t');
+           (c === par_right t1 c') &&& (reducibleo t2 !!true)  &&& (rdx === t') &&& (splito t2 c' t'); *)
            (c === hole ())         &&& (rdx === term);
            (c === par_left  c' t2) &&& (rdx === t') &&& (splito t1 c' t');
            (c === par_right t1 c') &&& (rdx === t') &&& (splito t2 c' t');
@@ -308,91 +316,91 @@ module Context =
 
         (term === stuck ());
       ]);
-      ])
+    ])
 
-      let rec plugo term c rdx = Term.(conde [
-        (term === stuck ()) &&& (rdx === stuck ());
-        (term =/= stuck ()) &&& (rdx =/= stuck ()) &&& (conde [
-          fresh (op l r c' t')
-            (term === binop op l r)
-            (conde [
-              ((c === hole ())              &&& (rdx === term));
-              ((c === binop_left  op c' r)  &&& (rdx === t') &&& (plugo l c' t'));
-              ((c === binop_right op l c')  &&& (rdx === t') &&& (plugo r c' t'));
-            ]);
-
-          fresh (t1 t2 c' t')
-            (term === pair t1 t2)
-            (conde [
-              ((c === hole ())          &&& (rdx === term ));
-              ((c === pair_left  c' t2) &&& (rdx === t') &&& (plugo t1 c' t'));
-              ((c === pair_right t1 c') &&& (rdx === t') &&& (plugo t2 c' t'));
-            ]);
-
-          fresh (l r c' t')
-            (term === asgn l r)
-            (conde [
-              ((c === hole ())       &&& (rdx === term ));
-              ((c === asgn_ctx l c') &&& (rdx === t') &&& (plugo r c' t'));
-            ]);
-
-          fresh (mo loc e c' t')
-            (term === write mo loc e)
-            (conde [
-              ((c === hole ())             &&& (rdx === term ));
-              ((c === write_ctx mo loc c') &&& (rdx === t') &&& (plugo e c' t'));
-            ]);
-
-          fresh (cond btrue bfalse c' t')
-            (term === if' cond btrue bfalse)
-            (conde [
-              ((c === hole ())                &&& (rdx === term));
-              ((c === if_ctx c' btrue bfalse) &&& (rdx === t') &&& (plugo cond c' t'))
-            ]);
-
-          fresh (t1 t2 c')
-            (term === seq t1 t2)
-            (conde [
-              ((c === hole ())                 &&& (rdx === term));
-              ((c === seq_left  c' t2)         &&& (plugo t1 c' rdx));
-              ((c === seq_right t1 c')         &&& (plugo t2 c' rdx));
-            ]);
-            (* ((c === seq_ctx c' t2) &&& conde [
-              (rdx =/= skip ()) &&& (rdx =/= stuck ()) &&& (term === seq t1 t2) &&& (plugo t1 c' rdx);
-              (rdx === skip ())  &&& (term === t2);
-              (rdx === stuck ()) &&& (term === stuck ());
-            ]); *)
-
-          fresh (t1 t2 c' t')
-            (term === par t1 t2)
-            (conde [
-               ((c === hole ())         &&& (rdx === term ));
-               ((c === par_left  c' t2) &&& (rdx === t') &&& (plugo t1 c' t'));
-               ((c === par_right t1 c') &&& (rdx === t') &&& (plugo t2 c' t'));
-            ]);
-
-          ((c === hole ()) &&& (rdx === term) &&& conde [
-            fresh (n)
-              (term === const n);
-
-            fresh (x)
-              (term === var x);
-
-            fresh (t')
-              (term === repeat t');
-
-            fresh (mo l)
-              (term === read mo l);
-
-            fresh (mo1 mo2 l t1 t2)
-              (term === cas mo1 mo2 l t1 t2);
-
-            fresh (t1 t2)
-              (term === spw t1 t2);
-
-            (term === skip ());
+    let rec plugo term c rdx = Term.(conde [
+      (term === stuck ()) &&& (rdx === stuck ());
+      (term =/= stuck ()) &&& (rdx =/= stuck ()) &&& (conde [
+        fresh (op l r c' t')
+          (term === binop op l r)
+          (conde [
+            ((c === hole ())              &&& (rdx === term));
+            ((c === binop_left  op c' r)  &&& (rdx === t') &&& (plugo l c' t'));
+            ((c === binop_right op l c')  &&& (rdx === t') &&& (plugo r c' t'));
           ]);
-        ])])
+
+        fresh (t1 t2 c' t')
+          (term === pair t1 t2)
+          (conde [
+            ((c === hole ())          &&& (rdx === term ));
+            ((c === pair_left  c' t2) &&& (rdx === t') &&& (plugo t1 c' t'));
+            ((c === pair_right t1 c') &&& (rdx === t') &&& (plugo t2 c' t'));
+          ]);
+
+        fresh (l r c' t')
+          (term === asgn l r)
+          (conde [
+            ((c === hole ())       &&& (rdx === term ));
+            ((c === asgn_ctx l c') &&& (rdx === t') &&& (plugo r c' t'));
+          ]);
+
+        fresh (mo loc e c' t')
+          (term === write mo loc e)
+          (conde [
+            ((c === hole ())             &&& (rdx === term ));
+            ((c === write_ctx mo loc c') &&& (rdx === t') &&& (plugo e c' t'));
+          ]);
+
+        fresh (cond btrue bfalse c' t')
+          (term === if' cond btrue bfalse)
+          (conde [
+            ((c === hole ())                &&& (rdx === term));
+            ((c === if_ctx c' btrue bfalse) &&& (rdx === t') &&& (plugo cond c' t'))
+          ]);
+
+        fresh (t1 t2 c')
+          (term === seq t1 t2)
+          (conde [
+            ((c === hole ())                 &&& (rdx === term));
+            ((c === seq_left  c' t2)         &&& (plugo t1 c' rdx));
+            ((c === seq_right t1 c')         &&& (plugo t2 c' rdx));
+          ]);
+          (* ((c === seq_ctx c' t2) &&& conde [
+            (rdx =/= skip ()) &&& (rdx =/= stuck ()) &&& (term === seq t1 t2) &&& (plugo t1 c' rdx);
+            (rdx === skip ())  &&& (term === t2);
+            (rdx === stuck ()) &&& (term === stuck ());
+          ]); *)
+
+        fresh (t1 t2 c' t')
+          (term === par t1 t2)
+          (conde [
+             ((c === hole ())         &&& (rdx === term ));
+             ((c === par_left  c' t2) &&& (rdx === t') &&& (plugo t1 c' t'));
+             ((c === par_right t1 c') &&& (rdx === t') &&& (plugo t2 c' t'));
+          ]);
+
+        ((c === hole ()) &&& (rdx === term) &&& conde [
+          fresh (n)
+            (term === const n);
+
+          fresh (x)
+            (term === var x);
+
+          fresh (t')
+            (term === repeat t');
+
+          fresh (mo l)
+            (term === read mo l);
+
+          fresh (mo1 mo2 l t1 t2)
+            (term === cas mo1 mo2 l t1 t2);
+
+          fresh (t1 t2)
+            (term === spw t1 t2);
+
+          (term === skip ());
+        ]);
+      ])])
 
     let rec patho c path = Term.(Path.(
         fresh (op mo loc t1 t2 t3 t' c' path')
@@ -412,11 +420,21 @@ module Context =
           ])
       ))
 
-    let thrd_reducibleo t path b =
-      fresh (c rdx)
-        (splito t c rdx)
-        (patho c path)
-        (reducibleo rdx b)
+    let rec can_prmo t b = Term.(conde [
+        (term === write !!MemOrder.RLX loc (const n)) &&& (b === !!true);
+
+        fresh (t1 t2 b1 b2)
+          (term === seq t1 t2)
+          (can_prmo t1 b1)
+          (can_prmo t2 b2)
+          (Bool.oro b1 b2 b);
+
+        fresh (t1 t2 b1 b2)
+          (term === par t1 t2)
+          (can_prmo t1 b1)
+          (can_prmo t2 b2)
+          (Bool.oro b1 b2 b);
+      ])
 
     let rec pick_prmo term c loc n = Term.(conde [
         (term === write !!MemOrder.RLX loc (const n)) &&& (c === hole ());
@@ -437,49 +455,6 @@ module Context =
       ])
 
   end
-
-(* type tt  = Term.tt
-type tl  = Term.tl
-type ti  = Term.ti
-
-type ct  = Context.tt
-type cl  = Context.tl
-type ci  = Context.ti
-
-type st = Memory.MemState.tt
-type sl = Memory.MemState.tl
-type si = Memory.MemState.ti *)
-
-type rule =  (Context.ti -> Term.ti -> Memory.MemState.ti ->
-              Context.ti -> Term.ti -> Memory.MemState.ti -> goal)
-
-let make_step_relation :
-  reducibleo:(Term.ti -> Bool.groundi -> MiniKanren.goal) ->
-  stepo:(Term.ti * Memory.MemState.ti -> Term.ti * Memory.MemState.ti -> MiniKanren.goal) ->
-  (module Semantics.Step with
-      type tt = Term.tt            and
-      type tl = Term.tl            and
-      type st = Memory.MemState.tt and
-      type sl = Memory.MemState.tl
-  ) =
-  fun ~reducibleo ~stepo -> (module
-    struct
-      type tt = Term.tt
-      type tl = Term.tl
-      type ti = (tt, tl) MiniKanren.injected
-
-      type st = Memory.MemState.tt
-      type sl = Memory.MemState.tl
-      type si = (st, sl) MiniKanren.injected
-
-      let (->?) = reducibleo
-      let (-->) = stepo
-
-    end : Semantics.Step with
-      type tt = Term.tt            and
-      type tl = Term.tl            and
-      type st = Memory.MemState.tt and
-      type sl = Memory.MemState.tl)
 
 let make_thread_step rules thrd_path =
   let reducibleo t b = Context.thrd_reducibleo t thrd_path b in
@@ -544,51 +519,3 @@ let make_certified_relation thrd_rules spw_join_rules =
       ])
   in
   make_step_relation ~reducibleo ~stepo
-
-(* let make_certified_relation reduction_rules certification_rules = (module
-  struct
-    type tt = Term.tt
-    type tl = Term.tl
-    type ti = (tt, tl) MiniKanren.injected
-
-    type st = Memory.MemState.tt
-    type sl = Memory.MemState.tl
-    type si = (st, sl) MiniKanren.injected
-
-    (* let reduction_rules = rules @ Rules.Promise.all
-
-    let certification_rules = rules @ [Rules.Promise.fulfill] *)
-
-    let certifyo t s path =
-      let module CertStep = (val make_step_relation (fun c -> success) certification_rules) in
-      let module Cert     = Semantics.Make(CertStep) in
-      Cert.(
-        fresh (t' s')
-          (Memory.MemState.certifyo s' path)
-          ((t, s) -->* (t', s'))
-      )
-
-    let (->?) = Context.reducibleo
-
-    let (-->) (t, s) (t', s') = conde [
-      fresh (c c' rdx rdx' path)
-        (Context.splito t c rdx)
-        (Context.reducibleo rdx !!true)
-        (conde @@ List.map (fun (name, rule) -> rule c rdx s c' rdx' s') reduction_rules)
-        (Context.plugo t' c' rdx')
-        (Context.patho c' path)
-        (* (certifyo t' s' path) *)
-        ;
-
-      fresh (c path loc n)
-        (Context.pick_prmo t c loc n)
-        (Context.patho c path)
-        (Context.plugo t' c (Term.skip ()))
-        (MemState.promiseo s s' path loc n);
-    ]
-
-  end : Semantics.Step with
-    type tt = Term.tt            and
-    type tl = Term.tl            and
-    type st = Memory.MemState.tt and
-    type sl = Memory.MemState.tl) *)

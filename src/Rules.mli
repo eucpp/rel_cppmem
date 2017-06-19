@@ -1,11 +1,32 @@
+
+type ti = Lang.Term.ti
+type ci = Lang.Context.ti
+type si = Memory.MemState.ti
+
+type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
+
+type condition = (ci -> ti -> si -> MiniKanren.goal)
+
+type predicate = (ti * si -> MiniKanren.Bool.groundi -> MiniKanren.goal)
+
+type order = (ti -> ci -> ti -> MiniKanren.goal)
+
+module type CppMemStep = Semantics.Step with
+  type tt = Lang.Term.tt       and
+  type tl = Lang.Term.tl       and
+  type st = Memory.MemState.tt and
+  type sl = Memory.MemState.tl
+
+val make_reduction_relation :
+  ?preconditiono:condition  ->
+  ?postconditiono:condition ->
+  ?ordero:order             ->
+  ?reducibleo:predicate     ->
+  (string * rule) list      ->
+  (module CppMemStep)
+
 module Basic :
   sig
-    type ti = Lang.Term.ti
-    type ci = Lang.Context.ti
-    type si = Memory.MemState.ti
-
-    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
-
     val var    : string * rule
     val binop  : string * rule
     val asgn   : string * rule
@@ -14,60 +35,48 @@ module Basic :
     val seq    : string * rule
 
     val all : (string * rule) list
+
+    module Step : CppMemStep
   end
 
 module ThreadSpawning :
   sig
-    type ti = Lang.Term.ti
-    type ci = Lang.Context.ti
-    type si = Memory.MemState.ti
-
-    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
-
     val spawn  : string * rule
     val join   : string * rule
 
     val all : (string * rule) list
+
+    module Step : CppMemStep
   end
 
 module Rlx :
   sig
-    type ti = Lang.Term.ti
-    type ci = Lang.Context.ti
-    type si = Memory.MemState.ti
-
-    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
-
     val read_rlx  : string * rule
     val write_rlx : string * rule
 
     val all : (string * rule) list
+
+    module Step : CppMemStep
   end
 
 module RelAcq :
   sig
-    type ti = Lang.Term.ti
-    type ci = Lang.Context.ti
-    type si = Memory.MemState.ti
-
-    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
-
     val read_acq  : string * rule
     val write_rel : string * rule
 
     val all : (string * rule) list
+
+    module Step : CppMemStep
   end
 
-module Promise :
+val certifyo : Memory.Path.ti -> Lang.Term.ti -> Memory.MemState.ti -> (string * rule) list -> MiniKanren.goal
+
+module Promising :
   sig
-    type ti = Lang.Term.ti
-    type ci = Lang.Context.ti
-    type si = Memory.MemState.ti
-
-    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
-
     val promise : string * rule
     val fulfill : string * rule
 
     val all : (string * rule) list
+
+    module Step : CppMemStep
   end

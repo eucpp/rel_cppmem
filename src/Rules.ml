@@ -6,15 +6,61 @@ open MemOrder
 open Term
 open Context
 
+type ti = Lang.Term.ti
+type ci = Lang.Context.ti
+type si = Memory.MemState.ti
+
+type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
+
+type condition = (ci -> ti -> si -> MiniKanren.goal)
+
+type predicate = (ti -> MiniKanren.Bool.groundi -> MiniKanren.goal)
+
+type order = (ti -> ci -> ti -> MiniKanren.goal)
+
+module type CppMemStep = Semantics.Step with
+  type tt = Lang.Term.tt       and
+  type tl = Lang.Term.tl       and
+  type st = Memory.MemState.tt and
+  type sl = Memory.MemState.tl
+
+let make_step :
+  ?reducibleo:(Term.ti * Memory.MemState.ti -> Bool.groundi -> MiniKanren.goal) ->
+  stepo:(Term.ti * Memory.MemState.ti -> Term.ti * Memory.MemState.ti -> MiniKanren.goal) ->
+  (module CppMemStep) =
+  fun ?(reducibleo = fun (t, s) b -> reducibleo t b) ~stepo -> (module
+    struct
+      type tt = Term.tt
+      type tl = Term.tl
+      type ti = (tt, tl) MiniKanren.injected
+
+      type st = Memory.MemState.tt
+      type sl = Memory.MemState.tl
+      type si = (st, sl) MiniKanren.injected
+
+      let (->?) = reducibleo
+      let (-->) = stepo
+
+    end : CppMemStep)
+
+let make_reduction_relation
+  ?(preconditiono  = fun _ _ _ -> success)
+  ?(postconditiono = fun _ _ _ -> success)
+  ?(ordero = splito)
+  ?reducibleo
+  rules =
+  let stepo (t, s) (t', s') =
+    fresh (c c' rdx rdx')
+      (ordero t c rdx)
+      (preconditiono c rdx s)
+      (conde @@ List.map (fun (name, rule) -> rule c rdx s c' rdx' s') rules)
+      (postconditiono c' rdx' s')
+      (Context.plugo t' c' rdx')
+  in
+  make_step ~reducibleo ~stepo
+
 module Basic =
   struct
-    type ti = Term.ti
-    type ci = Context.ti
-    type si = MemState.ti
-
-    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
-
-    let (!) = (!!)
 
     let rec asgno' l r s s' path = conde [
       fresh (x n)
@@ -96,17 +142,14 @@ module Basic =
 
     let seq = ("seq", seqo)
 
-   let all = [var; binop; asgn; if'; repeat; seq;]
+    let all = [var; binop; asgn; if'; repeat; seq;]
+
+    let module Step = (val make_reduction_relation all)
 
   end
 
 module ThreadSpawning =
   struct
-    type ti = Lang.Term.ti
-    type ci = Lang.Context.ti
-    type si = Memory.MemState.ti
-
-    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
     let spawno c t s c' t' s' =
       fresh (l r path)
@@ -141,18 +184,16 @@ module ThreadSpawning =
         (patho c path)
         (MemState.joino s s' path)
 
-   let join = ("join", joino)
+    let join = ("join", joino)
 
-   let all = [spawn; join]
+    let all = [spawn; join]
+
+    let module Step = (val make_reduction_relation all)
+
   end
 
 module Rlx =
   struct
-    type ti = Lang.Term.ti
-    type ci = Lang.Context.ti
-    type si = Memory.MemState.ti
-
-    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
     let read_rlxo c t s c' t' s' =
       fresh (l path n)
@@ -175,15 +216,13 @@ module Rlx =
     let write_rlx = ("write_rlx", write_rlxo)
 
     let all = [read_rlx; write_rlx; ]
+
+    let module Step = (val make_reduction_relation all)
+
   end
 
 module RelAcq =
   struct
-    type ti = Lang.Term.ti
-    type ci = Lang.Context.ti
-    type si = Memory.MemState.ti
-
-    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
     let read_acqo c t s c' t' s' =
       fresh (l path n)
@@ -207,15 +246,26 @@ module RelAcq =
 
     let all = [read_acq; write_rel; ]
 
+    let module Step = (val make_reduction_relation all)
+
   end
 
-module Promise =
-  struct
-    type ti = Lang.Term.ti
-    type ci = Lang.Context.ti
-    type si = Memory.MemState.ti
+let certifyo path t s rules =
+  let module CertStep =
+    let precondition c _ _ = Context.patho c path in
+    let reducibleo = reducibleo ~path in
+    make_reduction_relation ~precondition ~reducibleo rules
+  in
+  let module Cert = Semantics.Make(CertStep) in
+  Cert.(
+    fresh (t' s')
+      (Memory.MemState.certifyo s' path)
+      ((t, s) -->* (t', s'))
+  )
 
-    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
+
+module Promising =
+  struct
 
     let promiseo c t s c' t' s' =
       fresh (l n mo path)
@@ -237,5 +287,12 @@ module Promise =
     let fulfill = ("fulfill", fulfillo)
 
     let all = [promise; fulfill]
+
+    let reducibleo (t, s) b = conde [
+      can_prmo t b;
+      
+    ]
+
+    let module Step = (val make_reduction_relation all)
 
   end
