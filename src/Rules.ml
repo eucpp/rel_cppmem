@@ -288,11 +288,17 @@ module Promising =
 
     let all = [promise; fulfill]
 
-    let reducibleo (t, s) b = conde [
-      can_prmo t b;
-      
+    let reducibleo (t, s) b =
+      fresh (b1 b2)
+        (can_prmo t b1)
+        (MemState.laggingo s b2)
+        (Bool.oro b1 b2 b)
+
+    let ordero term c rdx = conde [
+      (term === rdx) &&& (c === hole ());
+      (pick_prmo term c rdx);
     ]
 
-    let module Step = (val make_reduction_relation all)
+    let module Step = (val make_reduction_relation ~reducibleo ~ordero all)
 
   end

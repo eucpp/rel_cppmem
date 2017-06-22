@@ -160,6 +160,8 @@ module ThreadState :
     (** [fulfillo thrd thrd'] nondeterministically fulfills one of thread's promises *)
     val fulfillo : ti -> ti -> MiniKanren.goal
 
+    val laggingo : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+
     val certifyo : ti -> MiniKanren.goal
 
     (** [spawno thrd thrd1 thrd2] spawns two new child threads with viewfronts equal to parent's viewfronts
@@ -198,6 +200,8 @@ module Threads :
 
     val geto : ti -> Path.ti -> ThreadState.ti -> MiniKanren.goal
     val seto : ti -> ti -> Path.ti -> ThreadState.ti -> MiniKanren.goal
+
+
 
     val spawno : ti -> ti -> Path.ti -> MiniKanren.goal
     val joino  : ti -> ti -> Path.ti -> MiniKanren.goal

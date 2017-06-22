@@ -436,21 +436,21 @@ module Context =
           (Bool.oro b1 b2 b);
       ])
 
-    let rec pick_prmo term c loc n = Term.(conde [
-        (term === write !!MemOrder.RLX loc (const n)) &&& (c === hole ());
+    let rec pick_prmo term c rdx = Term.(conde [
+        (term === write !!MemOrder.RLX loc (const n)) &&& (rdx === term) &&& (c === hole ());
 
         fresh (t1 t2 c')
           (term === seq t1 t2)
           (conde [
-            (c === seq_left  c' t2) &&& (pick_prmo t1 c' loc n);
-            (c === seq_right t1 c') &&& (pick_prmo t2 c' loc n);
+            (c === seq_left  c' t2) &&& (pick_prmo t1 c' rdx);
+            (c === seq_right t1 c') &&& (pick_prmo t2 c' rdx);
           ]);
 
         fresh (t1 t2 c')
           (term === par t1 t2)
           (conde [
-            (c === par_left  c' t2) &&& (pick_prmo t1 c' loc n);
-            (c === par_right t1 c') &&& (pick_prmo t2 c' loc n);
+            (c === par_left  c' t2) &&& (pick_prmo t1 c' rdx);
+            (c === par_right t1 c') &&& (pick_prmo t2 c' rdx);
           ]);
       ])
 

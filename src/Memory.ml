@@ -232,10 +232,6 @@ module PromiseSet =
 
     let printer =
       pprint_llist Promise.printer
-      (* let pp ff prm =
-        pprint_llist Promise.printer ff prm
-      in
-      pprint_logic pp *)
 
   end
 
@@ -406,6 +402,14 @@ module ThreadState =
         (updateo thrd' thrd'' loc ts)
       )
 
+    let laggingo thrd b =
+      fresh (regs curr rel acq prm)
+        (thrd === thrd_state regs curr rel acq prm)
+        (conde [
+          (prm =/= inj_listi []) &&& (b === !!true);
+          (prm === inj_listi []) &&& (b === !!false);
+        ])
+
     let certifyo thrd =
       fresh (regs curr rel acq prm)
         (thrd  === thrd_state regs curr rel acq prm)
@@ -526,6 +530,19 @@ module Threads =
           ])
         ])
       )
+
+    let rec laggingo tree b =
+      fresh (thrd l r b1 b2)
+        (conde [
+            (tree === leaf thrd) &&&
+            (ThreadState.laggingo thrd b);
+
+            (tree =/= leaf thrd) &&&
+            (tree === node thrd l r) &&&
+            (laggingo l b1) &&&
+            (laggingo r b2) &&&
+            (MiniKanren.Bool.oro b1 b2 b);
+        ])
 
     let rec spawno tree tree' path = Path.(
       fresh (thrd l l' r r' path')
@@ -850,6 +867,11 @@ module MemState =
         (Threads.geto tree       path thrd )
         (Threads.seto tree tree' path thrd')
         (ThreadState.fulfillo thrd thrd')
+
+    let laggingo t b =
+      fresh (tree story)
+        (t === mem_state tree story)
+        (Threads.laggingo tree b)
 
     let certifyo t path =
       fresh (tree story thrd)
