@@ -8,21 +8,32 @@ let rec pprint_logic pp ff = function
     List.iter (fun ctr -> Format.fprintf ff "=/= %a; " (pprint_logic pp) ctr) ctrs;
     Format.fprintf ff "}"
 
-let pprint_llist'' pp pp_tail ff = function
-  | Cons (x, xs) -> Format.fprintf ff "%a;@;<1>%a" pp x pp_tail xs
-  | Nil          -> ()
+let rec pprint_llist' pp ff = function
+  | Var (i, ctrs) ->
+    Format.fprintf ff "?%d{" i;
+    List.iter (fun ctr -> Format.fprintf ff "=/= %a; " (pprint_llist' pp) ctr) ctrs;
+    Format.fprintf ff "}"
+  | Value (Cons (x, Value Nil))     -> Format.fprintf ff "%a;@;<1>" pp x
+  | Value (Cons (x, xs))            -> Format.fprintf ff "%a;@;<1 4>%a" pp x (pprint_llist' pp) xs
+  | Value Nil                       -> ()
 
-let rec pprint_llist' pp ff xs =
-  pprint_logic (pprint_llist'' pp (pprint_llist' pp)) ff xs
+(* let rec pprint_llist' pp ff xs =
+  pprint_logic (pprint_llist'' pp (pprint_llist' pp)) ff xs *)
 
 let pprint_llist_generic fmt fmt_cell pp ff xs =
   Format.fprintf ff fmt (pprint_llist' fmt_cell pp) xs
 
 (* let pprint_llist = pprint_llist_generic "@[<h>[ %a]@]" "%a; %a" *)
-let pprint_llist pp ff xs = Format.fprintf ff "@[<hv>[ %a]@]" (pprint_llist' pp) xs
+let pprint_llist pp ff xs = Format.fprintf ff "@[<hv>[@;<1 4>%a]@]" (pprint_llist' pp) xs
 
 let rec pprint_nat ff n =
-  let pp ff _ = Format.fprintf ff "%d" (Nat.to_int @@ Nat.from_logic n) in
+  let nat_to_str n =
+    try
+      string_of_int @@ Nat.to_int @@ Nat.from_logic n
+    with Not_a_value -> "n"
+  in
+  let pp ff _ = Format.fprintf ff "%s" (nat_to_str n) in
+  (* let pp ff _ = Format.fprintf ff "n" in *)
   pprint_logic pp ff n
 
 let pprint_string = pprint_logic (fun ff s -> Format.fprintf ff "%s" s)

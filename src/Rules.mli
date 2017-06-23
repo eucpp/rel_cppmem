@@ -49,6 +49,20 @@ module ThreadSpawning :
     module Step : CppMemStep
   end
 
+module NonAtomic :
+  sig
+    type ti = Lang.Term.ti
+    type ci = Lang.Context.ti
+    type si = Memory.MemState.ti
+
+    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
+
+    val read_na  : string * rule
+    val write_na : string * rule
+
+    val all : (string * rule) list
+  end
+
 module Rlx :
   sig
     val read_rlx  : string * rule
