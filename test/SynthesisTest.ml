@@ -3,6 +3,7 @@ open MiniKanren
 open TestUtils
 open Lang
 open Lang.Term
+open Rules
 open Memory
 
 let test_synth ?n ?(mem_cstrs=[fun s -> success]) ?(holes_cstrs=[fun m -> success]) term expected test_ctx =

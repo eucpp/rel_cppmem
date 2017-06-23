@@ -61,12 +61,7 @@ let assert_stream ?(empty_check = true)
 
 (* module Sem = Semantics.Make(Lang.Term)(Lang.Context)(MemState) *)
 
-let test_prog (module S: Semantics.Step with
-    type tt = Term.tt            and
-    type tl = Term.tl            and
-    type st = Memory.MemState.tt and
-    type sl = Memory.MemState.tl
-  ) ?n ?(negative=false) term expected test_ctx =
+let test_prog (module S : Rules.CppMemStep) ?n ?(negative=false) term expected test_ctx =
   let module Sem = Semantics.Make(S) in
   let show s  = s in
   let rs, vs  = ["r1";"r2";"r3";"r4"], ["x";"y";"z";"f"] in
@@ -84,9 +79,9 @@ let test_prog (module S: Semantics.Step with
     let set'   = S.add answer !set in
     cnt := !cnt + 1;
     set := set';
-    Printf.printf "\n%d: %s\n%s\n" !cnt answer memory
+    Printf.printf "\n%d:\n%s\n%s\n" !cnt answer memory
   in
-  let _ = Printf.printf "\n\nTest program:%s\nOutput:" (Term.pprint @@ Term.to_logic @@ prj term) in
+  let _ = Printf.printf "\n\nTest program:\n%s\nOutput:" (Term.pprint @@ Term.to_logic @@ prj term) in
   let _ = match n with
     | Some n -> List.iter handler @@ fst @@ Stream.retrieve ~n:n stream
     | None   -> Stream.iter handler stream

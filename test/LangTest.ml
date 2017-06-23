@@ -8,12 +8,20 @@ open TestUtils
 open Term.T
 open Context.T
 
-let test_reducible pairs test_ctx =
-  let reducible t = run q (fun q -> Context.reducibleo (Term.inj t) q) prj_stream in
-  List.iter (fun (t, b) -> assert_single_answer b (reducible t)) pairs
+let string_of_bool = function
+  | true -> "true"
+  | false -> "false"
+
+let test_order order pairs test_ctx =
+  let stream t = run q (fun q -> order (Term.inj t) q) prj_stream in
+  List.iter (fun (t, b) -> assert_single_answer ~printer:string_of_bool b (stream t)) pairs
+
+let test_reducible = test_order Term.reducibleo
+
+let test_can_prm = test_order Context.can_prmo
 
 let test_thrd_reducible triples test_ctx =
-  let reducible t path = run q (fun q -> Context.thrd_reducibleo (Term.inj t) (Path.inj path) q) prj_stream in
+  let reducible t path = run q (fun q -> Term.reducibleo ~path:(Path.inj path) (Term.inj t) q) prj_stream in
   List.iter (fun (t, path, b) -> assert_single_answer b (reducible t path)) triples
 
 let test_split term expected test_ctx =
@@ -29,11 +37,11 @@ let test_plug ctx_term expected test_ctx =
   assert_single_answer ~printer:(fun t -> Term.pprint @@ Term.to_logic t) expected stream
 
 let test_pick_prm term expected test_ctx =
-  let pick_prm t = run qrs (fun q  r  s  -> Context.pick_prmo (Term.inj t) q r s)
-                           (fun qs rs ss -> Utils.zip3 (prj_stream qs) (prj_stream rs) (prj_stream ss))
+  let pick_prm t = run qr (fun q  r  -> Context.pick_prmo (Term.inj t) q r)
+                          (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
   in
   let stream = pick_prm term in
-  let printer (c, loc, n) = Printf.sprintf "%s:=%d" loc (Nat.to_int n) in
+  let printer (c, t) = Printf.sprintf "%s" @@ Term.pprint (Term.to_logic t) in
   assert_stream ~printer expected stream
 
 let const n = Const (Nat.of_int n)
@@ -92,16 +100,32 @@ let tests =
                             assert_equal ["r2";"r1"] vars ~cmp:(=) ~printer:(String.concat ",");
                             assert_equal ["x"] atomics ~cmp:(=) ~printer:(String.concat ","));
 
+    "test_can_prm">:: (
+      let t1 = Write (RLX, "x", const 1) in
+      let t2 = Write (RLX, "y", const 1) in
+      test_can_prm [
+        (Seq (t1, t2), true);
+        (Seq (Skip, t2), true);
+        (Seq (t1, Skip), true);
+        (Seq (Skip, Skip), false);
+
+        (Par (t1, t2), true);
+        (Par (Skip, t2), true);
+        (Par (t1, Skip), true);
+        (Par (Skip, Skip), false);
+      ];
+    );
+
     "test_pick_prm_1">:: (
       let t1 = Write (RLX, "x", const 1) in
       let t2 = Write (RLX, "y", const 1) in
-      test_pick_prm (Seq (t1, t2)) [(SeqL (Hole, t2), "x", Nat.of_int 1); (SeqR (t1, Hole), "y", Nat.of_int 1)]
+      test_pick_prm (Seq (t1, t2)) [(SeqL (Hole, t2), t1); (SeqR (t1, Hole), t2)]
     );
 
     "test_pick_prm_2">:: (
       let t1 = Write (RLX, "x", const 1) in
       let t2 = Write (RLX, "y", const 1) in
-      test_pick_prm (Par (t1, t2)) [(ParL (Hole, t2), "x", Nat.of_int 1); (ParR (t1, Hole), "y", Nat.of_int 1)]
+      test_pick_prm (Par (t1, t2)) [(ParL (Hole, t2), t1); (ParR (t1, Hole), t2)]
     );
 
     "test_pick_prm_3">:: (
@@ -109,9 +133,9 @@ let tests =
       let t2 = Write (RLX, "y", const 1) in
       let t3 = Write (RLX, "z", const 1) in
       test_pick_prm (Par (t1, Seq (t2, t3))) [
-        (ParL (Hole, Seq (t2, t3)),  "x", Nat.of_int 1);
-        (ParR (t1, SeqL (Hole, t3)), "y", Nat.of_int 1);
-        (ParR (t1, SeqR (t2, Hole)), "z", Nat.of_int 1);
+        (ParL (Hole, Seq (t2, t3)),  t1);
+        (ParR (t1, SeqL (Hole, t3)), t2);
+        (ParR (t1, SeqR (t2, Hole)), t3);
       ]
     );
   ]

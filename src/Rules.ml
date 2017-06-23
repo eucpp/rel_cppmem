@@ -14,11 +14,11 @@ type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
 type condition = (ci -> ti -> si -> MiniKanren.goal)
 
-type predicate = (ti -> MiniKanren.Bool.groundi -> MiniKanren.goal)
+type predicate = (ti * si -> MiniKanren.Bool.groundi -> MiniKanren.goal)
 
 type order = (ti -> ci -> ti -> MiniKanren.goal)
 
-module type CppMemStep = Semantics.Step with
+module type CppMemStep = Semantics.StepRelation with
   type tt = Lang.Term.tt       and
   type tl = Lang.Term.tl       and
   type st = Memory.MemState.tt and
@@ -47,7 +47,7 @@ let make_reduction_relation
   ?(preconditiono  = fun _ _ _ -> success)
   ?(postconditiono = fun _ _ _ -> success)
   ?(ordero = splito)
-  ?reducibleo
+  ?(reducibleo = fun (t, s) b -> reducibleo t b)
   rules =
   let stepo (t, s) (t', s') =
     fresh (c c' rdx rdx')
@@ -102,14 +102,14 @@ module Basic =
         (t  === binop op (const x) (const y))
         (t' === const z)
         (conde [
-          (op === !"+")  &&& (Nat.addo x y z);
-          (op === !"*")  &&& (Nat.mulo x y z);
-          (op === !"=")  &&& (conde [(x === y) &&& (z === (inj_nat 1)); (x =/= y) &&& (z === (inj_nat 0))]);
-          (op === !"!=") &&& (conde [(x =/= y) &&& (z === (inj_nat 1)); (x === y) &&& (z === (inj_nat 0))]);
-          (op === !"<")  &&& (conde [(Nat.lto x y !!true) &&& (z === (inj_nat 1)); (Nat.lto x y !!false) &&& (z === (inj_nat 0))]);
-          (op === !"<=") &&& (conde [(Nat.leo x y !!true) &&& (z === (inj_nat 1)); (Nat.leo x y !!false) &&& (z === (inj_nat 0))]);
-          (op === !">")  &&& (conde [(Nat.gto x y !!true) &&& (z === (inj_nat 1)); (Nat.gto x y !!false) &&& (z === (inj_nat 0))]);
-          (op === !">=") &&& (conde [(Nat.geo x y !!true) &&& (z === (inj_nat 1)); (Nat.geo x y !!false) &&& (z === (inj_nat 0))]);
+          (op === !!"+")  &&& (Nat.addo x y z);
+          (op === !!"*")  &&& (Nat.mulo x y z);
+          (op === !!"=")  &&& (conde [(x === y) &&& (z === (inj_nat 1)); (x =/= y) &&& (z === (inj_nat 0))]);
+          (op === !!"!=") &&& (conde [(x =/= y) &&& (z === (inj_nat 1)); (x === y) &&& (z === (inj_nat 0))]);
+          (op === !!"<")  &&& (conde [(Nat.lto x y !!true) &&& (z === (inj_nat 1)); (Nat.lto x y !!false) &&& (z === (inj_nat 0))]);
+          (op === !!"<=") &&& (conde [(Nat.leo x y !!true) &&& (z === (inj_nat 1)); (Nat.leo x y !!false) &&& (z === (inj_nat 0))]);
+          (op === !!">")  &&& (conde [(Nat.gto x y !!true) &&& (z === (inj_nat 1)); (Nat.gto x y !!false) &&& (z === (inj_nat 0))]);
+          (op === !!">=") &&& (conde [(Nat.geo x y !!true) &&& (z === (inj_nat 1)); (Nat.geo x y !!false) &&& (z === (inj_nat 0))]);
         ])
 
     let binop = ("binop", binopo)
@@ -144,7 +144,7 @@ module Basic =
 
     let all = [var; binop; asgn; if'; repeat; seq;]
 
-    let module Step = (val make_reduction_relation all)
+    module Step = (val make_reduction_relation all)
 
   end
 
@@ -176,6 +176,7 @@ module ThreadSpawning =
           (t1 === stuck ())                       &&& (t' === stuck ()) &&& (c' === hole ());
           (t1 =/= stuck ()) &&& (t2 === stuck ()) &&& (t' === stuck ()) &&& (c' === hole ());
           (t1 =/= stuck ()) &&& (t2 =/= stuck ()) &&& (c === c') &&& (conde [
+            (t1 === skip ()) &&& (t2 === skip ()) &&& (t' === skip ());
             (t1 === skip ()) &&& (expro t2) &&& (t' === t2);
             (expro t1) &&& (t2 === skip ()) &&& (t' === t1);
             (expro t1) &&& (expro t2)       &&& (t' === pair t1 t2);
@@ -188,7 +189,7 @@ module ThreadSpawning =
 
     let all = [spawn; join]
 
-    let module Step = (val make_reduction_relation all)
+    module Step = (val make_reduction_relation all)
 
   end
 
@@ -217,7 +218,7 @@ module Rlx =
 
     let all = [read_rlx; write_rlx; ]
 
-    let module Step = (val make_reduction_relation all)
+    module Step = (val make_reduction_relation all)
 
   end
 
@@ -246,15 +247,15 @@ module RelAcq =
 
     let all = [read_acq; write_rel; ]
 
-    let module Step = (val make_reduction_relation all)
+    module Step = (val make_reduction_relation all)
 
   end
 
-let certifyo path t s rules =
+let certifyo rules path t s  =
+  let preconditiono c _ _ = Context.patho c path in
+  let reducibleo = fun (t, _) b -> reducibleo ~path t b in
   let module CertStep =
-    let precondition c _ _ = Context.patho c path in
-    let reducibleo = reducibleo ~path in
-    make_reduction_relation ~precondition ~reducibleo rules
+    (val make_reduction_relation ~preconditiono ~reducibleo rules)
   in
   let module Cert = Semantics.Make(CertStep) in
   Cert.(
@@ -263,17 +264,16 @@ let certifyo path t s rules =
       ((t, s) -->* (t', s'))
   )
 
-
 module Promising =
   struct
 
     let promiseo c t s c' t' s' =
-      fresh (l n mo path)
+      fresh (l n path)
         (c  === c')
         (t  === write !!RLX l (const n))
         (t' === skip ())
         (patho c path)
-        (MemState.promiseo s s' path l n)
+        (MemState.promiseo s s' (Path.pathl @@ Path.pathn ()) l n)
 
     let promise = ("promise", promiseo)
 
@@ -288,17 +288,40 @@ module Promising =
 
     let all = [promise; fulfill]
 
-    let reducibleo (t, s) b =
-      fresh (b1 b2)
-        (can_prmo t b1)
-        (MemState.laggingo s b2)
-        (Bool.oro b1 b2 b)
+    module PromiseStep =
+      (val make_reduction_relation
+        ~reducibleo:(fun (t, _) b -> can_prmo t b)
+        ~ordero:pick_prmo
+        [promise]
+      )
 
-    let ordero term c rdx = conde [
-      (term === rdx) &&& (c === hole ());
-      (pick_prmo term c rdx);
-    ]
+    module FulfillStep =
+      (val make_reduction_relation
+        ~reducibleo:(fun (_, s) b -> MemState.laggingo s b)
+        ~ordero:(fun t c rdx -> (t === rdx) &&& (c === hole ()))
+        [fulfill]
+      )
 
-    let module Step = (val make_reduction_relation ~reducibleo ~ordero all)
+    let make_certified_step rules =
+      let ext_rules = fulfill::rules in
+      let reducibleo (t, s) b =
+        fresh (b1 b2)
+          (Term.reducibleo t b1)
+          (MemState.laggingo s b2)
+          (Bool.oro b1 b2 b)
+      in
+      let postconditiono c rdx s =
+        fresh (t path)
+          (patho c path)
+          (plugo t c rdx)
+          (certifyo ext_rules path t s)
+      in
+      let module CertStep =
+        (val make_reduction_relation (*~postconditiono*) ~reducibleo ext_rules) in
+        (module struct
+          include Semantics.UnionRelation(CertStep)(PromiseStep)
+          (* include CertStep *)
+          (* include PromiseStep *)
+        end : CppMemStep)
 
   end

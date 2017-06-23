@@ -429,7 +429,7 @@ module ThreadState =
              acq  acq' acq1 acq2
              prm prm1 prm2)
         (thrd   === thrd_state regs  curr  rel  acq  (nil ()))
-        (thrd'  === thrd_state regs  curr' rel' acq' (nil ()) )
+        (thrd'  === thrd_state regs  curr' rel' acq' (nil ()))
         (child1 === thrd_state regs1 curr1 rel1 acq1 (nil ()))
         (child2 === thrd_state regs2 curr2 rel2 acq2 (nil ()))
         (ViewFront.mergeo curr1 curr2 curr')

@@ -186,15 +186,19 @@ let test_LBd step = test_prog step prog_LBd ["0";]
 let rlx_rules = Rules.Basic.all @ Rules.Rlx.all
 let rlx_relAcq_rules = rlx_rules @ Rules.RelAcq.all
 
-let promising_rules = rlx_rules @ [Rules.Promise.fulfill]
+let relAcqStep = Rules.make_reduction_relation (rlx_relAcq_rules @ Rules.ThreadSpawning.all)
 
-let relAcqStep = make_reduction_relation (rlx_relAcq_rules @ Rules.ThreadSpawning.all)
-let promisingStep = make_certified_relation promising_rules Rules.ThreadSpawning.all
+let promisingStep =
+  let module CertStep = (val Rules.Promising.make_certified_step (Rules.Basic.all @ Rules.Rlx.all)) in
+  (module struct
+    include Semantics.UnionRelation(Rules.ThreadSpawning.Step)(CertStep)
+  end : Rules.CppMemStep)
+
 
 let tests =
   "Litmus">::: [
-    "LB">: OUnitTest.TestCase (OUnitTest.Huge, test_LB promisingStep);
-    "LBd">: OUnitTest.TestCase (OUnitTest.Huge, test_LBd promisingStep);
+    "LB">:: test_LB promisingStep;
+    "LBd">:: test_LBd promisingStep;
 
     "rel_acq">:: test_rel_acq relAcqStep;
     "SB">:: test_SB relAcqStep;

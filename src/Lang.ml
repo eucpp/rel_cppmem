@@ -371,12 +371,12 @@ module Context =
             (rdx === stuck ()) &&& (term === stuck ());
           ]); *)
 
-        fresh (t1 t2 c' t')
+        fresh (t1 t2 c')
           (term === par t1 t2)
           (conde [
              ((c === hole ())         &&& (rdx === term ));
-             ((c === par_left  c' t2) &&& (rdx === t') &&& (plugo t1 c' t'));
-             ((c === par_right t1 c') &&& (rdx === t') &&& (plugo t2 c' t'));
+             ((c === par_left  c' t2) &&& (plugo t1 c' rdx));
+             ((c === par_right t1 c') &&& (plugo t2 c' rdx));
           ]);
 
         ((c === hole ()) &&& (rdx === term) &&& conde [
@@ -421,23 +421,69 @@ module Context =
       ))
 
     let rec can_prmo t b = Term.(conde [
-        (term === write !!MemOrder.RLX loc (const n)) &&& (b === !!true);
+        fresh (mo loc e n)
+          (t === write mo loc e)
+          (conde [
+            (mo === !!MemOrder.RLX) &&& (conde [
+              (e === const n) &&& (b === !!true);
+              fresh (x)
+                (e === var x) &&& (b === !!false);
+              fresh (x mo')
+                (e === read mo' x) &&& (b === !!false);
+            ]);
+            (mo =/= !!MemOrder.RLX) &&& (b === !!false);
+          ]);
 
         fresh (t1 t2 b1 b2)
-          (term === seq t1 t2)
+          (t === seq t1 t2)
           (can_prmo t1 b1)
           (can_prmo t2 b2)
           (Bool.oro b1 b2 b);
 
         fresh (t1 t2 b1 b2)
-          (term === par t1 t2)
+          (t === par t1 t2)
           (can_prmo t1 b1)
           (can_prmo t2 b2)
           (Bool.oro b1 b2 b);
+
+        fresh (cond t1 t2 b1 b2)
+          (t === if' cond t1 t2)
+          (can_prmo t1 b1)
+          (can_prmo t2 b2)
+          (Bool.oro b1 b2 b);
+
+        fresh (t')
+          (t === repeat t')
+          (can_prmo t' b);
+
+        fresh (n)
+          (t === const n)
+          (b === !!false);
+        fresh (x)
+          (t === var x)
+          (b === !!false);
+        fresh (t1 t2)
+          (t === pair t1 t2)
+          (b === !!false);
+        fresh (t1 t2)
+          (t === asgn t1 t2)
+          (b === !!false);
+        fresh (mo l)
+          (t === read mo l)
+          (b === !!false);
+        fresh (mo1 mo2 l t1 t2)
+          (t === cas mo1 mo2 l t1 t2)
+          (b === !!false);
+        fresh (t1 t2)
+          (t === spw t1 t2)
+          (b === !!false);
+
+        (t === skip ()) &&& (b === !!false);
       ])
 
     let rec pick_prmo term c rdx = Term.(conde [
-        (term === write !!MemOrder.RLX loc (const n)) &&& (rdx === term) &&& (c === hole ());
+        fresh (loc n)
+          (term === write !!MemOrder.RLX loc (const n)) &&& (rdx === term) &&& (c === hole ());
 
         fresh (t1 t2 c')
           (term === seq t1 t2)
@@ -456,7 +502,7 @@ module Context =
 
   end
 
-let make_thread_step rules thrd_path =
+(* let make_thread_step rules thrd_path =
   let reducibleo t b = Context.thrd_reducibleo t thrd_path b in
   let stepo (t, s) (t', s') =
     fresh (c c' rdx rdx')
@@ -518,4 +564,4 @@ let make_certified_relation thrd_rules spw_join_rules =
         (spw_join_stepo (t, c, s) (t', c', s'));
       ])
   in
-  make_step_relation ~reducibleo ~stepo
+  make_step_relation ~reducibleo ~stepo *)

@@ -68,6 +68,9 @@ EXTEND
       | "spw"; "{";"{";"{"; t1 = term; "|||"; t2 = term; "}";"}";"}" ->
         <:expr< spw $t1$ $t2$ >>
 
+      | "par"; "{";"{";"{"; t1 = term; "|||"; t2 = term; "}";"}";"}" ->
+        <:expr< par $t1$ $t2$ >>
+
       | "ret"; t = term -> t
 
       | "?"; q = term_antiquot -> q

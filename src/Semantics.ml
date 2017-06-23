@@ -1,6 +1,6 @@
 open MiniKanren
 
-module type Step =
+module type StepRelation =
   sig
     type tt
     type tl
@@ -14,7 +14,36 @@ module type Step =
     val (-->) : ti * si -> ti * si -> MiniKanren.goal
   end
 
-module Make(S : Step) =
+  module UnionRelation
+    (S1 : StepRelation)
+    (S2 : StepRelation with
+      type tt = S1.tt  and
+      type tl = S1.tl  and
+      type st = S1.st  and
+      type sl = S1.sl) =
+  struct
+    type tt = S1.tt
+    type tl = S1.tl
+    type ti = (tt, tl) MiniKanren.injected
+
+    type st = S1.st
+    type sl = S1.sl
+    type si = (st, sl) MiniKanren.injected
+
+    let (->?) x b =
+      fresh (b1 b2)
+        (S1.(->?) x b1)
+        (S2.(->?) x b2)
+        (Bool.oro b1 b2 b)
+
+    let (-->) a b = conde [
+      S1.(-->) a b;
+      S2.(-->) a b;
+    ]
+
+  end
+
+module Make(S : StepRelation) =
   struct
     type tt = S.tt
     type tl = S.tl
@@ -27,7 +56,8 @@ module Make(S : Step) =
     let spaceo_norec spaceo t s t'' s'' = S.(
       conde [
         ((t, s) ->? !!false) &&& (t === t'') &&& (s === s'');
-        (fresh (t' s' rl)
+        (* ((t, s) ->? !!true) &&& (t === t'') &&& (s === s''); *)
+        (fresh (t' s')
           ((t, s) ->? !!true)
           ((t, s) --> (t', s'))
           (delay @@ fun () -> spaceo t' s' t'' s''));

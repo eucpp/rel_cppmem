@@ -11,7 +11,7 @@ type predicate = (ti * si -> MiniKanren.Bool.groundi -> MiniKanren.goal)
 
 type order = (ti -> ci -> ti -> MiniKanren.goal)
 
-module type CppMemStep = Semantics.Step with
+module type CppMemStep = Semantics.StepRelation with
   type tt = Lang.Term.tt       and
   type tl = Lang.Term.tl       and
   type st = Memory.MemState.tt and
@@ -69,8 +69,6 @@ module RelAcq :
     module Step : CppMemStep
   end
 
-val certifyo : Memory.Path.ti -> Lang.Term.ti -> Memory.MemState.ti -> (string * rule) list -> MiniKanren.goal
-
 module Promising :
   sig
     val promise : string * rule
@@ -78,5 +76,8 @@ module Promising :
 
     val all : (string * rule) list
 
-    module Step : CppMemStep
+    module PromiseStep : CppMemStep
+    module FulfillStep : CppMemStep
+
+    val make_certified_step : (string * rule) list -> (module CppMemStep)
   end
