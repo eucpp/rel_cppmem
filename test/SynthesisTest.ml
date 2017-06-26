@@ -3,101 +3,127 @@ open MiniKanren
 open TestUtils
 open Lang
 open Lang.Term
-open Rules
 open Memory
 
-let test_synth ?n ?(mem_cstrs=[fun s -> success]) ?(holes_cstrs=[fun m -> success]) term expected test_ctx =
-  let rules = Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.Rlx.all @ Rules.RelAcq.all in
-  let module Step = (val make_reduction_relation rules) in
-  let module Sem = Semantics.Make(Step) in
-  let rs, vs  = ["r1";"r2";"r3";"r4"], ["x";"y";"z";"f"] in
-  let state   = MemState.inj @@ MemState.preallocate rs vs in
-  let stream  = Sem.(
-   run q
-    (fun q ->
-      let term = term q in
-      fresh (term' state')
-        (conde @@ List.map (fun cstro -> cstro q) holes_cstrs)
-        ((term, state) -->* (term', state'))
-        (conde @@ List.map (fun cstro -> cstro state') mem_cstrs)
-    )
-    (fun qs -> Stream.map Term.refine qs)
-  ) in
-  let tbl = Hashtbl.create 31 in
-  let actual = ref [] in
-  let cnt = ref 0 in
-  let handler t =
-    let answer = Term.pprint t in
-    if not @@ Hashtbl.mem tbl t then
-      cnt := !cnt + 1;
-      actual := answer::(!actual);
-      Hashtbl.add tbl t answer;
-      Printf.printf "\n---------------------------------\n";
-      Printf.printf "%s" answer;
-      Printf.printf "\n---------------------------------\n";
-  in
-  (* let _ = Printf.printf "\n\nTest program: %s" (Term.pprint @@ Term.to_logic @@ prj (term @@ var ) in *)
-  let _ = match n with
-    | Some n -> List.iter handler @@ fst @@ Stream.retrieve ~n:n stream
-    | None   -> Stream.iter handler stream
-  in
-  assert_lists expected !actual ~printer:(fun s -> s) ~cmp:(=)
+let rules = Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.NonAtomic.all @ Rules.RelAcq.all
 
-let prog_ASGN = fun q -> <:cppmem< ? q; ret r1 >>
+module RelAcqStep = (val Rules.make_reduction_relation rules)
 
-let test_ASGN = test_synth ~n:1 prog_ASGN ["r1 := 1"]
-                ~mem_cstrs:[
-                  fun mem -> MemState.get_localo mem (Path.pathn ()) !!"r1" (inj_nat 1)
-                ]
+module Sem = Semantics.Make(RelAcqStep)
+
+let ret n = const @@ Nat.inj @@ Nat.of_int n
+
+let varo e = Term.(conde [
+  (* fresh (x)
+    (e === var x); *)
+  fresh (mo x)
+    (e === read mo !!"f");
+])
 
 let well_expro e = Term.(conde[
+  (varo e);
+
   fresh (n)
-    (e === const n);
-  fresh (x)
-    (e === var x);
+    (e === const (Nat.inj @@ Nat.of_int 1));
+
+(*
   fresh (op e1 e2 n x)
     (e  === binop op e1 e2)
     (e1 === var x)
-    (e2 === const n);
+    (e2 === const n); *)
   ])
 
-let well_termo t = Term.(conde [
-    fresh (mo x)
-      (t === read mo x);
-    fresh (mo x e)
-      (t === write mo x e)
-      (well_expro e);
-    (well_expro t);
-  ])
+let rec well_termo t = Term.(conde [
+  (* (well_expro t); *)
 
-let prog_MP_part = fun q r -> <:cppmem<
-    x_rlx := 0;
-    f_rlx := 0;
+  fresh (mo e)
+    (t === write mo !!"f" e)
+    (* (well_expro e); *)
+    (e === const (Nat.inj @@ Nat.of_int 1));
+
+  fresh (mo)
+    (t === read mo !!"f");
+
+  (* fresh (x l r)
+    (t === asgn l r)
+    (l === var x)
+    (well_expro r); *)
+
+  (* fresh (cond t1 t2)
+    (t === if' cond t1 t2)
+    (well_expro cond)
+    (well_termo t1)
+    (well_termo t2); *)
+
+  (* fresh (t')
+    (t === repeat t')
+    (well_expro t'); *)
+])
+
+let prog_ASGN = fun q -> <:cppmem<
+  ? q;
+  ret r1
+>>
+
+let prog_MP = fun q r -> <:cppmem<
+    (* x_na := 0;
+    f_na := 0; *)
     spw {{{
-        x_rlx := 1;
-        ? q;
-        ret 1
+        x_na := 1;
+        ? q
     |||
         repeat ? r end;
-        r2 := x_rlx;
-        ret r2
+        r1 := x_na;
+        ret r1
     }}}
 >>
 
-(* let test_MP = test_synth ~n:2 prog_MP_part [prog_MP]
-              ~holes_cstrs:[
-                fun m ->
-                  (well_termo (Mapping.get m 1)) &&&
-                  (well_termo (Mapping.get m 2))
-              ]
-              ~mem_cstrs:[
-                fun mem ->
-                  (MemState.last_valueo mem !!"x" (inj_nat 1)) &&&
-                  (MemState.last_valueo mem !!"f" (inj_nat 1))
-              ] *)
-
 let tests =
   "Synthesis">::: [
-    "ASGN">:: test_ASGN;
-    (* "MP">:: test_MP; *)
+    "ASGN">:: (fun text_ctx ->
+      let term = prog_ASGN in
+      let state = MemState.inj @@ MemState.preallocate ["r1"] [] in
+      let stream = Sem.(
+        run q
+          (fun q  ->
+            fresh (term' state')
+              (well_termo q)
+              ((term q, state) -->* (ret 1, state'))
+          )
+          (fun qs -> Stream.map Term.refine qs)
+      ) in
+      let printer t =
+        Printf.printf "\n---------------------------------\n";
+        Printf.printf "%s" @@ Term.pprint t;
+        Printf.printf "\n---------------------------------\n";
+      in
+      List.iter printer @@ Stream.take ~n:9 stream
+    );
+
+    "MP">: OUnitTest.TestCase (OUnitTest.Long, fun text_ctx ->
+      let term = prog_MP in
+      let state = MemState.inj @@ MemState.preallocate ["r1"] ["x"; "f"] in
+      let refine = Stream.map Term.refine in
+      let stream = Sem.(
+        run qr
+          (fun q  r  ->
+            fresh (state')
+              (well_termo q)
+              (well_termo r)
+              ((term q r, state) -->* (ret 42, state'))
+              (negation (
+                fresh (term')
+                  (term' =/= ret 42)
+                  ((term q r, state) -->* (term', state'))
+              ))
+          )
+          (fun qs rs -> Stream.zip (refine qs) (refine rs))
+      ) in
+      let printer (q, r) =
+        Printf.printf "\n---------------------------------\n";
+        Printf.printf "q = %s;\n r = %s" (Term.pprint q) (Term.pprint r);
+        Printf.printf "\n---------------------------------\n";
+      in
+      List.iter printer @@ Stream.take ~n:1 stream
+    )
   ]
