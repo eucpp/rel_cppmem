@@ -337,7 +337,7 @@ module ThreadState =
         (thrd' === thrd_state regs' curr rel acq prm)
         (VarList.seto regs regs' var value)
 
-    let last_tso thrd loc ts =
+    let tso thrd loc ts =
       fresh (regs curr rel acq prm)
         (thrd === thrd_state regs curr rel acq prm)
         (VarList.geto curr loc ts)
@@ -403,7 +403,7 @@ module ThreadState =
         (thrd' === thrd_state regs curr rel acq prm')
         (List.membero prm p)
         (p === Promise.promise loc ts value vf)
-        (last_tso thrd loc last_ts)
+        (tso thrd loc last_ts)
         (last_ts < ts)
         (* (vf === rel) *)
         (removeo prm prm' p)
@@ -663,6 +663,11 @@ module LocStory =
       printer var Format.str_formatter story;
       Format.flush_str_formatter ()
 
+    let last_tso t ts =
+      fresh (ts' story)
+        (t   === loc_story ts' story)
+        (ts' === Nat.succ ts)
+
     let next_tso t ts =
       fresh (story)
         (t === loc_story ts story)
@@ -717,6 +722,11 @@ module MemStory =
     let pprint story =
       printer Format.str_formatter story;
       Format.flush_str_formatter ()
+
+    let last_tso t loc ts =
+      fresh (story)
+        (VarList.geto t loc story)
+        (LocStory.last_tso story ts)
 
     let next_tso t loc ts =
       fresh (story)
@@ -812,14 +822,22 @@ module MemState =
         (ThreadState.set_varo thrd thrd' var value)
 
     let read_nao t t' path loc value =
-      fresh (tree tree' story story' thrd thrd' last_ts ts vf)
-        (t  === mem_state tree  story)
-        (t' === mem_state tree' story)
-        (Threads.geto tree       path thrd)
-        (Threads.seto tree tree' path thrd')
-        (ThreadState.last_tso thrd loc last_ts)
-        (MemStory.reado story loc last_ts ts value vf)
-        (ThreadState.updateo thrd thrd' loc ts)
+      fresh (tree story thrd ts vf)
+        (t === t')
+        (t === mem_state tree story)
+        (Threads.geto tree path thrd)
+        (ThreadState.tso thrd loc ts)
+        (MemStory.last_tso story loc ts)
+        (MemStory.reado story loc ts ts value vf)
+
+    let read_na_stucko t t' path loc =
+      fresh (tree story thrd ts last_ts)
+        (t === t')
+        (t === mem_state tree story)
+        (Threads.geto tree path thrd)
+        (ThreadState.tso thrd loc ts)
+        (MemStory.last_tso story loc last_ts)
+        (ts =/= last_ts)
 
     let write_nao t t' path loc value =
       fresh (tree tree' story story' thrd thrd' ts rel vf)
@@ -850,7 +868,7 @@ module MemState =
         (t' === mem_state tree' story)
         (Threads.geto tree       path thrd)
         (Threads.seto tree tree' path thrd'')
-        (ThreadState.last_tso thrd loc last_ts)
+        (ThreadState.tso thrd loc last_ts)
         (MemStory.reado story loc last_ts ts value vf)
         (ThreadState.update_acqo thrd thrd' vf)
         (ThreadState.updateo thrd' thrd'' loc ts)

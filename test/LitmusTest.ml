@@ -21,6 +21,18 @@ let prog_rel_acq = <:cppmem<
 
 let test_rel_acq step = test_prog step prog_rel_acq ["(0, 0)"; "(0, 1)"; "(1, 1)";]
 
+let prog_data_race_1 = <:cppmem<
+  x_rlx := 0;
+  spw {{{
+      x_rlx := 1
+  |||
+      r1 := x_na;
+      ret r1
+  }}}
+>>
+
+let test_data_race_1 step = test_prog step prog_data_race_1 ["0"; "stuck"; ]
+
 let prog_SB = <:cppmem<
   x_rlx := 0;
   y_rlx := 0;
@@ -183,10 +195,12 @@ let prog_LBd = <:cppmem<
 
 let test_LBd step = test_prog step prog_LBd ["0";]
 
-let rlx_rules = Rules.Basic.all @ Rules.Rlx.all
+let rlx_rules = Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.NonAtomic.all @ Rules.Rlx.all
 let rlx_relAcq_rules = rlx_rules @ Rules.RelAcq.all
 
-let relAcqStep = Rules.make_reduction_relation (rlx_relAcq_rules @ Rules.ThreadSpawning.all)
+let rlxStep = Rules.make_reduction_relation (rlx_rules)
+
+let relAcqStep = Rules.make_reduction_relation (rlx_relAcq_rules)
 
 let promisingStep =
   let module CertStep = (val Rules.Promising.make_certified_step (Rules.Basic.all @ Rules.Rlx.all)) in
@@ -197,6 +211,8 @@ let promisingStep =
 
 let tests =
   "Litmus">::: [
+    "DR_1">:: test_data_race_1 rlxStep;  
+
     "LB">:: test_LB promisingStep;
     "LBd">:: test_LBd promisingStep;
 

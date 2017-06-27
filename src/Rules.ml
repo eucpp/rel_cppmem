@@ -211,6 +211,16 @@ module NonAtomic =
 
     let read_na = ("read_na", read_nao)
 
+    let read_na_stucko c t s c' t' s' =
+      fresh (l path n)
+        (c  === c')
+        (t  === read !!NA l)
+        (t' === stuck ())
+        (patho c path)
+        (MemState.read_na_stucko s s' path l)
+
+    let read_na_stuck = ("read_na_stuck", read_na_stucko)
+
     let write_nao c t s c' t' s' =
       fresh (l n path)
         (c  === c')
@@ -221,7 +231,7 @@ module NonAtomic =
 
     let write_na = ("write_na", write_nao)
 
-    let all = [read_na; write_na; ]
+    let all = [read_na; read_na_stuck; write_na; ]
   end
 
 module Rlx =

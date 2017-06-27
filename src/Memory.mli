@@ -133,8 +133,8 @@ module ThreadState :
     (** [set_varo thrd thrd' var value] performs write of thread-local variable *)
     val set_varo : ti -> ti -> Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
 
-    (** [last_tso thrd loc ts] obtains last timestamp [ts] at [loc] that was seen by thread [thrd] *)
-    val last_tso : ti -> Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+    (** [tso thrd loc ts] obtains last timestamp [ts] at [loc] that was seen by thread [thrd] *)
+    val tso : ti -> Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
 
     (** [updateo thrd thrd' loc ts] updates thread's viewfronts at [loc] by new timestamp [ts] *)
     val updateo : ti -> ti -> Loc.ti -> Timestamp.ti -> MiniKanren.goal
@@ -227,12 +227,20 @@ module LocStory :
 
     val pprint : Loc.tl -> tl -> string
 
+    (** [last_tso story ts] gets timestamp [ts] of last message written to [story] *)
+    val last_tso : ti -> Timestamp.ti -> MiniKanren.goal
+
+    (** [next_tso story ts] gets timestamp [ts] of next message to be written to [story] *)
     val next_tso : ti -> Timestamp.ti -> MiniKanren.goal
 
+    (** [reado story ts_lb ts value vf ] obtains all messages [(ts, value, vf)] from [story]
+          such that [ts_lb] <= [ts] *)
     val reado  : ti -> Timestamp.ti
                     -> Timestamp.ti -> Value.ti -> ViewFront.ti
                     -> MiniKanren.goal
 
+    (** [writeo story story' value vf ] writes new message [(ts, value, vf)] to [story]
+          such that for [ts] holds the relation [next_tso story ts] *)
     val writeo : ti -> ti -> Value.ti -> ViewFront.ti -> MiniKanren.goal
 
     val last_valueo : ti -> Value.ti -> MiniKanren.goal
@@ -254,7 +262,9 @@ module MemStory :
 
     val pprint : tl -> string
 
-    val next_tso : ti -> Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+    val last_tso : ti -> Loc.ti -> Timestamp.ti -> MiniKanren.goal
+
+    val next_tso : ti -> Loc.ti -> Timestamp.ti -> MiniKanren.goal
 
     val reado : ti -> Loc.ti -> Timestamp.ti
                    -> Timestamp.ti -> Value.ti -> ViewFront.ti
@@ -292,6 +302,8 @@ module MemState :
 
     val read_nao  : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
     val write_nao : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
+
+    val read_na_stucko: ti -> ti -> Path.ti -> Loc.ti -> MiniKanren.goal 
 
     val read_rlxo  : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
     val write_rlxo : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal

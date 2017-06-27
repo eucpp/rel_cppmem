@@ -41,10 +41,10 @@ let rec well_termo t = Term.(conde [
     (* (mo =/= !!MemOrder.NA) *)
     (well_expro e);
 
-  (* fresh (x l r)
+  fresh (x l r)
     (t === asgn l r)
     (l === var x)
-    (well_expro r); *)
+    (well_expro r);
 
   (* fresh (cond t1 t2)
     (t === if' cond t1 t2)
