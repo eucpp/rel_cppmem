@@ -291,7 +291,7 @@ module MemState :
 
     val refine : (tt, tl) MiniKanren.refined -> tl
 
-    val create : Threads.tt -> MemStory.tt -> tt
+    val create : ?na:ViewFront.tt -> Threads.tt -> MemStory.tt -> tt
 
     val preallocate : string list -> string list -> tt
 
@@ -303,7 +303,11 @@ module MemState :
     val read_nao  : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
     val write_nao : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
 
-    val read_na_stucko: ti -> ti -> Path.ti -> Loc.ti -> MiniKanren.goal 
+    val read_na_dro  : ti -> ti -> Path.ti -> Loc.ti -> MiniKanren.goal
+    val write_na_dro : ti -> ti -> Path.ti -> Loc.ti -> MiniKanren.goal
+
+    val read_dro  : ti -> ti -> Path.ti -> Loc.ti -> MiniKanren.goal
+    val write_dro : ti -> ti -> Path.ti -> Loc.ti -> MiniKanren.goal
 
     val read_rlxo  : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
     val write_rlxo : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal

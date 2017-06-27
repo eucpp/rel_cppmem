@@ -60,7 +60,11 @@ module NonAtomic :
     val read_na  : string * rule
     val write_na : string * rule
 
-    val read_na_stuck : string * rule
+    val read_na_dr  : string * rule
+    val write_na_dr : string * rule
+
+    val read_dr  : string * rule
+    val write_dr : string * rule
 
     val all : (string * rule) list
   end

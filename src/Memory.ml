@@ -754,44 +754,51 @@ module MemStory =
 module MemState =
   struct
     module T = struct
-      type ('a, 'b) t = {
+      type ('a, 'b, 'c) t = {
         thrds : 'a;
         story : 'b;
+        na    : 'c;
       }
 
-      let fmap fa fb {thrds = a; story = b} = {thrds = fa a; story = fb b}
+      let fmap fa fb fc {thrds = a; story = b; na = c} = {thrds = fa a; story = fb b; na = fc c}
     end
 
-    type tt = (Threads.tt, MemStory.tt) T.t
-    type tl_inner = (Threads.tl, MemStory.tl) T.t
+    type tt = (Threads.tt, MemStory.tt, ViewFront.tt) T.t
+    type tl_inner = (Threads.tl, MemStory.tl, ViewFront.tl) T.t
     type tl = tl_inner logic
     type ti = (tt, tl) MiniKanren.injected
 
-    include Fmap2(T)
+    include Fmap3(T)
 
-    let mem_state thrds story = inj @@ distrib @@ {T.thrds = thrds; T.story = story}
+    let mem_state thrds story na = inj @@ distrib @@ {T.thrds = thrds; T.story = story; T.na = na}
 
-    let inj {T.thrds = thrds; T.story = story} = mem_state (Threads.inj thrds) (MemStory.inj story)
+    let inj {T.thrds = thrds; T.story = story; T.na = na} =
+      mem_state (Threads.inj thrds) (MemStory.inj story) (ViewFront.inj na)
 
-    let to_logic {T.thrds = thrds; T.story = story} =
-      Value {T.thrds = Threads.to_logic thrds; T.story = MemStory.to_logic story}
+    let to_logic {T.thrds = thrds; T.story = story; T.na = na} =
+      Value {T.thrds = Threads.to_logic thrds; T.story = MemStory.to_logic story; T.na = ViewFront.to_logic na}
 
-    let refine rr = rr#refine (reify Threads.reify MemStory.reify) ~inj:to_logic
+    let refine rr = rr#refine (reify Threads.reify MemStory.reify ViewFront.reify) ~inj:to_logic
 
-    let create thrds story = {
+    let create ?(na=ViewFront.from_list []) thrds story = {
       T.thrds = thrds;
-      T.story  = story;
+      T.story = story;
+      T.na    = na;
     }
 
     let preallocate vars atomics =
       let thrd  = ThreadState.preallocate vars atomics in
       let thrds = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
       let story = MemStory.preallocate atomics in
-      create thrds story
+      let na    = ViewFront.allocate atomics in
+      create thrds story ~na
 
     let printer =
-      let pp ff {T.thrds = thrds; T.story = story} =
-        Format.fprintf ff "@[<v>%a@;%a@]" Threads.printer thrds MemStory.printer story
+      let pp ff {T.thrds = thrds; T.story = story; T.na = na} =
+        Format.fprintf ff "@[<v>%a@;%a@;@[<v>NA-front :@;<1 4>%a@;@]@]"
+          Threads.printer thrds
+          MemStory.printer story
+          ViewFront.printer na
       in
       pprint_logic pp
 
@@ -800,14 +807,14 @@ module MemState =
       Format.flush_str_formatter ()
 
     let get_thrdo t path thrd =
-      fresh (tree story)
-        (t === mem_state tree story)
+      fresh (tree story na)
+        (t === mem_state tree story na)
         (Threads.geto tree path thrd)
 
     let set_thrdo t t' path thrd =
-      fresh (tree tree' story)
-        (t  === mem_state tree  story)
-        (t' === mem_state tree' story)
+      fresh (tree tree' story na)
+        (t  === mem_state tree  story na)
+        (t' === mem_state tree' story na)
         (Threads.seto tree tree' path thrd)
 
     let get_localo t path var value =
@@ -821,97 +828,128 @@ module MemState =
         (set_thrdo t t' path thrd')
         (ThreadState.set_varo thrd thrd' var value)
 
-    let read_nao t t' path loc value =
-      fresh (tree story thrd ts vf)
+    let na_awareo na thrd loc = Nat.(
+      fresh (ts write_ts)
+        (ThreadState.tso thrd loc ts)
+        (VarList.geto na loc write_ts)
+        (write_ts <= ts)
+    )
+
+    let read_nao t t' path loc value = Nat.(
+      fresh (tree story na thrd ts vf)
         (t === t')
-        (t === mem_state tree story)
+        (t === mem_state tree story na)
         (Threads.geto tree path thrd)
         (ThreadState.tso thrd loc ts)
         (MemStory.last_tso story loc ts)
+        (na_awareo na thrd loc)
         (MemStory.reado story loc ts ts value vf)
+    )
 
-    let read_na_stucko t t' path loc =
-      fresh (tree story thrd ts last_ts)
-        (t === t')
-        (t === mem_state tree story)
+    let write_nao t t' path loc value = Nat.(
+      fresh (tree tree' story story' na na' thrd thrd' ts ts' rel vf)
+        (t  === mem_state tree  story  na )
+        (t' === mem_state tree' story' na')
+        (Threads.geto tree       path thrd)
+        (Threads.seto tree tree' path thrd')
+        (ThreadState.tso thrd loc ts)
+        (MemStory.last_tso story loc ts)
+        (na_awareo na thrd loc)
+
+        (MemStory.next_tso story loc ts')
+        (ThreadState.updateo thrd thrd' loc ts')
+        (ViewFront.updateo na na' loc ts')
+
+        (ThreadState.front_relo thrd' loc rel)
+        (ViewFront.reseto rel vf)
+        (MemStory.writeo story story' loc value vf)
+    )
+
+    let na_stucko t path loc =
+      fresh (tree story na thrd ts last_ts)
+        (t === mem_state tree story na)
         (Threads.geto tree path thrd)
         (ThreadState.tso thrd loc ts)
         (MemStory.last_tso story loc last_ts)
         (ts =/= last_ts)
 
-    let write_nao t t' path loc value =
-      fresh (tree tree' story story' thrd thrd' ts rel vf)
-        (t  === mem_state tree  story)
-        (t' === mem_state tree' story')
-        (Threads.geto tree       path thrd)
-        (Threads.seto tree tree' path thrd')
-        (MemStory.next_tso story loc ts)
-        (ThreadState.updateo thrd thrd' loc ts)
-        (ThreadState.front_relo thrd' loc rel)
-        (ViewFront.reseto rel vf)
-        (MemStory.writeo story story' loc value vf)
+    let read_na_dro t t' path loc =
+      (t === t') &&&
+      (na_stucko t path loc)
 
-    let write_rlxo t t' path loc value =
-      fresh (tree tree' story story' thrd thrd' ts rel)
-        (t  === mem_state tree  story)
-        (t' === mem_state tree' story')
-        (Threads.geto tree       path thrd)
-        (Threads.seto tree tree' path thrd')
-        (MemStory.next_tso story loc ts)
-        (ThreadState.updateo thrd thrd' loc ts)
-        (ThreadState.front_relo thrd' loc rel)
-        (MemStory.writeo story story' loc value rel)
+    let write_na_dro t t' path loc =
+      (t === t') &&&
+      (na_stucko t path loc)
+
+    let data_raceo t path loc = Nat.(
+      fresh (tree story na thrd ts write_ts)
+        (t === mem_state tree story na)
+        (Threads.geto tree path thrd)
+        (ThreadState.tso thrd loc ts)
+        (VarList.geto na loc write_ts)
+        (ts < write_ts)
+    )
+
+    let read_dro t t' path loc =
+      (t === t') &&&
+      (data_raceo t path loc)
+
+    let write_dro t t' path loc =
+      (t === t') &&&
+      (data_raceo t path loc)
 
     let read_rlxo t t' path loc value =
-      fresh (tree tree' story story' thrd thrd' thrd'' last_ts ts vf)
-        (t  === mem_state tree  story)
-        (t' === mem_state tree' story)
+      fresh (tree tree' story story' na thrd thrd' thrd'' last_ts ts vf)
+        (t  === mem_state tree  story na)
+        (t' === mem_state tree' story na)
         (Threads.geto tree       path thrd)
         (Threads.seto tree tree' path thrd'')
+        (na_awareo na thrd loc)
         (ThreadState.tso thrd loc last_ts)
         (MemStory.reado story loc last_ts ts value vf)
         (ThreadState.update_acqo thrd thrd' vf)
         (ThreadState.updateo thrd' thrd'' loc ts)
 
     let write_rlxo t t' path loc value =
-      fresh (tree tree' story story' thrd thrd' ts rel)
-        (t  === mem_state tree  story)
-        (t' === mem_state tree' story')
+      fresh (tree tree' story story' na thrd thrd' ts rel)
+        (t  === mem_state tree  story  na)
+        (t' === mem_state tree' story' na)
         (Threads.geto tree       path thrd)
         (Threads.seto tree tree' path thrd')
+        (na_awareo na thrd loc)
         (MemStory.next_tso story loc ts)
         (ThreadState.front_relo thrd loc rel)
         (ThreadState.updateo thrd thrd' loc ts)
         (MemStory.writeo story story' loc value rel)
 
     let fence_acqo t t' path =
-      fresh (tree tree' story thrd thrd')
-        (t  === mem_state  tree  story)
-        (t' === mem_state  tree' story)
+      fresh (tree tree' story thrd thrd' na)
+        (t  === mem_state  tree  story na)
+        (t' === mem_state  tree' story na)
         (Threads.geto tree       path thrd )
         (Threads.seto tree tree' path thrd')
         (ThreadState.fence_acqo  thrd thrd')
 
     let fence_relo t t' path =
-      fresh (tree tree' story thrd thrd')
-        (t  === mem_state  tree  story)
-        (t' === mem_state  tree' story)
+      fresh (tree tree' story na thrd thrd')
+        (t  === mem_state  tree  story na)
+        (t' === mem_state  tree' story na)
         (Threads.geto tree       path thrd )
         (Threads.seto tree tree' path thrd')
         (ThreadState.fence_relo  thrd thrd')
 
     let fence_loc_relo t t' path loc =
-      fresh (tree tree' story thrd thrd')
-        (t  === mem_state  tree  story)
-        (t' === mem_state  tree' story)
+      fresh (tree tree' story na thrd thrd')
+        (t  === mem_state  tree  story na)
+        (t' === mem_state  tree' story na)
         (Threads.geto tree       path thrd )
         (Threads.seto tree tree' path thrd')
         (ThreadState.fence_loc_relo thrd thrd' loc)
 
     let promiseo t t' path loc value =
-      fresh (tree tree' story story' thrd thrd' ts rel)
-        (t  === mem_state  tree  story )
-        (t' === mem_state  tree' story')
+      fresh (tree tree' story story' na thrd thrd' ts rel)
+        (t  === mem_state  tree  story  na)
+        (t' === mem_state  tree' story' na)
         (Threads.geto tree       path thrd )
         (Threads.seto tree tree' path thrd')
         (MemStory.next_tso story loc ts)
@@ -920,21 +958,21 @@ module MemState =
         (MemStory.writeo story story' loc value rel)
 
     let fulfillo t t' path =
-      fresh (tree tree' story thrd thrd' ts)
-        (t  === mem_state  tree  story)
-        (t' === mem_state  tree' story)
+      fresh (tree tree' story na thrd thrd' ts)
+        (t  === mem_state  tree  story na)
+        (t' === mem_state  tree' story na)
         (Threads.geto tree       path thrd )
         (Threads.seto tree tree' path thrd')
         (ThreadState.fulfillo thrd thrd')
 
     let laggingo t b =
-      fresh (tree story)
-        (t === mem_state tree story)
+      fresh (tree story na)
+        (t === mem_state tree story na)
         (Threads.laggingo tree b)
 
     let certifyo t path =
-      fresh (tree story thrd)
-        (t  === mem_state tree story)
+      fresh (tree story na thrd)
+        (t  === mem_state tree story na)
         (Threads.geto tree path thrd)
         (ThreadState.certifyo thrd)
 
@@ -949,19 +987,19 @@ module MemState =
         (write_rlxo t' t'' path loc value)
 
     let last_valueo t loc value =
-      fresh (tree tree story)
-        (t  === mem_state tree story)
+      fresh (tree tree story na)
+        (t  === mem_state tree story na)
         (MemStory.last_valueo story loc value)
 
     let spawno t t' path =
-      fresh (tree tree' story)
-        (t  === mem_state tree  story)
-        (t' === mem_state tree' story)
+      fresh (tree tree' story na)
+        (t  === mem_state tree  story na)
+        (t' === mem_state tree' story na)
         (Threads.spawno tree tree' path)
 
     let joino t t' path =
-      fresh (tree tree' story)
-        (t  === mem_state tree  story)
-        (t' === mem_state tree' story)
+      fresh (tree tree' story na)
+        (t  === mem_state tree  story na)
+        (t' === mem_state tree' story na)
         (Threads.joino tree tree' path)
   end

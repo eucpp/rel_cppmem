@@ -211,16 +211,6 @@ module NonAtomic =
 
     let read_na = ("read_na", read_nao)
 
-    let read_na_stucko c t s c' t' s' =
-      fresh (l path n)
-        (c  === c')
-        (t  === read !!NA l)
-        (t' === stuck ())
-        (patho c path)
-        (MemState.read_na_stucko s s' path l)
-
-    let read_na_stuck = ("read_na_stuck", read_na_stucko)
-
     let write_nao c t s c' t' s' =
       fresh (l n path)
         (c  === c')
@@ -231,7 +221,47 @@ module NonAtomic =
 
     let write_na = ("write_na", write_nao)
 
-    let all = [read_na; read_na_stuck; write_na; ]
+    let read_na_dro c t s c' t' s' =
+      fresh (l path n)
+        (c  === c')
+        (t  === read !!NA l)
+        (t' === stuck ())
+        (patho c path)
+        (MemState.read_na_dro s s' path l)
+
+    let read_na_dr = ("read_na_dr", read_na_dro)
+
+    let write_na_dro c t s c' t' s' =
+      fresh (l path n)
+        (c  === c')
+        (t  === write !!NA l (const n))
+        (t' === stuck ())
+        (patho c path)
+        (MemState.write_na_dro s s' path l)
+
+    let write_na_dr = ("write_na_dr", write_na_dro)
+
+    let read_dro c t s c' t' s' =
+      fresh (mo l path n)
+        (c  === c')
+        (t  === read mo l)
+        (t' === stuck ())
+        (patho c path)
+        (MemState.read_dro s s' path l)
+
+    let read_dr = ("read_dr", read_dro)
+
+    let write_dro c t s c' t' s' =
+      fresh (mo l path n)
+        (c  === c')
+        (t  === write mo l (const n))
+        (t' === stuck ())
+        (patho c path)
+        (MemState.write_dro s s' path l)
+
+    let write_dr = ("write_dr", write_dro)
+
+    let all = [read_na; write_na; read_na_dr; write_na_dr; read_dr; write_dr ]
   end
 
 module Rlx =

@@ -24,7 +24,7 @@ let test_thrd_space ?empty_check rules path (t, s) expected test_ctx =
   let reducibleo = fun (t, _) b -> Term.reducibleo ~path:(Path.inj path) t b in
   let module Step = (val make_reduction_relation ~reducibleo ~preconditiono rules) in
   let module Sem = Semantics.Make(Step) in
-  
+
   let t, s = Term.inj t, S.inj s in
   let stream = Sem.(
     run qr (fun q  r  -> (t, s) -->* (q, r))
@@ -67,7 +67,7 @@ let basic_tests =
     "pair">:: test_space Basic.all (T.Pair (T.Var "r1", T.Var "r2"), mem) [(T.Pair (const 0, const 0), mem)];
 
     "assign">:: (
-      let mem' = S.create (Threads.create [("r1", 42); ("r2", 0)] [("x", 0); ("y", 0)]) (MemStory.preallocate ["x"; "y"]) in
+      let mem' = S.create (Threads.create [("r1", 42); ("r2", 0)] [("x", 0); ("y", 0)]) (MemStory.preallocate ["x"; "y"]) ~na:(ViewFront.from_list [("x", 0); ("y", 0)]) in
       test_step [Basic.asgn] (T.Asgn (T.Var "r1", const 42), mem) [(T.Skip, mem')]
     );
 
@@ -120,7 +120,7 @@ let thrd_spawning_tests =
       let thrd = ThreadState.preallocate ["r1"; "r2"] ["x"; "y"] in
       let leaf = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
       let node = Threads.Tree.Node (thrd, leaf, leaf) in
-      let mem' = S.create node (MemStory.preallocate ["x"; "y"]) in
+      let mem' = S.create node (MemStory.preallocate ["x"; "y"]) ~na:(ViewFront.from_list [("x", 0); ("y", 0)]) in
       test_step [ThreadSpawning.spawn] (T.Spw (T.Skip, T.Skip), mem) [(T.Par (T.Skip, T.Skip), mem')]
     );
 
@@ -128,14 +128,14 @@ let thrd_spawning_tests =
       let thrd = ThreadState.preallocate ["r1"; "r2"] ["x"; "y"] in
       let leaf = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
       let node = Threads.Tree.Node (thrd, leaf, leaf) in
-      let mem' = S.create node (MemStory.preallocate ["x"; "y"]) in
+      let mem' = S.create node (MemStory.preallocate ["x"; "y"]) ~na:(ViewFront.from_list [("x", 0); ("y", 0)]) in
       test_step [ThreadSpawning.join] (T.Par (const 1, const 2), mem') [(T.Pair (const 1, const 2), mem)]
     );
 
     "spawn_assign">:: (
       let thrd = ThreadState.create [("r1", 42); ("r2", 1)] [("x", 0); ("y", 0)] in
       let node = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
-      let mem' = S.create node (MemStory.preallocate ["x"; "y"]) in
+      let mem' = S.create node (MemStory.preallocate ["x"; "y"]) ~na:(ViewFront.from_list [("x", 0); ("y", 0)]) in
       let pair = T.Pair (T.Var "r1", T.Var "r2") in
       let stmt = T.Asgn (pair,T.Spw (const 42, const 1)) in
       test_space (ThreadSpawning.all @ Basic.all) (stmt, mem) [(T.Skip, mem')]
@@ -157,8 +157,9 @@ let rel_acq_tests =
     "read_acq">:: (
       let loc_story = LocStory.create 2 [(0, 0, vf); (1, 1, vf')] in
       let mem_story = MemStory.create [("x", loc_story)] in
-      let state     = S.create tree mem_story in
-      let state'    = S.create tree' mem_story in
+      let na        = ViewFront.from_list [("x", 0)] in
+      let state     = S.create tree  mem_story ~na in
+      let state'    = S.create tree' mem_story ~na in
       test_step [RelAcq.read_acq] (T.Read (ACQ, "x"), state) [(const 0, state); (const 1, state')]
     );
 
@@ -167,8 +168,9 @@ let rel_acq_tests =
       let loc_story' = LocStory.create 2 [(1, 1, vf); (0, 0, vf)] in
       let mem_story  = MemStory.create [("x", loc_story )] in
       let mem_story' = MemStory.create [("x", loc_story')] in
-      let state      = S.create tree   mem_story in
-      let state'     = S.create tree'' mem_story' in
+      let na         = ViewFront.from_list [("x", 0)] in
+      let state      = S.create tree   mem_story  ~na in
+      let state'     = S.create tree'' mem_story' ~na in
       test_step [RelAcq.write_rel] (T.Write (REL, "x", const 1), state) [(T.Skip, state')]);
   ]
 

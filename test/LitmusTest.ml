@@ -22,7 +22,7 @@ let prog_rel_acq = <:cppmem<
 let test_rel_acq step = test_prog step prog_rel_acq ["(0, 0)"; "(0, 1)"; "(1, 1)";]
 
 let prog_data_race_1 = <:cppmem<
-  x_rlx := 0;
+  (* x_rlx := 0; *)
   spw {{{
       x_rlx := 1
   |||
@@ -32,6 +32,18 @@ let prog_data_race_1 = <:cppmem<
 >>
 
 let test_data_race_1 step = test_prog step prog_data_race_1 ["0"; "stuck"; ]
+
+let prog_data_race_2 = <:cppmem<
+  (* x_rlx := 0; *)
+  spw {{{
+      x_na := 1
+  |||
+      r1 := x_rlx;
+      ret r1
+  }}}
+>>
+
+let test_data_race_2 step = test_prog step prog_data_race_2 ["0"; "stuck"; ]
 
 let prog_SB = <:cppmem<
   x_rlx := 0;
@@ -211,7 +223,8 @@ let promisingStep =
 
 let tests =
   "Litmus">::: [
-    "DR_1">:: test_data_race_1 rlxStep;  
+    "DR_1">:: test_data_race_1 rlxStep;
+    "DR_2">:: test_data_race_2 rlxStep;
 
     "LB">:: test_LB promisingStep;
     "LBd">:: test_LBd promisingStep;

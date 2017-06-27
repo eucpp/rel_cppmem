@@ -10,7 +10,7 @@ let tests =
     PrettyPrinterTest.tests;
     RulesTest.tests;
     LitmusTest.tests;
-    SynthesisTest.tests;
+    (* SynthesisTest.tests; *)
   ]
 
 let () =
