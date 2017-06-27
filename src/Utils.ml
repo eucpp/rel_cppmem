@@ -32,14 +32,14 @@ let rec pprint_nat ff n =
       | Value x        -> Format.fprintf ff "%d" (Nat.to_int @@ Nat.from_logic n)
       | Var (i, [])    -> Format.fprintf ff "_.%d" i
       | Var (i, cstrs)  ->
-        Format.fprintf ff "_.%d[" i;
+        Format.fprintf ff "_.%d{" i;
         List.iter (fun cstr -> Format.fprintf ff "=/= %a; " (pprint_nat) cstr) cstrs;
-        Format.fprintf ff "]"
+        Format.fprintf ff "}"
     with Not_a_value ->
       let rec show = fun x -> GT.show(logic) (GT.show(lnat) show) x in
       Format.fprintf ff "%s" (show n)
 
-(* 
+(*
   let nat_to_str n =
     try
       string_of_int @@ Nat.to_int @@ Nat.from_logic n

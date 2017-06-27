@@ -17,8 +17,7 @@ let varo e = Term.(conde [
   fresh (x)
     (e === var x);
   fresh (mo x)
-    (* (mo =/= !!MemOrder.NA) *)
-    (e === read mo !!"f");
+    (e === read mo x);
 ])
 
 let well_expro e = Term.(conde[
@@ -36,25 +35,23 @@ let well_expro e = Term.(conde[
 let rec well_termo t = Term.(conde [
   (well_expro t);
 
-  fresh (mo x e)
-    (t === write mo !!"f" (ret 1))
-    (* (mo =/= !!MemOrder.NA) *)
-    (well_expro e);
+  fresh (mo x n)
+    (t === write mo x (const n));
 
-  fresh (x l r)
+  (* fresh (x l r)
     (t === asgn l r)
     (l === var x)
-    (well_expro r);
+    (well_expro r); *)
+
+  fresh (t')
+    (t === repeat t')
+    (well_expro t');
 
   (* fresh (cond t1 t2)
     (t === if' cond t1 t2)
     (well_expro cond)
     (well_termo t1)
     (well_termo t2); *)
-
-  fresh (t')
-    (t === repeat t')
-    (well_expro t');
 ])
 
 let prog_ASGN = fun q -> <:cppmem<
@@ -66,7 +63,7 @@ let prog_MP = fun q r -> <:cppmem<
     (* x_na := 0;
     f_na := 0; *)
     spw {{{
-        x_na := 42;
+        x_na := 1;
         ? q
     |||
         ? r;
@@ -103,14 +100,14 @@ let tests =
       let refine = Stream.map Term.refine in
       let stream = Sem.(
         run qr
-          (fun q  r  ->
+          (fun q r ->
             fresh (state')
               (well_termo q)
               (well_termo r)
-              ((term q r, state) -->* (ret 42, state'))
+              ((term q r, state) -->* (ret 1, state'))
               (negation (
                 fresh (term')
-                  (term' =/= ret 42)
+                  (term' =/= ret 1)
                   ((term q r, state) -->* (term', state'))
               ))
           )
@@ -118,7 +115,7 @@ let tests =
       ) in
       let printer (q, r) =
         Printf.printf "\n---------------------------------\n";
-        Printf.printf "q: %s;\nr: %s" (Term.pprint q) (Term.pprint r);
+        Printf.printf "q: %s\nr: %s\n" (Term.pprint q) (Term.pprint r);
         Printf.printf "\n---------------------------------\n";
       in
       List.iter printer @@ Stream.take ~n:1 stream

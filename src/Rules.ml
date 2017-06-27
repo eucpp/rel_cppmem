@@ -129,8 +129,10 @@ module Basic =
         (s === s')
         (t === if' (const n) btrue bfalse)
         (conde [
-          (n =/= (inj_nat 0)) &&& (t' === btrue);
-          (n === (inj_nat 0)) &&& (t' === bfalse);
+          fresh (x)
+            (n === Nat.succ x) &&& (t' === btrue);
+
+          (n === Nat.zero) &&& (t' === bfalse);
         ])
 
     let if' = ("if", ifo)
