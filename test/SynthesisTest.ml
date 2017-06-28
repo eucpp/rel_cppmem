@@ -38,20 +38,9 @@ let rec well_termo t = Term.(conde [
   fresh (mo x n)
     (t === write mo x (const n));
 
-  (* fresh (x l r)
-    (t === asgn l r)
-    (l === var x)
-    (well_expro r); *)
-
   fresh (t')
     (t === repeat t')
     (well_expro t');
-
-  (* fresh (cond t1 t2)
-    (t === if' cond t1 t2)
-    (well_expro cond)
-    (well_termo t1)
-    (well_termo t2); *)
 ])
 
 let prog_ASGN = fun q -> <:cppmem<
@@ -60,8 +49,6 @@ let prog_ASGN = fun q -> <:cppmem<
 >>
 
 let prog_MP = fun q r -> <:cppmem<
-    (* x_na := 0;
-    f_na := 0; *)
     spw {{{
         x_na := 1;
         ? q
