@@ -24,9 +24,9 @@ module Var :
 
 module Value :
   sig
-    type tt = MiniKanren.Nat.ground
-    type tl = MiniKanren.Nat.logic
-    type ti = MiniKanren.Nat.groundi
+    type tt = MiniKanrenStd.Nat.ground
+    type tl = MiniKanrenStd.Nat.logic
+    type ti = MiniKanrenStd.Nat.groundi
 
     val of_string : string -> tt
     val to_string : tt -> string
@@ -38,9 +38,9 @@ module Value :
 
 module Timestamp :
   sig
-    type tt = MiniKanren.Nat.ground
-    type tl = MiniKanren.Nat.logic
-    type ti = MiniKanren.Nat.groundi
+    type tt = MiniKanrenStd.Nat.ground
+    type tl = MiniKanrenStd.Nat.logic
+    type ti = MiniKanrenStd.Nat.groundi
   end
 
 module MemOrder :
@@ -128,13 +128,13 @@ module ThreadState :
     val pprint : tl -> string
 
     (** [get_varo thrd var val] performs read of thread-local variable *)
-    val get_varo : ti -> Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+    val get_varo : ti -> Loc.ti -> MiniKanrenStd.Nat.groundi -> MiniKanren.goal
 
     (** [set_varo thrd thrd' var value] performs write of thread-local variable *)
-    val set_varo : ti -> ti -> Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+    val set_varo : ti -> ti -> Loc.ti -> MiniKanrenStd.Nat.groundi -> MiniKanren.goal
 
     (** [tso thrd loc ts] obtains last timestamp [ts] at [loc] that was seen by thread [thrd] *)
-    val tso : ti -> Loc.ti -> MiniKanren.Nat.groundi -> MiniKanren.goal
+    val tso : ti -> Loc.ti -> MiniKanrenStd.Nat.groundi -> MiniKanren.goal
 
     (** [updateo thrd thrd' loc ts] updates thread's viewfronts at [loc] by new timestamp [ts] *)
     val updateo : ti -> ti -> Loc.ti -> Timestamp.ti -> MiniKanren.goal
@@ -160,7 +160,7 @@ module ThreadState :
     (** [fulfillo thrd thrd'] nondeterministically fulfills one of thread's promises *)
     val fulfillo : ti -> ti -> MiniKanren.goal
 
-    val laggingo : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val laggingo : ti -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
 
     val certifyo : ti -> MiniKanren.goal
 
@@ -321,7 +321,7 @@ module MemState :
     val promiseo : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
     val fulfillo : ti -> ti -> Path.ti                       -> MiniKanren.goal
 
-    val laggingo : ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val laggingo : ti -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
 
     val certifyo : ti -> Path.ti -> MiniKanren.goal
 

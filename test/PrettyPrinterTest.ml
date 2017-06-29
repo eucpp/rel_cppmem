@@ -1,4 +1,5 @@
 open MiniKanren
+open MiniKanrenStd
 open Lang
 open Memory.MemOrder
 open OUnit2

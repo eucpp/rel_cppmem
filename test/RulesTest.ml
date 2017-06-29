@@ -1,5 +1,6 @@
 open OUnit2
 open MiniKanren
+open MiniKanrenStd
 open Memory
 open Rules
 open Lang

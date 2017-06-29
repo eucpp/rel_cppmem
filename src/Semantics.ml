@@ -1,4 +1,5 @@
 open MiniKanren
+open MiniKanrenStd
 
 module type StepRelation =
   sig
@@ -10,7 +11,7 @@ module type StepRelation =
     type sl
     type si = (st, sl) MiniKanren.injected
 
-    val (->?) : ti * si -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val (->?) : ti * si -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
     val (-->) : ti * si -> ti * si -> MiniKanren.goal
   end
 

@@ -1,9 +1,9 @@
 
 val pprint_logic : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a MiniKanren.logic -> unit
 
-val pprint_llist : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a MiniKanren.List.logic -> unit
+val pprint_llist : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a MiniKanrenStd.List.logic -> unit
 
-val pprint_nat : Format.formatter -> MiniKanren.Nat.logic -> unit
+val pprint_nat : Format.formatter -> MiniKanrenStd.Nat.logic -> unit
 val pprint_string : Format.formatter -> string MiniKanren.logic -> unit
 
 val zip3 : 'a MiniKanren.Stream.t -> 'b MiniKanren.Stream.t -> 'c MiniKanren.Stream.t -> ('a * 'b * 'c) MiniKanren.Stream.t

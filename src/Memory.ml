@@ -1,4 +1,5 @@
 open MiniKanren
+open MiniKanrenStd
 open Utils
 
 module Loc =
@@ -31,9 +32,9 @@ module Var =
 
 module Value =
   struct
-    type tt = MiniKanren.Nat.ground
-    type tl = MiniKanren.Nat.logic
-    type ti = MiniKanren.Nat.groundi
+    type tt = MiniKanrenStd.Nat.ground
+    type tl = MiniKanrenStd.Nat.logic
+    type ti = MiniKanrenStd.Nat.groundi
 
     let of_string str = Nat.of_int @@ int_of_string str
 
@@ -46,9 +47,9 @@ module Value =
 
 module Timestamp =
   struct
-    type tt = MiniKanren.Nat.ground
-    type tl = MiniKanren.Nat.logic
-    type ti = MiniKanren.Nat.groundi
+    type tt = MiniKanrenStd.Nat.ground
+    type tl = MiniKanrenStd.Nat.logic
+    type ti = MiniKanrenStd.Nat.groundi
   end
 
 module MemOrder =
@@ -117,7 +118,7 @@ module Registers =
 
     let to_logic = List.to_logic (fun (var, value) -> Value (Value var, Nat.to_logic value))
 
-    let reify h = ManualReifiers.(List.reify (pair_reifier (string_reifier) (Nat.reify)) h)
+    let reify h = ManualReifiers.(List.reify (pair (string) (Nat.reify)) h)
 
     let allocate vars = List.of_list (fun s -> (s, Nat.of_int 0)) vars
 
@@ -150,7 +151,7 @@ module ViewFront =
 
     let to_logic = List.to_logic (fun (loc, ts) -> Value (Value loc, Nat.to_logic ts))
 
-    let reify h = ManualReifiers.(List.reify (pair_reifier (string_reifier) (Nat.reify)) h)
+    let reify h = ManualReifiers.(List.reify (pair (string) (Nat.reify)) h)
 
     let allocate atomics = List.of_list (fun s -> (s, Nat.of_int 0)) atomics
 
@@ -212,7 +213,7 @@ module Promise =
 
     let to_logic (loc, ts, value, vf) = Value (Loc.to_logic loc, Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
 
-    let reify = reify ManualReifiers.string_reifier Nat.reify Nat.reify ViewFront.reify
+    let reify = reify ManualReifiers.string Nat.reify Nat.reify ViewFront.reify
 
     let printer =
       let pp ff (loc, ts, value, vf) =
@@ -549,7 +550,7 @@ module Threads =
             (tree === node thrd l r) &&&
             (laggingo l b1) &&&
             (laggingo r b2) &&&
-            (MiniKanren.Bool.oro b1 b2 b);
+            (MiniKanrenStd.Bool.oro b1 b2 b);
         ])
 
     let rec spawno tree tree' path = Path.(
@@ -606,7 +607,7 @@ module LocStory =
 
       let to_logic (ts, value, vf) = Value (Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
 
-      let reify = ManualReifiers.triple_reifier Nat.reify Nat.reify ViewFront.reify
+      let reify = ManualReifiers.triple Nat.reify Nat.reify ViewFront.reify
 
       let printer var =
         let pp ff (ts, value, vf) =
@@ -680,8 +681,8 @@ module LocStory =
     let reado t last_ts ts value vf =
       fresh (story tsnext visible msg)
         (t === loc_story tsnext story)
-        (MiniKanren.List.filtero (visibleo last_ts) story visible)
-        (MiniKanren.List.membero visible msg)
+        (MiniKanrenStd.List.filtero (visibleo last_ts) story visible)
+        (MiniKanrenStd.List.membero visible msg)
         (msg === inj_triple ts value vf)
 
     let writeo t t' value vf =
@@ -709,7 +710,7 @@ module MemStory =
 
     let to_logic = List.to_logic (fun (var, story) -> Value (Value var, LocStory.to_logic story))
 
-    let reify h = ManualReifiers.(List.reify (pair_reifier (string_reifier) (LocStory.reify)) h)
+    let reify h = ManualReifiers.(List.reify (pair (string) (LocStory.reify)) h)
 
     let create = List.of_list (fun x -> x)
 

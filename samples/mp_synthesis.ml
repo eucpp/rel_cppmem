@@ -1,4 +1,5 @@
 open MiniKanren
+open MiniKanrenStd
 open Relcppmem
 open Relcppmem.Lang
 open Relcppmem.Lang.Term

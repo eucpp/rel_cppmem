@@ -1,4 +1,5 @@
 open MiniKanren
+open MiniKanrenStd
 open Memory
 open Utils
 
@@ -63,7 +64,7 @@ module Term =
       let f x = Value x in
       Value (T.fmap (Nat.to_logic) (f) (f) (f) (to_logic) x)
 
-    let rec reify' h = ManualReifiers.(reify (Nat.reify) (string_reifier) (simple_reifier) (string_reifier) (reify') h)
+    let rec reify' h = ManualReifiers.(reify (Nat.reify) (string) (simple_reifier) (string) (reify') h)
 
     let refine rr = rr#refine reify' ~inj:to_logic
 

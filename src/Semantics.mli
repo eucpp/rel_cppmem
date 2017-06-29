@@ -8,7 +8,7 @@ module type StepRelation =
     type sl
     type si = (st, sl) MiniKanren.injected
 
-    val (->?) : ti * si -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val (->?) : ti * si -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
     val (-->) : ti * si -> ti * si -> MiniKanren.goal
   end
 
@@ -35,7 +35,7 @@ module Make(S : StepRelation) :
     type sl = S.sl
     type si = S.si
 
-    val (->?)  : ti * si -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val (->?)  : ti * si -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
     val (-->)  : ti * si -> ti * si -> MiniKanren.goal
     val (-->*) : ti * si -> ti * si -> MiniKanren.goal
   end

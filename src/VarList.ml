@@ -1,9 +1,10 @@
 open MiniKanren
+open MiniKanrenStd
 
 type ('a, 'b) tt = ('a * 'b) List.ground
 type ('a, 'b) tl = ('a * 'b) logic List.logic
 
-type ('a, 'b, 'c, 'd) ti = (('a * 'b), ('c * 'd) logic) MiniKanren.List.groundi
+type ('a, 'b, 'c, 'd) ti = (('a * 'b), ('c * 'd) logic) MiniKanrenStd.List.groundi
 
 let inj inj_a inj_b = inj_list (fun (a, b) -> inj_pair (inj_a a) (inj_b b))
 

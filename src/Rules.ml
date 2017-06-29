@@ -1,4 +1,5 @@
 open MiniKanren
+open MiniKanrenStd
 open Memory
 open Lang
 open MemOrder
@@ -14,7 +15,7 @@ type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
 type condition = (ci -> ti -> si -> MiniKanren.goal)
 
-type predicate = (ti * si -> MiniKanren.Bool.groundi -> MiniKanren.goal)
+type predicate = (ti * si -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal)
 
 type order = (ti -> ci -> ti -> MiniKanren.goal)
 

@@ -1,4 +1,5 @@
 open MiniKanren
+open MiniKanrenStd
 
 let rec pprint_logic pp ff = function
   | Value x        -> Format.fprintf ff "%a" pp x

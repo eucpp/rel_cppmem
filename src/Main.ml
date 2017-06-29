@@ -1,5 +1,6 @@
 open OUnit2
 open MiniKanren
+open MiniKanrenStd
 open TestUtils
 open Lang
 open Memory

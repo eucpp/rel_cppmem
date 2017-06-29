@@ -1,5 +1,6 @@
 open OUnit2
 open MiniKanren
+open MiniKanrenStd
 open TestUtils
 open Lang
 open Lang.Term
@@ -37,6 +38,11 @@ let rec well_termo t = Term.(conde [
 
   fresh (mo x n)
     (t === write mo x (const n));
+
+  fresh (l r x)
+    (t === asgn l r)
+    (l === var x)
+    (well_expro r);
 
   fresh (t')
     (t === repeat t')
@@ -81,7 +87,7 @@ let tests =
       List.iter printer @@ Stream.take ~n:9 stream
     );
 
-    "MP">: OUnitTest.TestCase (OUnitTest.Long, fun text_ctx ->
+    (* "MP">: OUnitTest.TestCase (OUnitTest.Long, fun text_ctx ->
       let term = prog_MP in
       let state = MemState.inj @@ MemState.preallocate ["r1"] ["x"; "f"] in
       let refine = Stream.map Term.refine in
@@ -106,5 +112,5 @@ let tests =
         Printf.printf "\n---------------------------------\n";
       in
       List.iter printer @@ Stream.take ~n:1 stream
-    )
+    ) *)
   ]

@@ -54,7 +54,7 @@ module Term :
 
     val pprint : tl -> string
 
-    val reducibleo : ?path:Memory.Path.ti -> ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val reducibleo : ?path:Memory.Path.ti -> ti -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
   end
 
 module Context :
@@ -88,7 +88,7 @@ module Context :
     val splito : Term.ti -> ti -> Term.ti -> MiniKanren.goal
     val plugo  : Term.ti -> ti -> Term.ti -> MiniKanren.goal
 
-    val can_prmo  : Term.ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val can_prmo  : Term.ti -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
     val pick_prmo : Term.ti -> ti -> Term.ti -> MiniKanren.goal
 
     val patho : ti -> Memory.Path.ti -> MiniKanren.goal
