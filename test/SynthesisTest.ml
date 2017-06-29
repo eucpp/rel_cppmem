@@ -59,7 +59,7 @@ let prog_MP = fun q r -> <:cppmem<
         x_na := 1;
         ? q
     |||
-        ? r;
+        repeat ? r end;
         r1 := x_na;
         ret r1
     }}}
@@ -84,10 +84,10 @@ let tests =
         Printf.printf "%s" @@ Term.pprint t;
         Printf.printf "\n---------------------------------\n";
       in
-      List.iter printer @@ Stream.take ~n:9 stream
+      List.iter printer @@ Stream.take ~n:10 stream
     );
 
-    (* "MP">: OUnitTest.TestCase (OUnitTest.Long, fun text_ctx ->
+    "MP">: OUnitTest.TestCase (OUnitTest.Long, fun text_ctx ->
       let term = prog_MP in
       let state = MemState.inj @@ MemState.preallocate ["r1"] ["x"; "f"] in
       let refine = Stream.map Term.refine in
@@ -112,5 +112,5 @@ let tests =
         Printf.printf "\n---------------------------------\n";
       in
       List.iter printer @@ Stream.take ~n:1 stream
-    ) *)
+    )
   ]
