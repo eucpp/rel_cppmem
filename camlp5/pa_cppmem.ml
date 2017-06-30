@@ -71,7 +71,11 @@ EXTEND
       | "par"; "{";"{";"{"; t1 = term; "|||"; t2 = term; "}";"}";"}" ->
         <:expr< par $t1$ $t2$ >>
 
+      | "skip" ->
+        <:expr< skip () >>
+
       | "ret"; t = term -> t
+
 
       | "?"; q = term_antiquot -> q
   ] ];
