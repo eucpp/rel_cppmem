@@ -8,6 +8,8 @@ val pprint_string : Format.formatter -> string MiniKanren.logic -> unit
 
 val zip3 : 'a MiniKanren.Stream.t -> 'b MiniKanren.Stream.t -> 'c MiniKanren.Stream.t -> ('a * 'b * 'c) MiniKanren.Stream.t
 
+val zip4 : 'a MiniKanren.Stream.t -> 'b MiniKanren.Stream.t -> 'c MiniKanren.Stream.t -> 'd MiniKanren.Stream.t -> ('a * 'b * 'c * 'd) MiniKanren.Stream.t
+
 module Option :
   sig
     exception No_value

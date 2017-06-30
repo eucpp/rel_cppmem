@@ -55,6 +55,8 @@ let pprint_string = pprint_logic (fun ff s -> Format.fprintf ff "%s" s)
 
 let zip3 xs ys zs = Stream.map (fun (x, (y, z)) -> (x, y, z)) @@ Stream.zip xs @@ Stream.zip ys zs
 
+let zip4 xs ys zs ws = Stream.map (fun (x, (y, z, w)) -> (x, y, z, w)) @@ Stream.zip xs @@ zip3 ys zs ws
+
 module Option =
   struct
     exception No_value
