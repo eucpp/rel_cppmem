@@ -57,6 +57,10 @@ let zip3 xs ys zs = Stream.map (fun (x, (y, z)) -> (x, y, z)) @@ Stream.zip xs @
 
 let zip4 xs ys zs ws = Stream.map (fun (x, (y, z, w)) -> (x, y, z, w)) @@ Stream.zip xs @@ zip3 ys zs ws
 
+let zip5 xs ys zs ws us = Stream.map (fun (x, (y, z, w, u)) -> (x, y, z, w, u)) @@ Stream.zip xs @@ zip4 ys zs ws us
+
+let zip6 xs ys zs ws us vs = Stream.map (fun (x, (y, z, w, u, v)) -> (x, y, z, w, u, v)) @@ Stream.zip xs @@ zip5 ys zs ws us vs
+
 module Option =
   struct
     exception No_value
