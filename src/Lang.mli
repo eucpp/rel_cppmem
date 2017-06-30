@@ -18,7 +18,7 @@ module Term :
           | Par      of 't * 't
           | Skip
           | Stuck
-        (* with gmap *)
+        (* with gmap, show *)
       end
 
     (* include (module type of MiniKanren.Fmap5(T)) *)
@@ -52,6 +52,7 @@ module Term :
 
     val preallocate : tl -> Memory.Var.tt list * Memory.Loc.tt list
 
+    val show : tl -> string
     val pprint : tl -> string
 
     val reducibleo : ?path:Memory.Path.ti -> ti -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal

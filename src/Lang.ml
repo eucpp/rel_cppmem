@@ -23,7 +23,7 @@ module Term =
           | Par      of 't * 't
           | Skip
           | Stuck
-        with gmap
+        with gmap, show
 
         let fmap fint fstring fmo floc ft x = GT.gmap(t) (fint) (fstring) (fmo) (floc) (ft) x
       end
@@ -95,6 +95,8 @@ module Term =
       | Var (i, []) -> (vars, atomics)
 
     let preallocate = prealloc_l [] []
+
+    let rec show t = GT.show(logic) (GT.show(T.t) (Value.show) (Var.show) (MemOrder.show) (Loc.show) (show)) t
 
     let pprint term = T.(
       let rec const   = pprint_nat    in

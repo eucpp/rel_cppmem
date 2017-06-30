@@ -6,6 +6,8 @@ module Loc :
 
     val of_string : string -> tt
     val to_string : tt -> string
+
+    val show : tl -> string
   end
 
 module Var :
@@ -20,6 +22,8 @@ module Var :
     val inj : tt -> ti
 
     val to_logic : tt -> tl
+
+    val show : tl -> string
   end
 
 module Value :
@@ -34,6 +38,8 @@ module Value :
     val inj : tt -> ti
 
     val to_logic : tt -> tl
+
+    val show : tl -> string
   end
 
 module Timestamp :
@@ -53,6 +59,8 @@ module MemOrder :
     val to_string : tt -> string
 
     val inj : tt -> ti
+
+    val show : tl -> string
   end
 
 module Path :

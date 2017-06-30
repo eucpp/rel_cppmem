@@ -14,6 +14,8 @@ module Loc =
     let inj = (!!)
 
     let to_logic x = Value x
+
+    let show = GT.show(logic) (GT.show(GT.string))
   end
 
 module Var =
@@ -28,6 +30,8 @@ module Var =
     let inj = (!!)
 
     let to_logic x = Value x
+
+    let show = GT.show(logic) (GT.show(GT.string))
   end
 
 module Value =
@@ -43,6 +47,8 @@ module Value =
     let inj = Nat.inj
 
     let to_logic = Nat.to_logic
+
+    let show = GT.show(Nat.logic)
   end
 
 module Timestamp =
@@ -79,6 +85,8 @@ module MemOrder =
       | NA      -> "na"
 
     let inj = (!!)
+
+    let show = GT.show(logic) (to_string)
   end
 
 module Path =
