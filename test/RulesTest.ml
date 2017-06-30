@@ -78,6 +78,8 @@ let basic_tests =
 
     "if_false">:: test_step [Basic.if'] (T.If (const 0, T.Stuck, T.Skip), mem) [(T.Skip, mem)];
 
+    "if_expr">:: test_space Basic.all (T.If (T.Binop ("=", const 1, const 0), T.Stuck, T.Skip), mem) [(T.Skip, mem)];
+
     "repeat">:: (
       let loop = T.Repeat (const 1) in
       test_step [Basic.repeat] (loop, mem) [(T.If (const 1, T.Skip, loop), mem)]
