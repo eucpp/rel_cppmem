@@ -89,6 +89,14 @@ module RelAcq :
     module Step : CppMemStep
   end
 
+module SC :
+  sig
+    val read_sc  : string * rule
+    val write_sc : string * rule
+
+    val all : (string * rule) list
+  end
+
 module Promising :
   sig
     val promise : string * rule

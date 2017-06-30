@@ -205,22 +205,22 @@ module NonAtomic =
     type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
 
     let read_nao c t s c' t' s' =
-      fresh (l path n)
+      fresh (l path n ts)
         (c  === c')
         (t  === read !!NA l)
         (t' === const n)
         (patho c path)
-        (MemState.read_nao s s' path l n)
+        (MemState.read_nao s s' path l n ts)
 
     let read_na = ("read_na", read_nao)
 
     let write_nao c t s c' t' s' =
-      fresh (l n path)
+      fresh (l n path ts)
         (c  === c')
         (t  === write !!NA l (const n))
         (t' === skip ())
         (patho c path)
-        (MemState.write_nao s s' path l n)
+        (MemState.write_nao s s' path l n ts)
 
     let write_na = ("write_na", write_nao)
 
@@ -235,7 +235,7 @@ module NonAtomic =
     let read_na_dr = ("read_na_dr", read_na_dro)
 
     let write_na_dro c t s c' t' s' =
-      fresh (l path n)
+      fresh (l path n ts)
         (c  === c')
         (t  === write !!NA l (const n))
         (t' === stuck ())
@@ -271,22 +271,22 @@ module Rlx =
   struct
 
     let read_rlxo c t s c' t' s' =
-      fresh (l path n)
+      fresh (l path n ts)
         (c  === c')
         (t  === read !!RLX l)
         (t' === const n)
         (patho c path)
-        (MemState.read_rlxo s s' path l n)
+        (MemState.read_rlxo s s' path l n ts)
 
     let read_rlx = ("read_rlx", read_rlxo)
 
     let write_rlxo c t s c' t' s' =
-      fresh (l n path)
+      fresh (l n path ts)
         (c  === c')
         (t  === write !!RLX l (const n))
         (t' === skip ())
         (patho c path)
-        (MemState.write_rlxo s s' path l n)
+        (MemState.write_rlxo s s' path l n ts)
 
     let write_rlx = ("write_rlx", write_rlxo)
 
@@ -300,28 +300,55 @@ module RelAcq =
   struct
 
     let read_acqo c t s c' t' s' =
-      fresh (l path n)
+      fresh (l path n ts)
         (c  === c')
         (t  === read !!ACQ l)
         (t' === const n)
         (patho c path)
-        (MemState.read_acqo s s' path l n)
+        (MemState.read_acqo s s' path l n ts)
 
     let read_acq = ("read_acq", read_acqo)
 
     let write_relo c t s c' t' s' =
-      fresh (l n path)
+      fresh (l n path ts)
         (c  === c')
         (t  === write !!REL l (const n))
         (t' === skip ())
         (patho c path)
-        (MemState.write_relo s s' path l n)
+        (MemState.write_relo s s' path l n ts)
 
     let write_rel = ("write_rel", write_relo)
 
-    let all = [read_acq; write_rel; ]
+    let all = [read_acq; write_rel;]
 
     module Step = (val make_reduction_relation all)
+  end
+
+module SC =
+  struct
+
+    let read_sco c t s c' t' s' =
+      fresh (l path n ts)
+        (c  === c')
+        (t  === read !!SC l)
+        (t' === const n)
+        (patho c path)
+        (MemState.read_sco s s' path l n ts)
+
+    let read_sc = ("read_sc", read_sco)
+
+    let write_sco c t s c' t' s' =
+      fresh (l n path ts)
+        (c  === c')
+        (t  === write !!SC l (const n))
+        (t' === skip ())
+        (patho c path)
+        (MemState.write_sco s s' path l n ts)
+
+    let write_sc = ("write_sc", write_sco)
+
+    let all = [read_sc; write_sc;]
+
 
   end
 

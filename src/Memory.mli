@@ -291,7 +291,7 @@ module MemState :
 
     val refine : (tt, tl) MiniKanren.refined -> tl
 
-    val create : ?na:ViewFront.tt -> Threads.tt -> MemStory.tt -> tt
+    val create : ?na:ViewFront.tt -> ?sc:ViewFront.tt -> Threads.tt -> MemStory.tt -> tt
 
     val preallocate : string list -> string list -> tt
 
@@ -300,8 +300,8 @@ module MemState :
     val get_localo : ti ->       Path.ti -> Var.ti -> Value.ti -> MiniKanren.goal
     val set_localo : ti -> ti -> Path.ti -> Var.ti -> Value.ti -> MiniKanren.goal
 
-    val read_nao  : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
-    val write_nao : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
+    val read_nao  : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> Timestamp.ti -> MiniKanren.goal
+    val write_nao : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> Timestamp.ti -> MiniKanren.goal
 
     val read_na_dro  : ti -> ti -> Path.ti -> Loc.ti -> MiniKanren.goal
     val write_na_dro : ti -> ti -> Path.ti -> Loc.ti -> MiniKanren.goal
@@ -309,11 +309,14 @@ module MemState :
     val read_dro  : ti -> ti -> Path.ti -> Loc.ti -> MiniKanren.goal
     val write_dro : ti -> ti -> Path.ti -> Loc.ti -> MiniKanren.goal
 
-    val read_rlxo  : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
-    val write_rlxo : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
+    val read_rlxo  : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> Timestamp.ti -> MiniKanren.goal
+    val write_rlxo : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> Timestamp.ti -> MiniKanren.goal
 
-    val read_acqo  : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
-    val write_relo : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> MiniKanren.goal
+    val read_acqo  : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> Timestamp.ti -> MiniKanren.goal
+    val write_relo : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> Timestamp.ti -> MiniKanren.goal
+
+    val read_sco  : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> Timestamp.ti -> MiniKanren.goal
+    val write_sco : ti -> ti -> Path.ti -> Loc.ti -> Value.ti -> Timestamp.ti -> MiniKanren.goal
 
     val fence_acqo : ti -> ti -> Path.ti -> MiniKanren.goal
     val fence_relo : ti -> ti -> Path.ti -> MiniKanren.goal
