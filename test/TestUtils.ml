@@ -69,14 +69,15 @@ let test_prog (module S : Rules.CppMemStep) ?n ?(negative=false) term expected t
   let state   = MemState.inj @@ MemState.preallocate rs vs in
   let stream  = Sem.(
    run qr (fun q  r  -> (term, state) -->* (q, r))
-          (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
+          (* (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs)) *)
+          (fun qs rs -> Stream.zip (Stream.map Term.refine qs) (Stream.map MemState.refine rs))
   ) in
   let module S = Set.Make(String) in
   let set = ref S.empty in
   let cnt = ref 0 in
   let handler (t, s) =
-    let answer = Term.pprint @@ Term.to_logic t in
-    let memory = MemState.pprint @@ MemState.to_logic s in
+    let answer = Term.pprint (*@@ Term.to_logic*) t in
+    let memory = MemState.pprint (*@@ MemState.to_logic*) s in
     let set'   = S.add answer !set in
     cnt := !cnt + 1;
     set := set';
