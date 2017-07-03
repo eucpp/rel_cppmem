@@ -3,7 +3,7 @@ type ti = Lang.Term.ti
 type ci = Lang.Context.ti
 type si = Memory.MemState.ti
 
-type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
+type rule =  (ci -> ti -> si -> ti -> si -> MiniKanren.goal)
 
 type condition = (ci -> ti -> si -> MiniKanren.goal)
 
@@ -51,12 +51,6 @@ module ThreadSpawning :
 
 module NonAtomic :
   sig
-    type ti = Lang.Term.ti
-    type ci = Lang.Context.ti
-    type si = Memory.MemState.ti
-
-    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
-
     val read_na  : string * rule
     val write_na : string * rule
 

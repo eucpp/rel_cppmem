@@ -35,7 +35,7 @@ let stmt_hinto t = Term.(conde [
     (t === write mo x (const n))
     (conde [
       (n === Nat.one);
-      (* (n === Nat.zero); *)
+      (n === Nat.zero);
     ]);
 
   (* fresh (l r x y mo)
@@ -94,7 +94,7 @@ let _ =
   let state = MemState.inj @@ MemState.preallocate [] ["x"; "y";] in
   let refine = Stream.map Term.refine in
   let stream = Sem.(
-    (* run qrst
+    run qrst
       (fun q r s t ->
         fresh (prog state1 state2)
           (stmt_hinto q)
@@ -109,9 +109,9 @@ let _ =
               ((prog, state) -->* (pair (1, 1), state'))
           ))
       )
-      (fun qs rs ss ts -> Utils.zip4 (refine qs) (refine rs) (refine ss) (refine ts)) *)
-    run qr
-      (fun q r ->
+      (fun qs rs ss ts -> Utils.zip4 (refine qs) (refine rs) (refine ss) (refine ts))
+    (* run qr *)
+      (* (fun q r ->
         fresh (s1 s2)
           ((prog_MUTEX, state) -->* (q, r))
           ((prog_MUTEX, state) -->* (pair (1, 0), s1))
@@ -121,13 +121,13 @@ let _ =
               ((prog_MUTEX, state) -->* (pair (1, 1), state'))
           ))
       )
-      (fun qs rs -> Stream.zip (refine qs) (Stream.map (MemState.refine) rs))
+      (fun qs rs -> Stream.zip (refine qs) (Stream.map (MemState.refine) rs)) *)
   ) in
-  (* let printer (q, r, s, t) = *)
-  let printer (q, r) =
+  let printer (q, r, s, t) =
+  (* let printer (q, r) = *)
     Printf.printf "\n---------------------------------\n";
-    (* Printf.printf "q: %s\nr: %s\ns: %s\nt: %s\n" (Term.pprint q) (Term.pprint r) (Term.pprint s) (Term.pprint t); *)
-    Printf.printf "\n%s\n%s\n" (Term.pprint q) (MemState.pprint r);
+    Printf.printf "q: %s\nr: %s\ns: %s\nt: %s\n" (Term.pprint q) (Term.pprint r) (Term.pprint s) (Term.pprint t);
+    (* Printf.printf "\n%s\n%s\n" (Term.pprint q) (MemState.pprint r); *)
     Printf.printf "\n---------------------------------\n";
   in
-  List.iter printer @@ Stream.take ~n:3 stream
+  List.iter printer @@ Stream.take ~n:1 stream

@@ -17,7 +17,7 @@ let prog = <:cppmem<
 
 let rules = Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.Rlx.all @ Rules.RelAcq.all
 
-module Step = (val make_reduction_relation rules)
+module Step = (val Rules.make_reduction_relation rules)
 
 module Sem = Semantics.Make(Step)
 
@@ -32,4 +32,5 @@ let handler (t, s) =
   Printf.printf "Ret: %s;\n%s" (Term.pprint t') (MemState.pprint s')
 
 let _ =
-  Stream.iter handler stream
+  Stream.iter handler stream;
+  MiniKanren.report_counters ()

@@ -8,8 +8,8 @@ open Lang.Term
 open Memory
 
 let prog_rel_acq = <:cppmem<
-    x_rlx := 0;
-    f_rlx := 0;
+    (* x_rlx := 0;
+    f_rlx := 0; *)
     spw {{{
         x_rlx := 1;
         f_rel := 1

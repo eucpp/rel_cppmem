@@ -11,7 +11,7 @@ type ti = Lang.Term.ti
 type ci = Lang.Context.ti
 type si = Memory.MemState.ti
 
-type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
+type rule =  (ci -> ti -> si -> ti -> si -> MiniKanren.goal)
 
 type condition = (ci -> ti -> si -> MiniKanren.goal)
 
@@ -51,12 +51,12 @@ let make_reduction_relation
   ?(reducibleo = fun (t, s) b -> reducibleo t b)
   rules =
   let stepo (t, s) (t', s') =
-    fresh (c c' rdx rdx')
+    fresh (c rdx rdx')
       (ordero t c rdx)
       (preconditiono c rdx s)
-      (conde @@ List.map (fun (name, rule) -> rule c rdx s c' rdx' s') rules)
-      (postconditiono c' rdx' s')
-      (Context.plugo t' c' rdx')
+      (conde @@ List.map (fun (name, rule) -> rule c rdx s rdx' s') rules)
+      (postconditiono c rdx' s')
+      (Context.plugo t' c rdx')
   in
   make_step ~reducibleo ~stepo
 
@@ -75,9 +75,8 @@ module Basic =
         (asgno' t e s'' s' path);
     ]
 
-    let asgno c t s c' t' s' =
+    let asgno c t s t' s' =
       fresh (l r n path e)
-        (c  === c')
         (t  === asgn l r)
         (t' === skip ())
         (patho c path)
@@ -85,9 +84,8 @@ module Basic =
 
     let asgn = ("assign", asgno)
 
-    let varo c t s c' t' s' =
+    let varo c t s t' s' =
       fresh (n x path thrd)
-        (c  === c')
         (s  === s')
         (t  === var x)
         (t' === const n)
@@ -96,9 +94,8 @@ module Basic =
 
     let var = ("var", varo)
 
-    let binopo c t s c' t' s' =
+    let binopo c t s t' s' =
       fresh (op x y z )
-        (c  === c')
         (s  === s')
         (t  === binop op (const x) (const y))
         (t' === const z)
@@ -115,18 +112,16 @@ module Basic =
 
     let binop = ("binop", binopo)
 
-    let repeato c t s c' t' s' =
+    let repeato c t s t' s' =
       fresh (body)
-        (c  === c')
         (s  === s')
         (t  === repeat body)
         (t' === if' body (skip ()) t)
 
     let repeat = ("repeat", repeato)
 
-    let ifo c t s c' t' s' =
+    let ifo c t s t' s' =
       fresh (e n btrue bfalse)
-        (c === c')
         (s === s')
         (t === if' (const n) btrue bfalse)
         (conde [
@@ -138,10 +133,8 @@ module Basic =
 
     let if' = ("if", ifo)
 
-    let seqo c t s c' t' s' =
-      (s === s') &&&
-      (c === c') &&&
-      (t === seq (skip ()) t')
+    let seqo c t s t' s' =
+      (s === s') &&& (t === seq (skip ()) t')
 
     let seq = ("seq", seqo)
 
@@ -154,9 +147,8 @@ module Basic =
 module ThreadSpawning =
   struct
 
-    let spawno c t s c' t' s' =
+    let spawno c t s t' s' =
       fresh (l r path)
-       (c  === c')
        (t  === spw l r)
        (t' === par l r)
        (patho c path)
@@ -164,7 +156,7 @@ module ThreadSpawning =
 
     let spawn = ("spawn", spawno)
 
-    let joino c t s c' t' s' =
+    let joino c t s t' s' =
       let rec expro t = conde [
         fresh (n)
           (t === const n);
@@ -176,14 +168,10 @@ module ThreadSpawning =
       fresh (t1 t2 path)
         (t === par t1 t2)
         (conde [
-          (t1 === stuck ())                       &&& (t' === stuck ()) &&& (c' === hole ());
-          (t1 =/= stuck ()) &&& (t2 === stuck ()) &&& (t' === stuck ()) &&& (c' === hole ());
-          (t1 =/= stuck ()) &&& (t2 =/= stuck ()) &&& (c === c') &&& (conde [
-            (t1 === skip ()) &&& (t2 === skip ()) &&& (t' === skip ());
-            (t1 === skip ()) &&& (expro t2) &&& (t' === t2);
-            (expro t1) &&& (t2 === skip ()) &&& (t' === t1);
-            (expro t1) &&& (expro t2)       &&& (t' === pair t1 t2);
-          ])
+          (t1 === skip ()) &&& (t2 === skip ()) &&& (t' === skip ());
+          (t1 === skip ()) &&& (expro t2) &&& (t' === t2);
+          (expro t1) &&& (t2 === skip ()) &&& (t' === t1);
+          (expro t1) &&& (expro t2)       &&& (t' === pair t1 t2);
         ])
         (patho c path)
         (MemState.joino s s' path)
@@ -202,11 +190,8 @@ module NonAtomic =
     type ci = Lang.Context.ti
     type si = Memory.MemState.ti
 
-    type rule =  (ci -> ti -> si -> ci -> ti -> si -> MiniKanren.goal)
-
-    let read_nao c t s c' t' s' =
+    let read_nao c t s t' s' =
       fresh (l path n ts)
-        (c  === c')
         (t  === read !!NA l)
         (t' === const n)
         (patho c path)
@@ -214,9 +199,8 @@ module NonAtomic =
 
     let read_na = ("read_na", read_nao)
 
-    let write_nao c t s c' t' s' =
+    let write_nao c t s t' s' =
       fresh (l n path ts)
-        (c  === c')
         (t  === write !!NA l (const n))
         (t' === skip ())
         (patho c path)
@@ -224,9 +208,8 @@ module NonAtomic =
 
     let write_na = ("write_na", write_nao)
 
-    let read_na_dro c t s c' t' s' =
+    let read_na_dro c t s t' s' =
       fresh (l path n)
-        (c  === c')
         (t  === read !!NA l)
         (t' === stuck ())
         (patho c path)
@@ -234,9 +217,8 @@ module NonAtomic =
 
     let read_na_dr = ("read_na_dr", read_na_dro)
 
-    let write_na_dro c t s c' t' s' =
+    let write_na_dro c t s t' s' =
       fresh (l path n ts)
-        (c  === c')
         (t  === write !!NA l (const n))
         (t' === stuck ())
         (patho c path)
@@ -244,9 +226,8 @@ module NonAtomic =
 
     let write_na_dr = ("write_na_dr", write_na_dro)
 
-    let read_dro c t s c' t' s' =
+    let read_dro c t s t' s' =
       fresh (mo l path n)
-        (c  === c')
         (t  === read mo l)
         (t' === stuck ())
         (patho c path)
@@ -254,9 +235,8 @@ module NonAtomic =
 
     let read_dr = ("read_dr", read_dro)
 
-    let write_dro c t s c' t' s' =
+    let write_dro c t s t' s' =
       fresh (mo l path n)
-        (c  === c')
         (t  === write mo l (const n))
         (t' === stuck ())
         (patho c path)
@@ -270,9 +250,8 @@ module NonAtomic =
 module Rlx =
   struct
 
-    let read_rlxo c t s c' t' s' =
+    let read_rlxo c t s t' s' =
       fresh (l path n ts)
-        (c  === c')
         (t  === read !!RLX l)
         (t' === const n)
         (patho c path)
@@ -280,9 +259,8 @@ module Rlx =
 
     let read_rlx = ("read_rlx", read_rlxo)
 
-    let write_rlxo c t s c' t' s' =
+    let write_rlxo c t s t' s' =
       fresh (l n path ts)
-        (c  === c')
         (t  === write !!RLX l (const n))
         (t' === skip ())
         (patho c path)
@@ -293,15 +271,13 @@ module Rlx =
     let all = [read_rlx; write_rlx; ]
 
     module Step = (val make_reduction_relation all)
-
   end
 
 module RelAcq =
   struct
 
-    let read_acqo c t s c' t' s' =
+    let read_acqo c t s t' s' =
       fresh (l path n ts)
-        (c  === c')
         (t  === read !!ACQ l)
         (t' === const n)
         (patho c path)
@@ -309,9 +285,8 @@ module RelAcq =
 
     let read_acq = ("read_acq", read_acqo)
 
-    let write_relo c t s c' t' s' =
+    let write_relo c t s t' s' =
       fresh (l n path ts)
-        (c  === c')
         (t  === write !!REL l (const n))
         (t' === skip ())
         (patho c path)
@@ -327,9 +302,8 @@ module RelAcq =
 module SC =
   struct
 
-    let read_sco c t s c' t' s' =
+    let read_sco c t s t' s' =
       fresh (l path n ts)
-        (c  === c')
         (t  === read !!SC l)
         (t' === const n)
         (patho c path)
@@ -337,9 +311,8 @@ module SC =
 
     let read_sc = ("read_sc", read_sco)
 
-    let write_sco c t s c' t' s' =
+    let write_sco c t s t' s' =
       fresh (l n path ts)
-        (c  === c')
         (t  === write !!SC l (const n))
         (t' === skip ())
         (patho c path)
@@ -368,9 +341,8 @@ let certifyo rules path t s  =
 module Promising =
   struct
 
-    let promiseo c t s c' t' s' =
+    let promiseo c t s t' s' =
       fresh (l n path)
-        (c  === c')
         (t  === write !!RLX l (const n))
         (t' === skip ())
         (patho c path)
@@ -378,9 +350,8 @@ module Promising =
 
     let promise = ("promise", promiseo)
 
-    let fulfillo c t s c' t' s' =
+    let fulfillo c t s t' s' =
       fresh (path)
-        (c  === c')
         (t  === t')
         (patho c path)
         (MemState.fulfillo s s' path)
@@ -399,7 +370,7 @@ module Promising =
     module FulfillStep =
       (val make_reduction_relation
         ~reducibleo:(fun (_, s) b -> MemState.laggingo s b)
-        ~ordero:(fun t c rdx -> (t === rdx) &&& (c === hole ()))
+        ~ordero:Context.dumb_splito
         [fulfill]
       )
 

@@ -23,9 +23,9 @@ module Term :
 
     (* include (module type of MiniKanren.Fmap5(T)) *)
 
-    type tt  = (Memory.Value.tt, Memory.Var.tt, Memory.MemOrder.tt, Memory.Loc.tt, tt) T.t
-    type tl  = (Memory.Value.tl, Memory.Var.tl, Memory.MemOrder.tl, Memory.Loc.tl, tl) T.t MiniKanren.logic
-    type ti  = (tt, tl) MiniKanren.injected
+    type tt = (Memory.Value.tt, Memory.Var.tt, Memory.MemOrder.tt, Memory.Loc.tt, tt) T.t
+    type tl = (Memory.Value.tl, Memory.Var.tl, Memory.MemOrder.tl, Memory.Loc.tl, tl) T.t MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
 
     val const   : Memory.Value.ti -> ti
     val var     : Memory.Loc.ti -> ti
@@ -56,40 +56,34 @@ module Term :
     val pprint : tl -> string
 
     val reducibleo : ?path:Memory.Path.ti -> ti -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
+
+    val can_prmo : ti -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
   end
 
 module Context :
   sig
     module T :
       sig
-        type ('expr, 'string, 'mo, 'loc, 't, 'c) t =
-          | Hole
-          | BinopL    of 'string * 'c * 't
-          | BinopR    of 'string * 't * 'c
-          | PairL     of 'c * 't
-          | PairR     of 't * 'c
-          | AsgnC     of 't * 'c
-          | WriteC    of 'mo * 'loc * 'c
-          | IfC       of 'c * 't * 't
-          | SeqL      of 'c * 't
-          | SeqR      of 't * 'c
-          | ParL      of 'c * 't
-          | ParR      of 't * 'c
-        (* with gmap *)
+        type ('t, 'path) t = {
+          ctx  : 't;
+          hole : 't;
+          path : 'path;
+        }
       end
 
-    type tt  = (Memory.Value.tt, Memory.Var.tt, Memory.MemOrder.tt, Memory.Loc.tt, Term.tt, tt) T.t
-    type tl  = (Memory.Value.tl, Memory.Var.tl, Memory.MemOrder.tl, Memory.Loc.tl, Term.tl, tl) T.t MiniKanren.logic
-    type ti  = (tt, tl) MiniKanren.injected
+    type tt = (Term.tt, Memory.Path.tt) T.t
+    type tl = (Term.tl, Memory.Path.tl) T.t MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+
+    (* val hole : unit -> ti *)
 
     val inj : tt -> ti
-
-    val hole : unit -> ti
 
     val splito : Term.ti -> ti -> Term.ti -> MiniKanren.goal
     val plugo  : Term.ti -> ti -> Term.ti -> MiniKanren.goal
 
-    val can_prmo  : Term.ti -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
+    val dumb_splito : Term.ti -> ti -> Term.ti -> MiniKanren.goal
+
     val pick_prmo : Term.ti -> ti -> Term.ti -> MiniKanren.goal
 
     val patho : ti -> Memory.Path.ti -> MiniKanren.goal

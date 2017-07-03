@@ -88,4 +88,5 @@ let _ =
     Printf.printf "q: %s\nr: %s\n" (Term.pprint q) (Term.pprint r);
     Printf.printf "\n---------------------------------\n";
   in
-  List.iter printer @@ Stream.take ~n:1 stream
+  List.iter printer @@ Stream.take ~n:1 stream;
+  MiniKanren.report_counters ()
