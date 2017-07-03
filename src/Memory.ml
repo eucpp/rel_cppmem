@@ -268,11 +268,7 @@ module ThreadState =
     end
 
     type tt = (Registers.tt, ViewFront.tt, ViewFront.tt, ViewFront.tt, PromiseSet.tt) T.t
-
-    type tl_inner = (Registers.tl, ViewFront.tl, ViewFront.tl, ViewFront.tl, PromiseSet.tl) T.t
-
-    type tl = tl_inner MiniKanren.logic
-
+    type tl = (Registers.tl, ViewFront.tl, ViewFront.tl, ViewFront.tl, PromiseSet.tl) T.t MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
 
     include Fmap5(T)
@@ -638,8 +634,7 @@ module LocStory =
     end
 
     type tt = (Nat.ground, Cell.tt List.ground) T.t
-    type tl_inner = (Nat.logic, Cell.tl List.logic) T.t
-    type tl = tl_inner MiniKanren.logic
+    type tl = (Nat.logic, Cell.tl List.logic) T.t MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
 
     include Fmap2(T)
@@ -780,8 +775,7 @@ module MemState =
     end
 
     type tt = (Threads.tt, MemStory.tt, ViewFront.tt, ViewFront.tt) T.t
-    type tl_inner = (Threads.tl, MemStory.tl, ViewFront.tl, ViewFront.tl) T.t
-    type tl = tl_inner logic
+    type tl = (Threads.tl, MemStory.tl, ViewFront.tl, ViewFront.tl) T.t logic
     type ti = (tt, tl) MiniKanren.injected
 
     include Fmap4(T)
@@ -988,12 +982,25 @@ module MemState =
         (sc_ts <= ts)
     )
 
+    (* let read_sco t t' path loc value ts = Nat.(
+      fresh (tree story na sc)
+        (t === t')
+        (t === mem_state tree story na sc)
+        (VarList.geto sc loc value)
+    ) *)
+
     let write_sco t t'' path loc value ts =
       fresh (t' tree story na sc sc' ts)
         (t'   === mem_state tree story na sc )
         (t''  === mem_state tree story na sc')
         (write_relo t t' path loc value ts)
         (ViewFront.updateo sc sc' loc ts)
+
+    (* let write_sco t t' path loc value ts =
+      fresh (tree story na sc sc')
+        (t  === mem_state tree story na sc )
+        (t' === mem_state tree story na sc')
+        (VarList.seto sc sc' loc value) *)
 
     let last_valueo t loc value =
       fresh (tree tree story na sc)

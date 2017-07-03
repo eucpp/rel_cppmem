@@ -112,11 +112,7 @@ module ViewFront :
 module ThreadState :
   sig
     type tt
-
-    type tl_inner
-
-    type tl = tl_inner MiniKanren.logic
-
+    type tl
     type ti = (tt, tl) MiniKanren.injected
 
     val inj : tt -> ti
@@ -218,11 +214,7 @@ module Threads :
 module LocStory :
   sig
     type tt
-
-    type tl_inner
-
-    type tl = tl_inner MiniKanren.logic
-
+    type tl
     type ti = (tt, tl) MiniKanren.injected
 
     val inj : tt -> ti
@@ -287,9 +279,7 @@ module MemState :
   sig
     type tt
 
-    type tl_inner
-
-    type tl = tl_inner MiniKanren.logic
+    type tl
 
     type ti = (tt, tl) MiniKanren.injected
 
