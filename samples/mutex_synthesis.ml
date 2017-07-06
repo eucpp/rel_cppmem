@@ -47,17 +47,17 @@ let stmt_hinto t = Term.(conde [
     ]) *)
 ])
 
-let prog_MUTEX = fun q r s t -> <:cppmem<
+let prog_MUTEX = fun h1 h2 h3 h4 -> <:cppmem<
     spw {{{
-        ? q;
-        if ? r then
+        ? h1;
+        if ? h2 then
           ret 1
         else
           ret 0
         fi
     |||
-        ? s;
-        if ? t then
+        ? h3;
+        if ? h4 then
           ret 1
         else
           ret 0
@@ -65,23 +65,23 @@ let prog_MUTEX = fun q r s t -> <:cppmem<
     }}}
 >>
 
-(* let prog_MUTEX = <:cppmem<
+let prog_MUTEX = <:cppmem<
     spw {{{
-        y_sc := 1;
-        if x_sc != 1 then
+        x_sc := 0;
+        if x_sc then
           ret 1
         else
           ret 0
         fi
     |||
         x_sc := 1;
-        if y_sc = 0 then
+        if x_sc != 1 then
           ret 1
         else
           ret 0
         fi
     }}}
->> *)
+>>
 
 let int_of_bool b = if b then 1 else 0
 
@@ -92,42 +92,52 @@ let pair (x, y) = pair (ret x) (ret y)
 let _ =
   let term = prog_MUTEX in
   let state = MemState.inj @@ MemState.preallocate [] ["x"; "y";] in
-  let refine = Stream.map Term.refine in
   let stream = Sem.(
-    run qrst
-      (fun q r s t ->
-        fresh (prog state1 state2)
-          (stmt_hinto q)
-          (expr_hinto r)
-          (stmt_hinto s)
-          (expr_hinto t)
-          (prog === term q r s t)
+    (* run q
+      (fun prog ->
+        fresh (h1 h2 h3 h4 state1 state2)
+          (stmt_hinto h1)
+          (expr_hinto h2)
+          (stmt_hinto h3)
+          (expr_hinto h4)
+          (prog === term h1 h2 h3 h4)
           ((prog, state) -->* (pair (1, 0), state1))
           ((prog, state) -->* (pair (0, 1), state2))
-          (negation (
+          (* (negation (
             fresh (state')
               ((prog, state) -->* (pair (1, 1), state'))
-          ))
+          )) *)
       )
-      (fun qs rs ss ts -> Utils.zip4 (refine qs) (refine rs) (refine ss) (refine ts))
-    (* run qr *)
-      (* (fun q r ->
+      (fun progs ->
+        let pred prog = Sem.(
+          run q
+            (fun q ->
+              fresh (state')
+                (q === pair (1, 1))
+                ((Term.inj prog, state) -->* (q, state'))
+            )
+            (fun qs -> Stream.is_empty qs)
+        ) in
+        Stream.filter pred @@ Stream.map (fun rr -> rr#prj) progs
+      ) *)
+    run qr
+      (fun q r ->
         fresh (s1 s2)
           ((prog_MUTEX, state) -->* (q, r))
-          ((prog_MUTEX, state) -->* (pair (1, 0), s1))
+          (* ((prog_MUTEX, state) -->* (pair (1, 0), s1))
           ((prog_MUTEX, state) -->* (pair (0, 1), s2))
           (negation (
             fresh (state')
               ((prog_MUTEX, state) -->* (pair (1, 1), state'))
-          ))
+          )) *)
       )
-      (fun qs rs -> Stream.zip (refine qs) (Stream.map (MemState.refine) rs)) *)
+      (fun qs rs -> Stream.zip (Stream.map (Term.refine) qs) (Stream.map (MemState.refine) rs))
   ) in
-  let printer (q, r, s, t) =
-  (* let printer (q, r) = *)
+  (* let printer prog = *)
+  let printer (q, r) =
     Printf.printf "\n---------------------------------\n";
-    Printf.printf "q: %s\nr: %s\ns: %s\nt: %s\n" (Term.pprint q) (Term.pprint r) (Term.pprint s) (Term.pprint t);
-    (* Printf.printf "\n%s\n%s\n" (Term.pprint q) (MemState.pprint r); *)
+    (* Printf.printf "prog: %s\n" (Term.pprint @@ Term.to_logic prog); *)
+    Printf.printf "\n%s\n%s\n" (Term.pprint q) (MemState.pprint r);
     Printf.printf "\n---------------------------------\n";
   in
-  List.iter printer @@ Stream.take ~n:1 stream
+  List.iter printer @@ Stream.take ~n:5 stream

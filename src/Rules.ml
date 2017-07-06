@@ -94,7 +94,7 @@ module Basic =
 
     let var = ("var", varo)
 
-    let binopo c t s t' s' =
+    let binopo c t s t' s' = Nat.(
       fresh (op x y z )
         (s  === s')
         (t  === binop op (const x) (const y))
@@ -102,13 +102,14 @@ module Basic =
         (conde [
           (op === !!"+")  &&& (Nat.addo x y z);
           (op === !!"*")  &&& (Nat.mulo x y z);
-          (op === !!"=")  &&& (conde [(x === y) &&& (z === (inj_nat 1)); (x =/= y) &&& (z === (inj_nat 0))]);
-          (op === !!"!=") &&& (conde [(x =/= y) &&& (z === (inj_nat 1)); (x === y) &&& (z === (inj_nat 0))]);
-          (op === !!"<")  &&& (conde [(Nat.lto x y !!true) &&& (z === (inj_nat 1)); (Nat.lto x y !!false) &&& (z === (inj_nat 0))]);
-          (op === !!"<=") &&& (conde [(Nat.leo x y !!true) &&& (z === (inj_nat 1)); (Nat.leo x y !!false) &&& (z === (inj_nat 0))]);
-          (op === !!">")  &&& (conde [(Nat.gto x y !!true) &&& (z === (inj_nat 1)); (Nat.gto x y !!false) &&& (z === (inj_nat 0))]);
-          (op === !!">=") &&& (conde [(Nat.geo x y !!true) &&& (z === (inj_nat 1)); (Nat.geo x y !!false) &&& (z === (inj_nat 0))]);
+          (op === !!"=")  &&& (conde [(eqo x y !!true ) &&& (z === (inj_nat 1)); (eqo x y !!false) &&& (z === (inj_nat 0))]);
+          (op === !!"!=") &&& (conde [(eqo x y !!false) &&& (z === (inj_nat 1)); (eqo x y !!true ) &&& (z === (inj_nat 0))]);
+          (op === !!"<")  &&& (conde [(lto x y !!true) &&& (z === (inj_nat 1)); (lto x y !!false) &&& (z === (inj_nat 0))]);
+          (op === !!"<=") &&& (conde [(leo x y !!true) &&& (z === (inj_nat 1)); (leo x y !!false) &&& (z === (inj_nat 0))]);
+          (op === !!">")  &&& (conde [(gto x y !!true) &&& (z === (inj_nat 1)); (gto x y !!false) &&& (z === (inj_nat 0))]);
+          (op === !!">=") &&& (conde [(geo x y !!true) &&& (z === (inj_nat 1)); (geo x y !!false) &&& (z === (inj_nat 0))]);
         ])
+      )
 
     let binop = ("binop", binopo)
 

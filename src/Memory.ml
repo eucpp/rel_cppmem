@@ -974,33 +974,33 @@ module MemState =
         (fence_loc_relo t t' path loc)
         (write_rlxo t' t'' path loc value ts)
 
-    let read_sco t t' path loc value ts = Nat.(
+    (* let read_sco t t' path loc value ts = Nat.(
       fresh (tree story na sc sc_ts ts)
         (t === mem_state tree story na sc)
         (read_acqo t t' path loc value ts)
         (VarList.geto sc loc sc_ts)
         (sc_ts <= ts)
-    )
+    ) *)
 
-    (* let read_sco t t' path loc value ts = Nat.(
+    let read_sco t t' path loc value ts = Nat.(
       fresh (tree story na sc)
         (t === t')
         (t === mem_state tree story na sc)
         (VarList.geto sc loc value)
-    ) *)
+    )
 
-    let write_sco t t'' path loc value ts =
+    (* let write_sco t t'' path loc value ts =
       fresh (t' tree story na sc sc' ts)
         (t'   === mem_state tree story na sc )
         (t''  === mem_state tree story na sc')
         (write_relo t t' path loc value ts)
-        (ViewFront.updateo sc sc' loc ts)
+        (ViewFront.updateo sc sc' loc ts) *)
 
-    (* let write_sco t t' path loc value ts =
+    let write_sco t t' path loc value ts =
       fresh (tree story na sc sc')
         (t  === mem_state tree story na sc )
         (t' === mem_state tree story na sc')
-        (VarList.seto sc sc' loc value) *)
+        (VarList.seto sc sc' loc value)
 
     let last_valueo t loc value =
       fresh (tree tree story na sc)
