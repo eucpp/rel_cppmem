@@ -25,11 +25,21 @@ relcppmem:
 	$(OCB) $(OCB_FLAGS) $(BYTE_TARGETS) $(NATIVE_TARGETS)
 
 plugin: relcppmem
-	$(OCB) $(OCB_FLAGS) -I camlp5 camlp5/pa_cppmem.cmo
+	$(OCB) -I camlp5 camlp5/pa_cppmem.cmo
 
 test: relcppmem plugin
 	$(OCB) -I test -pkgs "oUnit" Test.native
 	./Test.native
+
+################################# Samples ####################################
+
+mp_synthesis: plugin
+	$(OCB) -I samples mp_synthesis.native
+	time ./mp_synthesis.native
+
+mp_sc_synthesis: plugin
+	$(OCB) -I samples mp_sc_synthesis.native
+	time ./mp_sc_synthesis.native
 
 ######################## Installation related stuff ##########################
 INSTALL_TARGETS = META \

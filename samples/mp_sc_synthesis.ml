@@ -5,11 +5,11 @@ open Relcppmem.Lang
 open Relcppmem.Lang.Term
 open Relcppmem.Memory
 
-let rules = Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.NonAtomic.all @ Rules.RelAcq.all
+let rules = Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.SC.all
 
-module RelAcqStep = (val Rules.make_reduction_relation rules)
+module SCStep = (val Rules.make_reduction_relation rules)
 
-module Sem = Semantics.Make(RelAcqStep)
+module Sem = Semantics.Make(SCStep)
 
 let const_hinto t =
   fresh (n)
@@ -77,13 +77,27 @@ let term_hinto t = conde [expr_hinto t; stmt_hinto t; seq_stmt_hinto t]
 
 let prog_MP = fun h1 h2 -> <:cppmem<
     spw {{{
-        x_na := 1;
+        x_sc := 1;
         ? h1
     |||
         ? h2;
-        ret x_na
+        ret x_sc
     }}}
 >>
+
+(* let prog_MP = <:cppmem<
+  spw {{{
+    x_sc := 1;
+    f_sc := 1
+  |||
+    if 0
+    then f_sc := 0
+    else f_sc := 2
+    fi;
+    ret x_sc
+  }}}
+>> *)
+
 
 let ret n = const @@ Nat.inj @@ Nat.of_int n
 
@@ -103,12 +117,20 @@ let _ =
               ((prog, state) -->* (term', state'))
           ))
       )
-      (fun progs -> Stream.map (Term.refine) progs)
+    (fun progs -> Stream.map (Term.refine) progs)
+    (* run qr
+      (fun q  r  -> (prog_MP, state) -->* (q, r))
+      (fun qs rs -> Stream.zip (Stream.map (Term.refine) qs) (Stream.map (MemState.refine) rs)) *)
   ) in
   let printer prog =
     Printf.printf "\n---------------------------------\n";
-    Printf.printf "q: %s\n" (Term.pprint prog);
+    Printf.printf "prog: %s\n" (Term.pprint prog);
     Printf.printf "\n---------------------------------\n";
   in
+  (* let printer (q, r) =
+    Printf.printf "\n---------------------------------\n";
+    Printf.printf "q: %s\nr: %s\n" (Term.pprint q) (MemState.pprint r);
+    Printf.printf "\n---------------------------------\n";
+  in *)
   List.iter printer @@ Stream.take ~n:1 stream;
   MiniKanren.report_counters ()

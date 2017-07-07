@@ -5,3 +5,4 @@ true: use_menhir, explain, rectypes
 <src/*.ml>: for-pack(Relcppmem)
 
 <test/*.ml>: use_pa_cppmem
+<samples/*.ml>: use_pa_cppmem
