@@ -33,13 +33,17 @@ test: relcppmem plugin
 
 ################################# Samples ####################################
 
-mp_synthesis: plugin
+mp_synthesis: relcppmem plugin
 	$(OCB) -I samples mp_synthesis.native
 	time ./mp_synthesis.native
 
-mp_sc_synthesis: plugin
+mp_sc_synthesis: relcppmem plugin
 	$(OCB) -I samples mp_sc_synthesis.native
 	time ./mp_sc_synthesis.native
+
+mutex_synthesis: relcppmem plugin
+	$(OCB) -I samples mutex_synthesis.native
+	time ./mutex_synthesis.native
 
 ######################## Installation related stuff ##########################
 INSTALL_TARGETS = META \

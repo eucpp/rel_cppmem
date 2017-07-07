@@ -73,7 +73,7 @@ let rec stmt_hinto t = conde [
     ]);
 ]
 
-let term_hinto t = conde [expr_hinto t; stmt_hinto t; seq_stmt_hinto t]
+let term_hinto t = conde [expr_hinto t; stmt_hinto t]
 
 let prog_MP = fun h1 h2 -> <:cppmem<
     spw {{{

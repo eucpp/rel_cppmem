@@ -17,7 +17,6 @@ let const_hinto t =
 
 let read_hinto e =
   fresh (mo x)
-    (x =/= !!"x")
     (e === read mo x)
 
 let expr_hinto e = conde [
@@ -32,12 +31,10 @@ let expr_hinto e = conde [
 
 let write_const_hinto t =
   fresh (mo x n)
-    (x =/= !!"x")
     (t === write mo x (const n))
 
 let write_expr_hinto t =
   fresh (mo x e)
-    (x =/= !!"x")
     (t === write mo x e)
     (expr_hinto e)
 
@@ -73,7 +70,7 @@ let rec stmt_hinto t = conde [
     ]);
 ]
 
-let term_hinto t = conde [expr_hinto t; stmt_hinto t; seq_stmt_hinto t]
+let term_hinto t = conde [expr_hinto t; stmt_hinto t]
 
 let prog_MP = fun h1 h2 -> <:cppmem<
     spw {{{
