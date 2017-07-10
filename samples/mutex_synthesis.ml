@@ -11,50 +11,40 @@ module SCStep = (val Rules.make_reduction_relation rules)
 
 module Sem = Semantics.Make(SCStep)
 
-let const_hinto t =
-  fresh (n)
-    (t === const n)
+let cond_expr_hinto e = conde [
+  fresh (x)
+    (e === read !!MemOrder.SC x);
 
-let read_hinto e =
-  fresh (mo x)
-    (e === read mo x)
-
-let expr_hinto e = conde [
-  (read_hinto e);
-
-  (const_hinto e);
-
-  fresh (op e1 e2 n)
-    (e  === binop op e1 (const n))
-    (read_hinto e1);
+  fresh (x n)
+    (e  === binop !!"=" (read !!MemOrder.SC x) (const n))
+    (conde [
+      (n === Nat.one);
+      (n === Nat.zero);
+    ])
 ]
 
 let write_const_hinto t =
-  fresh (mo x n)
-    (t === write mo x (const n))
-
-let write_expr_hinto t =
-  fresh (mo x e)
-    (t === write mo x e)
-    (expr_hinto e)
+  fresh (x n)
+    (t === write !!MemOrder.SC x (const n))
+    (conde [
+      (n === Nat.one);
+      (n === Nat.zero);
+    ])
 
 let rec stmt_hinto t = conde [
   (write_const_hinto t);
 
-  (expr_hinto t);
-
   fresh (t')
     (t === repeat t')
-    (expr_hinto t');
-
-  (write_expr_hinto t);
+    (cond_expr_hinto t');
 
   fresh (t')
     (t === repeat t')
     (seq_stmt_hinto t');
 
-  fresh (cond t1 t2)
-    (t === if' cond t1 t2)
+  fresh (e t1 t2)
+    (t === if' e t1 t2)
+    (cond_expr_hinto e)
     (seq_stmt_hinto t1)
     (seq_stmt_hinto t2);
 
@@ -64,13 +54,10 @@ let rec stmt_hinto t = conde [
   fresh (t1 t2)
     (t === seq t1 t2)
     (stmt_hinto t1)
-    (conde [
-      (stmt_hinto t2);
-      (seq_stmt_hinto t2);
-    ]);
+    (seq_stmt_hinto t2);
 ]
 
-let term_hinto t = conde [expr_hinto t; stmt_hinto t]
+let term_hinto = seq_stmt_hinto
 
 let prog_MUTEX = fun h1 h2 h3 h4 -> <:cppmem<
     spw {{{
@@ -122,9 +109,9 @@ let _ =
       (fun prog ->
         fresh (h1 h2 h3 h4 state1 state2)
           (term_hinto h1)
-          (expr_hinto h2)
+          (cond_expr_hinto h2)
           (term_hinto h3)
-          (expr_hinto h4)
+          (cond_expr_hinto h4)
           (prog === term h1 h2 h3 h4)
           ((prog, state) -->* (pair (1, 0), state1))
           ((prog, state) -->* (pair (0, 1), state2))
@@ -166,4 +153,5 @@ let _ =
     (* Printf.printf "\n%s\n%s\n" (Term.pprint q) (MemState.pprint r); *)
     Printf.printf "\n---------------------------------\n";
   in
-  List.iter printer @@ Stream.take ~n:1 stream
+  List.iter printer @@ Stream.take ~n:1 stream;
+  MiniKanren.report_counters ()

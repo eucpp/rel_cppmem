@@ -196,7 +196,7 @@ let prog_CoRR_rlx = <:cppmem<
   }}}
 >>
 
-(* let test_CoRR_rlx step = test_prog step ~negative:true prog_CoRR_rlx ["((1, 2), (2, 1))"; "((2, 1), (1, 2))"] *)
+let test_CoRR_rlx step = test_prog step ~negative:true prog_CoRR_rlx ["((1, 2), (2, 1))"; "((2, 1), (1, 2))"]
 
 let prog_LB = <:cppmem<
   spw {{{
@@ -240,7 +240,6 @@ let promisingStep =
     include Semantics.UnionRelation(Rules.ThreadSpawning.Step)(CertStep)
   end : Rules.CppMemStep)
 
-
 let tests =
   "Litmus">::: [
     "DR_1">:: test_data_race_1 rlxStep;
@@ -254,7 +253,7 @@ let tests =
     "MP_rlx_1">:: test_MP_rlx_1 relAcqStep;
     "MP_rlx_2">:: test_MP_rlx_2 relAcqStep;
     "MP_rel_seq">:: test_MP_rel_seq relAcqStep;
-    (* "CoRR_rlx">: OUnitTest.TestCase (OUnitTest.Short, test_CoRR_rlx relAcqStep); *)
+    (* "CoRR_rlx">: OUnitTest.TestCase (OUnitTest.Long, test_CoRR_rlx relAcqStep); *)
 
     "SB_sc">:: test_SB_sc scStep;
 

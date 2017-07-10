@@ -11,50 +11,40 @@ module RelAcqStep = (val Rules.make_reduction_relation rules)
 
 module Sem = Semantics.Make(RelAcqStep)
 
-let const_hinto t =
-  fresh (n)
-    (t === const n)
+let cond_expr_hinto e = conde [
+  fresh (x mo)
+    (e === read mo x);
 
-let read_hinto e =
-  fresh (mo x)
-    (e === read mo x)
-
-let expr_hinto e = conde [
-  (read_hinto e);
-
-  (const_hinto e);
-
-  fresh (op e1 e2 n)
-    (e  === binop op e1 (const n))
-    (read_hinto e1);
+  fresh (x mo n)
+    (e  === binop !!"=" (read mo x) (const n))
+    (conde [
+      (n === Nat.one);
+      (n === Nat.zero);
+    ])
 ]
 
 let write_const_hinto t =
-  fresh (mo x n)
+  fresh (x mo n)
     (t === write mo x (const n))
-
-let write_expr_hinto t =
-  fresh (mo x e)
-    (t === write mo x e)
-    (expr_hinto e)
+    (conde [
+      (n === Nat.one);
+      (n === Nat.zero);
+    ])
 
 let rec stmt_hinto t = conde [
   (write_const_hinto t);
 
-  (expr_hinto t);
-
   fresh (t')
     (t === repeat t')
-    (expr_hinto t');
-
-  (write_expr_hinto t);
+    (cond_expr_hinto t');
 
   fresh (t')
     (t === repeat t')
     (seq_stmt_hinto t');
 
-  fresh (cond t1 t2)
-    (t === if' cond t1 t2)
+  fresh (e t1 t2)
+    (t === if' e t1 t2)
+    (cond_expr_hinto e)
     (seq_stmt_hinto t1)
     (seq_stmt_hinto t2);
 
@@ -64,13 +54,10 @@ let rec stmt_hinto t = conde [
   fresh (t1 t2)
     (t === seq t1 t2)
     (stmt_hinto t1)
-    (conde [
-      (stmt_hinto t2);
-      (seq_stmt_hinto t2);
-    ]);
+    (seq_stmt_hinto t2);
 ]
 
-let term_hinto t = conde [expr_hinto t; stmt_hinto t]
+let term_hinto = seq_stmt_hinto
 
 let prog_MP = fun h1 h2 -> <:cppmem<
     spw {{{
