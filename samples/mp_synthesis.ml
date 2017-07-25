@@ -57,7 +57,9 @@ let rec stmt_hinto t = conde [
     (seq_stmt_hinto t2);
 ]
 
-let term_hinto = seq_stmt_hinto
+let term_hinto t = Trace.(trace one) (fun t -> Listener.Goal ("hinto", [Term.pprint @@ Term.refine t])) t (
+  (seq_stmt_hinto t) &&& (Trace.(trace one) (fun t -> Listener.Answer ("hinto", [Term.pprint @@ Term.refine t])) t success)
+)
 
 let prog_MP = fun h1 h2 -> <:cppmem<
     spw {{{
@@ -71,10 +73,13 @@ let prog_MP = fun h1 h2 -> <:cppmem<
 
 let ret n = const @@ Nat.inj @@ Nat.of_int n
 
+let (-->*) = Sem.(-->*)
+
 let _ =
+  let logger = TreeLogger.create () in
   let state = MemState.inj @@ MemState.preallocate [] ["x"; "f"] in
-  let stream = Sem.(
-    run q
+  let stream =
+    run ~listener:(logger :> Listener.t) q
       (fun prog ->
         fresh (h1 h2 state')
           (term_hinto h1)
@@ -88,11 +93,12 @@ let _ =
           ))
       )
       (fun progs -> Stream.map (Term.refine) progs)
-  ) in
+  in
   let printer prog =
     Printf.printf "\n---------------------------------\n";
     Printf.printf "q: %s\n" (Term.pprint prog);
     Printf.printf "\n---------------------------------\n";
   in
   List.iter printer @@ Stream.take ~n:1 stream;
-  MiniKanren.report_counters ()
+  MiniKanren.report_counters ();
+  logger#print ~show_unif:false Format.std_formatter
