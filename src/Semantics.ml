@@ -11,8 +11,9 @@ module type StepRelation =
     type sl
     type si = (st, sl) MiniKanren.injected
 
-    val (->?) : ti * si -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
-    val (-->) : ti * si -> ti * si -> MiniKanren.goal
+    type helper = ((tt * st) option, (tl * sl) MiniKanren.logic option MiniKanren.logic) MiniKanren.injected
+
+    val (-->) : ti * si -> helper -> MiniKanren.goal
   end
 
   module UnionRelation
@@ -31,16 +32,17 @@ module type StepRelation =
     type sl = S1.sl
     type si = (st, sl) MiniKanren.injected
 
-    let (->?) x b =
-      fresh (b1 b2)
-        (S1.(->?) x b1)
-        (S2.(->?) x b2)
-        (Bool.oro b1 b2 b)
+    type helper = ((tt * st) option, (tl * sl) MiniKanren.logic option MiniKanren.logic) MiniKanren.injected
 
-    let (-->) a b = conde [
-      S1.(-->) a b;
-      S2.(-->) a b;
-    ]
+    let (-->) t t' =
+      fresh (t1 t2 a b)
+        (S1.(-->) t t1)
+        (S2.(-->) t t2)
+        (conde [
+          (t1 === Option.none ()) &&& (t' === t2);
+          (t1 === Option.some a)  &&& (t2 === Option.none ()) &&& (t' === t1);
+          (t1 === Option.some a)  &&& (t2 === Option.some b)  &&& ((t' === t1) ||| (t' === t2));
+        ])
 
   end
 
@@ -54,18 +56,20 @@ module Make(S : StepRelation) =
     type sl = S.sl
     type si = S.si
 
+    type helper = ((tt * st) option, (tl * sl) MiniKanren.logic option MiniKanren.logic) MiniKanren.injected
+
     let spaceo_norec spaceo t s t'' s'' = S.(
-      conde [
-        ((t, s) ->? !!false) &&& (t === t'') &&& (s === s'');
-        (* ((t, s) ->? !!true) &&& (t === t'') &&& (s === s''); *)
-        (fresh (t' s')
-          ((t, s) ->? !!true)
-          ((t, s) --> (t', s'))
-          (delay @@ fun () -> spaceo t' s' t'' s''));
-      ]
+      fresh (res)
+        ((t, s) --> res)
+        (conde [
+          (res === Option.none ()) &&& (t === t'') &&& (s === s'');
+
+          fresh (t' s')
+            (res === Option.some (inj_pair t' s'))
+            (delay @@ fun () -> spaceo t' s' t'' s'');
+        ])
     )
 
-    let (->?) = S.(->?)
     let (-->) = S.(-->)
 
     let (-->*) (t, s) (t', s') =

@@ -7,9 +7,19 @@ open MemOrder
 open Term
 open Context
 
+type tt = Lang.Term.tt
+type tl = Lang.Term.tl
 type ti = Lang.Term.ti
+
+type ct = Lang.Context.tt
+type cl = Lang.Context.tl
 type ci = Lang.Context.ti
+
+type st = Memory.MemState.tt
+type sl = Memory.MemState.tl
 type si = Memory.MemState.ti
+
+type helper = ((tt * st) option, (tl * sl) MiniKanren.logic option MiniKanren.logic) MiniKanren.injected
 
 type rule =  (ci -> ti -> si -> ti -> si -> MiniKanren.goal)
 
@@ -17,7 +27,7 @@ type condition = (ci -> ti -> si -> MiniKanren.goal)
 
 type predicate = (ti * si -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal)
 
-type order = (ti -> ci -> ti -> MiniKanren.goal)
+type order = (ti -> Lang.Decay.ti -> MiniKanren.goal)
 
 module type CppMemStep = Semantics.StepRelation with
   type tt = Lang.Term.tt       and
@@ -26,10 +36,9 @@ module type CppMemStep = Semantics.StepRelation with
   type sl = Memory.MemState.tl
 
 let make_step :
-  ?reducibleo:(Term.ti * Memory.MemState.ti -> Bool.groundi -> MiniKanren.goal) ->
-  stepo:(Term.ti * Memory.MemState.ti -> Term.ti * Memory.MemState.ti -> MiniKanren.goal) ->
+  stepo:(Term.ti * Memory.MemState.ti -> helper -> MiniKanren.goal) ->
   (module CppMemStep) =
-  fun ?(reducibleo = fun (t, s) b -> reducibleo t b) ~stepo -> (module
+  fun ~stepo -> (module
     struct
       type tt = Term.tt
       type tl = Term.tl
@@ -39,7 +48,8 @@ let make_step :
       type sl = Memory.MemState.tl
       type si = (st, sl) MiniKanren.injected
 
-      let (->?) = reducibleo
+      type helper = ((tt * st) option, (tl * sl) MiniKanren.logic option MiniKanren.logic) MiniKanren.injected
+
       let (-->) = stepo
 
     end : CppMemStep)
@@ -48,17 +58,22 @@ let make_reduction_relation
   ?(preconditiono  = fun _ _ _ -> success)
   ?(postconditiono = fun _ _ _ -> success)
   ?(ordero = splito)
-  ?(reducibleo = fun (t, s) b -> reducibleo t b)
   rules =
-  let stepo (t, s) (t', s') =
-    fresh (c rdx rdx')
-      (ordero t c rdx)
-      (preconditiono c rdx s)
-      (conde @@ List.map (fun (name, rule) -> rule c rdx s rdx' s') rules)
-      (postconditiono c rdx' s')
-      (plugo c rdx' t')
+  let stepo (t, s) res =
+    fresh (dec)
+      (ordero t dec)
+      (conde [
+        (dec === Option.none ()) &&& (res === Option.none ());
+
+        fresh (ctx rdx rdx' t' s')
+          (dec === Decay.decay ctx rdx)
+          (preconditiono ctx rdx s)
+          (conde @@ List.map (fun (name, rule) -> rule ctx rdx s rdx' s') rules)
+          (postconditiono ctx rdx' s')
+          (plugo ctx rdx' t')
+      ]);
   in
-  make_step ~reducibleo ~stepo
+  make_step ~stepo
 
 module Basic =
   struct
@@ -328,9 +343,9 @@ module SC =
 
 let certifyo rules path t s  =
   let preconditiono c _ _ = Context.patho c path in
-  let reducibleo = fun (t, _) b -> reducibleo ~path t b in
+  (* let reducibleo = fun (t, _) b -> reducibleo ~path t b in *)
   let module CertStep =
-    (val make_reduction_relation ~preconditiono ~reducibleo rules)
+    (val make_reduction_relation ~preconditiono (*~reducibleo*) rules)
   in
   let module Cert = Semantics.Make(CertStep) in
   Cert.(
@@ -363,34 +378,34 @@ module Promising =
 
     module PromiseStep =
       (val make_reduction_relation
-        ~reducibleo:(fun (t, _) b -> can_prmo t b)
-        ~ordero:pick_prmo
+        ~ordero:Lang.promiseo
         [promise]
       )
 
     module FulfillStep =
       (val make_reduction_relation
-        ~reducibleo:(fun (_, s) b -> MemState.laggingo s b)
-        ~ordero:Context.dumb_splito
+        (* ~reducibleo:(fun (_, s) b -> MemState.laggingo s b) *)
+        (* ~ordero:Context.dumb_splito *)
+
         [fulfill]
       )
 
     let make_certified_step rules =
       let ext_rules = fulfill::rules in
-      let reducibleo (t, s) b =
+      (* let reducibleo (t, s) b =
         fresh (b1 b2)
           (Term.reducibleo t b1)
           (MemState.laggingo s b2)
           (Bool.oro b1 b2 b)
-      in
+      in *)
       let postconditiono c rdx s =
         fresh (t path)
           (patho c path)
-          (plugo t c rdx)
+          (plugo c rdx t)
           (certifyo ext_rules path t s)
       in
       let module CertStep =
-        (val make_reduction_relation (*~postconditiono*) ~reducibleo ext_rules) in
+        (val make_reduction_relation (*~postconditiono*) (*~reducibleo*) ext_rules) in
         (module struct
           include Semantics.UnionRelation(CertStep)(PromiseStep)
           (* include CertStep *)

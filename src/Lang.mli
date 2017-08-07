@@ -50,8 +50,6 @@ module Term :
 
     val refine : (tt, tl) MiniKanren.refined -> tl
 
-    val preallocate : tl -> Memory.Var.tt list * Memory.Loc.tt list
-
     val show : tl -> string
     val pprint : tl -> string
   end
@@ -88,14 +86,17 @@ module Decay :
     type tl = (Term.tl, Context.tl) T.t MiniKanren.logic option MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
 
-    val redexo : ti -> Term.ti -> goal
-    val contexto : ti -> Context.ti -> goal
+    val none  : unit -> ti
+    val decay : Context.ti -> Term.ti -> ti
+
+    val redexo : ti -> Term.ti -> MiniKanren.goal
+    val contexto : ti -> Context.ti -> MiniKanren.goal
   end
 
-val splito : Term.ti -> Decay.ti -> goal
+val splito : Term.ti -> Decay.ti -> MiniKanren.goal
 
-val thrd_splito : Path.ti -> Term.ti -> Decay.ti -> goal
+val thrd_splito : Memory.Path.ti -> Term.ti -> Decay.ti -> MiniKanren.goal
 
-val promiseo : Term.ti -> Decay.ti -> goal
+val promiseo : Term.ti -> Decay.ti -> MiniKanren.goal
 
-val plugo : Context.ti -> Term.ti -> Term.ti -> goal
+val plugo : Context.ti -> Term.ti -> Term.ti -> MiniKanren.goal

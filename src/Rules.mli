@@ -9,7 +9,7 @@ type condition = (ci -> ti -> si -> MiniKanren.goal)
 
 type predicate = (ti * si -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal)
 
-type order = (ti -> ci -> ti -> MiniKanren.goal)
+type order = (ti -> Lang.Decay.ti -> MiniKanren.goal)
 
 module type CppMemStep = Semantics.StepRelation with
   type tt = Lang.Term.tt       and
@@ -21,7 +21,6 @@ val make_reduction_relation :
   ?preconditiono:condition  ->
   ?postconditiono:condition ->
   ?ordero:order             ->
-  ?reducibleo:predicate     ->
   (string * rule) list      ->
   (module CppMemStep)
 

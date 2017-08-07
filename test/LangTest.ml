@@ -14,32 +14,59 @@ let string_of_bool = function
   | false -> "false"
 
 let test_order order pairs test_ctx =
-  let stream t = run q (fun q -> order (Term.inj t) q) prj_stream in
+  let stream t = run q
+    (fun q ->
+      fresh (dec x)
+        (order (Term.inj t) dec)
+        (conde [
+          (dec === Option.none ()) &&& (q === !!false);
+          (dec === Option.some x)  &&& (q === !!true);
+        ])
+    ) prj_stream in
   List.iter (fun (t, b) -> assert_single_answer ~printer:string_of_bool b (stream t)) pairs
 
-let test_reducible = test_order Term.reducibleo
+let test_reducible = test_order splito
 
-let test_can_prm = test_order Term.can_prmo
+let test_can_prm = test_order promiseo
 
 let test_thrd_reducible triples test_ctx =
-  let reducible t path = run q (fun q -> Term.reducibleo ~path:(Path.inj path) (Term.inj t) q) prj_stream in
+  let reducible t path =
+    run q
+      (fun q ->
+        fresh (dec x)
+          (thrd_splito (Path.inj path) (Term.inj t) dec)
+          (conde [
+            (dec === Option.none ()) &&& (q === !!false);
+            (dec === Option.some x)  &&& (q === !!true);
+          ])
+      ) prj_stream in
   List.iter (fun (t, path, b) -> assert_single_answer b (reducible t path)) triples
 
 let test_split term expected test_ctx =
-  let split t = run qr (fun q  r  -> Context.splito (Term.inj t) q r)
-                       (fun qs rs -> (*Stream.zip (prj_stream qs)*) (prj_stream rs))
+  let split t = run qr
+    (fun q r ->
+      fresh (dec )
+        (splito (Term.inj t) dec)
+        (Decay.redexo dec r)
+    )
+    (fun qs rs -> (*Stream.zip (prj_stream qs)*) (prj_stream rs))
   in
   let stream = split term in
   assert_single_answer expected stream
 
-let test_plug ctx_term expected test_ctx =
-  let plug (c, t) = run q (fun q -> Context.plugo q (Context.inj c) (Term.inj t)) prj_stream in
+(* let test_plug ctx_term expected test_ctx =
+  let plug (c, t) = run q (fun q -> plugo (Context.inj c) (Term.inj t) q) prj_stream in
   let stream = plug ctx_term in
-  assert_single_answer ~printer:(fun t -> Term.pprint @@ Term.to_logic t) expected stream
+  assert_single_answer ~printer:(fun t -> Term.pprint @@ Term.to_logic t) expected stream *)
 
 let test_pick_prm term expected test_ctx =
-  let pick_prm t = run qr (fun q  r  -> Context.pick_prmo (Term.inj t) q r)
-                          (fun qs rs -> (*Stream.zip (prj_stream qs) (prj_stream rs)*) prj_stream rs)
+  let pick_prm t = run qr
+    (fun q r ->
+      fresh (dec)
+        (promiseo (Term.inj t) dec)
+        (Decay.redexo dec r)
+    )
+    (fun qs rs -> (*Stream.zip (prj_stream qs) (prj_stream rs)*) prj_stream rs)
   in
   let stream = pick_prm term in
   let printer t = Printf.sprintf "%s" @@ Term.pprint (Term.to_logic t) in
@@ -96,10 +123,10 @@ let tests =
 
     "test_plug_skip">:: test_plug (Hole, Skip) Skip; *)
 
-    "test_preallocate">:: (fun test_ctx ->
+    (* "test_preallocate">:: (fun test_ctx ->
                             let vars, atomics = Term.preallocate @@ Term.to_logic (Spw (Seq (Var "r1", Read (SC, "x")), Seq (Var "r1", Var "r2"))) in
                             assert_equal ["r2";"r1"] vars ~cmp:(=) ~printer:(String.concat ",");
-                            assert_equal ["x"] atomics ~cmp:(=) ~printer:(String.concat ","));
+                            assert_equal ["x"] atomics ~cmp:(=) ~printer:(String.concat ",")); *)
 
     "test_can_prm">:: (
       let t1 = Write (RLX, "x", const 1) in

@@ -111,7 +111,7 @@ module Context =
           path : 'path;
         }
 
-        let fmap fa fb {ctx; hole; path} = {ctx = fa ctx; hole = fa hole; path = fb path}
+        let fmap fa fb {term; hole; path} = {term = fa term; hole = fa hole; path = fb path}
       end
 
     type tt = (Term.tt, Memory.Path.tt) T.t
@@ -129,19 +129,21 @@ module Context =
 
     let hole h = context h h (Path.pathn ())
 
-    let patho context path =
-      fresh (ctx hole)
-        (context === make_context ctx hole path)
+    let patho ctx path =
+      fresh (term hole)
+        (ctx === context term hole path)
   end
 
-module Decay :
+module Decay =
   struct
-    module T :
-      sig
+    module T =
+      struct
         type ('t, 'c) t = {
           rdx : 't;
           ctx : 'c;
         }
+
+        let fmap fa fb {rdx; ctx} = {rdx = fa rdx; ctx = fb ctx}
       end
 
     type tt = (Term.tt, Context.tt) T.t option
@@ -150,14 +152,14 @@ module Decay :
 
     include Fmap2(T)
 
-    let none () = Option.none ()
-    let decay ctx rdx = Option.some (inj @@ distrib @@ T.({ctx; rdx}))
+    let none () = MiniKanrenStd.Option.none ()
+    let decay ctx rdx = MiniKanrenStd.Option.some (inj @@ distrib @@ T.({ctx; rdx}))
 
     let redexo dec rdx =
       fresh (ctx)
         (dec === decay ctx rdx)
 
-    val contexto dec ctx =
+    let contexto dec ctx =
       fresh (rdx)
         (dec === decay ctx rdx)
   end
@@ -195,14 +197,14 @@ let rec splito term dec = Term.(Context.(Path.(Decay.(conde [
         (splito t2 (none ()))
         (dec === none ());
 
-      fresh (ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h path)
         (splito t1 (decay ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === pair t' t2)
         (dec === decay ctx rdx);
 
-      fresh (ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h path)
         (splito t1 (none ()))
         (splito t2 (decay ctx' rdx))
         (ctx  === context t  h path)
@@ -218,7 +220,7 @@ let rec splito term dec = Term.(Context.(Path.(Decay.(conde [
         (splito r (none ()))
         (dec === decay (hole h) term);
 
-      fresh (ctx ctx' t t' h path rdx)
+      fresh (rdx ctx ctx' t t' h path)
         (splito r (decay ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
@@ -233,7 +235,7 @@ let rec splito term dec = Term.(Context.(Path.(Decay.(conde [
         (splito e (none ()))
         (dec === decay (hole h) term);
 
-      fresh (ctx ctx' t t' h path rdx)
+      fresh (rdx ctx ctx' t t' h path)
         (splito e (decay ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
@@ -248,7 +250,7 @@ let rec splito term dec = Term.(Context.(Path.(Decay.(conde [
         (splito cond (none ()))
         (dec === decay (hole h) term);
 
-      fresh (ctx ctx' t t' h path rdx)
+      fresh (rdx ctx ctx' t t' h path)
         (splito cond (decay ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
@@ -263,8 +265,8 @@ let rec splito term dec = Term.(Context.(Path.(Decay.(conde [
         (splito t1 (none ()))
         (dec === decay (hole h) term);
 
-      fresh (ctx ctx' t t' h path rdx)
-        (splito t1 (decay (ctx' rdx)))
+      fresh (rdx ctx ctx' t t' h path)
+        (splito t1 (decay ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === seq t' t2)
@@ -279,14 +281,14 @@ let rec splito term dec = Term.(Context.(Path.(Decay.(conde [
         (splito t2 (none ()))
         (dec === decay (hole h) term);
 
-      fresh (ctx ctx' t t' h path rdx)
+      fresh (rdx ctx ctx' t t' h path)
         (splito t1 (decay ctx' rdx))
         (ctx  === context t  h (pathl path))
         (ctx' === context t' h path)
         (t === par t' t2)
         (dec === decay ctx rdx);
 
-      fresh (ctx ctx' t t' h path rdx)
+      fresh (rdx ctx ctx' t t' h path)
         (splito t2 (decay ctx' rdx))
         (ctx  === context t  h (pathr path))
         (ctx' === context t' h path)
@@ -337,21 +339,21 @@ let thrd_splito path term dec = Context.(Decay.(
 ))
 
 let rec promiseo term dec = Term.(Context.(Decay.(Path.(conde [
-  fresh (loc n)
+  fresh (loc n h)
     (term === write !!MemOrder.RLX loc (const n))
     (dec === decay (hole h) term);
 
   fresh (t1 t2)
     (term === seq t1 t2)
     (conde [
-      fresh (ctx ctx' t t' path)
+      fresh (rdx ctx ctx' t t' h path)
         (promiseo t1 (decay ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === seq t' t2)
         (dec === decay ctx rdx);
 
-      fresh (ctx ctx' t t' path)
+      fresh (rdx ctx ctx' t t' h path)
         (promiseo t2 (decay ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
@@ -362,14 +364,14 @@ let rec promiseo term dec = Term.(Context.(Decay.(Path.(conde [
   fresh (t1 t2)
     (term === par t1 t2)
     (conde [
-      fresh (ctx ctx' t t' path)
+      fresh (rdx ctx ctx' t t' h path)
         (promiseo t1 (decay ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === par t' t2)
         (dec === decay ctx rdx);
 
-      fresh (ctx ctx' t t' path)
+      fresh (rdx ctx ctx' t t' h path)
         (promiseo t2 (decay ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
@@ -377,17 +379,17 @@ let rec promiseo term dec = Term.(Context.(Decay.(Path.(conde [
         (dec === decay ctx rdx);
     ]);
 
-  fresh (t1 t2)
+  fresh (cond t1 t2)
     (term === if' cond t1 t2)
     (conde [
-      fresh (ctx ctx' t t' path)
+      fresh (rdx ctx ctx' t t' h path)
         (promiseo t1 (decay ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === if' cond t' t2)
         (dec === decay ctx rdx);
 
-      fresh (ctx ctx' t t' path)
+      fresh (rdx ctx ctx' t t' h path)
         (promiseo t2 (decay ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
@@ -395,7 +397,7 @@ let rec promiseo term dec = Term.(Context.(Decay.(Path.(conde [
         (dec === decay ctx rdx);
     ]);
 
-  fresh (loop)
+  fresh (loop rdx ctx ctx' t t' h path)
     (term === repeat loop)
     (promiseo loop (decay ctx' rdx))
     (ctx  === context t  h path)

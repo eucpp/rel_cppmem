@@ -15,15 +15,15 @@ let test_step ?empty_check rules (t, s) expected test_ctx =
   let module Sem = Semantics.Make(Step) in
   let t, s = Term.inj t, S.inj s in
   let stream = Sem.(
-    run qr (fun q  r  -> (t, s) --> (q, r))
+    run qr (fun q  r  -> (t, s) --> (Option.some @@ inj_pair q r))
            (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
   ) in
   TestUtils.assert_stream expected stream ?empty_check ~printer:(fun (t,s) -> Term.pprint @@ Term.to_logic t)
 
 let test_thrd_space ?empty_check rules path (t, s) expected test_ctx =
   let preconditiono c _ _ = Context.patho c (Path.inj path) in
-  let reducibleo = fun (t, _) b -> Term.reducibleo ~path:(Path.inj path) t b in
-  let module Step = (val make_reduction_relation ~reducibleo ~preconditiono rules) in
+  (* let reducibleo = fun (t, _) b -> Term.reducibleo ~path:(Path.inj path) t b in *)
+  let module Step = (val make_reduction_relation ~ordero:(thrd_splito @@ Path.inj path) ~preconditiono rules) in
   let module Sem = Semantics.Make(Step) in
 
   let t, s = Term.inj t, S.inj s in
