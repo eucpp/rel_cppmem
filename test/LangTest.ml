@@ -1,6 +1,7 @@
 open OUnit2
 open MiniKanren
 open MiniKanrenStd
+open MiniKanrenUtils
 open Lang
 open Memory
 open Memory.MemOrder
@@ -12,6 +13,10 @@ open Context.T
 let string_of_bool = function
   | true -> "true"
   | false -> "false"
+
+let logger = TreeLogger.create ()
+
+let formatter = Format.formatter_of_out_channel @@ open_out "tmp.txt"
 
 let test_order order pairs test_ctx =
   let stream t = run q
@@ -27,11 +32,11 @@ let test_order order pairs test_ctx =
 
 let test_reducible = test_order splito
 
-let test_can_prm = test_order promiseo
+(* let test_can_prm = test_order promiseo *)
 
 let test_thrd_reducible triples test_ctx =
   let reducible t path =
-    run q
+    run ~listener:(logger :> Listener.t) q
       (fun q ->
         fresh (dec x)
           (thrd_splito (Path.inj path) (Term.inj t) dec)
@@ -40,7 +45,7 @@ let test_thrd_reducible triples test_ctx =
             (dec === Option.some x)  &&& (q === !!true);
           ])
       ) prj_stream in
-  List.iter (fun (t, path, b) -> assert_single_answer b (reducible t path)) triples
+  List.iter (fun (t, path, b) -> assert_single_answer b (reducible t path); logger#print formatter) triples
 
 let test_split term expected test_ctx =
   let split t = run qr
@@ -83,12 +88,12 @@ let tests =
       (Pair (Var "x", Var "y"), true)
     ];
 
-    "test_thrd_reducible">:: test_thrd_reducible [
+    (* "test_thrd_reducible">:: test_thrd_reducible [
       (Par (Skip, Skip), Path.(L N), false);
       (Par (Seq (Skip, Skip), Skip), Path.(L N), true);
-    ];
+    ]; *)
 
-    "test_split_const"  >:: test_split (const 1) (const 1) (*(Hole, const 1)*);
+    (* "test_split_const"  >:: test_split (const 1) (const 1) (*(Hole, const 1)*); *)
 
     "test_split_var"    >:: test_split (Var "x") (Var "x") (*(Hole, Var "x")*);
 
@@ -128,7 +133,7 @@ let tests =
                             assert_equal ["r2";"r1"] vars ~cmp:(=) ~printer:(String.concat ",");
                             assert_equal ["x"] atomics ~cmp:(=) ~printer:(String.concat ",")); *)
 
-    "test_can_prm">:: (
+    (* "test_can_prm">:: (
       let t1 = Write (RLX, "x", const 1) in
       let t2 = Write (RLX, "y", const 1) in
       test_can_prm [
@@ -142,7 +147,7 @@ let tests =
         (Par (t1, Skip), true);
         (Par (Skip, Skip), false);
       ];
-    );
+    ); *)
 
     "test_pick_prm_1">:: (
       let t1 = Write (RLX, "x", const 1) in

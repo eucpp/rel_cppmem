@@ -71,6 +71,7 @@ let make_reduction_relation
           (conde @@ List.map (fun (name, rule) -> rule ctx rdx s rdx' s') rules)
           (postconditiono ctx rdx' s')
           (plugo ctx rdx' t')
+          (res === Option.some (inj_pair t' s'))
       ]);
   in
   make_step ~stepo
