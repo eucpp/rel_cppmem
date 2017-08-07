@@ -56,7 +56,7 @@ let make_reduction_relation
       (preconditiono c rdx s)
       (conde @@ List.map (fun (name, rule) -> rule c rdx s rdx' s') rules)
       (postconditiono c rdx' s')
-      (Context.plugo t' c rdx')
+      (plugo c rdx' t')
   in
   make_step ~reducibleo ~stepo
 
