@@ -54,10 +54,6 @@ module Term :
 
     val show : tl -> string
     val pprint : tl -> string
-
-    val reducibleo : ?path:Memory.Path.ti -> ti -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
-
-    val can_prmo : ti -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
   end
 
 module Context :
@@ -65,7 +61,7 @@ module Context :
     module T :
       sig
         type ('t, 'path) t = {
-          ctx  : 't;
+          term : 't;
           hole : 't;
           path : 'path;
         }
@@ -75,16 +71,31 @@ module Context :
     type tl = (Term.tl, Memory.Path.tl) T.t MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
 
-    (* val hole : unit -> ti *)
-
-    val inj : tt -> ti
-
-    val splito : Term.ti -> ti -> Term.ti -> MiniKanren.goal
-    val plugo  : Term.ti -> ti -> Term.ti -> MiniKanren.goal
-
-    val dumb_splito : Term.ti -> ti -> Term.ti -> MiniKanren.goal
-
-    val pick_prmo : Term.ti -> ti -> Term.ti -> MiniKanren.goal
-
     val patho : ti -> Memory.Path.ti -> MiniKanren.goal
   end
+
+module Decay :
+  sig
+    module T :
+      sig
+        type ('t, 'c) t = {
+          rdx : 't;
+          ctx : 'c;
+        }
+      end
+
+    type tt = (Term.tt, Context.tt) T.t option
+    type tl = (Term.tl, Context.tl) T.t MiniKanren.logic option MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+
+    val redexo : ti -> Term.ti -> goal
+    val contexto : ti -> Context.ti -> goal
+  end
+
+val splito : Term.ti -> Decay.ti -> goal
+
+val thrd_splito : Path.ti -> Term.ti -> Decay.ti -> goal
+
+val promiseo : Term.ti -> Decay.ti -> goal
+
+val plugo : Context.ti -> Term.ti -> Term.ti -> goal
