@@ -122,18 +122,18 @@ module Registers =
     type tl = (Var.tl, Value.tl) VarList.tl
     type ti = (Var.tt, Value.tt, Var.tl, Value.tl) VarList.ti
 
-    let inj = List.inj (fun (var, value) -> inj_pair (!!var) (Nat.inj value))
+    let inj = List.inj (fun (var, value) -> pair (!!var) (Nat.inj value))
 
     let to_logic = List.to_logic (fun (var, value) -> Value (Value var, Nat.to_logic value))
 
-    let reify h = ManualReifiers.(List.reify (pair (string) (Nat.reify)) h)
+    let reify h = Reify.(List.reify (pair (string) (Nat.reify)) h)
 
     let allocate vars = List.of_list (fun s -> (s, Nat.of_int 0)) vars
 
     let reset_varo p p' = Nat.(
       fresh (var value)
-        (p  === inj_pair var value)
-        (p' === inj_pair var (inj_nat 0))
+        (p  === pair var value)
+        (p' === pair var (inj_nat 0))
       )
 
     let reseto = VarList.mapo reset_varo
@@ -155,11 +155,11 @@ module ViewFront =
     type tl = (Loc.tl, Timestamp.tl) VarList.tl
     type ti = (Loc.tt, Timestamp.tt, Loc.tl, Timestamp.tl) VarList.ti
 
-    let inj = List.inj (fun (var, value) -> inj_pair (!!var) (Nat.inj value))
+    let inj = List.inj (fun (var, value) -> pair (!!var) (Nat.inj value))
 
     let to_logic = List.to_logic (fun (loc, ts) -> Value (Value loc, Nat.to_logic ts))
 
-    let reify h = ManualReifiers.(List.reify (pair (string) (Nat.reify)) h)
+    let reify h = Reify.(List.reify (pair (string) (Nat.reify)) h)
 
     let allocate atomics = List.of_list (fun s -> (s, Nat.of_int 0)) atomics
 
@@ -167,8 +167,8 @@ module ViewFront =
 
     let reset_tso p p' = Nat.(
       fresh (loc ts)
-        (p  === inj_pair loc ts)
-        (p' === inj_pair loc (inj_nat 0))
+        (p  === pair loc ts)
+        (p' === pair loc (inj_nat 0))
       )
 
     let reseto = VarList.mapo reset_tso
@@ -176,10 +176,10 @@ module ViewFront =
     let rec updateo t t' loc' ts' = Nat.(
       fresh (hd tl tl' loc ts)
         (t  === hd % tl)
-        (hd === inj_pair loc ts)
+        (hd === pair loc ts)
         (conde [
           (loc === loc') &&& (conde [
-            (ts' >  ts) &&& (t' === (inj_pair loc' ts') % tl);
+            (ts' >  ts) &&& (t' === (pair loc' ts') % tl);
             (ts' <= ts) &&& (t' === t);
           ]);
           (loc =/= loc') &&& (t' === hd % tl') &&& (updateo tl tl' loc' ts');
@@ -221,7 +221,7 @@ module Promise =
 
     let to_logic (loc, ts, value, vf) = Value (Loc.to_logic loc, Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
 
-    let reify = reify ManualReifiers.string Nat.reify Nat.reify ViewFront.reify
+    let reify = reify Reify.string Nat.reify Nat.reify ViewFront.reify
 
     let printer =
       let pp ff (loc, ts, value, vf) =
@@ -607,11 +607,11 @@ module LocStory =
       type ti = (tt, tl) injected
 
       let inj (ts, value, vf) =
-        inj_triple (inj_nat @@ Nat.to_int ts) (inj_nat @@ Nat.to_int value) (ViewFront.inj vf)
+        triple (inj_nat @@ Nat.to_int ts) (inj_nat @@ Nat.to_int value) (ViewFront.inj vf)
 
       let to_logic (ts, value, vf) = Value (Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
 
-      let reify = ManualReifiers.triple Nat.reify Nat.reify ViewFront.reify
+      let reify = Reify.triple Nat.reify Nat.reify ViewFront.reify
 
       let printer var =
         let pp ff (ts, value, vf) =
@@ -678,7 +678,7 @@ module LocStory =
 
     let visibleo ts msg b =
       fresh (ts' value vf)
-        (msg === inj_triple ts' value vf)
+        (msg === triple ts' value vf)
         (Nat.leo ts ts' b)
 
     let reado t last_ts ts value vf =
@@ -686,19 +686,19 @@ module LocStory =
         (t === loc_story tsnext story)
         (MiniKanrenStd.List.filtero (visibleo last_ts) story visible)
         (MiniKanrenStd.List.membero visible msg)
-        (msg === inj_triple ts value vf)
+        (msg === triple ts value vf)
 
     let writeo t t' value vf =
       fresh (ts ts' story story')
         (t  === loc_story ts  story )
         (t' === loc_story ts' story')
         (ts' === Nat.succ ts)
-        (story' === (inj_triple ts value vf) % story)
+        (story' === (triple ts value vf) % story)
 
     let last_valueo t value =
       fresh (ts ts' story msg tail vf)
         (t   === loc_story  ts  story)
-        (msg === inj_triple ts' value vf)
+        (msg === triple ts' value vf)
         (story === msg % tail)
 
   end
@@ -709,11 +709,11 @@ module MemStory =
     type tl = (Loc.tl, LocStory.tl) VarList.tl
     type ti = (Loc.tt, LocStory.tt, Loc.tl, LocStory.tl) VarList.ti
 
-    let inj = List.inj (fun (loc, story) -> inj_pair (!!loc) (LocStory.inj story))
+    let inj = List.inj (fun (loc, story) -> pair (!!loc) (LocStory.inj story))
 
     let to_logic = List.to_logic (fun (var, story) -> Value (Value var, LocStory.to_logic story))
 
-    let reify h = ManualReifiers.(List.reify (pair (string) (LocStory.reify)) h)
+    let reify h = Reify.(List.reify (pair (string) (LocStory.reify)) h)
 
     let create = List.of_list (fun x -> x)
 
@@ -774,9 +774,10 @@ module MemState =
 
     end
 
-    type tt = (Threads.tt, MemStory.tt, ViewFront.tt, ViewFront.tt) T.t
-    type tl = (Threads.tl, MemStory.tl, ViewFront.tl, ViewFront.tl) T.t logic
-    type ti = (tt, tl) MiniKanren.injected
+    type tt   = (Threads.tt, MemStory.tt, ViewFront.tt, ViewFront.tt) T.t
+    type tl'  = (Threads.tl, MemStory.tl, ViewFront.tl, ViewFront.tl) T.t
+    type tl   = tl' MiniKanren.logic
+    type ti   = (tt, tl) MiniKanren.injected
 
     include Fmap4(T)
 
@@ -793,7 +794,7 @@ module MemState =
         T.sc    = ViewFront.to_logic sc;
       }
 
-    let refine rr = rr#refine (reify Threads.reify MemStory.reify ViewFront.reify ViewFront.reify) ~inj:to_logic
+    let refine rr = rr#reify (reify Threads.reify MemStory.reify ViewFront.reify ViewFront.reify) ~inj:to_logic
 
     let create ?(na=ViewFront.from_list []) ?(sc=ViewFront.from_list []) thrds story = {
       T.thrds = thrds;

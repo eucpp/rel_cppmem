@@ -4,11 +4,13 @@ open MiniKanrenStd
 module type StepRelation =
   sig
     type tt
-    type tl
+    type tl'
+    type tl = tl' MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
 
     type st
-    type sl
+    type sl'
+    type sl = sl' MiniKanren.logic
     type si = (st, sl) MiniKanren.injected
 
     val (->?) : ti * si -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
@@ -18,18 +20,20 @@ module type StepRelation =
   module UnionRelation
     (S1 : StepRelation)
     (S2 : StepRelation with
-      type tt = S1.tt  and
-      type tl = S1.tl  and
-      type st = S1.st  and
-      type sl = S1.sl) =
+      type tt   = S1.tt  and
+      type tl'  = S1.tl' and
+      type st   = S1.st  and
+      type sl'  = S1.sl') =
   struct
-    type tt = S1.tt
-    type tl = S1.tl
-    type ti = (tt, tl) MiniKanren.injected
+    type tt  = S1.tt
+    type tl' = S1.tl'
+    type tl  = tl' logic
+    type ti  = (tt, tl) MiniKanren.injected
 
-    type st = S1.st
-    type sl = S1.sl
-    type si = (st, sl) MiniKanren.injected
+    type st  = S1.st
+    type sl' = S1.sl'
+    type sl  = sl' logic
+    type si  = (st, sl) MiniKanren.injected
 
     let (->?) x b =
       fresh (b1 b2)

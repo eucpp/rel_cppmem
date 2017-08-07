@@ -20,10 +20,10 @@ type predicate = (ti * si -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal)
 type order = (ti -> ci -> ti -> MiniKanren.goal)
 
 module type CppMemStep = Semantics.StepRelation with
-  type tt = Lang.Term.tt       and
-  type tl = Lang.Term.tl       and
-  type st = Memory.MemState.tt and
-  type sl = Memory.MemState.tl
+  type tt   = Lang.Term.tt        and
+  type tl'  = Lang.Term.tl'       and
+  type st   = Memory.MemState.tt  and
+  type sl'  = Memory.MemState.tl'
 
 let make_step :
   ?reducibleo:(Term.ti * Memory.MemState.ti -> Bool.groundi -> MiniKanren.goal) ->
@@ -31,13 +31,15 @@ let make_step :
   (module CppMemStep) =
   fun ?(reducibleo = fun (t, s) b -> reducibleo t b) ~stepo -> (module
     struct
-      type tt = Term.tt
-      type tl = Term.tl
-      type ti = (tt, tl) MiniKanren.injected
+      type tt   = Term.tt
+      type tl'  = Term.tl'
+      type tl   = Term.tl
+      type ti   = (tt, tl) MiniKanren.injected
 
-      type st = Memory.MemState.tt
-      type sl = Memory.MemState.tl
-      type si = (st, sl) MiniKanren.injected
+      type st   = Memory.MemState.tt
+      type sl'  = Memory.MemState.tl'
+      type sl   = Memory.MemState.tl
+      type si   = (st, sl) MiniKanren.injected
 
       let (->?) = reducibleo
       let (-->) = stepo

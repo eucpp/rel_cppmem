@@ -12,10 +12,10 @@ type predicate = (ti * si -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal)
 type order = (ti -> ci -> ti -> MiniKanren.goal)
 
 module type CppMemStep = Semantics.StepRelation with
-  type tt = Lang.Term.tt       and
-  type tl = Lang.Term.tl       and
-  type st = Memory.MemState.tt and
-  type sl = Memory.MemState.tl
+  type tt   = Lang.Term.tt        and
+  type tl'  = Lang.Term.tl'       and
+  type st   = Memory.MemState.tt  and
+  type sl'  = Memory.MemState.tl'
 
 val make_reduction_relation :
   ?preconditiono:condition  ->

@@ -28,9 +28,10 @@ module Term =
         let fmap fint fstring fmo floc ft x = GT.gmap(t) (fint) (fstring) (fmo) (floc) (ft) x
       end
 
-    type tt  = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, tt) T.t
-    type tl  = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, tl) T.t MiniKanren.logic
-    type ti  = (tt, tl) MiniKanren.injected
+    type tt   = (Memory.Value.tt, Memory.Var.tt, Memory.MemOrder.tt, Memory.Loc.tt, tt) T.t
+    type tl'  = (Memory.Value.tl, Memory.Var.tl, Memory.MemOrder.tl, Memory.Loc.tl, tl) T.t
+     and tl   = tl' MiniKanren.logic
+    type ti   = (tt, tl) MiniKanren.injected
 
     module FT = Fmap5(T)
 
@@ -64,9 +65,9 @@ module Term =
       let f x = Value x in
       Value (T.fmap (Nat.to_logic) (f) (f) (f) (to_logic) x)
 
-    let rec reify h = ManualReifiers.(FT.reify (Nat.reify) (string) (simple_reifier) (string) (reify) h)
+    let rec reify h = Reify.(FT.reify (Nat.reify) (string) (shallow_reifier) (string) (reify) h)
 
-    let refine rr = rr#refine reify ~inj:to_logic
+    let refine rr = rr#reify reify ~inj:to_logic
 
     let rec show t = GT.show(logic) (GT.show(T.t) (Value.show) (Var.show) (MemOrder.show) (Loc.show) (show)) t
 

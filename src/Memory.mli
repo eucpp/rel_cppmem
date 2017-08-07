@@ -277,17 +277,25 @@ module MemStory :
 
 module MemState :
   sig
-    type tt
+    module T : sig
+      type ('a, 'b, 'c, 'd) t = {
+        thrds : 'a;
+        story : 'b;
+        na    : 'c;
+        sc    : 'd;
+      }
+    end
 
-    type tl
-
-    type ti = (tt, tl) MiniKanren.injected
+    type tt   = (Threads.tt, MemStory.tt, ViewFront.tt, ViewFront.tt) T.t
+    type tl'  = (Threads.tl, MemStory.tl, ViewFront.tl, ViewFront.tl) T.t
+    type tl   = tl' MiniKanren.logic
+    type ti   = (tt, tl) MiniKanren.injected
 
     val inj : tt -> ti
 
     val to_logic : tt -> tl
 
-    val refine : (tt, tl) MiniKanren.refined -> tl
+    val refine : (tt, tl) MiniKanren.reified -> tl
 
     val create : ?na:ViewFront.tt -> ?sc:ViewFront.tt -> Threads.tt -> MemStory.tt -> tt
 

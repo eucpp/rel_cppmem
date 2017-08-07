@@ -23,9 +23,10 @@ module Term :
 
     (* include (module type of MiniKanren.Fmap5(T)) *)
 
-    type tt = (Memory.Value.tt, Memory.Var.tt, Memory.MemOrder.tt, Memory.Loc.tt, tt) T.t
-    type tl = (Memory.Value.tl, Memory.Var.tl, Memory.MemOrder.tl, Memory.Loc.tl, tl) T.t MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
+    type tt   = (Memory.Value.tt, Memory.Var.tt, Memory.MemOrder.tt, Memory.Loc.tt, tt) T.t
+    type tl'  = (Memory.Value.tl, Memory.Var.tl, Memory.MemOrder.tl, Memory.Loc.tl, tl) T.t
+     and tl   = tl' MiniKanren.logic
+    type ti   = (tt, tl) MiniKanren.injected
 
     val const   : Memory.Value.ti -> ti
     val var     : Memory.Loc.ti -> ti
@@ -48,7 +49,7 @@ module Term :
     val to_logic   : tt -> tl
     val from_logic : tl -> tt
 
-    val refine : (tt, tl) MiniKanren.refined -> tl
+    val refine : (tt, tl) MiniKanren.reified -> tl
 
     val preallocate : tl -> Memory.Var.tt list * Memory.Loc.tt list
 
