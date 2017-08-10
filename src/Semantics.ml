@@ -65,7 +65,7 @@ module Make(S : StepRelation) =
           (res === Option.none ()) &&& (t === t'') &&& (s === s'');
 
           fresh (t' s')
-            (res === Option.some (inj_pair t' s'))
+            (res === Option.some (Pair.pair t' s'))
             (delay @@ fun () -> spaceo t' s' t'' s'');
         ])
     )

@@ -122,7 +122,7 @@ module Registers =
     type tl = (Var.tl, Value.tl) VarList.tl
     type ti = (Var.tt, Value.tt, Var.tl, Value.tl) VarList.ti
 
-    let inj = List.inj (fun (var, value) -> inj_pair (!!var) (Nat.inj value))
+    let inj = List.inj (fun (var, value) -> Pair.pair (!!var) (Nat.inj value))
 
     let to_logic = List.to_logic (fun (var, value) -> Value (Value var, Nat.to_logic value))
 
@@ -132,8 +132,8 @@ module Registers =
 
     let reset_varo p p' = Nat.(
       fresh (var value)
-        (p  === inj_pair var value)
-        (p' === inj_pair var (inj_nat 0))
+        (p  === Pair.pair var value)
+        (p' === Pair.pair var (inj_nat 0))
       )
 
     let reseto = VarList.mapo reset_varo
@@ -155,7 +155,7 @@ module ViewFront =
     type tl = (Loc.tl, Timestamp.tl) VarList.tl
     type ti = (Loc.tt, Timestamp.tt, Loc.tl, Timestamp.tl) VarList.ti
 
-    let inj = List.inj (fun (var, value) -> inj_pair (!!var) (Nat.inj value))
+    let inj = List.inj (fun (var, value) -> Pair.pair (!!var) (Nat.inj value))
 
     let to_logic = List.to_logic (fun (loc, ts) -> Value (Value loc, Nat.to_logic ts))
 
@@ -167,8 +167,8 @@ module ViewFront =
 
     let reset_tso p p' = Nat.(
       fresh (loc ts)
-        (p  === inj_pair loc ts)
-        (p' === inj_pair loc (inj_nat 0))
+        (p  === Pair.pair loc ts)
+        (p' === Pair.pair loc (inj_nat 0))
       )
 
     let reseto = VarList.mapo reset_tso
@@ -176,10 +176,10 @@ module ViewFront =
     let rec updateo t t' loc' ts' = Nat.(
       fresh (hd tl tl' loc ts)
         (t  === hd % tl)
-        (hd === inj_pair loc ts)
+        (hd === Pair.pair loc ts)
         (conde [
           (loc === loc') &&& (conde [
-            (ts' >  ts) &&& (t' === (inj_pair loc' ts') % tl);
+            (ts' >  ts) &&& (t' === (Pair.pair loc' ts') % tl);
             (ts' <= ts) &&& (t' === t);
           ]);
           (loc =/= loc') &&& (t' === hd % tl') &&& (updateo tl tl' loc' ts');
@@ -709,7 +709,7 @@ module MemStory =
     type tl = (Loc.tl, LocStory.tl) VarList.tl
     type ti = (Loc.tt, LocStory.tt, Loc.tl, LocStory.tl) VarList.ti
 
-    let inj = List.inj (fun (loc, story) -> inj_pair (!!loc) (LocStory.inj story))
+    let inj = List.inj (fun (loc, story) -> Pair.pair (!!loc) (LocStory.inj story))
 
     let to_logic = List.to_logic (fun (var, story) -> Value (Value var, LocStory.to_logic story))
 

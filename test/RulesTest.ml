@@ -15,7 +15,7 @@ let test_step ?empty_check rules (t, s) expected test_ctx =
   let module Sem = Semantics.Make(Step) in
   let t, s = Term.inj t, S.inj s in
   let stream = Sem.(
-    run qr (fun q  r  -> (t, s) --> (Option.some @@ inj_pair q r))
+    run qr (fun q  r  -> (t, s) --> (Option.some @@ Pair.pair q r))
            (fun qs rs -> Stream.zip (prj_stream qs) (prj_stream rs))
   ) in
   TestUtils.assert_stream expected stream ?empty_check ~printer:(fun (t,s) -> Term.pprint @@ Term.to_logic t)

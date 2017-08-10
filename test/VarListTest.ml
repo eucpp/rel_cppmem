@@ -8,9 +8,9 @@ let rec to_mk_list = function
   | x::xs -> Cons (x, to_mk_list xs)
   | []    -> Nil
 
-let inj_vars vars = inj_listi (List.map (fun (k, v) -> inj_pair !!k !!v) vars)
+let inj_vars vars = inj_listi (List.map (fun (k, v) -> Pair.pair !!k !!v) vars)
 
-let inj_viewfront vf = inj_listi (List.map (fun (k, v) -> inj_pair !!k (inj_nat v)) vf)
+let inj_viewfront vf = inj_listi (List.map (fun (k, v) -> Pair.pair !!k (inj_nat v)) vf)
 
 let test_get vars var answ test_ctx =
   let stream = run q (fun q -> geto (inj_vars vars) !!var q) prj_stream in
