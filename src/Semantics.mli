@@ -1,3 +1,57 @@
+module Term :
+  sig
+    type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.injected
+  end
+
+module Context :
+  sig
+    type ('ct, 'cl) ti = ('ct, 'cl) MiniKanren.injected
+  end
+
+module Split :
+  sig
+    module T :
+      sig
+        type ('t, 'c) t = {
+          rdx : 't;
+          ctx : 'c;
+        }
+      end
+
+    type ('t, 'c) tt = ('t, 'c) T.t option
+    type ('t, 'c) tl = ('t, 'c) T.t MiniKanren.logic option MiniKanren.logic
+
+    type ('tt, 'ct, 'tl, 'cl) ti = (('tt, 'tl) tt, ('ct, 'cl) tl) MiniKanren.injected
+
+    val none  : unit -> ('tt, 'ct, 'tl, 'cl) ti
+    val split : ('tt, 'tl) MiniKanren.injected -> ('ct, 'cl) MiniKanren.injected -> ('tt, 'ct, 'tl, 'cl) ti
+
+    val redexo   : ('tt, 'ct, 'tl, 'cl) ti -> ('tt, 'tl) MiniKanren.injected -> MiniKanren.goal
+    val contexto : ('tt, 'ct, 'tl, 'cl) ti -> ('ct, 'cl) MiniKanren.injected -> MiniKanren.goal
+  end
+
+module Step :
+  sig
+    module T :
+      sig
+        type ('t, 'c) t = {
+          term : 't;
+           : 'c;
+        }
+      end
+
+
+  end
+
+type ('tt, 'ct, 'tl, 'cl) splitting = ('tt, 'tl) Term.ti -> ('tt, 'ct, 'tl, 'cl) Split.ti -> goal
+
+type ('tt, 'ct, 'tl, 'cl) rule = ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
+
+type ('tt, 'tl, ) step =
+
+val make_reduction_relation :
+  ('tt, 'ct, 'tl, 'cl) splitting -> (string * ('tt, 'ct, 'tl, 'cl) rule) list ->
+
 module type StepRelation =
   sig
     type tt
