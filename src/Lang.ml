@@ -134,170 +134,140 @@ module Context =
         (ctx === context term hole path)
   end
 
-module Decay =
-  struct
-    module T =
-      struct
-        type ('t, 'c) t = {
-          rdx : 't;
-          ctx : 'c;
-        }
-
-        let fmap fa fb {rdx; ctx} = {rdx = fa rdx; ctx = fb ctx}
-      end
-
-    type tt = (Term.tt, Context.tt) T.t option
-    type tl = (Term.tl, Context.tl) T.t MiniKanren.logic option MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    include Fmap2(T)
-
-    let none () = MiniKanrenStd.Option.none ()
-    let decay ctx rdx = MiniKanrenStd.Option.some (inj @@ distrib @@ T.({ctx; rdx}))
-
-    let redexo dec rdx =
-      fresh (ctx)
-        (dec === decay ctx rdx)
-
-    let contexto dec ctx =
-      fresh (rdx)
-        (dec === decay ctx rdx)
-  end
-
-let rec splito term dec = Term.(Context.(Path.(Decay.(conde [
+let rec splito term result = Term.(Context.(Path.(conde [
   fresh (op l r)
     (term === binop op l r)
     (conde [
       fresh (h)
-        (splito l (none ()))
-        (splito r (none ()))
-        (dec === decay (hole h) term);
+        (splito l (Semantics.Split.undef ()))
+        (splito r (Semantics.Split.undef ()))
+        (result === Semantics.Split.split (hole h) term);
 
       fresh (ctx ctx' t t' h path rdx)
-        (splito l (decay ctx' rdx))
+        (splito l (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === binop op t' r)
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
 
       fresh (ctx ctx' t t' h path rdx)
-        (splito l (none ()))
-        (splito r (decay ctx' rdx))
+        (splito l (Semantics.Split.undef ()))
+        (splito r (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === binop op l t')
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
     ]);
 
   fresh (t1 t2)
     (term === pair t1 t2)
     (conde [
       fresh (h)
-        (splito t1 (none ()))
-        (splito t2 (none ()))
-        (dec === none ());
+        (splito t1 (Semantics.Split.undef ()))
+        (splito t2 (Semantics.Split.undef ()))
+        (result === Semantics.Split.undef ());
 
       fresh (rdx ctx ctx' t t' h path)
-        (splito t1 (decay ctx' rdx))
+        (splito t1 (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === pair t' t2)
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
 
       fresh (rdx ctx ctx' t t' h path)
-        (splito t1 (none ()))
-        (splito t2 (decay ctx' rdx))
+        (splito t1 (Semantics.Split.undef ()))
+        (splito t2 (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === pair t1 t')
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
     ]);
 
   fresh (l r ctx')
     (term === asgn l r)
     (conde [
       fresh (h)
-        (splito r (none ()))
-        (dec === decay (hole h) term);
+        (splito r (Semantics.Split.undef ()))
+        (result === Semantics.Split.split (hole h) term);
 
       fresh (rdx ctx ctx' t t' h path)
-        (splito r (decay ctx' rdx))
+        (splito r (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === asgn l t')
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
     ]);
 
   fresh (mo loc e ctx')
     (term === write mo loc e)
     (conde [
       fresh (h)
-        (splito e (none ()))
-        (dec === decay (hole h) term);
+        (splito e (Semantics.Split.undef ()))
+        (result === Semantics.Split.split (hole h) term);
 
       fresh (rdx ctx ctx' t t' h path)
-        (splito e (decay ctx' rdx))
+        (splito e (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === write mo loc t')
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
     ]);
 
   fresh (cond btrue bfalse ctx')
     (term === if' cond btrue bfalse)
     (conde [
       fresh (h)
-        (splito cond (none ()))
-        (dec === decay (hole h) term);
+        (splito cond (Semantics.Split.undef ()))
+        (result === Semantics.Split.split (hole h) term);
 
       fresh (rdx ctx ctx' t t' h path)
-        (splito cond (decay ctx' rdx))
+        (splito cond (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === if' t' btrue bfalse)
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
     ]);
 
   fresh (t1 t2 ctx')
     (term === seq t1 t2)
     (conde [
       fresh (h)
-        (splito t1 (none ()))
-        (dec === decay (hole h) term);
+        (splito t1 (Semantics.Split.undef ()))
+        (result === Semantics.Split.split (hole h) term);
 
       fresh (rdx ctx ctx' t t' h path)
-        (splito t1 (decay ctx' rdx))
+        (splito t1 (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === seq t' t2)
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
     ]);
 
   fresh (t1 t2 ctx' path')
     (term === par t1 t2)
     (conde [
       fresh (h)
-        (splito t1 (none ()))
-        (splito t2 (none ()))
-        (dec === decay (hole h) term);
+        (splito t1 (Semantics.Split.undef ()))
+        (splito t2 (Semantics.Split.undef ()))
+        (result === Semantics.Split.split (hole h) term);
 
       fresh (rdx ctx ctx' t t' h path)
-        (splito t1 (decay ctx' rdx))
+        (splito t1 (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h (pathl path))
         (ctx' === context t' h path)
         (t === par t' t2)
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
 
       fresh (rdx ctx ctx' t t' h path)
-        (splito t2 (decay ctx' rdx))
+        (splito t2 (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h (pathr path))
         (ctx' === context t' h path)
         (t === par t1 t')
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
     ]);
 
   fresh (h)
-    (dec === decay (hole h) term)
+    (result === Semantics.Split.split (hole h) term)
     (conde [
       fresh (x)
         (term === var x);
@@ -315,7 +285,7 @@ let rec splito term dec = Term.(Context.(Path.(Decay.(conde [
         (term === spw t1 t2);
     ]);
 
-  (dec === none ()) &&& (conde [
+  (result === Semantics.Split.undef ()) &&& (conde [
     fresh (n)
       (term === const n);
 
@@ -324,93 +294,81 @@ let rec splito term dec = Term.(Context.(Path.(Decay.(conde [
     (term === stuck ());
   ]);
 
-]))))
+])))
 
-let thrd_splito path term dec = Context.(Decay.(
-  (conde [
-    (dec === none ());
-
-    fresh (ctx rdx t hole)
-      (dec === decay ctx rdx)
-      (ctx === context t hole path);
-  ])
-  &&&
-  (splito term dec)
-))
-
-let rec promiseo term dec = Term.(Context.(Decay.(Path.(conde [
+let rec promiseo term result = Term.(Context.(Path.(conde [
   fresh (loc n h)
     (term === write !!MemOrder.RLX loc (const n))
-    (dec === decay (hole h) term);
+    (result === Semantics.Split.split (hole h) term);
 
   fresh (t1 t2)
     (term === seq t1 t2)
     (conde [
       fresh (rdx ctx ctx' t t' h path)
-        (promiseo t1 (decay ctx' rdx))
+        (promiseo t1 (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === seq t' t2)
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
 
       fresh (rdx ctx ctx' t t' h path)
-        (promiseo t2 (decay ctx' rdx))
+        (promiseo t2 (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === seq t1 t')
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
     ]);
 
   fresh (t1 t2)
     (term === par t1 t2)
     (conde [
       fresh (rdx ctx ctx' t t' h path)
-        (promiseo t1 (decay ctx' rdx))
+        (promiseo t1 (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === par t' t2)
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
 
       fresh (rdx ctx ctx' t t' h path)
-        (promiseo t2 (decay ctx' rdx))
+        (promiseo t2 (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === par t1 t')
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
     ]);
 
   fresh (cond t1 t2)
     (term === if' cond t1 t2)
     (conde [
       fresh (rdx ctx ctx' t t' h path)
-        (promiseo t1 (decay ctx' rdx))
+        (promiseo t1 (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === if' cond t' t2)
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
 
       fresh (rdx ctx ctx' t t' h path)
-        (promiseo t2 (decay ctx' rdx))
+        (promiseo t2 (Semantics.Split.split ctx' rdx))
         (ctx  === context t  h path)
         (ctx' === context t' h path)
         (t === if' cond t1 t')
-        (dec === decay ctx rdx);
+        (result === Semantics.Split.split ctx rdx);
     ]);
 
   fresh (loop rdx ctx ctx' t t' h path)
     (term === repeat loop)
-    (promiseo loop (decay ctx' rdx))
+    (promiseo loop (Semantics.Split.split ctx' rdx))
     (ctx  === context t  h path)
     (ctx' === context t' h path)
     (t === repeat t')
-    (dec === decay ctx rdx);
+    (result === Semantics.Split.split ctx rdx);
 
-]))))
+])))
 
-let plugo ctx rdx term = Term.(Context.(Decay.(conde [
+let plugo ctx rdx term = Term.(Context.(conde [
   fresh (path)
     (rdx =/= stuck ())
     (ctx === context term rdx path);
 
   (rdx === stuck ()) &&& (term === stuck ());
-])))
+]))

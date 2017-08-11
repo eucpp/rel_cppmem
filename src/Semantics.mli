@@ -49,9 +49,40 @@ type ('tt, 'ct, 'tl, 'cl) splitting =
 type ('tt, 'ct, 'tl, 'cl) plugging =
   ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
 
-(** [rule context constraints term term'] - substitutes [term] with [term'] in a [context] considering provided [constraints] *)
+(** [rule constraints context term term'] - substitutes [term] with [term'] in a [context] considering provided [constraints] *)
 type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule =
   ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
+
+(** Configuration - special case of Term for languages that distinguish a program and a state/environment *)
+module Configuration :
+  sig
+    type ('p, 's) 't
+
+    type ('pt, 'st) tt = ('pt, 'st) 't
+    type ('pl, 'sl) tl = ('pl, 'sl) 't MiniKanren.logic
+
+    type ('pt, 'st, 'pl, 'sl) ti = (('pt, 'st) tt, ('pl, 'sl) tl) MiniKanren.injected
+
+    type rule' = rule
+
+    (** [rule constraints context prog state prog' state'] - special case of rule that operates on program/state pairs *)
+    type ('pt, 'ct, 'st, 'cst, 'pl, 'cl, 'sl, 'csl) rule =
+      ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti ->
+      ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> goal
+
+    val cfg : ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> ('pt, 'st, 'pl, 'sl) ti
+
+    val programo : ('pt, 'st, 'pl, 'sl) ti -> ('pt, 'pl) MiniKanren.injected -> goal
+    val stateo   : ('pt, 'st, 'pl, 'sl) ti -> ('st, 'sl) MiniKanren.injected -> goal
+
+    val lift_splitting :
+      ('pt, 'ct, 'pl, 'cl) splitting -> (('pt, 'pl) tt, 'ct, ('st, 'sl) tl, 'cl) splitting
+
+    val lift_plugging :
+      ('pt, 'ct, 'pl, 'cl) plugging -> (('pt, 'pl) tt, 'ct, ('st, 'sl) tl, 'cl) plugging
+
+    val lift_rule : ('pt, 'ct, 'st, 'cst, 'pl, 'cl, 'sl, 'csl) rule -> (('pt, 'st) tt, 'ct, 'cst, ('pl, 'sl) tl, 'cl, 'csl) rule'
+  end
 
 (** [step constraints term term'] - performs a step that substitutes [term] with [term'] considering provided [constraints],
       if [term] is irreducible then [term'] is undefined *)

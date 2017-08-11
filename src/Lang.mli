@@ -25,7 +25,7 @@ module Term :
 
     type tt = (Memory.Value.tt, Memory.Var.tt, Memory.MemOrder.tt, Memory.Loc.tt, tt) T.t
     type tl = (Memory.Value.tl, Memory.Var.tl, Memory.MemOrder.tl, Memory.Loc.tl, tl) T.t MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
+    type ti = (tt, tl) Semantics.Term.ti
 
     val const   : Memory.Value.ti -> ti
     val var     : Memory.Loc.ti -> ti
@@ -72,31 +72,8 @@ module Context :
     val patho : ti -> Memory.Path.ti -> MiniKanren.goal
   end
 
-module Decay :
-  sig
-    module T :
-      sig
-        type ('t, 'c) t = {
-          rdx : 't;
-          ctx : 'c;
-        }
-      end
+val splito : Term.ti -> (Term.tt, Term.tl, Context.tt, Context.tl) Semantics.Split.ti -> MiniKanren.goal
 
-    type tt = (Term.tt, Context.tt) T.t option
-    type tl = (Term.tl, Context.tl) T.t MiniKanren.logic option MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    val none  : unit -> ti
-    val decay : Context.ti -> Term.ti -> ti
-
-    val redexo : ti -> Term.ti -> MiniKanren.goal
-    val contexto : ti -> Context.ti -> MiniKanren.goal
-  end
-
-val splito : Term.ti -> Decay.ti -> MiniKanren.goal
-
-val thrd_splito : Memory.Path.ti -> Term.ti -> Decay.ti -> MiniKanren.goal
-
-val promiseo : Term.ti -> Decay.ti -> MiniKanren.goal
+val promiseo : Term.ti -> (Term.tt, Term.tl, Context.tt, Context.tl) Semantics.Split.ti -> MiniKanren.goal
 
 val plugo : Context.ti -> Term.ti -> Term.ti -> MiniKanren.goal

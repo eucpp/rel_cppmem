@@ -1,43 +1,39 @@
-
-type ti = Lang.Term.ti
-type ci = Lang.Context.ti
-type si = Memory.MemState.ti
-
-type rule =  (ci -> ti -> si -> ti -> si -> MiniKanren.goal)
-
-type condition = (ci -> ti -> si -> MiniKanren.goal)
-
-type predicate = (ti * si -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal)
-
-type order = (ti -> Lang.Decay.ti -> MiniKanren.goal)
-
-module type CppMemStep = Semantics.StepRelation with
-  type tt = Lang.Term.tt       and
-  type tl = Lang.Term.tl       and
-  type st = Memory.MemState.tt and
-  type sl = Memory.MemState.tl
-
-val make_reduction_relation :
-  ?preconditiono:condition  ->
-  ?postconditiono:condition ->
-  ?ordero:order             ->
-  (string * rule) list      ->
-  (module CppMemStep)
-
-module Basic :
+module Constraints :
   sig
-    val var    : string * rule
-    val binop  : string * rule
-    val asgn   : string * rule
-    val if'    : string * rule
-    val repeat : string * rule
-    val seq    : string * rule
+    type 'thrdId t
 
-    val all : (string * rule) list
+    type tt = Memory.ThreadID.tt t
+    type tl = Memory.ThreadID.tl t MiniKanren.logic
 
-    module Step : CppMemStep
+    type ti = (tt, tl) MiniKanren.ti
+
+    val thrd_ido : ti -> Memory.ThreadID.ti -> goal
   end
 
+module Basic (Machine : Machines.Sequential) :
+  sig
+    type tt = (Lang.Term.tt, Machine.tt) Semantics.Configuration.tt
+    type tl = (Lang.Term.tl, Machine.tl) Semantics.Configuration.tl
+
+    type ct = Lang.Context.tt
+    type cl = Lang.Context.tl
+
+    type cst = Constraints.tt
+    type csl = Constraints.tl
+
+    type rule = (tt, ct, cst, tl, cl, csl) Semantics.rule
+
+    val varo    : rule
+    val binopo  : rule
+    val asgno   : rule
+    val ifo     : rule
+    val repeato : rule
+    val seqo    : rule
+
+    val all : rule list
+  end
+
+(*
 module ThreadSpawning :
   sig
     val spawn  : string * rule
@@ -102,3 +98,4 @@ module Promising :
 
     val make_certified_step : (string * rule) list -> (module CppMemStep)
   end
+*)

@@ -63,6 +63,66 @@ type ('tt, 'ct, 'tl, 'cl) plugging =
 type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule =
   ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
 
+(** Configuration - special case of Term for languages that distinguish a program and a state/environment *)
+module Configuration =
+  struct
+    module T =
+      struct
+        type ('p, 's) t = {
+          prog  : 'p;
+          state : 's;
+        }
+
+        let fmap f g { prog; state } = { prog = f prog; state = g state }
+      end
+
+    include T
+    include Fmap1(T)
+
+    type ('pt, 'st) tt = ('pt, 'st) 't
+    type ('pl, 'sl) tl = ('pl, 'sl) 't MiniKanren.logic
+
+    type ('pt, 'st, 'pl, 'sl) ti = (('pt, 'st) tt, ('pl, 'sl) tl) MiniKanren.injected
+
+    let cfg prog state =
+      inj @@ distrib @@ { prog; state }
+
+    let programo t prog =
+      fresh (state)
+        (t === cfg prog state)
+
+    let stateo t state =
+      fresh (prog)
+        (t === cfg prog state)
+
+    let lift_splitting splito t result =
+      fresh (prog state result')
+        (t === cfg prog state)
+        (splito prog result')
+        (conde [
+          (result' === Split.undef ()) &&& (result === Split.undef ());
+          fresh (ctx rdx)
+            (result' === Split.split ctx rdx) &&& (result === Split.split ctx (cfg rdx state));
+        ])
+
+    let lift_plugging plugo ctx rdx term =
+      fresh (prog state prog')
+        (rdx  === cfg prog  state)
+        (term === cfg prog' state)
+        (plugo ctx prog prog')
+
+    type ('pt, 'ct, 'st, 'cst, 'pl, 'cl, 'sl, 'csl) cfg_rule =
+      ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti ->
+      ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> goal
+
+    let lift_rule rule ctrs ctx t t' =
+    fresh (prog state prog' state')
+      (t  === cfg prog  state )
+      (t' === cfg prog' state')
+      (rule ctrs ctx prog state prog' state')
+
+  end
+
 type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) step =
   ('cst, 'csl) Constraints.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) MaybeTerm.ti -> goal
 

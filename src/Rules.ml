@@ -4,80 +4,48 @@ open Memory
 open Lang
 open MemOrder
 
-open Term
-open Context
-
-type tt = Lang.Term.tt
-type tl = Lang.Term.tl
-type ti = Lang.Term.ti
-
-type ct = Lang.Context.tt
-type cl = Lang.Context.tl
-type ci = Lang.Context.ti
-
-type st = Memory.MemState.tt
-type sl = Memory.MemState.tl
-type si = Memory.MemState.ti
-
-type helper = ((tt * st) option, (tl * sl) MiniKanren.logic option MiniKanren.logic) MiniKanren.injected
-
-type rule =  (ci -> ti -> si -> ti -> si -> MiniKanren.goal)
-
-type condition = (ci -> ti -> si -> MiniKanren.goal)
-
-type predicate = (ti * si -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal)
-
-type order = (ti -> Lang.Decay.ti -> MiniKanren.goal)
-
-module type CppMemStep = Semantics.StepRelation with
-  type tt = Lang.Term.tt       and
-  type tl = Lang.Term.tl       and
-  type st = Memory.MemState.tt and
-  type sl = Memory.MemState.tl
-
-let make_step :
-  stepo:(Term.ti * Memory.MemState.ti -> helper -> MiniKanren.goal) ->
-  (module CppMemStep) =
-  fun ~stepo -> (module
-    struct
-      type tt = Term.tt
-      type tl = Term.tl
-      type ti = (tt, tl) MiniKanren.injected
-
-      type st = Memory.MemState.tt
-      type sl = Memory.MemState.tl
-      type si = (st, sl) MiniKanren.injected
-
-      type helper = ((tt * st) option, (tl * sl) MiniKanren.logic option MiniKanren.logic) MiniKanren.injected
-
-      let (-->) = stepo
-
-    end : CppMemStep)
-
-let make_reduction_relation
-  ?(preconditiono  = fun _ _ _ -> success)
-  ?(postconditiono = fun _ _ _ -> success)
-  ?(ordero = splito)
-  rules =
-  let stepo (t, s) res =
-    fresh (dec)
-      (ordero t dec)
-      (conde [
-        (dec === Option.none ()) &&& (res === Option.none ());
-
-        fresh (ctx rdx rdx' t' s')
-          (dec === Decay.decay ctx rdx)
-          (preconditiono ctx rdx s)
-          (conde @@ List.map (fun (name, rule) -> rule ctx rdx s rdx' s') rules)
-          (postconditiono ctx rdx' s')
-          (plugo ctx rdx' t')
-          (res === Option.some (Pair.pair t' s'))
-      ]);
-  in
-  make_step ~stepo
-
-module Basic =
+module Constraints :
   struct
+    module T =
+      struct
+        type ('thrdId) t = {
+          thrdId : 'thrdId;
+        }
+
+        let fmap f { thrdId } = { thrdId = f thrdId }
+      end
+
+    include T
+    include Fmap1(T)
+
+    type tt = Memory.ThreadID.tt t
+    type tl = Memory.ThreadID.tl t MiniKanren.logic
+
+    type ti = (tt, tl) MiniKanren.ti
+
+    let constraints ~thrdId =
+      inj @@ distrib @@ { thrdId }
+
+    let thrd_ido t thrdId =
+      (t === constraints ~thrdId)
+  end
+
+module Basic (Machine : Machines.Sequential) =
+  struct
+    type tt = (Lang.Term.tt, Machine.tt) Semantics.Configuration.tt
+    type tl = (Lang.Term.tl, Machine.tl) Semantics.Configuration.tl
+
+    type ct = Lang.Context.tt
+    type cl = Lang.Context.tl
+
+    type cst = Constraints.tt
+    type csl = Constraints.tl
+
+    type rule = (tt, ct, cst, tl, cl, csl) Semantics.rule
+
+    let check_thrdo ctrs ctx thrdId =
+      (* TODO: we really should check that thrdId in constraints is a parent of the context's thrdId *)
+      (Constraints.thrd_ido ctrs thrdId) &&& (patho ctx thrdId)
 
     let rec asgno' l r s s' path = conde [
       fresh (x n)
@@ -91,30 +59,31 @@ module Basic =
         (asgno' t e s'' s' path);
     ]
 
-    let asgno c t s t' s' =
-      fresh (l r n path e)
+    let asgno ctrs ctx t s t' s' =
+      fresh (l r n thrdId e)
         (t  === asgn l r)
         (t' === skip ())
-        (patho c path)
-        (asgno' l r s s' path)
+        (check_thrdo ctrs ctx thrdId)
+        (asgno' l r s s' thrdId)
 
-    let asgn = ("assign", asgno)
+    let asgno = Semantics.Configuration.lift_rule asgno
 
-    let varo c t s t' s' =
-      fresh (n x path thrd)
+    let varo ctrs ctx t s t' s' =
+      fresh (n x thrdId)
         (s  === s')
         (t  === var x)
         (t' === const n)
-        (patho c path)
-        (MemState.get_localo s path x n)
+        (check_thrdo ctrs ctx thrdId)
+        (MemState.get_localo s thrdId x n)
 
-    let var = ("var", varo)
+    let varo = Semantics.Configuration.lift_rule varo
 
-    let binopo c t s t' s' = Nat.(
-      fresh (op x y z )
-        (s  === s')
+    let binopo ctrs ctx t s t' s' = Nat.(
+      fresh (op x y z thrdId)
         (t  === binop op (const x) (const y))
         (t' === const z)
+        (s  === s')
+        (check_thrdo ctrs ctx thrdId)
         (conde [
           (op === !!"+")  &&& (Nat.addo x y z);
           (op === !!"*")  &&& (Nat.mulo x y z);
@@ -127,40 +96,43 @@ module Basic =
         ])
       )
 
-    let binop = ("binop", binopo)
+    let binopo Semantics.Configuration.lift_rule binopo
 
-    let repeato c t s t' s' =
-      fresh (body)
-        (s  === s')
+    let repeato ctrs ctx t s t' s' =
+      fresh (body thrdId)
         (t  === repeat body)
         (t' === if' body (skip ()) t)
+        (s  === s')
+        (check_thrdo ctrs ctx thrdId)
 
-    let repeat = ("repeat", repeato)
+    let repeato = Semantics.Configuration.lift_rule repeato
 
-    let ifo c t s t' s' =
-      fresh (e n btrue bfalse)
-        (s === s')
+    let ifo ctrs ctx t s t' s' =
+      fresh (e n btrue bfalse thrdId)
         (t === if' (const n) btrue bfalse)
         (conde [
           fresh (x)
             (n === Nat.succ x) &&& (t' === btrue);
-
           (n === Nat.zero) &&& (t' === bfalse);
         ])
+        (s  === s')
+        (check_thrdo ctrs ctx thrdId)
 
-    let if' = ("if", ifo)
+    let ifo = Semantics.Configuration.lift_rule ifo
 
-    let seqo c t s t' s' =
-      (s === s') &&& (t === seq (skip ()) t')
+    let seqo ctrs ctx t s t' s' =
+      fresh (thrdId)
+        (t  === seq (skip ()) t')
+        (s  === s')
+        (check_thrdo ctrs ctx thrdId)
 
-    let seq = ("seq", seqo)
+    let seqo = Semantics.Configuration.lift_rule seqo
 
-    let all = [var; binop; asgn; if'; repeat; seq;]
-
-    module Step = (val make_reduction_relation all)
+    let all = [varo; binopo; asgno; ifo; repeato; seqo;]
 
   end
 
+(*
 module ThreadSpawning =
   struct
 
@@ -414,3 +386,4 @@ module Promising =
         end : CppMemStep)
 
   end
+*)
