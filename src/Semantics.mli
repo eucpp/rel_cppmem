@@ -1,97 +1,75 @@
+(** Term *)
 module Term :
   sig
     type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.injected
   end
 
+(** MaybeTerm - term augmented with undefined value *)
+module MaybeTerm :
+  sig
+    type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.Option.groundi
+
+    val term  : ('tt, 'tl) MiniKanren.injected -> ti
+    val undef : unit -> ti
+  end
+
+(** Context - evaluation context *)
 module Context :
   sig
     type ('ct, 'cl) ti = ('ct, 'cl) MiniKanren.injected
   end
 
+(** Constraints - additional constraints which are required for some rule to fire *)
+module Constraints :
+  sig
+    type ('cst, 'csl) ti = ('cst, 'csl) MiniKanren.injected
+  end
+
+(** Split - the result of splitting application, i.e. pair of evaluation context and term to be reduced (redex).
+      Since some terms may be irreducible, the context/redex pair may be undefined *)
 module Split :
   sig
-    module T :
-      sig
-        type ('t, 'c) t = {
-          rdx : 't;
-          ctx : 'c;
-        }
-      end
-
-    type ('t, 'c) tt = ('t, 'c) T.t option
-    type ('t, 'c) tl = ('t, 'c) T.t MiniKanren.logic option MiniKanren.logic
+    type ('t, 'c) tt
+    type ('t, 'c) tl
 
     type ('tt, 'ct, 'tl, 'cl) ti = (('tt, 'tl) tt, ('ct, 'cl) tl) MiniKanren.injected
 
-    val none  : unit -> ('tt, 'ct, 'tl, 'cl) ti
-    val split : ('tt, 'tl) MiniKanren.injected -> ('ct, 'cl) MiniKanren.injected -> ('tt, 'ct, 'tl, 'cl) ti
+    val split : ('ct, 'cl) MiniKanren.injected -> ('tt, 'tl) MiniKanren.injected -> ('tt, 'ct, 'tl, 'cl) ti
+    val undef : unit -> ('tt, 'ct, 'tl, 'cl) ti
 
     val redexo   : ('tt, 'ct, 'tl, 'cl) ti -> ('tt, 'tl) MiniKanren.injected -> MiniKanren.goal
     val contexto : ('tt, 'ct, 'tl, 'cl) ti -> ('ct, 'cl) MiniKanren.injected -> MiniKanren.goal
   end
 
-module Step :
-  sig
-    module T :
-      sig
-        type ('t, 'c) t = {
-          term : 't;
-           : 'c;
-        }
-      end
+(** [splitting term split] - either splits [term] into [split] = [(context, redex)], or binds irreducible [term] with [undef] *)
+type ('tt, 'ct, 'tl, 'cl) splitting =
+  ('tt, 'tl) Term.ti -> ('tt, 'ct, 'tl, 'cl) Split.ti -> goal
 
+(** [plugging context redex term] - plugs [redex] into [context] obtaining new [term] *)
+type ('tt, 'ct, 'tl, 'cl) plugging =
+  ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
 
-  end
+(** [rule context constraints term term'] - substitutes [term] with [term'] in a [context] considering provided [constraints] *)
+type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule =
+  ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
 
-type ('tt, 'ct, 'tl, 'cl) splitting = ('tt, 'tl) Term.ti -> ('tt, 'ct, 'tl, 'cl) Split.ti -> goal
+(** [step constraints term term'] - performs a step that substitutes [term] with [term'] considering provided [constraints],
+      if [term] is irreducible then [term'] is undefined *)
+type ('tt, 'cst, 'tl, 'csl) step =
+  ('cst, 'csl) Constraints.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) MaybeTerm.ti -> goal
 
-type ('tt, 'ct, 'tl, 'cl) rule = ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
+(** [eval term term'] - evaluates [term] to [term'] *)
+type ('tt, 'tl) eval =
+  ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
 
-type ('tt, 'tl, ) step =
-
+(** [make_reduction_relation splitting plugging rules] - given the [splitting], [plugging] relations and the set of [rules]
+      returns the [step constraints term term'] relation that proceeds as follows:
+        1) tries to split [term] into [(context, redex)] using [splitting] relation, if fails (i.e. [term] is irreducible) then [term'] is undefined
+        2) applies each [rule] from list of [rules], i.e. [rule constraints context redex redex']
+        3) plugs [redex'] back to [context] using [plugging] relation
+  *)
 val make_reduction_relation :
-  ('tt, 'ct, 'tl, 'cl) splitting -> (string * ('tt, 'ct, 'tl, 'cl) rule) list ->
+  ('tt, 'ct, 'tl, 'cl) splitting -> ('tt, 'ct, 'tl, 'cl) plugging -> ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule list -> ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) step
 
-module type StepRelation =
-  sig
-    type tt
-    type tl
-    type ti = (tt, tl) MiniKanren.injected
-
-    type st
-    type sl
-    type si = (st, sl) MiniKanren.injected
-
-    type helper = ((tt * st) option, (tl * sl) MiniKanren.logic option MiniKanren.logic) MiniKanren.injected
-
-    val (-->) : ti * si -> helper -> MiniKanren.goal
-  end
-
-module UnionRelation
-  (S1 : StepRelation)
-  (S2 : StepRelation with
-    type tt = S1.tt  and
-    type tl = S1.tl  and
-    type st = S1.st  and
-    type sl = S1.sl)
-  : StepRelation with
-    type tt = S1.tt  and
-    type tl = S1.tl  and
-    type st = S1.st  and
-    type sl = S1.sl
-
-module Make(S : StepRelation) :
-  sig
-    type tt = S.tt
-    type tl = S.tl
-    type ti = S.ti
-
-    type st = S.st
-    type sl = S.sl
-    type si = S.si
-
-    type helper = ((tt * st) option, (tl * sl) MiniKanren.logic option MiniKanren.logic) MiniKanren.injected
-
-    val (-->)  : ti * si -> helper -> MiniKanren.goal
-    val (-->*) : ti * si -> ti * si -> MiniKanren.goal
-  end
+val make_eval :
+  ('tt, 'cst, 'tl, 'csl) step -> ('tt, 'tl) eval

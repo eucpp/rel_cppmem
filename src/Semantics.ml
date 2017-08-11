@@ -1,7 +1,101 @@
 open MiniKanren
-open MiniKanrenStd
 
-module type StepRelation =
+module Term =
+  struct
+    type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.injected
+  end
+
+module MaybeTerm =
+  struct
+    type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.Option.groundi
+
+    let term t = Option.some t
+    let undef () = Option.none ()
+  end
+
+module Context =
+  struct
+    type ('ct, 'cl) ti = ('ct, 'cl) MiniKanren.injected
+  end
+
+module Constraints =
+  struct
+    type ('cst, 'csl) ti = ('cst, 'csl) MiniKanren.injected
+  end
+
+module Split =
+  struct
+    module T =
+      struct
+        type ('t, 'c) t = {
+          rdx : 't;
+          ctx : 'c;
+        }
+
+        let fmap f g { rdx; ctx } = { rdx = f rdx; ctx = g ctx }
+      end
+
+    type ('t, 'c) tt = ('t, 'c) T.t option
+    type ('t, 'c) tl = ('t, 'c) T.t MiniKanren.logic option MiniKanren.logic
+
+    type ('tt, 'ct, 'tl, 'cl) ti = (('tt, 'tl) tt, ('ct, 'cl) tl) MiniKanren.injected
+
+    include Fmap2(T)
+
+    let split ctx rdx = Option.some (inj @@ distrib @@ T.({ctx; rdx}))
+    let undef () = Option.none ()
+
+    let redexo s rdx =
+      fresh (ctx)
+        (s === split ctx rdx)
+
+    let contexto s ctx =
+      fresh (rdx)
+        (s === split ctx rdx)
+  end
+
+type ('tt, 'ct, 'tl, 'cl) splitting =
+  ('tt, 'tl) Term.ti -> ('tt, 'ct, 'tl, 'cl) Split.ti -> goal
+
+type ('tt, 'ct, 'tl, 'cl) plugging =
+  ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
+
+type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule =
+  ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
+
+type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) step =
+  ('cst, 'csl) Constraints.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) MaybeTerm.ti -> goal
+
+let make_reduction_relation splito plugo rules = fun ctrs term result ->
+  fresh (ctx_rdx)
+    (splito term ctx_rdx)
+    (conde [
+      (ctx_rdx === Split.undef ()) &&& (result === MaybeTerm.undef ());
+      fresh (ctx rdx rdx' term')
+        (ctx_rdx === Split.split ctx rdx)
+        (result === MaybeTerm.term term')
+        (conde @@ List.map (fun rule -> rule ctrs ctx rdx rdx') rules)
+        (plugo ctx rdx' term')
+    ]);
+
+let make_eval stepo =
+  let evalo_no_rec evalo term term'' =
+    fresh (ctrs result)
+      (stepo ctrs term result)
+      (conde [
+        (result === MaybeTerm.undef ()) &&& (term === term'');
+        fresh (term')
+          (result === MaybeTerm.term term')
+          (delay @@ fun () -> evalo term' term'');
+      ])
+  in
+  let tbl  = make_table () in
+  let evalo = ref (fun term term' -> assert false) in
+  let evalo_tabled = fun term term' -> tabled2 tbl (evalo_norec !evalo) term term' in
+  evalo := evalo_tabled;
+  !evalo
+
+(* module type StepRelation =
   sig
     type tt
     type tl
@@ -14,9 +108,9 @@ module type StepRelation =
     type helper = ((tt * st) option, (tl * sl) MiniKanren.logic option MiniKanren.logic) MiniKanren.injected
 
     val (-->) : ti * si -> helper -> MiniKanren.goal
-  end
+  end *)
 
-  module UnionRelation
+  (* module UnionRelation
     (S1 : StepRelation)
     (S2 : StepRelation with
       type tt = S1.tt  and
@@ -44,38 +138,4 @@ module type StepRelation =
           (t1 === Option.some a)  &&& (t2 === Option.some b)  &&& ((t' === t1) ||| (t' === t2));
         ])
 
-  end
-
-module Make(S : StepRelation) =
-  struct
-    type tt = S.tt
-    type tl = S.tl
-    type ti = S.ti
-
-    type st = S.st
-    type sl = S.sl
-    type si = S.si
-
-    type helper = ((tt * st) option, (tl * sl) MiniKanren.logic option MiniKanren.logic) MiniKanren.injected
-
-    let spaceo_norec spaceo t s t'' s'' = S.(
-      fresh (res)
-        ((t, s) --> res)
-        (conde [
-          (res === Option.none ()) &&& (t === t'') &&& (s === s'');
-
-          fresh (t' s')
-            (res === Option.some (Pair.pair t' s'))
-            (delay @@ fun () -> spaceo t' s' t'' s'');
-        ])
-    )
-
-    let (-->) = S.(-->)
-
-    let (-->*) (t, s) (t', s') =
-      let tbl  = make_table () in
-      let relo = ref (fun t s t' s' -> assert false) in
-      let spaceo_tabled = fun t s t' s' -> tabled4 tbl (spaceo_norec !relo) t s t' s' in
-      relo := spaceo_tabled;
-      spaceo_tabled t s t' s'
-  end
+  end *)
