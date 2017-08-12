@@ -35,12 +35,13 @@ module Split =
         let fmap f g { rdx; ctx } = { rdx = f rdx; ctx = g ctx }
       end
 
-    type ('t, 'c) tt = ('t, 'c) T.t option
-    type ('t, 'c) tl = ('t, 'c) T.t MiniKanren.logic option MiniKanren.logic
-
-    type ('tt, 'ct, 'tl, 'cl) ti = (('tt, 'tl) tt, ('ct, 'cl) tl) MiniKanren.injected
-
+    include T
     include Fmap2(T)
+
+    type ('tt, 'ct) tt = ('tt, 'ct) T.t MiniKanren.Option.ground
+    type ('tl, 'cl) tl = ('tl, 'cl) T.t MiniKanren.logic MiniKanren.Option.logic
+
+    type ('tt, 'ct, 'tl, 'cl) ti = (('tt, 'ct) tt, ('tl, 'cl) tl) MiniKanren.injected
 
     let split ctx rdx = Option.some (inj @@ distrib @@ T.({ctx; rdx}))
     let undef () = Option.none ()
@@ -77,12 +78,18 @@ module Configuration =
       end
 
     include T
-    include Fmap1(T)
+    include Fmap2(T)
 
-    type ('pt, 'st) tt = ('pt, 'st) 't
-    type ('pl, 'sl) tl = ('pl, 'sl) 't MiniKanren.logic
+    type ('pt, 'st) tt = ('pt, 'st) t
+    type ('pl, 'sl) tl = ('pl, 'sl) t MiniKanren.logic
 
     type ('pt, 'st, 'pl, 'sl) ti = (('pt, 'st) tt, ('pl, 'sl) tl) MiniKanren.injected
+
+    type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule' = ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule
+
+    type ('pt, 'ct, 'st, 'cst, 'pl, 'cl, 'sl, 'csl) rule =
+      ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti ->
+      ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> MiniKanren.goal
 
     let cfg prog state =
       inj @@ distrib @@ { prog; state }
@@ -102,7 +109,8 @@ module Configuration =
         (conde [
           (result' === Split.undef ()) &&& (result === Split.undef ());
           fresh (ctx rdx)
-            (result' === Split.split ctx rdx) &&& (result === Split.split ctx (cfg rdx state));
+            (result' === Split.split ctx rdx)
+            (result === Split.split ctx (cfg rdx state));
         ])
 
     let lift_plugging plugo ctx rdx term =
@@ -110,10 +118,6 @@ module Configuration =
         (rdx  === cfg prog  state)
         (term === cfg prog' state)
         (plugo ctx prog prog')
-
-    type ('pt, 'ct, 'st, 'cst, 'pl, 'cl, 'sl, 'csl) cfg_rule =
-      ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti ->
-      ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> goal
 
     let lift_rule rule ctrs ctx t t' =
     fresh (prog state prog' state')
@@ -123,8 +127,11 @@ module Configuration =
 
   end
 
-type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) step =
+type ('tt, 'cst, 'tl, 'csl) step =
   ('cst, 'csl) Constraints.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) MaybeTerm.ti -> goal
+
+type ('tt, 'tl) eval =
+  ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
 let make_reduction_relation splito plugo rules = fun ctrs term result ->
   fresh (ctx_rdx)
@@ -135,11 +142,11 @@ let make_reduction_relation splito plugo rules = fun ctrs term result ->
         (ctx_rdx === Split.split ctx rdx)
         (result === MaybeTerm.term term')
         (conde @@ List.map (fun rule -> rule ctrs ctx rdx rdx') rules)
-        (plugo ctx rdx' term')
-    ]);
+        (plugo ctx rdx' term');
+    ])
 
 let make_eval stepo =
-  let evalo_no_rec evalo term term'' =
+  let evalo_norec evalo term term'' =
     fresh (ctrs result)
       (stepo ctrs term result)
       (conde [
@@ -151,9 +158,10 @@ let make_eval stepo =
   in
   let tbl  = make_table () in
   let evalo = ref (fun term term' -> assert false) in
-  let evalo_tabled = fun term term' -> tabled2 tbl (evalo_norec !evalo) term term' in
+  let evalo_tabled = (fun term term' -> tabled2 tbl (evalo_norec !evalo) term term') in
   evalo := evalo_tabled;
   !evalo
+  (* evalo_tabled *)
 
 (* module type StepRelation =
   sig

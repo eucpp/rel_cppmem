@@ -10,6 +10,19 @@ module State :
     type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.injected
   end
 
+module type Sequential =
+  sig
+    type tt
+
+    type tl = inner MiniKanren.logic
+      and inner
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    val reado  : ti ->       Lang.ThreadID.ti -> Lang.Var.ti -> Lang.Value.ti -> MiniKanren.goal
+    val writeo : ti -> ti -> Lang.ThreadID.ti -> Lang.Var.ti -> Lang.Value.ti -> MiniKanren.goal
+  end
+
 (** [load s s' thrdId location value] - load command to machine that performs a read of [value] from [location] by thread with given [thrdId],
       [s] is an initial state of machine, [s'] possibly modified state (load instruction can modify internal representation of the state) *)
 (* type ('tt, 'tl) load =

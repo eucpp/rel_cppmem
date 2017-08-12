@@ -2,55 +2,6 @@ open MiniKanren
 open MiniKanrenStd
 open Utils
 
-module Loc =
-  struct
-    type tt = string
-    type tl = string MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    let of_string str = str
-    let to_string loc = loc
-
-    let inj = (!!)
-
-    let to_logic x = Value x
-
-    let show = GT.show(logic) (GT.show(GT.string))
-  end
-
-module Var =
-  struct
-    type tt = string
-    type tl = string MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    let of_string str = str
-    let to_string loc = loc
-
-    let inj = (!!)
-
-    let to_logic x = Value x
-
-    let show = GT.show(logic) (GT.show(GT.string))
-  end
-
-module Value =
-  struct
-    type tt = MiniKanrenStd.Nat.ground
-    type tl = MiniKanrenStd.Nat.logic
-    type ti = MiniKanrenStd.Nat.groundi
-
-    let of_string str = Nat.of_int @@ int_of_string str
-
-    let to_string v = string_of_int @@ Nat.to_int v
-
-    let inj = Nat.inj
-
-    let to_logic = Nat.to_logic
-
-    let show = GT.show(Nat.logic)
-  end
-
 module Timestamp =
   struct
     type tt = MiniKanrenStd.Nat.ground
@@ -58,69 +9,11 @@ module Timestamp =
     type ti = MiniKanrenStd.Nat.groundi
   end
 
-module MemOrder =
-  struct
-    type tt = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
-    type tl = tt MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    let of_string str =
-      let binding = [("sc", SC);
-                     ("acq", ACQ);
-                     ("rel", REL);
-                     ("relAcq", ACQ_REL);
-                     ("con", CON);
-                     ("rlx", RLX);
-                     ("na", NA)]
-      in
-      List.assoc str binding
-
-    let to_string = function
-      | SC      -> "sc"
-      | ACQ     -> "acq"
-      | REL     -> "rel"
-      | ACQ_REL -> "relAcq"
-      | CON     -> "con"
-      | RLX     -> "rlx"
-      | NA      -> "na"
-
-    let inj = (!!)
-
-    let show = GT.show(logic) (to_string)
-  end
-
-module Path =
-  struct
-    module T =
-      struct
-        type 'a t = N | L of 'a | R of 'a
-
-        let fmap ft = function
-          | N   -> N
-          | L p -> L (ft p)
-          | R p -> R (ft p)
-      end
-
-    type tt = tt T.t
-    type tl = tl T.t logic
-    type ti = (tt, tl) injected
-
-    include Fmap1(T)
-
-    let inj' = inj
-
-    let rec inj p = inj' @@ distrib (T.fmap (inj) p)
-
-    let pathn ()  = inj' @@ distrib @@ T.N
-    let pathl p   = inj' @@ distrib @@ T.L p
-    let pathr p   = inj' @@ distrib @@ T.R p
-  end
-
 module Registers =
   struct
-    type tt = (Var.tt, Value.tt) VarList.tt
-    type tl = (Var.tl, Value.tl) VarList.tl
-    type ti = (Var.tt, Value.tt, Var.tl, Value.tl) VarList.ti
+    type tt = (Lang.Var.tt, Lang.Value.tt) VarList.tt
+    type tl = (Lang.Var.tl, Lang.Value.tl) VarList.tl
+    type ti = (Lang.Var.tt, Lang.Value.tt, Lang.Var.tl, Lang.Value.tl) VarList.ti
 
     let inj = List.inj (fun (var, value) -> Pair.pair (!!var) (Nat.inj value))
 
@@ -151,9 +44,9 @@ module Registers =
 
 module ViewFront =
   struct
-    type tt = (Loc.tt, Timestamp.tt) VarList.tt
-    type tl = (Loc.tl, Timestamp.tl) VarList.tl
-    type ti = (Loc.tt, Timestamp.tt, Loc.tl, Timestamp.tl) VarList.ti
+    type tt = (Lang.Loc.tt, Timestamp.tt) VarList.tt
+    type tl = (Lang.Loc.tl, Timestamp.tl) VarList.tl
+    type ti = (Lang.Loc.tt, Timestamp.tt, Lang.Loc.tl, Timestamp.tl) VarList.ti
 
     let inj = List.inj (fun (var, value) -> Pair.pair (!!var) (Nat.inj value))
 
@@ -207,8 +100,8 @@ module Promise =
       let fmap fa fb fc fd (a, b, c, d) = (fa a, fb b, fc c, fd d)
     end
 
-    type tt = (Loc.tt, Timestamp.tt, Value.tt, ViewFront.tt) T.t
-    type tl = (Loc.tl, Timestamp.tl, Value.tl, ViewFront.tl) T.t MiniKanren.logic
+    type tt = (Lang.Loc.tt, Timestamp.tt, Lang.Value.tt, ViewFront.tt) T.t
+    type tl = (Lang.Loc.tl, Timestamp.tl, Lang.Value.tl, ViewFront.tl) T.t MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
 
     include Fmap4(T)
@@ -219,7 +112,7 @@ module Promise =
     let inj (loc, ts, value, vf) =
       promise (!!loc) (Nat.inj ts) (Nat.inj value) (ViewFront.inj vf)
 
-    let to_logic (loc, ts, value, vf) = Value (Loc.to_logic loc, Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
+    let to_logic (loc, ts, value, vf) = Value (Lang.Loc.to_logic loc, Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
 
     let reify = reify ManualReifiers.string Nat.reify Nat.reify ViewFront.reify
 
@@ -516,7 +409,7 @@ module Threads =
       printer (Format.str_formatter) thrd_tree;
       Format.flush_str_formatter ()
 
-    let rec geto tree path thrd = Path.(
+    let rec geto tree path thrd = Lang.(ThreadID.(
       fresh (thrd' l r path')
         (tree === node thrd' l r)
         (conde [
@@ -526,9 +419,9 @@ module Threads =
             (path === pathr path') &&& (geto r path' thrd);
           ])
         ])
-      )
+      ))
 
-    let rec seto tree tree' path thrd_new = Path.(
+    let rec seto tree tree' path thrd_new = Lang.(ThreadID.(
       fresh (thrd thrd' path' l l' r r')
         (tree  === node thrd  l  r )
         (tree' === node thrd' l' r')
@@ -542,7 +435,7 @@ module Threads =
             (path === pathr path') &&& (l === l') &&& (seto r r' path' thrd_new);
           ])
         ])
-      )
+      ))
 
     let rec laggingo tree b =
       fresh (thrd l r b1 b2)
@@ -557,7 +450,7 @@ module Threads =
             (MiniKanrenStd.Bool.oro b1 b2 b);
         ])
 
-    let rec spawno tree tree' path = Path.(
+    let rec spawno tree tree' path = Lang.(ThreadID.(
       fresh (thrd l l' r r' path')
         (tree  === node thrd  l  r )
         (tree' === node thrd  l' r')
@@ -575,9 +468,9 @@ module Threads =
             (path === pathr path') &&& (spawno r r' path') &&& (l === l');
           ])
         ])
-      )
+      ))
 
-    let rec joino tree tree' path = Path.(
+    let rec joino tree tree' path = Lang.(ThreadID.(
       fresh (thrd thrd' l l' r r' path')
         (tree  === node thrd  l  r )
         (tree' === node thrd' l' r')
@@ -596,14 +489,14 @@ module Threads =
             (path === pathr path') &&& (l === l') &&& (joino r r' path');
           ]);
         ])
-      )
+      ))
   end
 
 module LocStory =
   struct
     module Cell = struct
-      type tt = (Timestamp.tt * Value.tt * ViewFront.tt)
-      type tl = (Timestamp.tl * Value.tl * ViewFront.tl) logic
+      type tt = (Timestamp.tt * Lang.Value.tt * ViewFront.tt)
+      type tl = (Timestamp.tl * Lang.Value.tl * ViewFront.tl) logic
       type ti = (tt, tl) injected
 
       let inj (ts, value, vf) =
@@ -705,9 +598,9 @@ module LocStory =
 
 module MemStory =
   struct
-    type tt = (Loc.tt, LocStory.tt) VarList.tt
-    type tl = (Loc.tl, LocStory.tl) VarList.tl
-    type ti = (Loc.tt, LocStory.tt, Loc.tl, LocStory.tl) VarList.ti
+    type tt = (Lang.Loc.tt, LocStory.tt) VarList.tt
+    type tl = (Lang.Loc.tl, LocStory.tl) VarList.tl
+    type ti = (Lang.Loc.tt, LocStory.tt, Lang.Loc.tl, LocStory.tl) VarList.ti
 
     let inj = List.inj (fun (loc, story) -> Pair.pair (!!loc) (LocStory.inj story))
 

@@ -2,9 +2,10 @@ open MiniKanren
 open MiniKanrenStd
 open Memory
 open Lang
+open Term
 open MemOrder
 
-module Constraints :
+module Constraints =
   struct
     module T =
       struct
@@ -18,13 +19,13 @@ module Constraints :
     include T
     include Fmap1(T)
 
-    type tt = Memory.ThreadID.tt t
-    type tl = Memory.ThreadID.tl t MiniKanren.logic
+    type tt = Lang.ThreadID.tt t
+    type tl = Lang.ThreadID.tl t MiniKanren.logic
 
-    type ti = (tt, tl) MiniKanren.ti
+    type ti = (tt, tl) MiniKanren.injected
 
     let constraints ~thrdId =
-      inj @@ distrib @@ { thrdId }
+      MiniKanren.inj @@ distrib @@ { thrdId }
 
     let thrd_ido t thrdId =
       (t === constraints ~thrdId)
@@ -45,17 +46,17 @@ module Basic (Machine : Machines.Sequential) =
 
     let check_thrdo ctrs ctx thrdId =
       (* TODO: we really should check that thrdId in constraints is a parent of the context's thrdId *)
-      (Constraints.thrd_ido ctrs thrdId) &&& (patho ctx thrdId)
+      (Constraints.thrd_ido ctrs thrdId) &&& (Lang.Context.patho ctx thrdId)
 
     let rec asgno' l r s s' path = conde [
       fresh (x n)
         (l === var x)
         (r === const n)
-        (MemState.set_localo s s' path x n);
+        (Machine.writeo s s' path x n);
       fresh (x1 t n1 e s'')
         (l === pair (var   x1) t)
         (r === pair (const n1) e)
-        (MemState.set_localo s  s'' path x1 n1)
+        (Machine.writeo s  s'' path x1 n1)
         (asgno' t e s'' s' path);
     ]
 
@@ -74,7 +75,7 @@ module Basic (Machine : Machines.Sequential) =
         (t  === var x)
         (t' === const n)
         (check_thrdo ctrs ctx thrdId)
-        (MemState.get_localo s thrdId x n)
+        (Machine.reado s thrdId x n)
 
     let varo = Semantics.Configuration.lift_rule varo
 
@@ -96,7 +97,7 @@ module Basic (Machine : Machines.Sequential) =
         ])
       )
 
-    let binopo Semantics.Configuration.lift_rule binopo
+    let binopo = Semantics.Configuration.lift_rule binopo
 
     let repeato ctrs ctx t s t' s' =
       fresh (body thrdId)

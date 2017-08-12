@@ -2,12 +2,12 @@ module Constraints :
   sig
     type 'thrdId t
 
-    type tt = Memory.ThreadID.tt t
-    type tl = Memory.ThreadID.tl t MiniKanren.logic
+    type tt = Lang.ThreadID.tt t
+    type tl = Lang.ThreadID.tl t MiniKanren.logic
 
-    type ti = (tt, tl) MiniKanren.ti
+    type ti = (tt, tl) MiniKanren.injected
 
-    val thrd_ido : ti -> Memory.ThreadID.ti -> goal
+    val thrd_ido : ti -> Lang.ThreadID.ti -> MiniKanren.goal
   end
 
 module Basic (Machine : Machines.Sequential) :

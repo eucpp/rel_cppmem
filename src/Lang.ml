@@ -1,7 +1,87 @@
 open MiniKanren
 open MiniKanrenStd
-open Memory
 open Utils
+
+module Loc =
+  struct
+    type tt = string
+    type tl = string MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+
+    let of_string str = str
+    let to_string loc = loc
+
+    let inj = (!!)
+
+    let to_logic x = Value x
+
+    let show = GT.show(logic) (GT.show(GT.string))
+  end
+
+module Var =
+  struct
+    type tt = string
+    type tl = string MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+
+    let of_string str = str
+    let to_string loc = loc
+
+    let inj = (!!)
+
+    let to_logic x = Value x
+
+    let show = GT.show(logic) (GT.show(GT.string))
+  end
+
+module Value =
+  struct
+    type tt = MiniKanrenStd.Nat.ground
+    type tl = MiniKanrenStd.Nat.logic
+    type ti = MiniKanrenStd.Nat.groundi
+
+    let of_string str = Nat.of_int @@ int_of_string str
+
+    let to_string v = string_of_int @@ Nat.to_int v
+
+    let inj = Nat.inj
+
+    let to_logic = Nat.to_logic
+
+    let show = GT.show(Nat.logic)
+  end
+
+module MemOrder =
+  struct
+    type tt = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
+    type tl = tt MiniKanren.logic
+    type ti = (tt, tl) MiniKanren.injected
+
+    let of_string str =
+      let binding = [("sc", SC);
+                     ("acq", ACQ);
+                     ("rel", REL);
+                     ("relAcq", ACQ_REL);
+                     ("con", CON);
+                     ("rlx", RLX);
+                     ("na", NA)]
+      in
+      List.assoc str binding
+
+    let to_string = function
+      | SC      -> "sc"
+      | ACQ     -> "acq"
+      | REL     -> "rel"
+      | ACQ_REL -> "relAcq"
+      | CON     -> "con"
+      | RLX     -> "rlx"
+      | NA      -> "na"
+
+    let inj = (!!)
+
+    let show = GT.show(logic) (to_string)
+  end
+
 
 module Term =
   struct
@@ -28,9 +108,9 @@ module Term =
         let fmap fint fstring fmo floc ft x = GT.gmap(t) (fint) (fstring) (fmo) (floc) (ft) x
       end
 
-    type tt  = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, tt) T.t
-    type tl  = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, tl) T.t MiniKanren.logic
-    type ti  = (tt, tl) MiniKanren.injected
+    type tt = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, tt) T.t
+    type tl = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, tl) T.t MiniKanren.logic
+    type ti = (tt, tl) Semantics.Term.ti
 
     module FT = Fmap5(T)
 
@@ -98,7 +178,35 @@ module Term =
       sl Format.str_formatter term;
       Format.flush_str_formatter ()
     )
+  end
 
+module ThreadID =
+  struct
+    module T =
+      struct
+        type 'a t = N | L of 'a | R of 'a
+
+        let fmap ft = function
+          | N   -> N
+          | L p -> L (ft p)
+          | R p -> R (ft p)
+      end
+
+    include Fmap1(T)
+
+    type tt = tt T.t
+    type tl = inner MiniKanren.logic
+      and inner = tl T.t
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    let inj' = inj
+
+    let rec inj p = inj' @@ distrib (T.fmap (inj) p)
+
+    let pathn ()  = inj' @@ distrib @@ T.N
+    let pathl p   = inj' @@ distrib @@ T.L p
+    let pathr p   = inj' @@ distrib @@ T.R p
   end
 
 module Context =
@@ -114,27 +222,27 @@ module Context =
         let fmap fa fb {term; hole; path} = {term = fa term; hole = fa hole; path = fb path}
       end
 
-    type tt = (Term.tt, Memory.Path.tt) T.t
-    type tl = (Term.tl, Memory.Path.tl) T.t MiniKanren.logic
+    type tt = (Term.tt, ThreadID.tt) T.t
+    type tl = (Term.tl, ThreadID.tl) T.t MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
 
     include Fmap2(T)
 
     (* let inj' = inj
 
-    let rec inj t  = inj' @@ distrib (T.fmap (Term.inj) (Path.inj) t) *)
+    let rec inj t  = inj' @@ distrib (T.fmap (Term.inj) (ThreadID.inj) t) *)
 
-    let context : Term.ti -> Term.ti -> Path.ti -> ti = fun term hole path ->
+    let context : Term.ti -> Term.ti -> ThreadID.ti -> ti = fun term hole path ->
       inj @@ distrib @@ T.({term; hole; path})
 
-    let hole h = context h h (Path.pathn ())
+    let hole h = context h h (ThreadID.pathn ())
 
     let patho ctx path =
       fresh (term hole)
         (ctx === context term hole path)
   end
 
-let rec splito term result = Term.(Context.(Path.(conde [
+let rec splito term result = Term.(Context.(ThreadID.(conde [
   fresh (op l r)
     (term === binop op l r)
     (conde [
@@ -296,7 +404,7 @@ let rec splito term result = Term.(Context.(Path.(conde [
 
 ])))
 
-let rec promiseo term result = Term.(Context.(Path.(conde [
+let rec promiseo term result = Term.(Context.(ThreadID.(conde [
   fresh (loc n h)
     (term === write !!MemOrder.RLX loc (const n))
     (result === Semantics.Split.split (hole h) term);
