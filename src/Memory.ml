@@ -2,6 +2,221 @@ open MiniKanren
 open MiniKanrenStd
 open Utils
 
+module Storage =
+  struct
+    type ('at, 'bt) tt = (('at * 'bt), ('at, 'bt) tt) llist
+
+    type ('al, 'bl) tl = ('al, 'bl) inner MiniKanren.logic
+      and ('al, 'bl) inner = (('al, 'bl) MiniKanren.Pair.logic, ('al, 'bl) tl) llist
+
+    type ('at, 'bt, 'al, 'bl) ti = (('at, 'bt) tt, ('al, 'bl) tl) MiniKanren.injected
+
+    type ('at, 'al) key = ('at, 'al) MiniKanren.injected
+    type ('bt, 'bl) value = ('bt, 'bl) MiniKanren.injected
+
+    let allocate vars default = inj_listi @@ List.map (fun var -> Pair.pair var default) vars
+
+    let from_assoc assoc = inj_listi @@ List.map (fun (k, v) -> Pair.pair k v) assoc
+
+    let inj inj_key inj_value s =
+      MiniKanren.List.inj (fun (k, v) -> Pair.pair (inj_key k) (inj_value v)) s
+
+    let pprint pp_kv = pprint_llist (pprint_logic pp_kv)
+
+    let rec geto vars var value =
+      fresh (hd tl)
+        (vars === hd % tl)
+        (conde [
+          (hd === Pair.pair var value);
+          (hd =/= Pair.pair var value) &&& (geto tl var value);
+        ])
+
+    let rec seto vars vars' var value =
+      fresh (hd tl tl' k v)
+        (vars === hd % tl)
+        (hd === Pair.pair k v)
+        (conde [
+          (k === var) &&& (vars' === (Pair.pair var value) % tl);
+          (k =/= var) &&& (vars' === hd % tl') &&& (seto tl tl' var value);
+        ])
+
+    let rec updateo upo t t' var =
+      fresh (k v v' tl tl')
+        (t  === (Pair.pair k v ) % tl )
+        (t  === (Pair.pair k v') % tl')
+        (conde [
+          (k === var) &&& (upo v v') &&& (tl === tl');
+          (k =/= var) &&& (v === v') &&& (updateo upo tl tl' var);
+        ])
+
+    let rec mapo relo vars vars' = conde [
+      (vars === nil ()) &&& (vars' === nil ());
+      (fresh (k v k' v' tl tl')
+        (vars  === (Pair.pair k  v ) % tl )
+        (vars' === (Pair.pair k' v') % tl')
+        (relo k v k' v')
+        (mapo relo tl tl'));
+      ]
+
+    let rec map2o relo vars1 vars2 vars' = conde [
+      (vars1 === nil ()) &&& (vars2 === nil ()) &&& (vars' === nil ());
+      (fresh (k1 k2 k' v1 v2 v' tl1 tl2 tl')
+        (vars1 === (Pair.pair k1 v1) % tl1)
+        (vars2 === (Pair.pair k2 v2) % tl2)
+        (vars' === (Pair.pair k' v') % tl')
+        (relo k1 v1 k2 v2 k' v')
+        (map2o relo tl1 tl2 tl'));
+      ]
+  end
+
+module ThreadLocalStorage =
+  struct
+    module Tree =
+      struct
+        type ('a, 't) t =
+          | Nil
+          | Node of 'a * 't * 't
+
+        let fmap fa ft = function
+          | Nil            -> Nil
+          | Node (a, l, r) -> Node (fa a, ft l, ft r)
+      end
+
+    type tt = ('at, 'at tt) Tree.t
+
+    type tl = inner MiniKanren.logic
+      and inner = ('al, 'al tl) Tree.t
+
+    type ('at, 'al) ti = ('at tt, 'al tl) MiniKanren.injected
+
+    include Fmap2(Tree)
+
+    let nil () = inj @@ distrib @@ Tree.Nil
+
+    let node ?(left=nil()) ?(right=nil()) x = inj @@ distrib @@ Tree.Node (x, left, right)
+
+    let leaf x = node x
+
+    let inj' = inj
+
+    let rec inj inj_content tree = inj' @@ distrib (Tree.fmap (inj_content) (inj) tree)
+
+    (* let rec to_logic tree = Value (Tree.fmap (ThreadState.to_logic) (to_logic) tree) *)
+
+    let reify' = reify
+
+    let rec reify h = reify' ThreadState.reify reify h
+
+    (* let create ?rel ?acq vars curr =
+      Tree.Node (ThreadState.create ?rel ?acq vars curr, Tree.Nil, Tree.Nil) *)
+
+    let threads_list thrd_tree =
+      let q = Queue.create () in
+      let lst = ref [] in
+      Queue.push thrd_tree q;
+      while not @@ Queue.is_empty q do
+        match Queue.pop q with
+        | Value (Tree.Node (thrd, l, r)) ->
+          lst := thrd :: !lst;
+          Queue.push l q;
+          Queue.push r q
+        | Value Tree.Nil  -> ()
+        | Var (i, _) ->
+          lst := (Var (i, [])) :: !lst
+      done;
+      List.rev !lst
+
+    let pprint pprint_content ff thrd_tree =
+      let cnt = ref 1 in
+      let pp ff thrd =
+        Format.fprintf ff "@[<v>Thread %d:@;<1 4>%a@;@]" !cnt pprint_content thrd;
+        cnt := !cnt + 1
+      in
+      List.iter (pp ff) @@ threads_list thrd_tree
+
+    let rec geto tree path thrd = Lang.(ThreadID.(
+      fresh (thrd' l r path')
+        (tree === node thrd' l r)
+        (conde [
+          (path === pathn ()) &&& (thrd === thrd');
+          (conde [
+            (path === pathl path') &&& (geto l path' thrd);
+            (path === pathr path') &&& (geto r path' thrd);
+          ])
+        ])
+      ))
+
+    let rec seto tree tree' path thrd_new = Lang.(ThreadID.(
+      fresh (thrd thrd' path' l l' r r')
+        (tree  === node thrd  l  r )
+        (tree' === node thrd' l' r')
+        (conde [
+          (path === pathn ()) &&& (thrd' === thrd_new) &&&
+          (l === l') &&& (r === r');
+
+          (thrd' === thrd) &&&
+          (conde [
+            (path === pathl path') &&& (r === r') &&& (seto l l' path' thrd_new);
+            (path === pathr path') &&& (l === l') &&& (seto r r' path' thrd_new);
+          ])
+        ])
+      ))
+
+    (* let rec laggingo tree b =
+      fresh (thrd l r b1 b2)
+        (conde [
+            (tree === leaf thrd) &&&
+            (ThreadState.laggingo thrd b);
+
+            (tree =/= leaf thrd) &&&
+            (tree === node thrd l r) &&&
+            (laggingo l b1) &&&
+            (laggingo r b2) &&&
+            (MiniKanrenStd.Bool.oro b1 b2 b);
+        ]) *)
+
+    let rec spawno spawn_contento tree tree' path = Lang.(ThreadID.(
+      fresh (thrd l l' r r' path')
+        (tree  === node thrd  l  r )
+        (tree' === node thrd  l' r')
+        (conde [
+          fresh (a b)
+            (path === pathn ())
+            (l  === nil)
+            (r  === nil)
+            (l' === leaf a)
+            (r' === leaf b)
+            (spawn_contento thrd a b);
+
+          (conde [
+            (path === pathl path') &&& (spawno l l' path') &&& (r === r');
+            (path === pathr path') &&& (spawno r r' path') &&& (l === l');
+          ])
+        ])
+      ))
+
+    let rec joino join_contento tree tree' path = Lang.(ThreadID.(
+      fresh (thrd thrd' l l' r r' path')
+        (tree  === node thrd  l  r )
+        (tree' === node thrd' l' r')
+        (conde [
+          fresh (a b)
+            (path  === pathn ())
+            (l  === leaf a)
+            (r  === leaf b)
+            (l' === nil)
+            (r' === nil)
+            (join_contento thrd thrd' a b);
+
+          (thrd === thrd') &&&
+          (conde [
+            (path === pathl path') &&& (r === r') &&& (joino l l' path');
+            (path === pathr path') &&& (l === l') &&& (joino r r' path');
+          ]);
+        ])
+      ))
+  end
+
 module Timestamp =
   struct
     type tt = MiniKanrenStd.Nat.ground
@@ -11,138 +226,71 @@ module Timestamp =
 
 module Registers =
   struct
-    type tt = (Lang.Var.tt, Lang.Value.tt) VarList.tt
-    type tl = (Lang.Var.tl, Lang.Value.tl) VarList.tl
-    type ti = (Lang.Var.tt, Lang.Value.tt, Lang.Var.tl, Lang.Value.tl) VarList.ti
+    type tt = (Lang.Var.tt, Lang.Value.tt) Storage.tt
 
-    let inj = List.inj (fun (var, value) -> Pair.pair (!!var) (Nat.inj value))
+    type tl = (Lang.Var.tl, Lang.Value.tl) Storage.tl
 
-    let to_logic = List.to_logic (fun (var, value) -> Value (Value var, Nat.to_logic value))
+    type ti = (Lang.Var.tt, Lang.Value.tt, Lang.Var.tl, Lang.Value.tl) Storage.ti
+
+    let allocate = Storage.allocate (inj_nat 0)
+
+    let from_assoc = Storage.from_assoc
+
+    let inj = Storage.inj (!!) (Nat.inj value)
 
     let reify h = ManualReifiers.(List.reify (pair (string) (Nat.reify)) h)
 
-    let allocate vars = List.of_list (fun s -> (s, Nat.of_int 0)) vars
+    let pprint = Storage.pprint (fun ff (k, v) -> Format.fprintf ff "%a=%a" pprint_string var pprint_nat value)
 
-    let reset_varo p p' = Nat.(
-      fresh (var value)
-        (p  === Pair.pair var value)
-        (p' === Pair.pair var (inj_nat 0))
-      )
+    let reado  = Storage.geto
+    let writeo = Storage.seto
 
-    let reseto = VarList.mapo reset_varo
-
-    let printer =
-      let pp ff (var, value) = Format.fprintf ff "%a=%a" pprint_string var pprint_nat value in
-      let ppl = pprint_logic pp in
-      pprint_llist ppl
-
-    let pprint xs =
-      printer Format.str_formatter xs;
-      Format.flush_str_formatter ()
-
+    let reseto = Storage.mapo (fun k v k' v' ->
+      (k === k') &&& (v' === inj_nat 0)
+    )
   end
 
 module ViewFront =
   struct
-    type tt = (Lang.Loc.tt, Timestamp.tt) VarList.tt
-    type tl = (Lang.Loc.tl, Timestamp.tl) VarList.tl
-    type ti = (Lang.Loc.tt, Timestamp.tt, Lang.Loc.tl, Timestamp.tl) VarList.ti
+    type tt = (Lang.Loc.tt, Timestamp.tt) Storage.tt
 
-    let inj = List.inj (fun (var, value) -> Pair.pair (!!var) (Nat.inj value))
+    type tl = (Lang.Loc.tl, Timestamp.tl) Storage.tl
 
-    let to_logic = List.to_logic (fun (loc, ts) -> Value (Value loc, Nat.to_logic ts))
+    type ti = (Lang.Loc.tt, Timestamp.tt, Lang.Loc.tl, Timestamp.tl) Storage.ti
+
+    let bottom = Storage.inj []
+
+    let allocate = Storage.allocate (Nat.inj 0)
+
+    let from_assoc = Storage.from_assoc
+
+    let inj = Storage.inj (!!) (Nat.inj)
+
+    let pprint = Storage.pprint (fun ff (k, v) -> Format.fprintf ff "%a@%a" pprint_string var pprint_nat value)
+
+    (* let to_logic = List.to_logic (fun (loc, ts) -> Value (Value loc, Nat.to_logic ts)) *)
 
     let reify h = ManualReifiers.(List.reify (pair (string) (Nat.reify)) h)
 
-    let allocate atomics = List.of_list (fun s -> (s, Nat.of_int 0)) atomics
+    let tso = Storage.geto
 
-    let from_list lst = List.of_list (fun (s, v) -> (s, Nat.of_int v)) lst
+    let updateo t t' loc ts =
+      let r ts_old ts_new = conde [
+          (ts >  ts_old) &&& (ts_new === ts);
+          (ts <= ts_old) &&& (ts_new === ts_old);
+      ] in
+      Storage.updateo r t t' loc
 
-    let reset_tso p p' = Nat.(
-      fresh (loc ts)
-        (p  === Pair.pair loc ts)
-        (p' === Pair.pair loc (inj_nat 0))
-      )
-
-    let reseto = VarList.mapo reset_tso
-
-    let rec updateo t t' loc' ts' = Nat.(
-      fresh (hd tl tl' loc ts)
-        (t  === hd % tl)
-        (hd === Pair.pair loc ts)
-        (conde [
-          (loc === loc') &&& (conde [
-            (ts' >  ts) &&& (t' === (Pair.pair loc' ts') % tl);
-            (ts' <= ts) &&& (t' === t);
-          ]);
-          (loc =/= loc') &&& (t' === hd % tl') &&& (updateo tl tl' loc' ts');
-        ])
-      )
-
-    let mergeo t1 t2 t = VarList.map2o VarList.join_tso t1 t2 t
-
-    let printer =
-      let pp ff (var, value) = Format.fprintf ff "%a@%a" pprint_string var pprint_nat value in
-      let ppl = pprint_logic pp in
-      pprint_llist ppl
-
-    let pprint xs =
-      printer Format.str_formatter xs;
-      Format.flush_str_formatter ()
-
-  end
-
-module Promise =
-  struct
-    module T = struct
-      type ('a, 'b, 'c, 'd) t = 'a * 'b * 'c * 'd
-
-      let fmap fa fb fc fd (a, b, c, d) = (fa a, fb b, fc c, fd d)
-    end
-
-    type tt = (Lang.Loc.tt, Timestamp.tt, Lang.Value.tt, ViewFront.tt) T.t
-    type tl = (Lang.Loc.tl, Timestamp.tl, Lang.Value.tl, ViewFront.tl) T.t MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    include Fmap4(T)
-
-    let promise loc ts value vf =
-      inj @@ distrib @@ (loc, ts, value, vf)
-
-    let inj (loc, ts, value, vf) =
-      promise (!!loc) (Nat.inj ts) (Nat.inj value) (ViewFront.inj vf)
-
-    let to_logic (loc, ts, value, vf) = Value (Lang.Loc.to_logic loc, Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
-
-    let reify = reify ManualReifiers.string Nat.reify Nat.reify ViewFront.reify
-
-    let printer =
-      let pp ff (loc, ts, value, vf) =
-        Format.fprintf ff "@[<h>{%a@%a=%a, %a}@]"
-          pprint_string loc
-          pprint_nat ts
-          pprint_nat value
-          ViewFront.printer vf
-      in
-      pprint_logic pp
-
-  end
-
-module PromiseSet =
-  struct
-    type tt = Promise.tt List.ground
-    type tl = Promise.tl List.logic
-    type ti = (Promise.tt, Promise.tl) List.groundi
-
-    let inj = List.inj (Promise.inj)
-
-    let to_logic = List.to_logic (Promise.to_logic)
-
-    let reify = List.reify (Promise.reify)
-
-    let printer =
-      pprint_llist Promise.printer
-
+    let mergeo t1 t2 t' =
+      let r l1 ts1 l2 ts2 l' ts' = Nat.(conde [
+        (ts1 >  ts2) &&& (ts' === ts1);
+        (ts1 <= ts2) &&& (ts' === ts2);
+      ]) in
+      conde [
+        (t1 === bottom ()) &&& (t2 === bottom ()) &&& (t' === bottom);
+        (t1 === bottom ()) &&& (t2 =/= bottom ()) &&& (t' === t2);
+        (t1 =/= bottom ()) &&& (t2 =/= bottom ()) &&& (Storage.map2o r t1 t2 t');
+      ]
   end
 
 module ThreadState =
@@ -343,153 +491,6 @@ module ThreadState =
         (ViewFront.mergeo acq1  acq2  acq' )
         (* (List.appendo prm1 prm2 prm) *)
 
-  end
-
-module Threads =
-  struct
-    module Tree =
-      struct
-        type ('a, 't) t =
-          | Nil
-          | Node of 'a * 't * 't
-
-        let fmap fa ft = function
-          | Nil            -> Nil
-          | Node (a, l, r) -> Node (fa a, ft l, ft r)
-      end
-
-    type tt = (ThreadState.tt, tt) Tree.t
-    type tl = (ThreadState.tl, tl) Tree.t MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    include Fmap2(Tree)
-
-    let nil        = inj @@ distrib @@ Tree.Nil
-    let node a l r = inj @@ distrib @@ Tree.Node (a, l, r)
-    let leaf a     = inj @@ distrib @@ Tree.Node (a, nil, nil)
-
-    let inj' = inj
-
-    let rec inj tree = inj' @@ distrib (Tree.fmap (ThreadState.inj) (inj) tree)
-
-    let rec to_logic tree = Value (Tree.fmap (ThreadState.to_logic) (to_logic) tree)
-
-    let reify' = reify
-
-    let rec reify h = reify' ThreadState.reify reify h
-
-    let create ?rel ?acq vars curr =
-      Tree.Node (ThreadState.create ?rel ?acq vars curr, Tree.Nil, Tree.Nil)
-
-    let threads_list thrd_tree =
-      let q = Queue.create () in
-      let lst = ref [] in
-      Queue.push thrd_tree q;
-      while not @@ Queue.is_empty q do
-        match Queue.pop q with
-        | Value (Tree.Node (thrd, l, r)) ->
-          lst := thrd :: !lst;
-          Queue.push l q;
-          Queue.push r q
-        | Value Tree.Nil  -> ()
-        | Var (i, _) ->
-          lst := (Var (i, [])) :: !lst
-      done;
-      List.rev !lst
-
-    let printer ff thrd_tree =
-      let cnt = ref 1 in
-      let pp ff thrd =
-        Format.fprintf ff "@[<v>Thread %d:@;<1 4>%a@;@]" !cnt ThreadState.printer thrd;
-        cnt := !cnt + 1
-      in
-      List.iter (pp ff) @@ threads_list thrd_tree
-
-    let pprint thrd_tree =
-      printer (Format.str_formatter) thrd_tree;
-      Format.flush_str_formatter ()
-
-    let rec geto tree path thrd = Lang.(ThreadID.(
-      fresh (thrd' l r path')
-        (tree === node thrd' l r)
-        (conde [
-          (path === pathn ()) &&& (thrd === thrd');
-          (conde [
-            (path === pathl path') &&& (geto l path' thrd);
-            (path === pathr path') &&& (geto r path' thrd);
-          ])
-        ])
-      ))
-
-    let rec seto tree tree' path thrd_new = Lang.(ThreadID.(
-      fresh (thrd thrd' path' l l' r r')
-        (tree  === node thrd  l  r )
-        (tree' === node thrd' l' r')
-        (conde [
-          (path === pathn ()) &&& (thrd' === thrd_new) &&&
-          (l === l') &&& (r === r');
-
-          (thrd' === thrd) &&&
-          (conde [
-            (path === pathl path') &&& (r === r') &&& (seto l l' path' thrd_new);
-            (path === pathr path') &&& (l === l') &&& (seto r r' path' thrd_new);
-          ])
-        ])
-      ))
-
-    let rec laggingo tree b =
-      fresh (thrd l r b1 b2)
-        (conde [
-            (tree === leaf thrd) &&&
-            (ThreadState.laggingo thrd b);
-
-            (tree =/= leaf thrd) &&&
-            (tree === node thrd l r) &&&
-            (laggingo l b1) &&&
-            (laggingo r b2) &&&
-            (MiniKanrenStd.Bool.oro b1 b2 b);
-        ])
-
-    let rec spawno tree tree' path = Lang.(ThreadID.(
-      fresh (thrd l l' r r' path')
-        (tree  === node thrd  l  r )
-        (tree' === node thrd  l' r')
-        (conde [
-          fresh (a b)
-            (path === pathn ())
-            (l  === nil)
-            (r  === nil)
-            (l' === leaf a)
-            (r' === leaf b)
-            (ThreadState.spawno thrd a b);
-
-          (conde [
-            (path === pathl path') &&& (spawno l l' path') &&& (r === r');
-            (path === pathr path') &&& (spawno r r' path') &&& (l === l');
-          ])
-        ])
-      ))
-
-    let rec joino tree tree' path = Lang.(ThreadID.(
-      fresh (thrd thrd' l l' r r' path')
-        (tree  === node thrd  l  r )
-        (tree' === node thrd' l' r')
-        (conde [
-          fresh (a b)
-            (path  === pathn ())
-            (l  === leaf a)
-            (r  === leaf b)
-            (l' === nil)
-            (r' === nil)
-            (ThreadState.joino thrd thrd' a b);
-
-          (thrd === thrd') &&&
-          (conde [
-            (path === pathl path') &&& (r === r') &&& (joino l l' path');
-            (path === pathr path') &&& (l === l') &&& (joino r r' path');
-          ]);
-        ])
-      ))
   end
 
 module LocStory =
@@ -942,3 +943,56 @@ module MemState =
         (t' === mem_state tree' story na sc)
         (Threads.joino tree tree' path)
   end
+
+  (* module Promise =
+    struct
+      module T = struct
+        type ('a, 'b, 'c, 'd) t = 'a * 'b * 'c * 'd
+
+        let fmap fa fb fc fd (a, b, c, d) = (fa a, fb b, fc c, fd d)
+      end
+
+      type tt = (Lang.Loc.tt, Timestamp.tt, Lang.Value.tt, ViewFront.tt) T.t
+      type tl = (Lang.Loc.tl, Timestamp.tl, Lang.Value.tl, ViewFront.tl) T.t MiniKanren.logic
+      type ti = (tt, tl) MiniKanren.injected
+
+      include Fmap4(T)
+
+      let promise loc ts value vf =
+        inj @@ distrib @@ (loc, ts, value, vf)
+
+      let inj (loc, ts, value, vf) =
+        promise (!!loc) (Nat.inj ts) (Nat.inj value) (ViewFront.inj vf)
+
+      let to_logic (loc, ts, value, vf) = Value (Lang.Loc.to_logic loc, Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
+
+      let reify = reify ManualReifiers.string Nat.reify Nat.reify ViewFront.reify
+
+      let printer =
+        let pp ff (loc, ts, value, vf) =
+          Format.fprintf ff "@[<h>{%a@%a=%a, %a}@]"
+            pprint_string loc
+            pprint_nat ts
+            pprint_nat value
+            ViewFront.printer vf
+        in
+        pprint_logic pp
+
+    end
+
+  module PromiseSet =
+    struct
+      type tt = Promise.tt List.ground
+      type tl = Promise.tl List.logic
+      type ti = (Promise.tt, Promise.tl) List.groundi
+
+      let inj = List.inj (Promise.inj)
+
+      let to_logic = List.to_logic (Promise.to_logic)
+
+      let reify = List.reify (Promise.reify)
+
+      let printer =
+        pprint_llist Promise.printer
+
+    end *)

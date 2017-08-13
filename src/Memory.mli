@@ -1,3 +1,92 @@
+module Storage :
+  sig
+    type ('at, 'bt) tt
+
+    type ('al, 'bl) tl = ('al, 'bl) inner MiniKanren.logic
+      and ('al, 'bl) inner
+
+    type ('at, 'bt, 'al, 'bl) ti = (('at, 'bt) tt, ('al, 'bl) tl) MiniKanren.injected
+
+    type ('at, 'al) key = ('at, 'al) MiniKanren.injected
+    type ('bt, 'bl) value = ('bt, 'bl) MiniKanren.injected
+
+    val allocate : ('bt, 'bl) value -> ('at, 'al) key list -> ('at, 'bt, 'al, 'bl) ti
+
+    val from_assoc : (('at, 'al) key * ('bt, 'bl) value) list -> ('at, 'bt, 'al, 'bl) ti
+
+    val inj : ('at -> ('at, 'al) MiniKanren.injected) -> ('bt -> ('bt, 'bl) MiniKanren.injected) -> ('at, 'bt) tt -> ('at, 'bt, 'al, 'bl) ti
+
+    val pprint : (Format.formatter -> 'al * 'bl -> unit) -> Format.formatter -> ('al, 'bl) tl -> unit
+
+    val geto : ('at, 'bt, 'al, 'bl) ti ->                            ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal
+    val seto : ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal
+
+    val updateo :
+      (('bt, 'bl) value -> ('bt, 'bl) value -> MiniKanren.goal) ->
+      ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key -> MiniKanren.goal
+
+    val mapo :
+      (('at, 'al) key -> ('bt, 'bl) value -> ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal) ->
+      ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> MiniKanren.goal
+
+    val map2o :
+      (('at, 'al) key -> ('bt, 'bl) value -> ('at, 'al) key -> ('bt, 'bl) value -> ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal) ->
+      ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> MiniKanren.goal
+  end
+
+module ThreadLocalStorage :
+  sig
+    type 'at tt
+
+    type 'al tl = 'al inner MiniKanren.logic
+      and 'al inner
+
+    type ('at, 'al) ti = ('at tt, 'al tl) MiniKanren.injected
+
+    type ('at, 'al) content = ('at, 'al) MiniKanren.injected
+
+    val nil   : unit -> ('at, 'al) ti
+    val leaf  : ('at, 'al) content -> ('at, 'al) ti
+    val node  : ?left:('at, 'al) ti -> ?right:('at, 'al) ti -> ('at, 'al) content -> ('at, 'al) ti
+
+    val inj : ('at -> ('at, 'al) MiniKanren.injected) -> 'at tt -> ('at, 'al) ti
+
+    val pprint : (Format.formatter -> 'al content -> unit) -> Format.formatter -> 'al tl -> unit
+
+    val geto : ('at, 'al) ti                  -> Lang.ThreadID.ti -> ('at, 'al) content -> MiniKanren.goal
+    val seto : ('at, 'al) ti -> ('at, 'al) ti -> Lang.ThreadID.ti -> ('at, 'al) content -> MiniKanren.goal
+
+    val spawno :
+      (('at, 'al) content -> ('at, 'al) content -> ('at, 'al) content -> MiniKanren.goal) ->
+      ('at, 'al) ti -> ('at, 'al) ti -> Lang.ThreadID.ti -> MiniKanren.goal
+
+    val joino  :
+       (('at, 'al) content -> ('at, 'al) content -> ('at, 'al) content -> ('at, 'al) content -> MiniKanren.goal) ->
+       ('at, 'al) ti -> ('at, 'al) ti -> Lang.ThreadID.ti -> MiniKanren.goal
+  end
+
+module Registers :
+  sig
+    type tt = (Lang.Var.tt, Lang.Value.tt) Storage.tt
+
+    type tl = (Lang.Var.tl, Lang.Value.tl) Storage.tl
+
+    type ti = (Lang.Var.tt, Lang.Value.tt, Lang.Var.tl, Lang.Value.tl) Storage.ti
+
+    val allocate : Lang.Var.ti list -> ti
+
+    val from_assoc : (Lang.Var.ti * Lang.Value.ti) list -> ti
+
+    val inj : tt -> ti
+
+    val pprint : Format.formatter -> tl -> unit
+
+    val reado  : ti ->       Lang.Var.ti -> Lang.Value.ti -> MiniKanren.goal
+    val writeo : ti -> ti -> Lang.Var.ti -> Lang.Value.ti -> MiniKanren.goal
+
+    val reseto : ti -> ti -> MiniKanren.goal
+  end
+
 module Timestamp :
   sig
     type tt = MiniKanrenStd.Nat.ground
@@ -5,32 +94,28 @@ module Timestamp :
     type ti = MiniKanrenStd.Nat.groundi
   end
 
-module Registers :
-  sig
-    type tt = (Lang.Var.tt, Lang.Value.tt) VarList.tt
-    type tl = (Lang.Var.tl, Lang.Value.tl) VarList.tl
-    type ti = (Lang.Var.tt, Lang.Value.tt, Lang.Var.tl, Lang.Value.tl) VarList.ti
-
-    val to_logic   : tt -> tl
-
-    val reseto : ti -> ti -> MiniKanren.goal
-
-    val pprint : tl -> string
-  end
-
 module ViewFront :
   sig
-    type tt = (Lang.Loc.tt, Timestamp.tt) VarList.tt
-    type tl = (Lang.Loc.tl, Timestamp.tl) VarList.tl
-    type ti = (Lang.Loc.tt, Timestamp.tt, Lang.Loc.tl, Timestamp.tl) VarList.ti
+    type tt = (Lang.Loc.tt, Timestamp.tt) Storage.tt
+
+    type tl = (Lang.Loc.tl, Timestamp.tl) Storage.tl
+
+    type ti = (Lang.Loc.tt, Timestamp.tt, Lang.Loc.tl, Timestamp.tl) Storage.ti
+
+    val bottom : unit -> ti
+
+    val allocate : Lang.Loc.ti list -> ti
+
+    val from_assoc : (Lang.Loc.ti * Lang.Value.ti) list -> ti
 
     val inj : tt -> ti
 
-    val to_logic   : tt -> tl
+    val pprint : Format.formatter -> tl -> unit
 
-    val from_list : (Lang.Loc.tt * int) list -> tt
+    val tso     : ti ->       Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val updateo : ti -> ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
 
-    val pprint : tl -> string
+    val mergeo : ti -> ti -> ti -> MiniKanren.goal
   end
 
 module ThreadState :
@@ -100,39 +185,6 @@ module ThreadState :
           into corresponding viewfronts of parent [thrd]
           obtaining new parent thread [thrd'] *)
     val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal
-  end
-
-module Threads :
-  sig
-    module Tree :
-      sig
-        type ('a, 't) t =
-          | Nil
-          | Node of 'a * 't * 't
-      end
-
-    type tt = (ThreadState.tt, tt) Tree.t
-    type tl = (ThreadState.tl, tl) Tree.t MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    val inj : tt -> ti
-
-    val to_logic : tt -> tl
-
-    val create : ?rel: (string * int) list ->
-                 ?acq: (string * int) list ->
-                  (string * int) list ->
-                  (string * int) list -> tt
-
-    val pprint : tl -> string
-
-    val geto : ti -> Lang.ThreadID.ti -> ThreadState.ti -> MiniKanren.goal
-    val seto : ti -> ti -> Lang.ThreadID.ti -> ThreadState.ti -> MiniKanren.goal
-
-
-
-    val spawno : ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
-    val joino  : ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
   end
 
 module LocStory :
