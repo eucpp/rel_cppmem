@@ -1,9 +1,9 @@
 module Register :
   sig
-    type tt = string
+    type tt
 
     type tl = inner MiniKanren.logic
-      and inner = string
+      and inner
 
     type ti = (tt, tl) MiniKanren.injected
 
@@ -32,9 +32,12 @@ module Loc :
 
 module Value :
   sig
-    type tt = MiniKanrenStd.Nat.ground
-    type tl = MiniKanrenStd.Nat.logic
-    type ti = MiniKanrenStd.Nat.groundi
+    type tt
+
+    type tl = inner MiniKanren.logic
+      and inner
+
+    type ti = (tt, tl) MiniKanren.injected
 
     val value : int -> ti
 
@@ -51,6 +54,23 @@ module MemOrder :
 
     type ti = (tt, tl) MiniKanren.injected
 
+    val mo : string -> ti
+
+    val inj : tt -> ti
+
+    val show : tl -> string
+  end
+
+module Op :
+  sig
+    type tt = ADD | MUL | EQ | NEQ | LT | LE | GT | GE
+
+    type tl = tt MiniKanren.logic
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    val op : string -> ti
+
     val inj : tt -> ti
 
     val show : tl -> string
@@ -58,36 +78,16 @@ module MemOrder :
 
 module Term :
   sig
-    module T :
-      sig
-        type ('int, 'string, 'mo, 'loc, 't) t =
-          | Const    of 'int
-          | Var      of 'string
-          | Binop    of 'string * 't * 't
-          | Asgn     of 't * 't
-          | Pair     of 't * 't
-          | If       of 't * 't * 't
-          | Repeat   of 't
-          | Read     of 'mo * 'loc
-          | Write    of 'mo * 'loc * 't
-          | Cas      of 'mo * 'mo * 'loc * 't * 't
-          | Seq      of 't * 't
-          | Spw      of 't * 't
-          | Par      of 't * 't
-          | Skip
-          | Stuck
-        (* with gmap, show *)
-      end
+    type tt
 
-    (* include (module type of MiniKanren.Fmap5(T)) *)
+    type tl = inner MiniKanren.logic
+      and inner
 
-    type tt = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, tt) T.t
-    type tl = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, tl) T.t MiniKanren.logic
     type ti = (tt, tl) Semantics.Term.ti
 
     val const   : Value.ti -> ti
     val var     : Loc.ti -> ti
-    val binop   : Loc.ti -> ti -> ti -> ti
+    val binop   : Op.ti -> ti -> ti -> ti
     val asgn    : ti -> ti -> ti
     val pair    : ti -> ti -> ti
     val if'     : ti -> ti -> ti -> ti

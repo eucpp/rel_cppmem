@@ -217,14 +217,23 @@ module ThreadLocalStorage =
       ))
   end
 
-module Timestamp =
-  struct
-    type tt = MiniKanrenStd.Nat.ground
-    type tl = MiniKanrenStd.Nat.logic
-    type ti = MiniKanrenStd.Nat.groundi
+module Timestamp :
+  sig
+    type tt = Nat.ground
+
+    type tl = inner MiniKanren.logic
+      and inner = tl lnat
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    let ts = inj_nat
+
+    let inj = Nat.inj
+
+    let show = GT.show(Nat.logic)
   end
 
-module Registers =
+module RegisterStorage =
   struct
     type tt = (Lang.Var.tt, Lang.Value.tt) Storage.tt
 
@@ -236,7 +245,7 @@ module Registers =
 
     let from_assoc = Storage.from_assoc
 
-    let inj = Storage.inj (!!) (Nat.inj value)
+    let inj = Storage.inj Lang.Register.inj Lang.Value.inj
 
     let reify h = ManualReifiers.(List.reify (pair (string) (Nat.reify)) h)
 
@@ -264,7 +273,7 @@ module ViewFront =
 
     let from_assoc = Storage.from_assoc
 
-    let inj = Storage.inj (!!) (Nat.inj)
+    let inj = Storage.inj Lang.Loc.inj Timestamp.inj
 
     let pprint = Storage.pprint (fun ff (k, v) -> Format.fprintf ff "%a@%a" pprint_string var pprint_nat value)
 
@@ -289,11 +298,12 @@ module ViewFront =
       conde [
         (t1 === bottom ()) &&& (t2 === bottom ()) &&& (t' === bottom);
         (t1 === bottom ()) &&& (t2 =/= bottom ()) &&& (t' === t2);
+        (t1 =/= bottom ()) &&& (t2 === bottom ()) &&& (t' === t1);
         (t1 =/= bottom ()) &&& (t2 =/= bottom ()) &&& (Storage.map2o r t1 t2 t');
       ]
   end
 
-module ThreadState =
+module ThreadFront =
   struct
     module T = struct
       type ('a, 'b, 'c, 'd, 'e) t = {
@@ -308,8 +318,11 @@ module ThreadState =
         {regs = fa a; curr = fb b; rel = fc c; acq = fd d; prm = fe e}
     end
 
-    type tt = (Registers.tt, ViewFront.tt, ViewFront.tt, ViewFront.tt, PromiseSet.tt) T.t
-    type tl = (Registers.tl, ViewFront.tl, ViewFront.tl, ViewFront.tl, PromiseSet.tl) T.t MiniKanren.logic
+    type tt = (RegisterStorage.tt, ViewFront.tt, ViewFront.tt, ViewFront.tt, PromiseSet.tt) T.t
+
+    type tl = inner MiniKanren.logic
+      and inner = (RegisterStorage.tl, ViewFront.tl, ViewFront.tl, ViewFront.tl, PromiseSet.tl) T.t
+
     type ti = (tt, tl) MiniKanren.injected
 
     include Fmap5(T)
@@ -318,22 +331,22 @@ module ThreadState =
       inj @@ distrib @@ {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; T.prm = prm }
 
     let inj {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; T.prm = prm } =
-      thrd_state (Registers.inj regs) (ViewFront.inj curr) (ViewFront.inj rel) (ViewFront.inj acq) (PromiseSet.inj prm)
+      thrd_state (RegisterStorage.inj regs) (ViewFront.inj curr) (ViewFront.inj rel) (ViewFront.inj acq) (PromiseSet.inj prm)
 
-    let to_logic { T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; T.prm = prm } =
+    (* let to_logic { T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; T.prm = prm } =
       Value {
-        T.regs = Registers.to_logic regs;
+        T.regs = RegisterStorage.to_logic regs;
         T.curr = ViewFront.to_logic curr;
         T.rel  = ViewFront.to_logic rel;
         T.acq  = ViewFront.to_logic acq;
         T.prm  = PromiseSet.to_logic prm;
-      }
+      } *)
 
-    let reify h = reify Registers.reify ViewFront.reify ViewFront.reify ViewFront.reify PromiseSet.reify h
+    let reify h = reify RegisterStorage.reify ViewFront.reify ViewFront.reify ViewFront.reify PromiseSet.reify h
 
     let convert = (fun (var, value) -> (var, Nat.of_int value))
 
-    let create ?(rel) ?(acq) vars curr =
+    (* let create ?(rel) ?(acq) vars curr =
       let rel = match rel with
         | Some rel -> rel
         | None     -> curr
@@ -347,20 +360,20 @@ module ThreadState =
       T.rel  = List.of_list convert rel;
       T.acq  = List.of_list convert acq;
       T.prm  = Nil;
-    }
+    } *)
 
     let preallocate vars atomics = {
-      T.regs = Registers.allocate vars;
+      T.regs = RegisterStorage.allocate vars;
       T.curr = ViewFront.allocate atomics;
       T.rel  = ViewFront.allocate atomics;
       T.acq  = ViewFront.allocate atomics;
       T.prm  = Nil;
     }
 
-    let printer =
+    let pprint =
       let pp ff {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; T.prm = prm } =
         Format.fprintf ff "@[<v>reg: %a @; cur: %a @; acq: %a @; rel: %a @; prm: %a @]"
-          Registers.printer regs
+          RegisterStorage.printer regs
           ViewFront.printer curr
           ViewFront.printer acq
           ViewFront.printer rel
@@ -368,25 +381,21 @@ module ThreadState =
       in
       pprint_logic pp
 
-    let pprint thrd =
-      printer Format.str_formatter thrd;
-      Format.flush_str_formatter ()
-
-    let get_varo thrd var value =
+    let reado thrd var value =
       fresh (regs curr rel acq prm)
         (thrd === thrd_state regs curr rel acq prm)
-        (VarList.geto regs var value)
+        (RegisterStorage.reado regs var value)
 
-    let set_varo thrd thrd' var value =
+    let writeo thrd thrd' var value =
       fresh (regs regs' curr rel acq prm)
         (thrd  === thrd_state regs  curr rel acq prm)
         (thrd' === thrd_state regs' curr rel acq prm)
-        (VarList.seto regs regs' var value)
+        (RegisterStorage.writeo regs regs' var value)
 
     let tso thrd loc ts =
       fresh (regs curr rel acq prm)
         (thrd === thrd_state regs curr rel acq prm)
-        (VarList.geto curr loc ts)
+        (ViewFront.tso curr loc ts)
 
     let updateo thrd thrd' loc ts =
       fresh (regs curr curr' rel acq acq' prm)
@@ -411,22 +420,17 @@ module ThreadState =
         (thrd  === thrd_state regs curr rel acq prm)
         (thrd' === thrd_state regs acq  rel acq prm)
 
-    let fence_loc_relo thrd thrd' loc =
+    let fence_relo ?loc thrd thrd' =
       fresh (regs curr rel acq prm)
         (thrd  === thrd_state regs curr rel  acq prm)
         (thrd' === thrd_state regs curr curr acq prm)
 
-    let fence_relo thrd thrd' =
-      fresh (regs curr rel acq prm)
-        (thrd  === thrd_state regs curr rel  acq prm)
-        (thrd' === thrd_state regs curr curr acq prm)
-
-    let promiseo thrd thrd' loc ts value vf =
+    (* let promiseo thrd thrd' loc ts value vf =
       fresh (regs curr rel acq prm prm' p)
         (thrd  === thrd_state regs curr rel  acq prm )
         (thrd' === thrd_state regs curr curr acq prm')
         (p === Promise.promise loc ts value vf)
-        (prm' === p % prm)
+        (prm' === p % prm) *)
 
     (* let betweeno ts_lb ts_ub ts =
       fresh (sum n d d')
@@ -436,7 +440,7 @@ module ThreadState =
         (Rational.addo ts_lb ts_ub sum)
         (Nat.mulo d 2 d') *)
 
-    let removeo prm prm' p =
+    (* let removeo prm prm' p =
       let pred p' b = conde [
         (p =/= p') &&& (b === !!true);
         (p === p') &&& (b === !!false);
@@ -467,14 +471,14 @@ module ThreadState =
     let certifyo thrd =
       fresh (regs curr rel acq prm)
         (thrd  === thrd_state regs curr rel acq prm)
-        (prm   === nil ())
+        (prm   === nil ()) *)
 
     let spawno thrd child1 child2 =
       fresh (regs regs' curr rel acq)
         (thrd   === thrd_state regs  curr rel acq (nil ()))
         (child1 === thrd_state regs' curr rel acq (nil ()))
         (child1 === child2)
-        (Registers.reseto regs regs')
+        (RegisterStorage.reseto regs regs')
 
     let joino thrd thrd' child1 child2 =
       fresh (regs       regs1 regs2
@@ -497,17 +501,20 @@ module LocStory =
   struct
     module Cell = struct
       type tt = (Timestamp.tt * Lang.Value.tt * ViewFront.tt)
-      type tl = (Timestamp.tl * Lang.Value.tl * ViewFront.tl) logic
-      type ti = (tt, tl) injected
+
+      type tl = inner MiniKanren.logic
+        and inner = (Timestamp.tl * Lang.Value.tl * ViewFront.tl)
+
+      type ti = (tt, tl) MiniKanren.injected
 
       let inj (ts, value, vf) =
-        inj_triple (inj_nat @@ Nat.to_int ts) (inj_nat @@ Nat.to_int value) (ViewFront.inj vf)
+        inj_triple (Timestamp.inj ts) (Value.inj value) (ViewFront.inj vf)
 
-      let to_logic (ts, value, vf) = Value (Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
+      (* let to_logic (ts, value, vf) = Value (Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf) *)
 
       let reify = ManualReifiers.triple Nat.reify Nat.reify ViewFront.reify
 
-      let printer var =
+      let pprint var =
         let pp ff (ts, value, vf) =
           Format.fprintf ff "@[<h>{%a@%a=%a, %a}@]"
             pprint_string var
@@ -527,18 +534,26 @@ module LocStory =
       let fmap fa fb {tsnext = a; story = b} = {tsnext = fa a; story = fb b}
     end
 
-    type tt = (Nat.ground, Cell.tt List.ground) T.t
-    type tl = (Nat.logic, Cell.tl List.logic) T.t MiniKanren.logic
+    type tt = (Timestamp.tt, Cell.tt List.ground) T.t
+
+    type tl = inner T.t MiniKanren.logic
+      and inner = (Timestamp.tl, Cell.tl List.logic)
+
     type ti = (tt, tl) MiniKanren.injected
 
     include Fmap2(T)
 
     let loc_story tsnext story = inj @@ distrib @@ {T.tsnext = tsnext; T.story = story}
 
-    let inj {T.tsnext = tsnext; T.story = story} = loc_story (inj_nat @@ Nat.to_int tsnext) (List.inj (Cell.inj) story)
+    let preallocate atomics =
+      let vf = ViewFront.allocate atomics in
+      create (Timestamp.ts 1) [(Timestamp.ts 0, Value.value 0, vf)]
 
-    let to_logic {T.tsnext = tsnext; T.story = story} =
-      Value {T.tsnext = Nat.to_logic tsnext; T.story = List.to_logic Cell.to_logic story}
+    let inj {T.tsnext = tsnext; T.story = story} =
+      loc_story (Timestamp.inj tsnext) (List.inj (Cell.inj) story)
+
+    (* let to_logic {T.tsnext = tsnext; T.story = story} =
+      Value {T.tsnext = Nat.to_logic tsnext; T.story = List.to_logic Cell.to_logic story} *)
 
     let reify h = reify Nat.reify (List.reify Cell.reify) h
 
@@ -547,19 +562,11 @@ module LocStory =
       T.story  = List.of_list (fun (ts, v, vf) -> (Nat.of_int ts, Nat.of_int v, vf)) story;
     }
 
-    let preallocate atomics =
-      let vf = ViewFront.allocate atomics in
-      create 1 [(0, 0, vf)]
-
-    let printer var =
+    let pprint var =
       let pp ff {T.story = story} =
         pprint_llist (Cell.printer var) ff story
       in
       pprint_logic pp
-
-    let pprint var story =
-      printer var Format.str_formatter story;
-      Format.flush_str_formatter ()
 
     let last_tso t ts =
       fresh (ts' story)
@@ -575,14 +582,14 @@ module LocStory =
         (msg === inj_triple ts' value vf)
         (Nat.leo ts ts' b)
 
-    let reado t last_ts ts value vf =
+    let loado t last_ts ts value vf =
       fresh (story tsnext visible msg)
         (t === loc_story tsnext story)
         (MiniKanrenStd.List.filtero (visibleo last_ts) story visible)
         (MiniKanrenStd.List.membero visible msg)
         (msg === inj_triple ts value vf)
 
-    let writeo t t' value vf =
+    let storeo t t' value vf =
       fresh (ts ts' story story')
         (t  === loc_story ts  story )
         (t' === loc_story ts' story')
@@ -599,349 +606,52 @@ module LocStory =
 
 module MemStory =
   struct
-    type tt = (Lang.Loc.tt, LocStory.tt) VarList.tt
-    type tl = (Lang.Loc.tl, LocStory.tl) VarList.tl
-    type ti = (Lang.Loc.tt, LocStory.tt, Lang.Loc.tl, LocStory.tl) VarList.ti
+    type tt = (Lang.Loc.tt, LocStory.tt) Storage.tt
 
-    let inj = List.inj (fun (loc, story) -> Pair.pair (!!loc) (LocStory.inj story))
+    type tl = (Lang.Loc.tl, LocStory.tl) Storage.tl
 
-    let to_logic = List.to_logic (fun (var, story) -> Value (Value var, LocStory.to_logic story))
+    type ti = (Lang.Loc.tt, LocStory.tt, Lang.Loc.tl, LocStory.tl) Storage.ti
+
+    let preallocate atomics = Storage.allocate (LocStory.preallocate atomics)
+
+    let inj = Storage.inj (Lang.Loc.inj) (LocStory.inj)
+
+    (* let to_logic = List.to_logic (fun (var, story) -> Value (Value var, LocStory.to_logic story)) *)
 
     let reify h = ManualReifiers.(List.reify (pair (string) (LocStory.reify)) h)
 
-    let create = List.of_list (fun x -> x)
+    (* let create = List.of_list (fun x -> x) *)
 
-    let preallocate atomics = List.of_list (fun loc -> (loc, LocStory.preallocate atomics)) atomics
-
-    let printer ff story =
+    let pprint ff story =
       let pp ff (var, story) = LocStory.printer var ff story in
       Format.fprintf ff "@[<v>Memory :@;<1 4>%a@;@]" (pprint_llist (pprint_logic pp)) story
 
-    let pprint story =
-      printer Format.str_formatter story;
-      Format.flush_str_formatter ()
-
     let last_tso t loc ts =
       fresh (story)
-        (VarList.geto t loc story)
+        (Storage.geto t loc story)
         (LocStory.last_tso story ts)
 
     let next_tso t loc ts =
       fresh (story)
-        (VarList.geto t loc story)
+        (Storage.geto t loc story)
         (LocStory.next_tso story ts)
 
     let reado t loc last_ts ts value vf =
       fresh (story)
-        (VarList.geto t loc story)
+        (Storage.geto t loc story)
         (LocStory.reado story last_ts ts value vf)
 
     let writeo t t' loc value vf  =
       fresh (story story')
-        (VarList.geto t loc story)
-        (VarList.seto t t' loc story')
+        (Storage.geto t loc story)
+        (Storage.seto t t' loc story')
         (LocStory.writeo story story' value vf)
 
     let last_valueo t loc value =
       fresh (story story)
-        (VarList.geto t loc story)
+        (Storage.geto t loc story)
         (LocStory.last_valueo story value)
 
-  end
-
-module MemState =
-  struct
-    module T = struct
-      type ('a, 'b, 'c, 'd) t = {
-        thrds : 'a;
-        story : 'b;
-        na    : 'c;
-        sc    : 'd;
-      }
-
-      let fmap fa fb fc fd {thrds; story; na; sc} = {
-        thrds = fa thrds;
-        story = fb story;
-        na = fc na;
-        sc = fd sc;
-      }
-
-    end
-
-    type tt = (Threads.tt, MemStory.tt, ViewFront.tt, ViewFront.tt) T.t
-    type tl = (Threads.tl, MemStory.tl, ViewFront.tl, ViewFront.tl) T.t logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    include Fmap4(T)
-
-    let mem_state thrds story na sc = inj @@ distrib @@ T.({thrds; story; na; sc;})
-
-    let inj {T.thrds = thrds; T.story = story; T.na = na; T.sc = sc;} =
-      mem_state (Threads.inj thrds) (MemStory.inj story) (ViewFront.inj na) (ViewFront.inj sc)
-
-    let to_logic {T.thrds = thrds; T.story = story; T.na = na; T.sc = sc} =
-      Value {
-        T.thrds = Threads.to_logic thrds;
-        T.story = MemStory.to_logic story;
-        T.na    = ViewFront.to_logic na;
-        T.sc    = ViewFront.to_logic sc;
-      }
-
-    let refine rr = rr#refine (reify Threads.reify MemStory.reify ViewFront.reify ViewFront.reify) ~inj:to_logic
-
-    let create ?(na=ViewFront.from_list []) ?(sc=ViewFront.from_list []) thrds story = {
-      T.thrds = thrds;
-      T.story = story;
-      T.na    = na;
-      T.sc    = sc;
-    }
-
-    let preallocate vars atomics =
-      let thrd  = ThreadState.preallocate vars atomics in
-      let thrds = Threads.Tree.Node (thrd, Threads.Tree.Nil, Threads.Tree.Nil) in
-      let story = MemStory.preallocate atomics in
-      let na    = ViewFront.allocate atomics in
-      let sc    = ViewFront.allocate atomics in
-      create thrds story ~na ~sc
-
-    let printer =
-      let pp ff {T.thrds = thrds; T.story = story; T.na = na; T.sc = sc;} =
-        Format.fprintf ff "@[<v>%a@;%a@;@[<v>NA-front :@;<1 4>%a@;@]@;@[<v>SC-front :@;<1 4>%a@;@]@]"
-          Threads.printer thrds
-          MemStory.printer story
-          ViewFront.printer na
-          ViewFront.printer sc
-      in
-      pprint_logic pp
-
-    let pprint story =
-      printer Format.str_formatter story;
-      Format.flush_str_formatter ()
-
-    let get_thrdo t path thrd =
-      fresh (tree story na sc)
-        (t === mem_state tree story na sc)
-        (Threads.geto tree path thrd)
-
-    let set_thrdo t t' path thrd =
-      fresh (tree tree' story na sc)
-        (t  === mem_state tree  story na sc)
-        (t' === mem_state tree' story na sc)
-        (Threads.seto tree tree' path thrd)
-
-    let get_localo t path var value =
-      fresh (thrd)
-        (get_thrdo t path thrd)
-        (ThreadState.get_varo thrd var value)
-
-    let set_localo t t' path var value =
-      fresh (thrd thrd')
-        (get_thrdo t path thrd)
-        (set_thrdo t t' path thrd')
-        (ThreadState.set_varo thrd thrd' var value)
-
-    let na_awareo na thrd loc = Nat.(
-      fresh (ts write_ts)
-        (ThreadState.tso thrd loc ts)
-        (VarList.geto na loc write_ts)
-        (write_ts <= ts)
-    )
-
-    let read_nao t t' path loc value ts = Nat.(
-      fresh (tree story na sc thrd vf)
-        (t === t')
-        (t === mem_state tree story na sc)
-        (Threads.geto tree path thrd)
-        (ThreadState.tso thrd loc ts)
-        (MemStory.last_tso story loc ts)
-        (na_awareo na thrd loc)
-        (MemStory.reado story loc ts ts value vf)
-    )
-
-    let write_nao t t' path loc value ts' = Nat.(
-      fresh (tree tree' story story' na na' sc thrd thrd' ts rel vf)
-        (t  === mem_state tree  story  na  sc)
-        (t' === mem_state tree' story' na' sc)
-        (Threads.geto tree       path thrd)
-        (Threads.seto tree tree' path thrd')
-        (ThreadState.tso thrd loc ts)
-        (MemStory.last_tso story loc ts)
-        (na_awareo na thrd loc)
-
-        (MemStory.next_tso story loc ts')
-        (ThreadState.updateo thrd thrd' loc ts')
-        (ViewFront.updateo na na' loc ts')
-
-        (ThreadState.front_relo thrd' loc rel)
-        (ViewFront.reseto rel vf)
-        (MemStory.writeo story story' loc value vf)
-    )
-
-    let na_stucko t path loc =
-      fresh (tree story na sc thrd ts last_ts)
-        (t === mem_state tree story na sc)
-        (Threads.geto tree path thrd)
-        (ThreadState.tso thrd loc ts)
-        (MemStory.last_tso story loc last_ts)
-        (ts =/= last_ts)
-
-    let read_na_dro t t' path loc =
-      (t === t') &&&
-      (na_stucko t path loc)
-
-    let write_na_dro t t' path loc =
-      (t === t') &&&
-      (na_stucko t path loc)
-
-    let data_raceo t path loc = Nat.(
-      fresh (tree story na sc thrd ts write_ts)
-        (t === mem_state tree story na sc)
-        (Threads.geto tree path thrd)
-        (ThreadState.tso thrd loc ts)
-        (VarList.geto na loc write_ts)
-        (ts < write_ts)
-    )
-
-    let read_dro t t' path loc =
-      (t === t') &&&
-      (data_raceo t path loc)
-
-    let write_dro t t' path loc =
-      (t === t') &&&
-      (data_raceo t path loc)
-
-    let read_rlxo t t' path loc value ts =
-      fresh (tree tree' story story' na sc thrd thrd' thrd'' last_ts vf)
-        (t  === mem_state tree  story na sc)
-        (t' === mem_state tree' story na sc)
-        (Threads.geto tree       path thrd)
-        (Threads.seto tree tree' path thrd'')
-        (na_awareo na thrd loc)
-        (ThreadState.tso thrd loc last_ts)
-        (MemStory.reado story loc last_ts ts value vf)
-        (ThreadState.update_acqo thrd thrd' vf)
-        (ThreadState.updateo thrd' thrd'' loc ts)
-
-    let write_rlxo t t' path loc value ts =
-      fresh (tree tree' story story' na sc thrd thrd' rel)
-        (t  === mem_state tree  story  na sc)
-        (t' === mem_state tree' story' na sc)
-        (Threads.geto tree       path thrd)
-        (Threads.seto tree tree' path thrd')
-        (na_awareo na thrd loc)
-        (MemStory.next_tso story loc ts)
-        (ThreadState.front_relo thrd loc rel)
-        (ThreadState.updateo thrd thrd' loc ts)
-        (MemStory.writeo story story' loc value rel)
-
-    let fence_acqo t t' path =
-      fresh (tree tree' story thrd thrd' na sc)
-        (t  === mem_state  tree  story na sc)
-        (t' === mem_state  tree' story na sc)
-        (Threads.geto tree       path thrd )
-        (Threads.seto tree tree' path thrd')
-        (ThreadState.fence_acqo  thrd thrd')
-
-    let fence_relo t t' path =
-      fresh (tree tree' story na sc thrd thrd')
-        (t  === mem_state  tree  story na sc)
-        (t' === mem_state  tree' story na sc)
-        (Threads.geto tree       path thrd )
-        (Threads.seto tree tree' path thrd')
-        (ThreadState.fence_relo  thrd thrd')
-
-    let fence_loc_relo t t' path loc =
-      fresh (tree tree' story na sc thrd thrd')
-        (t  === mem_state  tree  story na sc)
-        (t' === mem_state  tree' story na sc)
-        (Threads.geto tree       path thrd )
-        (Threads.seto tree tree' path thrd')
-        (ThreadState.fence_loc_relo thrd thrd' loc)
-
-    let read_acqo t t'' path loc value ts =
-      fresh (t')
-        (read_rlxo t t' path loc value ts)
-        (fence_acqo t' t'' path)
-
-    let write_relo t t'' path loc value ts =
-      fresh (t')
-        (fence_loc_relo t t' path loc)
-        (write_rlxo t' t'' path loc value ts)
-
-    (* let read_sco t t' path loc value ts = Nat.(
-      fresh (tree story na sc sc_ts ts)
-        (t === mem_state tree story na sc)
-        (read_acqo t t' path loc value ts)
-        (VarList.geto sc loc sc_ts)
-        (sc_ts <= ts)
-    ) *)
-
-    let read_sco t t' path loc value ts = Nat.(
-      fresh (tree story na sc)
-        (t === t')
-        (t === mem_state tree story na sc)
-        (VarList.geto sc loc value)
-    )
-
-    (* let write_sco t t'' path loc value ts =
-      fresh (t' tree story na sc sc' ts)
-        (t'   === mem_state tree story na sc )
-        (t''  === mem_state tree story na sc')
-        (write_relo t t' path loc value ts)
-        (ViewFront.updateo sc sc' loc ts) *)
-
-    let write_sco t t' path loc value ts =
-      fresh (tree story na sc sc')
-        (t  === mem_state tree story na sc )
-        (t' === mem_state tree story na sc')
-        (VarList.seto sc sc' loc value)
-
-    let last_valueo t loc value =
-      fresh (tree tree story na sc)
-        (t  === mem_state tree story na sc)
-        (MemStory.last_valueo story loc value)
-
-    let promiseo t t' path loc value =
-      fresh (tree tree' story story' na sc thrd thrd' ts rel)
-        (t  === mem_state  tree  story  na sc)
-        (t' === mem_state  tree' story' na sc)
-        (Threads.geto tree       path thrd )
-        (Threads.seto tree tree' path thrd')
-        (MemStory.next_tso story loc ts)
-        (ThreadState.front_relo thrd loc rel)
-        (ThreadState.promiseo thrd thrd' loc ts value rel)
-        (MemStory.writeo story story' loc value rel)
-
-    let fulfillo t t' path =
-      fresh (tree tree' story na sc thrd thrd' ts)
-        (t  === mem_state  tree  story na sc)
-        (t' === mem_state  tree' story na sc)
-        (Threads.geto tree       path thrd )
-        (Threads.seto tree tree' path thrd')
-        (ThreadState.fulfillo thrd thrd')
-
-    let laggingo t b =
-      fresh (tree story na sc)
-        (t === mem_state tree story na sc)
-        (Threads.laggingo tree b)
-
-    let certifyo t path =
-      fresh (tree story na sc thrd)
-        (t  === mem_state tree story na sc)
-        (Threads.geto tree path thrd)
-        (ThreadState.certifyo thrd)
-
-    let spawno t t' path =
-      fresh (tree tree' story na sc)
-        (t  === mem_state tree  story na sc)
-        (t' === mem_state tree' story na sc)
-        (Threads.spawno tree tree' path)
-
-    let joino t t' path =
-      fresh (tree tree' story na sc)
-        (t  === mem_state tree  story na sc)
-        (t' === mem_state tree' story na sc)
-        (Threads.joino tree tree' path)
   end
 
   (* module Promise =

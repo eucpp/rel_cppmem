@@ -1,15 +1,3 @@
-
-
-(* module GlobalMemory :
-  sig
-
-  end *)
-
-module State :
-  sig
-    type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.injected
-  end
-
 (** Sequential - interface of simpliest machine.
       The sequential machine should be capable to maintain a number of per-thread set of registers *)
 module type Sequential =
@@ -40,10 +28,11 @@ module type NonAtomic =
   sig
     include Parallel
 
-    val load_na  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
-    val store_na : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val load_nao  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val store_nao : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
 
-    val data_raceo : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val load_data_raceo  : ti -> ti -> Lang.ThreadID.ti -> Lang.MemoryOrder.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val store_data_raceo : ti -> ti -> Lang.ThreadID.ti -> Lang.MemoryOrder.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
   end
 
 (** SequentialConsistent - interface of machine that supports sequaltial-consistent accesses to shared memory.
@@ -52,8 +41,8 @@ module type SequentialConsistent =
   sig
     include Parallel
 
-    val load_sc  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
-    val store_sc : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val load_sco  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val store_sco : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
   end
 
 (** ReleaseAcquire - interface of machine that supports acquire-stores and release-writes. *)
@@ -61,8 +50,8 @@ module type ReleaseAcquire =
   sig
     include Parallel
 
-    val load_acq  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
-    val store_rel : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val load_acqo  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val store_relo : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
   end
 
 (** Front machine - this machines is capable to simuate Release-Acquire (or stronger) memory model and also is able to detect data-races between non-atomic acesses.
@@ -75,13 +64,36 @@ module Front :
   sig
     include ReleaseAcquire
 
-    val load_sc  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
-    val store_sc : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val preallocate : Lang.Registers.ti list -> Lang.Loc.ti list -> ti
 
-    val load_na  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
-    val store_na : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val inj : tt -> ti
 
-    val data_raceo : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val refine : (tt, tl) MiniKanren.refined -> tl
+
+    (* val create : ?na:ViewFront.tt -> ?sc:ViewFront.tt -> Threads.tt -> MemStory.tt -> tt *)
+
+    val pprint : Format.formatter -> tl -> string
+
+    val load_sco  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val store_sco : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+
+    val load_nao  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val store_nao : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+
+    val load_data_raceo  : ti -> ti -> Lang.ThreadID.ti -> Lang.MemoryOrder.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val store_data_raceo : ti -> ti -> Lang.ThreadID.ti -> Lang.MemoryOrder.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+
+    (* val fence_acqo : ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
+    val fence_relo : ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
+
+    val promiseo : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val fulfillo : ti -> ti -> Lang.ThreadID.ti                       -> MiniKanren.goal
+
+    val laggingo : ti -> MiniKanrenStd.Bool.groundi -> MiniKanren.goal
+
+    val certifyo : ti -> Lang.ThreadID.ti -> MiniKanren.goal
+
+    val last_valueo : ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal *)
   end
 
 

@@ -2,10 +2,29 @@ open MiniKanren
 open MiniKanrenStd
 open Utils
 
+module Register =
+  struct
+    type tt = string
+
+    type tl = inner MiniKanren.logic
+      and inner = string
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    let reg r = !!r
+
+    let inj = (!!)
+
+    let show = GT.show(logic) (GT.show(GT.string))
+  end
+
 module Loc =
   struct
     type tt = string
-    type tl = string MiniKanren.logic
+
+    type tl = inner MiniKanren.logic
+      and inner = string
+
     type ti = (tt, tl) MiniKanren.injected
 
     let loc l = !!l
@@ -15,26 +34,12 @@ module Loc =
     let show = GT.show(logic) (GT.show(GT.string))
   end
 
-module Var =
-  struct
-    type tt = string
-    type tl = string MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    let of_string str = str
-    let to_string loc = loc
-
-    let inj = (!!)
-
-    let to_logic x = Value x
-
-    let show = GT.show(logic) (GT.show(GT.string))
-  end
-
 module Value =
   struct
     type tt = MiniKanrenStd.Nat.ground
+
     type tl = MiniKanrenStd.Nat.logic
+
     type ti = MiniKanrenStd.Nat.groundi
 
     let of_string str = Nat.of_int @@ int_of_string str
@@ -51,18 +56,21 @@ module Value =
 module MemOrder =
   struct
     type tt = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
+
     type tl = tt MiniKanren.logic
+
     type ti = (tt, tl) MiniKanren.injected
 
     let of_string str =
-      let binding = [("sc", SC);
-                     ("acq", ACQ);
-                     ("rel", REL);
-                     ("relAcq", ACQ_REL);
-                     ("con", CON);
-                     ("rlx", RLX);
-                     ("na", NA)]
-      in
+      let binding = [
+        ("sc", SC);
+        ("acq", ACQ)
+        ("rel", REL);
+        ("relAcq", ACQ_REL);
+        ("con", CON);
+        ("rlx", RLX);
+        ("na", NA)
+      ] in
       List.assoc str binding
 
     let to_string = function
@@ -76,18 +84,54 @@ module MemOrder =
 
     let inj = (!!)
 
+    let mo s = inj @@ of_string s
+
     let show = GT.show(logic) (to_string)
   end
 
+module Op :
+  sig
+    type tt = ADD | MUL | EQ | NEQ | LT | LE | GT | GE
+
+    type tl = tt MiniKanren.logic
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    let of_string str = function
+      | "+"   -> ADD
+      | "*"   -> MUL
+      | "="   -> EQ
+      | "!="  -> NEQ
+      | "<"   -> LT
+      | "<=", -> LE
+      | ">",  -> GT
+      | ">="  -> GE
+
+    let to_string = function
+      | ADD   -> "+"
+      | MUL   -> "-"
+      | EQ    -> "="
+      | NEQ   -> "!="
+      | LT    -> "<"
+      | LE    -> "<="
+      | GT    -> ">"
+      | GE    -> ">="
+
+    let inj = (!!)
+
+    let op = inj @@ of_string
+
+    let show = GT.show(logic) (to_string)
+  end
 
 module Term =
   struct
     module T =
       struct
-        @type ('int, 'string, 'mo, 'loc, 't) t =
+        @type ('reg, 'loc, 'value, 'mo, 'op, 't) t =
           | Const    of 'int
-          | Var      of 'string
-          | Binop    of 'string * 't * 't
+          | Var      of 'reg
+          | Binop    of 'op * 't * 't
           | Asgn     of 't * 't
           | Pair     of 't * 't
           | If       of 't * 't * 't
@@ -102,14 +146,17 @@ module Term =
           | Stuck
         with gmap, show
 
-        let fmap fint fstring fmo floc ft x = GT.gmap(t) (fint) (fstring) (fmo) (floc) (ft) x
+        let fmap fa fb fc fd fe ff x = GT.gmap(t) (fa) (fb) (fc) (fd) (fe) (ff) x
       end
 
-    type tt = (Value.tt, Var.tt, MemOrder.tt, Loc.tt, tt) T.t
-    type tl = (Value.tl, Var.tl, MemOrder.tl, Loc.tl, tl) T.t MiniKanren.logic
+    type tt = (Register.tt, Loc.tt, Value.tt, MemOrder.tt, Op.tt, tt) T.t
+
+    type tl = inner MiniKanren.logic
+      and inner = (Register.tl, Loc.tl, Value.tl, MemOrder.tl, Op.tl, tl) T.t
+
     type ti = (tt, tl) Semantics.Term.ti
 
-    module FT = Fmap5(T)
+    module FT = Fmap6(T)
 
     let const n             = inj @@ FT.distrib @@ T.Const n
     let var x               = inj @@ FT.distrib @@ T.Var x
