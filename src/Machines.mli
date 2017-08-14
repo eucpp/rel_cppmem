@@ -66,6 +66,8 @@ module Front :
 
     val preallocate : Lang.Register.ti list -> Lang.Loc.ti list -> ti
 
+    val reify : MiniKanren.helper -> ti -> tl
+
     val inj : tt -> tl
 
     (* val refine : (tt, tl) MiniKanren.refined -> tl *)

@@ -16,6 +16,11 @@ module Storage :
 
     val from_assoc : (('at, 'al) key * ('bt, 'bl) value) list -> ('at, 'bt, 'al, 'bl) ti
 
+    val reify :
+      (MiniKanren.helper -> ('at, 'al) MiniKanren.injected -> 'al) ->
+      (MiniKanren.helper -> ('bt, 'bl) MiniKanren.injected -> 'bl) ->
+      MiniKanren.helper -> ('at, 'bt, 'al, 'bl) ti -> ('al, 'bl) tl
+
     val inj : ('at -> 'al) -> ('bt -> 'bl) -> ('at, 'bt) tt -> ('al, 'bl) tl
 
     val pprint : (Format.formatter -> 'al * 'bl -> unit) -> Format.formatter -> ('al, 'bl) tl -> unit
@@ -51,6 +56,10 @@ module ThreadLocalStorage :
     val leaf  : ('at, 'al) content -> ('at, 'al) ti
     val node  : ?left:('at, 'al) ti -> ?right:('at, 'al) ti -> ('at, 'al) content -> ('at, 'al) ti
 
+    val reify :
+      (MiniKanren.helper -> ('at, 'al) MiniKanren.injected -> 'al) ->
+      MiniKanren.helper -> ('at, 'al) ti -> 'al tl
+
     val inj : ('at -> 'al) -> 'at tt -> 'al tl
 
     val pprint : (Format.formatter -> 'al -> unit) -> Format.formatter -> 'al tl -> unit
@@ -79,6 +88,8 @@ module RegisterStorage :
 
     val from_assoc : (Lang.Register.ti * Lang.Value.ti) list -> ti
 
+    val reify : MiniKanren.helper -> ti -> tl
+
     val inj : tt -> tl
 
     val pprint : Format.formatter -> tl -> unit
@@ -99,6 +110,8 @@ module Timestamp :
     type ti = (tt, tl) MiniKanren.injected
 
     val ts : int -> ti
+
+    val reify : MiniKanren.helper -> ti -> tl
 
     val inj : tt -> tl
 
@@ -124,6 +137,8 @@ module ViewFront :
 
     val from_assoc : (Lang.Loc.ti * Timestamp.ti) list -> ti
 
+    val reify : MiniKanren.helper -> ti -> tl
+
     val inj : tt -> tl
 
     val pprint : Format.formatter -> tl -> unit
@@ -146,6 +161,8 @@ module ThreadFront :
     (** [preallocate vars atomics] creates new thread front
           and allocates a storage for [registers] and viewfronts of [atomics] *)
     val preallocate : Lang.Register.ti list -> Lang.Loc.ti list -> ti
+
+    val reify : MiniKanren.helper -> ti -> tl
 
     val inj : tt -> tl
 
@@ -212,6 +229,8 @@ module LocStory :
 
     val preallocate : Lang.Loc.ti list -> ti
 
+    val reify : MiniKanren.helper -> ti -> tl
+
     val inj : tt -> tl
 
     (* val to_logic : tt -> tl *)
@@ -248,6 +267,8 @@ module MemStory :
     type ti = (Lang.Loc.tt, LocStory.tt, Lang.Loc.tl, LocStory.tl) Storage.ti
 
     val preallocate : Lang.Loc.ti list -> ti
+
+    val reify : MiniKanren.helper -> ti -> tl
 
     val inj : tt -> tl
 

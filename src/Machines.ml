@@ -90,6 +90,8 @@ module Front =
 
     let mem_state thrds story na sc = inj @@ distrib @@ T.({thrds; story; na; sc;})
 
+    let reify = reify (ThreadLocalStorage.reify (ThreadFront.reify)) (MemStory.reify) (ViewFront.reify) (ViewFront.reify)
+
     let inj x =
       to_logic @@ T.fmap (ThreadLocalStorage.inj (ThreadFront.inj)) (MemStory.inj) (ViewFront.inj) (ViewFront.inj) x
 

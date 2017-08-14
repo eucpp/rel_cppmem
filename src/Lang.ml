@@ -13,6 +13,8 @@ module Register =
 
     let reg r = !!r
 
+    let reify = simple_reifier
+
     let inj = to_logic
 
     let show = GT.show(logic) (GT.show(GT.string))
@@ -28,6 +30,8 @@ module Loc =
     type ti = (tt, tl) MiniKanren.injected
 
     let loc l = !!l
+
+    let reify = simple_reifier
 
     let inj = to_logic
 
@@ -47,6 +51,8 @@ module Value =
 
     let zero () = Nat.zero
     let succ = Nat.succ
+
+    let reify = Nat.reify
 
     let inj = Nat.to_logic
 
@@ -90,9 +96,11 @@ module MemOrder =
       | RLX     -> "rlx"
       | NA      -> "na"
 
-    let inj = to_logic
-
     let mo s = !!(of_string s)
+
+    let reify = simple_reifier
+
+    let inj = to_logic
 
     let show = GT.show(logic) (to_string)
   end
@@ -125,9 +133,11 @@ module Op =
       | GT    -> ">"
       | GE    -> ">="
 
-    let inj = to_logic
-
     let op s = !!(of_string s)
+
+    let reify = simple_reifier
+
+    let inj = to_logic
 
     let show = GT.show(logic) (to_string)
   end
@@ -182,6 +192,9 @@ module Term =
     let skip ()             = inj @@ FT.distrib @@ T.Skip
     let stuck ()            = inj @@ FT.distrib @@ T.Stuck
 
+    let rec reify h =
+      ManualReifiers.(FT.reify (string) (string) (Nat.reify) (simple_reifier) (simple_reifier) (reify) h)
+
     let inj' = inj
 
     let rec inj t =
@@ -196,11 +209,6 @@ module Term =
     let rec to_logic x =
       let f x = Value x in
       Value (T.fmap (Nat.to_logic) (f) (f) (f) (to_logic) x) *)
-
-    let rec reify h =
-      ManualReifiers.(FT.reify (string) (string) (Nat.reify) (simple_reifier) (simple_reifier) (reify) h)
-
-    let refine rr = rr#refine reify ~inj
 
     let rec show t =
       GT.show(logic) (GT.show(T.t) (Register.show) (Loc.show) (Value.show) (MemOrder.show) (Op.show) (show)) t
@@ -254,6 +262,10 @@ module ThreadID =
       and inner = tl T.t
 
     type ti = (tt, tl) MiniKanren.injected
+
+    let reify' = reify
+
+    let rec reify t = reify' (reify) t
 
     let inj' = inj
 

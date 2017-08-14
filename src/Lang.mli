@@ -11,6 +11,8 @@ module Register :
 
     val inj : tt -> tl
 
+    val reify : MiniKanren.helper -> ti -> tl
+
     val show : tl -> string
   end
 
@@ -26,6 +28,8 @@ module Loc :
     val loc : string -> ti
 
     val inj : tt -> tl
+
+    val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
   end
@@ -45,6 +49,8 @@ module Value :
     val succ : ti -> ti
 
     val inj : tt -> tl
+
+    val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
 
@@ -70,6 +76,8 @@ module MemOrder :
 
     val inj : tt -> tl
 
+    val reify : MiniKanren.helper -> ti -> tl
+
     val show : tl -> string
   end
 
@@ -84,6 +92,8 @@ module Op :
     val op : string -> ti
 
     val inj : tt -> tl
+
+    val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
   end
@@ -118,9 +128,10 @@ module Term :
     (* val to_logic   : tt -> tl
     val from_logic : tl -> tt *)
 
-    val refine : (tt, tl) MiniKanren.refined -> tl
+    val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
+
     val pprint : Format.formatter -> tl -> unit
   end
 
@@ -137,6 +148,8 @@ module ThreadID :
     val pathr : ti -> ti
 
     val inj : tt -> ti
+
+    val reify : MiniKanren.helper -> ti -> tl
   end
 
 module Context :

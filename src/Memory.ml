@@ -20,6 +20,8 @@ module Storage =
 
     let from_assoc assoc = inj_listi @@ List.map (fun (k, v) -> Pair.pair k v) assoc
 
+    let reify reify_key reify_value = List.reify (Pair.reify reify_key reify_value)
+
     let inj inj_key inj_value s =
       MiniKanren.List.to_logic (fun (k, v) -> to_logic (inj_key k, inj_value v)) s
 
@@ -101,17 +103,15 @@ module ThreadLocalStorage =
 
     let leaf x = node x
 
+    let reify' = reify
+
+    let rec reify reify_content = reify' (reify_content) (reify reify_content)
+
     let inj' = inj
 
     let rec inj inj_content tree = to_logic (Tree.fmap (inj_content) (inj inj_content) tree)
 
     (* let rec to_logic tree = Value (Tree.fmap (ThreadState.to_logic) (to_logic) tree) *)
-
-    let reify' = reify
-
-    (* let _:int = reify' *)
-
-    let rec reify reify_content h = reify' reify_content (reify reify_content) h
 
     (* let create ?rel ?acq vars curr =
       Tree.Node (ThreadState.create ?rel ?acq vars curr, Tree.Nil, Tree.Nil) *)
@@ -236,9 +236,9 @@ module RegisterStorage =
 
     let from_assoc = Storage.from_assoc
 
-    let inj = Storage.inj Lang.Register.inj Lang.Value.inj
+    let reify = Storage.reify (Lang.Register.reify) (Lang.Value.reify)
 
-    let reify h = ManualReifiers.(List.reify (pair (string) (Nat.reify)) h)
+    let inj = Storage.inj Lang.Register.inj Lang.Value.inj
 
     let pprint =
       Storage.pprint (fun ff (k, v) -> Format.fprintf ff "%s=%s" (Lang.Register.show k) (Lang.Value.show v))
@@ -261,6 +261,8 @@ module Timestamp =
     type ti = (tt, tl) MiniKanren.injected
 
     let ts = inj_nat
+
+    let reify = Nat.reify
 
     let inj = Nat.to_logic
 
@@ -287,14 +289,14 @@ module ViewFront =
 
     let from_assoc = Storage.from_assoc
 
+    let reify = Storage.reify (Lang.Loc.reify) (Timestamp.reify)
+
     let inj = Storage.inj Lang.Loc.inj Timestamp.inj
 
     let pprint =
       Storage.pprint (fun ff (k, v) -> Format.fprintf ff "%s@%s" (Lang.Loc.show k) (Timestamp.show v))
 
     (* let to_logic = List.to_logic (fun (loc, ts) -> Value (Value loc, Nat.to_logic ts)) *)
-
-    let reify h = ManualReifiers.(List.reify (pair (string) (Nat.reify)) h)
 
     let tso = Storage.geto
 
@@ -357,7 +359,7 @@ module ThreadFront =
         T.prm  = PromiseSet.to_logic prm;
       } *)
 
-    let reify h = reify RegisterStorage.reify ViewFront.reify ViewFront.reify ViewFront.reify h
+    let reify = reify RegisterStorage.reify ViewFront.reify ViewFront.reify ViewFront.reify
 
     let convert = (fun (var, value) -> (var, Nat.of_int value))
 
@@ -526,7 +528,7 @@ module LocStory =
 
       (* let to_logic (ts, value, vf) = Value (Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf) *)
 
-      let reify = ManualReifiers.triple Nat.reify Nat.reify ViewFront.reify
+      let reify = ManualReifiers.triple Timestamp.reify Lang.Value.reify ViewFront.reify
 
       let pprint var =
         let pp ff (ts, value, vf) =
@@ -566,13 +568,13 @@ module LocStory =
         T.story = inj_listi [Cell.cell (Timestamp.ts 0) (Lang.Value.value 0) vf];
       }
 
+    let reify = reify Timestamp.reify (List.reify Cell.reify)
+
     let inj x =
       to_logic @@ T.fmap (Timestamp.inj) (List.to_logic (Cell.inj)) x
 
     (* let to_logic {T.tsnext = tsnext; T.story = story} =
       Value {T.tsnext = Nat.to_logic tsnext; T.story = List.to_logic Cell.to_logic story} *)
-
-    let reify h = reify Nat.reify (List.reify Cell.reify) h
 
     let create tsnext story = {
       T.tsnext = Nat.of_int tsnext;
@@ -631,11 +633,11 @@ module MemStory =
 
     let preallocate atomics = Storage.allocate (LocStory.preallocate atomics) atomics
 
+    let reify = Storage.reify (Lang.Loc.reify) (LocStory.reify)
+
     let inj = Storage.inj (Lang.Loc.inj) (LocStory.inj)
 
     (* let to_logic = List.to_logic (fun (var, story) -> Value (Value var, LocStory.to_logic story)) *)
-
-    let reify h = ManualReifiers.(List.reify (pair (string) (LocStory.reify)) h)
 
     (* let create = List.of_list (fun x -> x) *)
 
