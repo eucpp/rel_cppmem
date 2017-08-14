@@ -8,12 +8,9 @@ module Loc =
     type tl = string MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
 
-    let of_string str = str
-    let to_string loc = loc
+    let loc l = !!l
 
     let inj = (!!)
-
-    let to_logic x = Value x
 
     let show = GT.show(logic) (GT.show(GT.string))
   end

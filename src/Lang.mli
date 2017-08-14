@@ -1,29 +1,31 @@
-module Loc :
+module Register :
   sig
     type tt = string
-    type tl = string MiniKanren.logic
+
+    type tl = inner MiniKanren.logic
+      and inner = string
+
     type ti = (tt, tl) MiniKanren.injected
 
-    val of_string : string -> tt
-    val to_string : tt -> string
+    val reg : string -> ti
 
-    val to_logic : tt -> tl
+    val inj : tt -> ti
 
     val show : tl -> string
   end
 
-module Var :
+module Loc :
   sig
-    type tt = string
-    type tl = string MiniKanren.logic
+    type tt
+
+    type tl = inner MiniKanren.logic
+      and inner
+
     type ti = (tt, tl) MiniKanren.injected
 
-    val of_string : string -> tt
-    val to_string : tt -> string
+    val loc : string -> ti
 
     val inj : tt -> ti
-
-    val to_logic : tt -> tl
 
     val show : tl -> string
   end
@@ -34,12 +36,9 @@ module Value :
     type tl = MiniKanrenStd.Nat.logic
     type ti = MiniKanrenStd.Nat.groundi
 
-    val of_string : string -> tt
-    val to_string : tt -> string
+    val value : int -> ti
 
     val inj : tt -> ti
-
-    val to_logic : tt -> tl
 
     val show : tl -> string
   end
@@ -47,11 +46,10 @@ module Value :
 module MemOrder :
   sig
     type tt = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
-    type tl = tt MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
 
-    val of_string : string -> tt
-    val to_string : tt -> string
+    type tl = tt MiniKanren.logic
+
+    type ti = (tt, tl) MiniKanren.injected
 
     val inj : tt -> ti
 
