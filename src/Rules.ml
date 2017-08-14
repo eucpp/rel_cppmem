@@ -46,18 +46,18 @@ module Basic (Machine : Machines.Sequential) =
 
     let check_thrdo ctrs ctx thrdId =
       (* TODO: we really should check that thrdId in constraints is a parent of the context's thrdId *)
-      (Constraints.thrd_ido ctrs thrdId) &&& (Lang.Context.patho ctx thrdId)
+      (Constraints.thrd_ido ctrs thrdId) &&& (Lang.Context.thrdIdo ctx thrdId)
 
-    let rec asgno' l r s s' path = conde [
+    let rec asgno' l r s s' thrdId = conde [
       fresh (x n)
         (l === var x)
         (r === const n)
-        (Machine.writeo s s' path x n);
+        (Machine.writeo s s' thrdId x n);
       fresh (x1 t n1 e s'')
         (l === pair (var   x1) t)
         (r === pair (const n1) e)
-        (Machine.writeo s  s'' path x1 n1)
-        (asgno' t e s'' s' path);
+        (Machine.writeo s  s'' thrdId x1 n1)
+        (asgno' t e s'' s' thrdId);
     ]
 
     let asgno ctrs ctx t s t' s' =
@@ -79,23 +79,23 @@ module Basic (Machine : Machines.Sequential) =
 
     let varo = Semantics.Configuration.lift_rule varo
 
-    let binopo ctrs ctx t s t' s' = Nat.(
+    let binopo ctrs ctx t s t' s' = Lang.(Value.(
       fresh (op x y z thrdId)
         (t  === binop op (const x) (const y))
         (t' === const z)
         (s  === s')
         (check_thrdo ctrs ctx thrdId)
         (conde [
-          (op === !!"+")  &&& (Nat.addo x y z);
-          (op === !!"*")  &&& (Nat.mulo x y z);
-          (op === !!"=")  &&& (conde [(eqo x y !!true ) &&& (z === (inj_nat 1)); (eqo x y !!false) &&& (z === (inj_nat 0))]);
-          (op === !!"!=") &&& (conde [(eqo x y !!false) &&& (z === (inj_nat 1)); (eqo x y !!true ) &&& (z === (inj_nat 0))]);
-          (op === !!"<")  &&& (conde [(lto x y !!true) &&& (z === (inj_nat 1)); (lto x y !!false) &&& (z === (inj_nat 0))]);
-          (op === !!"<=") &&& (conde [(leo x y !!true) &&& (z === (inj_nat 1)); (leo x y !!false) &&& (z === (inj_nat 0))]);
-          (op === !!">")  &&& (conde [(gto x y !!true) &&& (z === (inj_nat 1)); (gto x y !!false) &&& (z === (inj_nat 0))]);
-          (op === !!">=") &&& (conde [(geo x y !!true) &&& (z === (inj_nat 1)); (geo x y !!false) &&& (z === (inj_nat 0))]);
+          (op === !!Lang.Op.ADD) &&& (addo x y z);
+          (op === !!Lang.Op.MUL) &&& (mulo x y z);
+          (op === !!Lang.Op.EQ ) &&& (conde [(eqo x y !!true ) &&& (z === (value 1)); (eqo x y !!false) &&& (z === (value 0))]);
+          (op === !!Lang.Op.NEQ) &&& (conde [(eqo x y !!false) &&& (z === (value 1)); (eqo x y !!true ) &&& (z === (value 0))]);
+          (op === !!Lang.Op.LT ) &&& (conde [(lto x y !!true) &&& (z === (value 1)); (lto x y !!false) &&& (z === (value 0))]);
+          (op === !!Lang.Op.LE ) &&& (conde [(leo x y !!true) &&& (z === (value 1)); (leo x y !!false) &&& (z === (value 0))]);
+          (op === !!Lang.Op.GT ) &&& (conde [(gto x y !!true) &&& (z === (value 1)); (gto x y !!false) &&& (z === (value 0))]);
+          (op === !!Lang.Op.GE ) &&& (conde [(geo x y !!true) &&& (z === (value 1)); (geo x y !!false) &&& (z === (value 0))]);
         ])
-      )
+      ))
 
     let binopo = Semantics.Configuration.lift_rule binopo
 
@@ -113,8 +113,8 @@ module Basic (Machine : Machines.Sequential) =
         (t === if' (const n) btrue bfalse)
         (conde [
           fresh (x)
-            (n === Nat.succ x) &&& (t' === btrue);
-          (n === Nat.zero) &&& (t' === bfalse);
+            (n === Lang.Value.succ x) &&& (t' === btrue);
+          (n === Lang.Value.zero ()) &&& (t' === bfalse);
         ])
         (s  === s')
         (check_thrdo ctrs ctx thrdId)
@@ -138,11 +138,11 @@ module ThreadSpawning =
   struct
 
     let spawno c t s t' s' =
-      fresh (l r path)
+      fresh (l r thrdId)
        (t  === spw l r)
        (t' === par l r)
-       (patho c path)
-       (MemState.spawno s s' path)
+       (thrdIdo c thrdId)
+       (MemState.spawno s s' thrdId)
 
     let spawn = ("spawn", spawno)
 
@@ -155,7 +155,7 @@ module ThreadSpawning =
           (expro t1)
           (expro t2);
       ] in
-      fresh (t1 t2 path)
+      fresh (t1 t2 thrdId)
         (t === par t1 t2)
         (conde [
           (t1 === skip ()) &&& (t2 === skip ()) &&& (t' === skip ());
@@ -163,8 +163,8 @@ module ThreadSpawning =
           (expro t1) &&& (t2 === skip ()) &&& (t' === t1);
           (expro t1) &&& (expro t2)       &&& (t' === pair t1 t2);
         ])
-        (patho c path)
-        (MemState.joino s s' path)
+        (thrdIdo c thrdId)
+        (MemState.joino s s' thrdId)
 
     let join = ("join", joino)
 
@@ -181,56 +181,56 @@ module NonAtomic =
     type si = Memory.MemState.ti
 
     let read_nao c t s t' s' =
-      fresh (l path n ts)
+      fresh (l thrdId n ts)
         (t  === read !!NA l)
         (t' === const n)
-        (patho c path)
-        (MemState.read_nao s s' path l n ts)
+        (thrdIdo c thrdId)
+        (MemState.read_nao s s' thrdId l n ts)
 
     let read_na = ("read_na", read_nao)
 
     let write_nao c t s t' s' =
-      fresh (l n path ts)
+      fresh (l n thrdId ts)
         (t  === write !!NA l (const n))
         (t' === skip ())
-        (patho c path)
-        (MemState.write_nao s s' path l n ts)
+        (thrdIdo c thrdId)
+        (MemState.write_nao s s' thrdId l n ts)
 
     let write_na = ("write_na", write_nao)
 
     let read_na_dro c t s t' s' =
-      fresh (l path n)
+      fresh (l thrdId n)
         (t  === read !!NA l)
         (t' === stuck ())
-        (patho c path)
-        (MemState.read_na_dro s s' path l)
+        (thrdIdo c thrdId)
+        (MemState.read_na_dro s s' thrdId l)
 
     let read_na_dr = ("read_na_dr", read_na_dro)
 
     let write_na_dro c t s t' s' =
-      fresh (l path n ts)
+      fresh (l thrdId n ts)
         (t  === write !!NA l (const n))
         (t' === stuck ())
-        (patho c path)
-        (MemState.write_na_dro s s' path l)
+        (thrdIdo c thrdId)
+        (MemState.write_na_dro s s' thrdId l)
 
     let write_na_dr = ("write_na_dr", write_na_dro)
 
     let read_dro c t s t' s' =
-      fresh (mo l path n)
+      fresh (mo l thrdId n)
         (t  === read mo l)
         (t' === stuck ())
-        (patho c path)
-        (MemState.read_dro s s' path l)
+        (thrdIdo c thrdId)
+        (MemState.read_dro s s' thrdId l)
 
     let read_dr = ("read_dr", read_dro)
 
     let write_dro c t s t' s' =
-      fresh (mo l path n)
+      fresh (mo l thrdId n)
         (t  === write mo l (const n))
         (t' === stuck ())
-        (patho c path)
-        (MemState.write_dro s s' path l)
+        (thrdIdo c thrdId)
+        (MemState.write_dro s s' thrdId l)
 
     let write_dr = ("write_dr", write_dro)
 
@@ -241,20 +241,20 @@ module Rlx =
   struct
 
     let read_rlxo c t s t' s' =
-      fresh (l path n ts)
+      fresh (l thrdId n ts)
         (t  === read !!RLX l)
         (t' === const n)
-        (patho c path)
-        (MemState.read_rlxo s s' path l n ts)
+        (thrdIdo c thrdId)
+        (MemState.read_rlxo s s' thrdId l n ts)
 
     let read_rlx = ("read_rlx", read_rlxo)
 
     let write_rlxo c t s t' s' =
-      fresh (l n path ts)
+      fresh (l n thrdId ts)
         (t  === write !!RLX l (const n))
         (t' === skip ())
-        (patho c path)
-        (MemState.write_rlxo s s' path l n ts)
+        (thrdIdo c thrdId)
+        (MemState.write_rlxo s s' thrdId l n ts)
 
     let write_rlx = ("write_rlx", write_rlxo)
 
@@ -267,20 +267,20 @@ module RelAcq =
   struct
 
     let read_acqo c t s t' s' =
-      fresh (l path n ts)
+      fresh (l thrdId n ts)
         (t  === read !!ACQ l)
         (t' === const n)
-        (patho c path)
-        (MemState.read_acqo s s' path l n ts)
+        (thrdIdo c thrdId)
+        (MemState.read_acqo s s' thrdId l n ts)
 
     let read_acq = ("read_acq", read_acqo)
 
     let write_relo c t s t' s' =
-      fresh (l n path ts)
+      fresh (l n thrdId ts)
         (t  === write !!REL l (const n))
         (t' === skip ())
-        (patho c path)
-        (MemState.write_relo s s' path l n ts)
+        (thrdIdo c thrdId)
+        (MemState.write_relo s s' thrdId l n ts)
 
     let write_rel = ("write_rel", write_relo)
 
@@ -293,20 +293,20 @@ module SC =
   struct
 
     let read_sco c t s t' s' =
-      fresh (l path n ts)
+      fresh (l thrdId n ts)
         (t  === read !!SC l)
         (t' === const n)
-        (patho c path)
-        (MemState.read_sco s s' path l n ts)
+        (thrdIdo c thrdId)
+        (MemState.read_sco s s' thrdId l n ts)
 
     let read_sc = ("read_sc", read_sco)
 
     let write_sco c t s t' s' =
-      fresh (l n path ts)
+      fresh (l n thrdId ts)
         (t  === write !!SC l (const n))
         (t' === skip ())
-        (patho c path)
-        (MemState.write_sco s s' path l n ts)
+        (thrdIdo c thrdId)
+        (MemState.write_sco s s' thrdId l n ts)
 
     let write_sc = ("write_sc", write_sco)
 
@@ -315,16 +315,16 @@ module SC =
 
   end
 
-let certifyo rules path t s  =
-  let preconditiono c _ _ = Context.patho c path in
-  (* let reducibleo = fun (t, _) b -> reducibleo ~path t b in *)
+let certifyo rules thrdId t s  =
+  let preconditiono c _ _ = Context.thrdIdo c thrdId in
+  (* let reducibleo = fun (t, _) b -> reducibleo ~thrdId t b in *)
   let module CertStep =
     (val make_reduction_relation ~preconditiono (*~reducibleo*) rules)
   in
   let module Cert = Semantics.Make(CertStep) in
   Cert.(
     fresh (t' s')
-      (Memory.MemState.certifyo s' path)
+      (Memory.MemState.certifyo s' thrdId)
       ((t, s) -->* (t', s'))
   )
 
@@ -332,19 +332,19 @@ module Promising =
   struct
 
     let promiseo c t s t' s' =
-      fresh (l n path)
+      fresh (l n thrdId)
         (t  === write !!RLX l (const n))
         (t' === skip ())
-        (patho c path)
-        (MemState.promiseo s s' (Path.pathl @@ Path.pathn ()) l n)
+        (thrdIdo c thrdId)
+        (MemState.promiseo s s' (Path.thrdIdl @@ Path.thrdIdn ()) l n)
 
     let promise = ("promise", promiseo)
 
     let fulfillo c t s t' s' =
-      fresh (path)
+      fresh (thrdId)
         (t  === t')
-        (patho c path)
-        (MemState.fulfillo s s' path)
+        (thrdIdo c thrdId)
+        (MemState.fulfillo s s' thrdId)
 
     let fulfill = ("fulfill", fulfillo)
 
@@ -373,10 +373,10 @@ module Promising =
           (Bool.oro b1 b2 b)
       in *)
       let postconditiono c rdx s =
-        fresh (t path)
-          (patho c path)
+        fresh (t thrdId)
+          (thrdIdo c thrdId)
           (plugo c rdx t)
-          (certifyo ext_rules path t s)
+          (certifyo ext_rules thrdId t s)
       in
       let module CertStep =
         (val make_reduction_relation (*~postconditiono*) (*~reducibleo*) ext_rules) in

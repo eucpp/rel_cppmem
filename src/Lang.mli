@@ -9,7 +9,7 @@ module Register :
 
     val reg : string -> ti
 
-    val inj : tt -> ti
+    val inj : tt -> tl
 
     val show : tl -> string
   end
@@ -25,7 +25,7 @@ module Loc :
 
     val loc : string -> ti
 
-    val inj : tt -> ti
+    val inj : tt -> tl
 
     val show : tl -> string
   end
@@ -41,9 +41,21 @@ module Value :
 
     val value : int -> ti
 
-    val inj : tt -> ti
+    val zero : unit -> ti
+    val succ : ti -> ti
+
+    val inj : tt -> tl
 
     val show : tl -> string
+
+    val addo : ti -> ti -> ti -> MiniKanren.goal
+    val mulo : ti -> ti -> ti -> MiniKanren.goal
+
+    val eqo : ti -> ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val lto : ti -> ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val leo : ti -> ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val gto : ti -> ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val geo : ti -> ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
   end
 
 module MemOrder :
@@ -56,7 +68,7 @@ module MemOrder :
 
     val mo : string -> ti
 
-    val inj : tt -> ti
+    val inj : tt -> tl
 
     val show : tl -> string
   end
@@ -71,7 +83,7 @@ module Op :
 
     val op : string -> ti
 
-    val inj : tt -> ti
+    val inj : tt -> tl
 
     val show : tl -> string
   end
@@ -86,7 +98,7 @@ module Term :
     type ti = (tt, tl) Semantics.Term.ti
 
     val const   : Value.ti -> ti
-    val var     : Loc.ti -> ti
+    val var     : Register.ti -> ti
     val binop   : Op.ti -> ti -> ti -> ti
     val asgn    : ti -> ti -> ti
     val pair    : ti -> ti -> ti
@@ -101,15 +113,15 @@ module Term :
     val skip    : unit -> ti
     val stuck   : unit -> ti
 
-    val inj : tt -> ti
+    val inj : tt -> tl
 
-    val to_logic   : tt -> tl
-    val from_logic : tl -> tt
+    (* val to_logic   : tt -> tl
+    val from_logic : tl -> tt *)
 
     val refine : (tt, tl) MiniKanren.refined -> tl
 
     val show : tl -> string
-    val pprint : tl -> string
+    val pprint : Format.formatter -> tl -> unit
   end
 
 module ThreadID :
@@ -131,10 +143,10 @@ module Context :
   sig
     module T :
       sig
-        type ('t, 'path) t = {
+        type ('t, 'thrdId) t = {
           term : 't;
           hole : 't;
-          path : 'path;
+          thrdId : 'thrdId;
         }
       end
 
@@ -142,7 +154,7 @@ module Context :
     type tl = (Term.tl, ThreadID.tl) T.t MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
 
-    val patho : ti -> ThreadID.ti -> MiniKanren.goal
+    val thrdIdo : ti -> ThreadID.ti -> MiniKanren.goal
   end
 
 val splito : Term.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Split.ti -> MiniKanren.goal

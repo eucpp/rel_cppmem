@@ -13,7 +13,7 @@ module Register =
 
     let reg r = !!r
 
-    let inj = (!!)
+    let inj = to_logic
 
     let show = GT.show(logic) (GT.show(GT.string))
   end
@@ -29,28 +29,39 @@ module Loc =
 
     let loc l = !!l
 
-    let inj = (!!)
+    let inj = to_logic
 
     let show = GT.show(logic) (GT.show(GT.string))
   end
 
 module Value =
   struct
-    type tt = MiniKanrenStd.Nat.ground
+    type tt = tt lnat
 
-    type tl = MiniKanrenStd.Nat.logic
+    type tl = inner MiniKanren.logic
+      and inner = tl lnat
 
     type ti = MiniKanrenStd.Nat.groundi
 
-    let of_string str = Nat.of_int @@ int_of_string str
+    let value = inj_nat
 
-    let to_string v = string_of_int @@ Nat.to_int v
+    let zero () = Nat.zero
+    let succ = Nat.succ
 
-    let inj = Nat.inj
+    let inj = Nat.to_logic
 
-    let to_logic = Nat.to_logic
+    (* let to_logic = Nat.to_logic *)
 
     let show = GT.show(Nat.logic)
+
+    let addo = Nat.addo
+    let mulo = Nat.mulo
+
+    let eqo = Nat.eqo
+    let lto = Nat.lto
+    let leo = Nat.leo
+    let gto = Nat.gto
+    let geo = Nat.geo
   end
 
 module MemOrder =
@@ -61,17 +72,14 @@ module MemOrder =
 
     type ti = (tt, tl) MiniKanren.injected
 
-    let of_string str =
-      let binding = [
-        ("sc", SC);
-        ("acq", ACQ)
-        ("rel", REL);
-        ("relAcq", ACQ_REL);
-        ("con", CON);
-        ("rlx", RLX);
-        ("na", NA)
-      ] in
-      List.assoc str binding
+    let of_string = function
+      | "sc"      -> SC
+      | "acq"     -> ACQ
+      | "rel"     -> REL
+      | "relAcq"  -> ACQ_REL
+      | "con"     -> CON
+      | "rlx"     -> RLX
+      | "na"      -> NA
 
     let to_string = function
       | SC      -> "sc"
@@ -82,29 +90,29 @@ module MemOrder =
       | RLX     -> "rlx"
       | NA      -> "na"
 
-    let inj = (!!)
+    let inj = to_logic
 
-    let mo s = inj @@ of_string s
+    let mo s = !!(of_string s)
 
     let show = GT.show(logic) (to_string)
   end
 
-module Op :
-  sig
+module Op =
+  struct
     type tt = ADD | MUL | EQ | NEQ | LT | LE | GT | GE
 
     type tl = tt MiniKanren.logic
 
     type ti = (tt, tl) MiniKanren.injected
 
-    let of_string str = function
+    let of_string = function
       | "+"   -> ADD
       | "*"   -> MUL
       | "="   -> EQ
       | "!="  -> NEQ
       | "<"   -> LT
-      | "<=", -> LE
-      | ">",  -> GT
+      | "<="  -> LE
+      | ">"   -> GT
       | ">="  -> GE
 
     let to_string = function
@@ -117,9 +125,9 @@ module Op :
       | GT    -> ">"
       | GE    -> ">="
 
-    let inj = (!!)
+    let inj = to_logic
 
-    let op = inj @@ of_string
+    let op s = !!(of_string s)
 
     let show = GT.show(logic) (to_string)
   end
@@ -129,7 +137,7 @@ module Term =
     module T =
       struct
         @type ('reg, 'loc, 'value, 'mo, 'op, 't) t =
-          | Const    of 'int
+          | Const    of 'value
           | Var      of 'reg
           | Binop    of 'op * 't * 't
           | Asgn     of 't * 't
@@ -176,9 +184,10 @@ module Term =
 
     let inj' = inj
 
-    let rec inj t  = inj' @@ FT.distrib (T.fmap (Nat.inj) (!!) (!!) (!!) (inj) t)
+    let rec inj t =
+      Value (T.fmap (Register.inj) (Loc.inj) (Value.inj) (MemOrder.inj) (Op.inj) (inj) t)
 
-    let from_logic' = from_logic
+    (* let from_logic' = from_logic
 
     let rec from_logic = function
       | Value x    -> T.fmap (Nat.from_logic) (from_logic') (from_logic') (from_logic') (from_logic) x
@@ -186,27 +195,30 @@ module Term =
 
     let rec to_logic x =
       let f x = Value x in
-      Value (T.fmap (Nat.to_logic) (f) (f) (f) (to_logic) x)
+      Value (T.fmap (Nat.to_logic) (f) (f) (f) (to_logic) x) *)
 
-    let rec reify h = ManualReifiers.(FT.reify (Nat.reify) (string) (simple_reifier) (string) (reify) h)
+    let rec reify h =
+      ManualReifiers.(FT.reify (string) (string) (Nat.reify) (simple_reifier) (simple_reifier) (reify) h)
 
-    let refine rr = rr#refine reify ~inj:to_logic
+    let refine rr = rr#refine reify ~inj
 
-    let rec show t = GT.show(logic) (GT.show(T.t) (Value.show) (Var.show) (MemOrder.show) (Loc.show) (show)) t
+    let rec show t =
+      GT.show(logic) (GT.show(T.t) (Register.show) (Loc.show) (Value.show) (MemOrder.show) (Op.show) (show)) t
 
-    let pprint term = T.(
+    let pprint = T.(
       let rec const   = pprint_nat    in
-      let kwd         = pprint_string in
       let var         = pprint_string in
       let loc         = pprint_string in
 
-      let mo ff x         = pprint_logic (fun ff m -> Format.fprintf ff "%s" (MemOrder.to_string m)) ff x in
-      let rec sl ff x     = pprint_logic s ff x
+      let kwd_op  = pprint_logic (fun ff op -> Format.fprintf ff "%s" (Op.to_string op)) in
+      let mo      = pprint_logic (fun ff m  -> Format.fprintf ff "%s" (MemOrder.to_string m))  in
+
+      let rec sl ff x = pprint_logic s ff x
 
       and s ff = function
         | Const n                 -> Format.fprintf ff "@[%a@]" const n
         | Var x                   -> Format.fprintf ff "@[%a@]" var x
-        | Binop (op, a, b)        -> Format.fprintf ff "@[%a %a %a@]" sl a kwd op sl b
+        | Binop (op, a, b)        -> Format.fprintf ff "@[%a %a %a@]" sl a kwd_op op sl b
         | Asgn (x, y)             -> Format.fprintf ff "@[<hv>%a := %a@]" sl x sl y
         | Pair (x, y)             -> Format.fprintf ff "@[(%a, %a)@]" sl x sl y
         | If (cond, t, f)         -> Format.fprintf ff "@[<v>if %a@;then %a@;else %a@]" sl cond sl t sl f
@@ -219,8 +231,7 @@ module Term =
         | Skip                    -> Format.fprintf ff "@[skip@]"
         | Stuck                   -> Format.fprintf ff "@[stuck@]"
       in
-      sl Format.str_formatter term;
-      Format.flush_str_formatter ()
+      sl
     )
   end
 
@@ -257,13 +268,13 @@ module Context =
   struct
     module T =
       struct
-        type ('t, 'path) t = {
+        type ('t, 'thrdId) t = {
           term : 't;
           hole : 't;
-          path : 'path;
+          thrdId : 'thrdId;
         }
 
-        let fmap fa fb {term; hole; path} = {term = fa term; hole = fa hole; path = fb path}
+        let fmap fa fb {term; hole; thrdId} = {term = fa term; hole = fa hole; thrdId = fb thrdId}
       end
 
     type tt = (Term.tt, ThreadID.tt) T.t
@@ -276,14 +287,14 @@ module Context =
 
     let rec inj t  = inj' @@ distrib (T.fmap (Term.inj) (ThreadID.inj) t) *)
 
-    let context : Term.ti -> Term.ti -> ThreadID.ti -> ti = fun term hole path ->
-      inj @@ distrib @@ T.({term; hole; path})
+    let context : Term.ti -> Term.ti -> ThreadID.ti -> ti = fun term hole thrdId ->
+      inj @@ distrib @@ T.({term; hole; thrdId})
 
     let hole h = context h h (ThreadID.pathn ())
 
-    let patho ctx path =
+    let thrdIdo ctx thrdId =
       fresh (term hole)
-        (ctx === context term hole path)
+        (ctx === context term hole thrdId)
   end
 
 let rec splito term result = Term.(Context.(ThreadID.(conde [
@@ -295,18 +306,18 @@ let rec splito term result = Term.(Context.(ThreadID.(conde [
         (splito r (Semantics.Split.undef ()))
         (result === Semantics.Split.split (hole h) term);
 
-      fresh (ctx ctx' t t' h path rdx)
+      fresh (ctx ctx' t t' h thrdId rdx)
         (splito l (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === binop op t' r)
         (result === Semantics.Split.split ctx rdx);
 
-      fresh (ctx ctx' t t' h path rdx)
+      fresh (ctx ctx' t t' h thrdId rdx)
         (splito l (Semantics.Split.undef ()))
         (splito r (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === binop op l t')
         (result === Semantics.Split.split ctx rdx);
     ]);
@@ -319,18 +330,18 @@ let rec splito term result = Term.(Context.(ThreadID.(conde [
         (splito t2 (Semantics.Split.undef ()))
         (result === Semantics.Split.undef ());
 
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (splito t1 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === pair t' t2)
         (result === Semantics.Split.split ctx rdx);
 
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (splito t1 (Semantics.Split.undef ()))
         (splito t2 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === pair t1 t')
         (result === Semantics.Split.split ctx rdx);
     ]);
@@ -342,10 +353,10 @@ let rec splito term result = Term.(Context.(ThreadID.(conde [
         (splito r (Semantics.Split.undef ()))
         (result === Semantics.Split.split (hole h) term);
 
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (splito r (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === asgn l t')
         (result === Semantics.Split.split ctx rdx);
     ]);
@@ -357,10 +368,10 @@ let rec splito term result = Term.(Context.(ThreadID.(conde [
         (splito e (Semantics.Split.undef ()))
         (result === Semantics.Split.split (hole h) term);
 
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (splito e (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === write mo loc t')
         (result === Semantics.Split.split ctx rdx);
     ]);
@@ -372,10 +383,10 @@ let rec splito term result = Term.(Context.(ThreadID.(conde [
         (splito cond (Semantics.Split.undef ()))
         (result === Semantics.Split.split (hole h) term);
 
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (splito cond (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === if' t' btrue bfalse)
         (result === Semantics.Split.split ctx rdx);
     ]);
@@ -387,15 +398,15 @@ let rec splito term result = Term.(Context.(ThreadID.(conde [
         (splito t1 (Semantics.Split.undef ()))
         (result === Semantics.Split.split (hole h) term);
 
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (splito t1 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === seq t' t2)
         (result === Semantics.Split.split ctx rdx);
     ]);
 
-  fresh (t1 t2 ctx' path')
+  fresh (t1 t2 ctx' thrdId')
     (term === par t1 t2)
     (conde [
       fresh (h)
@@ -403,17 +414,17 @@ let rec splito term result = Term.(Context.(ThreadID.(conde [
         (splito t2 (Semantics.Split.undef ()))
         (result === Semantics.Split.split (hole h) term);
 
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (splito t1 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h (pathl path))
-        (ctx' === context t' h path)
+        (ctx  === context t  h (pathl thrdId))
+        (ctx' === context t' h thrdId)
         (t === par t' t2)
         (result === Semantics.Split.split ctx rdx);
 
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (splito t2 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h (pathr path))
-        (ctx' === context t' h path)
+        (ctx  === context t  h (pathr thrdId))
+        (ctx' === context t' h thrdId)
         (t === par t1 t')
         (result === Semantics.Split.split ctx rdx);
     ]);
@@ -456,17 +467,17 @@ let rec promiseo term result = Term.(Context.(ThreadID.(conde [
   fresh (t1 t2)
     (term === seq t1 t2)
     (conde [
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (promiseo t1 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === seq t' t2)
         (result === Semantics.Split.split ctx rdx);
 
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (promiseo t2 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === seq t1 t')
         (result === Semantics.Split.split ctx rdx);
     ]);
@@ -474,17 +485,17 @@ let rec promiseo term result = Term.(Context.(ThreadID.(conde [
   fresh (t1 t2)
     (term === par t1 t2)
     (conde [
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (promiseo t1 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === par t' t2)
         (result === Semantics.Split.split ctx rdx);
 
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (promiseo t2 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === par t1 t')
         (result === Semantics.Split.split ctx rdx);
     ]);
@@ -492,35 +503,35 @@ let rec promiseo term result = Term.(Context.(ThreadID.(conde [
   fresh (cond t1 t2)
     (term === if' cond t1 t2)
     (conde [
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (promiseo t1 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === if' cond t' t2)
         (result === Semantics.Split.split ctx rdx);
 
-      fresh (rdx ctx ctx' t t' h path)
+      fresh (rdx ctx ctx' t t' h thrdId)
         (promiseo t2 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h path)
-        (ctx' === context t' h path)
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
         (t === if' cond t1 t')
         (result === Semantics.Split.split ctx rdx);
     ]);
 
-  fresh (loop rdx ctx ctx' t t' h path)
+  fresh (loop rdx ctx ctx' t t' h thrdId)
     (term === repeat loop)
     (promiseo loop (Semantics.Split.split ctx' rdx))
-    (ctx  === context t  h path)
-    (ctx' === context t' h path)
+    (ctx  === context t  h thrdId)
+    (ctx' === context t' h thrdId)
     (t === repeat t')
     (result === Semantics.Split.split ctx rdx);
 
 ])))
 
 let plugo ctx rdx term = Term.(Context.(conde [
-  fresh (path)
+  fresh (thrdId)
     (rdx =/= stuck ())
-    (ctx === context term rdx path);
+    (ctx === context term rdx thrdId);
 
   (rdx === stuck ()) &&& (term === stuck ());
 ]))

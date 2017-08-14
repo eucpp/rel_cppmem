@@ -10,11 +10,13 @@ module Storage :
     type ('at, 'al) key = ('at, 'al) MiniKanren.injected
     type ('bt, 'bl) value = ('bt, 'bl) MiniKanren.injected
 
+    val empty : unit -> ('at, 'bt, 'al, 'bl) ti
+
     val allocate : ('bt, 'bl) value -> ('at, 'al) key list -> ('at, 'bt, 'al, 'bl) ti
 
     val from_assoc : (('at, 'al) key * ('bt, 'bl) value) list -> ('at, 'bt, 'al, 'bl) ti
 
-    val inj : ('at -> ('at, 'al) MiniKanren.injected) -> ('bt -> ('bt, 'bl) MiniKanren.injected) -> ('at, 'bt) tt -> ('at, 'bt, 'al, 'bl) ti
+    val inj : ('at -> 'al) -> ('bt -> 'bl) -> ('at, 'bt) tt -> ('al, 'bl) tl
 
     val pprint : (Format.formatter -> 'al * 'bl -> unit) -> Format.formatter -> ('al, 'bl) tl -> unit
 
@@ -49,9 +51,9 @@ module ThreadLocalStorage :
     val leaf  : ('at, 'al) content -> ('at, 'al) ti
     val node  : ?left:('at, 'al) ti -> ?right:('at, 'al) ti -> ('at, 'al) content -> ('at, 'al) ti
 
-    val inj : ('at -> ('at, 'al) MiniKanren.injected) -> 'at tt -> ('at, 'al) ti
+    val inj : ('at -> 'al) -> 'at tt -> 'al tl
 
-    val pprint : (Format.formatter -> 'al content -> unit) -> Format.formatter -> 'al tl -> unit
+    val pprint : (Format.formatter -> 'al -> unit) -> Format.formatter -> 'al tl -> unit
 
     val geto : ('at, 'al) ti                  -> Lang.ThreadID.ti -> ('at, 'al) content -> MiniKanren.goal
     val seto : ('at, 'al) ti -> ('at, 'al) ti -> Lang.ThreadID.ti -> ('at, 'al) content -> MiniKanren.goal
@@ -77,7 +79,7 @@ module RegisterStorage :
 
     val from_assoc : (Lang.Register.ti * Lang.Value.ti) list -> ti
 
-    val inj : tt -> ti
+    val inj : tt -> tl
 
     val pprint : Format.formatter -> tl -> unit
 
@@ -98,9 +100,14 @@ module Timestamp :
 
     val ts : int -> ti
 
-    val inj : tt -> ti
+    val inj : tt -> tl
 
     val show : tl -> string
+
+    val (<)  : ti -> ti -> MiniKanren.goal
+    val (<=) : ti -> ti -> MiniKanren.goal
+    val (>)  : ti -> ti -> MiniKanren.goal
+    val (>=) : ti -> ti -> MiniKanren.goal
   end
 
 module ViewFront :
@@ -115,14 +122,14 @@ module ViewFront :
 
     val allocate : Lang.Loc.ti list -> ti
 
-    val from_assoc : (Lang.Loc.ti * Lang.Value.ti) list -> ti
+    val from_assoc : (Lang.Loc.ti * Timestamp.ti) list -> ti
 
-    val inj : tt -> ti
+    val inj : tt -> tl
 
     val pprint : Format.formatter -> tl -> unit
 
-    val tso     : ti ->       Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
-    val updateo : ti -> ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val tso     : ti ->       Lang.Loc.ti -> Timestamp.ti -> MiniKanren.goal
+    val updateo : ti -> ti -> Lang.Loc.ti -> Timestamp.ti -> MiniKanren.goal
 
     val mergeo : ti -> ti -> ti -> MiniKanren.goal
   end
@@ -140,23 +147,23 @@ module ThreadFront :
           and allocates a storage for [registers] and viewfronts of [atomics] *)
     val preallocate : Lang.Register.ti list -> Lang.Loc.ti list -> ti
 
-    val inj : tt -> ti
+    val inj : tt -> tl
 
     (* val create : ?rel: (string * int) list ->
                  ?acq: (string * int) list ->
                   (string * int) list ->
                   (string * int) list -> tt *)
 
-    val pprint : Format.formatter -> tl -> string
+    val pprint : Format.formatter -> tl -> unit
 
     (** [get_varo thrd var val] performs read of thread-local register *)
-    val reado : ti -> Lang.Loc.ti -> MiniKanrenStd.Nat.groundi -> MiniKanren.goal
+    val reado : ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
 
     (** [set_varo thrd thrd' var value] performs write of thread-local register *)
-    val writeo : ti -> ti -> Lang.Loc.ti -> MiniKanrenStd.Nat.groundi -> MiniKanren.goal
+    val writeo : ti -> ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
 
     (** [tso thrd loc ts] obtains last timestamp [ts] at [loc] that was seen by thread [thrd] *)
-    val tso : ti -> Lang.Loc.ti -> MiniKanrenStd.Nat.groundi -> MiniKanren.goal
+    val tso : ti -> Lang.Loc.ti -> Timestamp.ti -> MiniKanren.goal
 
     (** [updateo thrd thrd' loc ts] updates thread's viewfronts at [loc] by new timestamp [ts] *)
     val updateo : ti -> ti -> Lang.Loc.ti -> Timestamp.ti -> MiniKanren.goal
@@ -205,13 +212,13 @@ module LocStory :
 
     val preallocate : Lang.Loc.ti list -> ti
 
-    val inj : tt -> ti
+    val inj : tt -> tl
 
     (* val to_logic : tt -> tl *)
 
     (* val create : int -> (int * int * ViewFront.tt) list -> tt *)
 
-    val pprint : Lang.Loc.tl -> Format.formatter -> tl -> string
+    val pprint : Lang.Loc.tl -> Format.formatter -> tl -> unit
 
     (** [last_tso story ts] gets timestamp [ts] of last message written to [story] *)
     val last_tso : ti -> Timestamp.ti -> MiniKanren.goal
@@ -242,13 +249,13 @@ module MemStory :
 
     val preallocate : Lang.Loc.ti list -> ti
 
-    val inj : tt -> ti
+    val inj : tt -> tl
 
     (* val to_logic : tt -> tl *)
 
     (* val create : (string * LocStory.tt) list -> tt *)
 
-    val pprint : Format.formatter -> tl -> string
+    val pprint : Format.formatter -> tl -> unit
 
     val last_tso : ti -> Lang.Loc.ti -> Timestamp.ti -> MiniKanren.goal
 

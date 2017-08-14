@@ -9,8 +9,8 @@ module type Sequential =
 
     type ti = (tt, tl) MiniKanren.injected
 
-    val reado  : ti ->       Lang.ThreadID.ti -> Lang.Var.ti -> Lang.Value.ti -> MiniKanren.goal
-    val writeo : ti -> ti -> Lang.ThreadID.ti -> Lang.Var.ti -> Lang.Value.ti -> MiniKanren.goal
+    val reado  : ti ->       Lang.ThreadID.ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
+    val writeo : ti -> ti -> Lang.ThreadID.ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
   end
 
 (** Parallel - interface of machine that is able to spawn new threads or join existing threads  *)
@@ -31,8 +31,8 @@ module type NonAtomic =
     val load_nao  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
     val store_nao : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
 
-    val load_data_raceo  : ti -> ti -> Lang.ThreadID.ti -> Lang.MemoryOrder.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
-    val store_data_raceo : ti -> ti -> Lang.ThreadID.ti -> Lang.MemoryOrder.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val load_data_raceo  : ti -> ti -> Lang.ThreadID.ti -> Lang.MemOrder.ti -> Lang.Loc.ti -> MiniKanren.goal
+    val store_data_raceo : ti -> ti -> Lang.ThreadID.ti -> Lang.MemOrder.ti -> Lang.Loc.ti -> MiniKanren.goal
   end
 
 (** SequentialConsistent - interface of machine that supports sequaltial-consistent accesses to shared memory.
@@ -64,15 +64,15 @@ module Front :
   sig
     include ReleaseAcquire
 
-    val preallocate : Lang.Registers.ti list -> Lang.Loc.ti list -> ti
+    val preallocate : Lang.Register.ti list -> Lang.Loc.ti list -> ti
 
-    val inj : tt -> ti
+    val inj : tt -> tl
 
-    val refine : (tt, tl) MiniKanren.refined -> tl
+    (* val refine : (tt, tl) MiniKanren.refined -> tl *)
 
     (* val create : ?na:ViewFront.tt -> ?sc:ViewFront.tt -> Threads.tt -> MemStory.tt -> tt *)
 
-    val pprint : Format.formatter -> tl -> string
+    val pprint : Format.formatter -> tl -> unit
 
     val load_sco  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
     val store_sco : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
@@ -80,12 +80,13 @@ module Front :
     val load_nao  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
     val store_nao : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
 
-    val load_data_raceo  : ti -> ti -> Lang.ThreadID.ti -> Lang.MemoryOrder.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
-    val store_data_raceo : ti -> ti -> Lang.ThreadID.ti -> Lang.MemoryOrder.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val load_data_raceo  : ti -> ti -> Lang.ThreadID.ti -> Lang.MemOrder.ti -> Lang.Loc.ti -> MiniKanren.goal
+    val store_data_raceo : ti -> ti -> Lang.ThreadID.ti -> Lang.MemOrder.ti -> Lang.Loc.ti -> MiniKanren.goal
 
-    (* val fence_acqo : ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
-    val fence_relo : ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
+    val fence_acqo : ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
+    val fence_relo : ?loc:Lang.Loc.ti -> ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
 
+    (*
     val promiseo : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
     val fulfillo : ti -> ti -> Lang.ThreadID.ti                       -> MiniKanren.goal
 
