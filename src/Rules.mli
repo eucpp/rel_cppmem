@@ -10,7 +10,7 @@ module Constraints :
     val thrd_ido : ti -> Lang.ThreadID.ti -> MiniKanren.goal
   end
 
-module Basic (Machine : Machines.Sequential) :
+module RuleTypes (Machine : Machines.Sequential) :
   sig
     type tt = (Lang.Term.tt, Machine.tt) Semantics.Configuration.tt
     type tl = (Lang.Term.tl, Machine.tl) Semantics.Configuration.tl
@@ -22,6 +22,11 @@ module Basic (Machine : Machines.Sequential) :
     type csl = Constraints.tl
 
     type rule = (tt, ct, cst, tl, cl, csl) Semantics.rule
+  end
+
+module Basic (Machine : Machines.Sequential) :
+  sig
+    include (module type of RuleTypes(Machine))
 
     val varo    : rule
     val binopo  : rule
@@ -33,31 +38,50 @@ module Basic (Machine : Machines.Sequential) :
     val all : rule list
   end
 
+module ThreadSpawning (Machine : Machines.Parallel) :
+  sig
+    include (module type of RuleTypes(Machine))
+
+    val spawno  : rule
+    val joino   : rule
+
+    val all : rule list
+  end
+
+module NonAtomic (Machine : Machines.NonAtomic) :
+  sig
+    include (module type of RuleTypes(Machine))
+
+    val load_nao  : rule
+    val store_nao : rule
+
+    val load_data_raceo  : rule
+    val store_data_raceo : rule
+
+    val all : rule list
+  end
+
+module SequentialConsistent (Machine : Machines.SequentialConsistent) :
+  sig
+    include (module type of RuleTypes(Machine))
+
+    val load_sco  : rule
+    val store_sco : rule
+
+    val all : rule list
+  end
+
+module ReleaseAcquire (Machine : Machines.ReleaseAcquire) :
+  sig
+    include (module type of RuleTypes(Machine))
+
+    val load_acqo  : rule
+    val store_relo : rule
+
+    val all : rule list
+  end
+
 (*
-module ThreadSpawning :
-  sig
-    val spawn  : string * rule
-    val join   : string * rule
-
-    val all : (string * rule) list
-
-    module Step : CppMemStep
-  end
-
-module NonAtomic :
-  sig
-    val read_na  : string * rule
-    val write_na : string * rule
-
-    val read_na_dr  : string * rule
-    val write_na_dr : string * rule
-
-    val read_dr  : string * rule
-    val write_dr : string * rule
-
-    val all : (string * rule) list
-  end
-
 module Rlx :
   sig
     val read_rlx  : string * rule
@@ -66,24 +90,6 @@ module Rlx :
     val all : (string * rule) list
 
     module Step : CppMemStep
-  end
-
-module RelAcq :
-  sig
-    val read_acq  : string * rule
-    val write_rel : string * rule
-
-    val all : (string * rule) list
-
-    module Step : CppMemStep
-  end
-
-module SC :
-  sig
-    val read_sc  : string * rule
-    val write_sc : string * rule
-
-    val all : (string * rule) list
   end
 
 module Promising :

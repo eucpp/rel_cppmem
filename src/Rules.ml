@@ -31,7 +31,11 @@ module Constraints =
       (t === constraints ~thrdId)
   end
 
-module Basic (Machine : Machines.Sequential) =
+let check_thrdo ctrs ctx thrdId =
+  (* TODO: we really should check that thrdId in constraints is a parent of the context's thrdId *)
+  (Constraints.thrd_ido ctrs thrdId) &&& (Lang.Context.thrdIdo ctx thrdId)
+
+module RuleTypes (Machine : Machines.Sequential) =
   struct
     type tt = (Lang.Term.tt, Machine.tt) Semantics.Configuration.tt
     type tl = (Lang.Term.tl, Machine.tl) Semantics.Configuration.tl
@@ -43,10 +47,11 @@ module Basic (Machine : Machines.Sequential) =
     type csl = Constraints.tl
 
     type rule = (tt, ct, cst, tl, cl, csl) Semantics.rule
+  end
 
-    let check_thrdo ctrs ctx thrdId =
-      (* TODO: we really should check that thrdId in constraints is a parent of the context's thrdId *)
-      (Constraints.thrd_ido ctrs thrdId) &&& (Lang.Context.thrdIdo ctx thrdId)
+module Basic (Machine : Machines.Sequential) =
+  struct
+    include RuleTypes(Machine)
 
     let rec asgno' l r s s' thrdId = conde [
       fresh (x n)
@@ -133,20 +138,20 @@ module Basic (Machine : Machines.Sequential) =
 
   end
 
-(*
-module ThreadSpawning =
+module ThreadSpawning (Machine : Machines.Parallel) =
   struct
+    include RuleTypes(Machine)
 
-    let spawno c t s t' s' =
+    let spawno ctrs ctx t s t' s' =
       fresh (l r thrdId)
        (t  === spw l r)
        (t' === par l r)
-       (thrdIdo c thrdId)
-       (MemState.spawno s s' thrdId)
+       (check_thrdo ctrs ctx thrdId)
+       (Machine.spawno s s' thrdId)
 
-    let spawn = ("spawn", spawno)
+    let spawno = Semantics.Configuration.lift_rule spawno
 
-    let joino c t s t' s' =
+    let joino ctrs ctx t s t' s' =
       let rec expro t = conde [
         fresh (n)
           (t === const n);
@@ -163,80 +168,109 @@ module ThreadSpawning =
           (expro t1) &&& (t2 === skip ()) &&& (t' === t1);
           (expro t1) &&& (expro t2)       &&& (t' === pair t1 t2);
         ])
-        (thrdIdo c thrdId)
-        (MemState.joino s s' thrdId)
+        (check_thrdo ctrs ctx thrdId)
+        (Machine.joino s s' thrdId)
 
-    let join = ("join", joino)
+    let joino = Semantics.Configuration.lift_rule joino
 
-    let all = [spawn; join]
-
-    module Step = (val make_reduction_relation all)
-
+    let all = [spawno; joino]
   end
 
-module NonAtomic =
+
+module NonAtomic (Machine : Machines.NonAtomic) =
   struct
-    type ti = Lang.Term.ti
-    type ci = Lang.Context.ti
-    type si = Memory.MemState.ti
+    include RuleTypes(Machine)
 
-    let read_nao c t s t' s' =
-      fresh (l thrdId n ts)
-        (t  === read !!NA l)
-        (t' === const n)
-        (thrdIdo c thrdId)
-        (MemState.read_nao s s' thrdId l n ts)
-
-    let read_na = ("read_na", read_nao)
-
-    let write_nao c t s t' s' =
-      fresh (l n thrdId ts)
-        (t  === write !!NA l (const n))
-        (t' === skip ())
-        (thrdIdo c thrdId)
-        (MemState.write_nao s s' thrdId l n ts)
-
-    let write_na = ("write_na", write_nao)
-
-    let read_na_dro c t s t' s' =
+    let load_nao ctrs ctx t s t' s' =
       fresh (l thrdId n)
         (t  === read !!NA l)
-        (t' === stuck ())
-        (thrdIdo c thrdId)
-        (MemState.read_na_dro s s' thrdId l)
+        (t' === const n)
+        (check_thrdo ctrs ctx thrdId)
+        (Machine.load_nao s s' thrdId l n)
 
-    let read_na_dr = ("read_na_dr", read_na_dro)
+    let load_nao = Semantics.Configuration.lift_rule load_nao
 
-    let write_na_dro c t s t' s' =
-      fresh (l thrdId n ts)
+    let store_nao ctrs ctx t s t' s' =
+      fresh (l n thrdId)
         (t  === write !!NA l (const n))
-        (t' === stuck ())
-        (thrdIdo c thrdId)
-        (MemState.write_na_dro s s' thrdId l)
+        (t' === skip ())
+        (check_thrdo ctrs ctx thrdId)
+        (Machine.store_nao s s' thrdId l n)
 
-    let write_na_dr = ("write_na_dr", write_na_dro)
+    let store_nao = Semantics.Configuration.lift_rule store_nao
 
-    let read_dro c t s t' s' =
-      fresh (mo l thrdId n)
+    let load_data_raceo ctrs ctx t s t' s' =
+      fresh (mo l n thrdId)
         (t  === read mo l)
         (t' === stuck ())
-        (thrdIdo c thrdId)
-        (MemState.read_dro s s' thrdId l)
+        (check_thrdo ctrs ctx thrdId)
+        (Machine.load_data_raceo s s' thrdId mo l)
 
-    let read_dr = ("read_dr", read_dro)
+    let load_data_raceo = Semantics.Configuration.lift_rule load_data_raceo
 
-    let write_dro c t s t' s' =
-      fresh (mo l thrdId n)
+    let store_data_raceo ctrs ctx t s t' s' =
+      fresh (mo l n thrdId)
         (t  === write mo l (const n))
         (t' === stuck ())
-        (thrdIdo c thrdId)
-        (MemState.write_dro s s' thrdId l)
+        (check_thrdo ctrs ctx thrdId)
+        (Machine.store_data_raceo s s' thrdId mo l)
 
-    let write_dr = ("write_dr", write_dro)
+    let store_data_raceo = Semantics.Configuration.lift_rule store_data_raceo
 
-    let all = [read_na; write_na; read_na_dr; write_na_dr; read_dr; write_dr ]
+    let all = [load_nao; store_nao; load_data_raceo; store_data_raceo]
   end
 
+module SequentialConsistent (Machine : Machines.SequentialConsistent) =
+  struct
+    include RuleTypes(Machine)
+
+    let load_sco ctrs ctx t s t' s' =
+      fresh (l thrdId n)
+        (t  === read !!SC l)
+        (t' === const n)
+        (check_thrdo ctrs ctx thrdId)
+        (Machine.load_sco s s' thrdId l n)
+
+    let load_sco = Semantics.Configuration.lift_rule load_sco
+
+    let store_sco ctrs ctx t s t' s' =
+      fresh (l n thrdId)
+        (t  === write !!SC l (const n))
+        (t' === skip ())
+        (check_thrdo ctrs ctx thrdId)
+        (Machine.store_sco s s' thrdId l n)
+
+    let store_sco = Semantics.Configuration.lift_rule store_sco
+
+    let all = [load_sco; store_sco;]
+  end
+
+module ReleaseAcquire (Machine : Machines.ReleaseAcquire) =
+  struct
+    include RuleTypes(Machine)
+
+    let load_acqo ctrs ctx t s t' s' =
+      fresh (l thrdId n)
+        (t  === read !!ACQ l)
+        (t' === const n)
+        (check_thrdo ctrs ctx thrdId)
+        (Machine.load_acqo s s' thrdId l n)
+
+    let load_acqo = Semantics.Configuration.lift_rule load_acqo
+
+    let store_relo ctrs ctx t s t' s' =
+      fresh (l n thrdId)
+        (t  === write !!REL l (const n))
+        (t' === skip ())
+        (check_thrdo ctrs ctx thrdId)
+        (Machine.store_relo s s' thrdId l n)
+
+    let store_relo = Semantics.Configuration.lift_rule store_relo
+
+    let all = [load_acqo; store_relo;]
+  end
+
+(*
 module Rlx =
   struct
 
@@ -261,58 +295,6 @@ module Rlx =
     let all = [read_rlx; write_rlx; ]
 
     module Step = (val make_reduction_relation all)
-  end
-
-module RelAcq =
-  struct
-
-    let read_acqo c t s t' s' =
-      fresh (l thrdId n ts)
-        (t  === read !!ACQ l)
-        (t' === const n)
-        (thrdIdo c thrdId)
-        (MemState.read_acqo s s' thrdId l n ts)
-
-    let read_acq = ("read_acq", read_acqo)
-
-    let write_relo c t s t' s' =
-      fresh (l n thrdId ts)
-        (t  === write !!REL l (const n))
-        (t' === skip ())
-        (thrdIdo c thrdId)
-        (MemState.write_relo s s' thrdId l n ts)
-
-    let write_rel = ("write_rel", write_relo)
-
-    let all = [read_acq; write_rel;]
-
-    module Step = (val make_reduction_relation all)
-  end
-
-module SC =
-  struct
-
-    let read_sco c t s t' s' =
-      fresh (l thrdId n ts)
-        (t  === read !!SC l)
-        (t' === const n)
-        (thrdIdo c thrdId)
-        (MemState.read_sco s s' thrdId l n ts)
-
-    let read_sc = ("read_sc", read_sco)
-
-    let write_sco c t s t' s' =
-      fresh (l n thrdId ts)
-        (t  === write !!SC l (const n))
-        (t' === skip ())
-        (thrdIdo c thrdId)
-        (MemState.write_sco s s' thrdId l n ts)
-
-    let write_sc = ("write_sc", write_sco)
-
-    let all = [read_sc; write_sc;]
-
-
   end
 
 let certifyo rules thrdId t s  =
