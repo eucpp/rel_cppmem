@@ -1,3 +1,22 @@
+module type Logic =
+  sig
+    type tt
+
+    type tl = inner MiniKanren.logic
+      and inner
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    val inj : tt -> tl
+    val reify : MiniKanren.helper -> ti -> tl
+
+    val pprint : Format.formatter -> tl -> unit
+  end
+
+module Trace(T : Logic) :
+  sig
+    val trace : Format.formatter -> (tt, tl) MiniKanren.refined -> unit
+  end
 
 val pprint_logic : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a MiniKanren.logic -> unit
 

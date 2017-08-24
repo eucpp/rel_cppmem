@@ -41,41 +41,6 @@ module Storage :
       ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> MiniKanren.goal
   end
 
-module ThreadLocalStorage :
-  sig
-    type 'at tt
-
-    type 'al tl = 'al inner MiniKanren.logic
-      and 'al inner
-
-    type ('at, 'al) ti = ('at tt, 'al tl) MiniKanren.injected
-
-    type ('at, 'al) content = ('at, 'al) MiniKanren.injected
-
-    val nil   : unit -> ('at, 'al) ti
-    val leaf  : ('at, 'al) content -> ('at, 'al) ti
-    val node  : ?left:('at, 'al) ti -> ?right:('at, 'al) ti -> ('at, 'al) content -> ('at, 'al) ti
-
-    val reify :
-      (MiniKanren.helper -> ('at, 'al) MiniKanren.injected -> 'al) ->
-      MiniKanren.helper -> ('at, 'al) ti -> 'al tl
-
-    val inj : ('at -> 'al) -> 'at tt -> 'al tl
-
-    val pprint : (Format.formatter -> 'al -> unit) -> Format.formatter -> 'al tl -> unit
-
-    val geto : ('at, 'al) ti                  -> Lang.ThreadID.ti -> ('at, 'al) content -> MiniKanren.goal
-    val seto : ('at, 'al) ti -> ('at, 'al) ti -> Lang.ThreadID.ti -> ('at, 'al) content -> MiniKanren.goal
-
-    val spawno :
-      (('at, 'al) content -> ('at, 'al) content -> ('at, 'al) content -> MiniKanren.goal) ->
-      ('at, 'al) ti -> ('at, 'al) ti -> Lang.ThreadID.ti -> MiniKanren.goal
-
-    val joino  :
-       (('at, 'al) content -> ('at, 'al) content -> ('at, 'al) content -> ('at, 'al) content -> MiniKanren.goal) ->
-       ('at, 'al) ti -> ('at, 'al) ti -> Lang.ThreadID.ti -> MiniKanren.goal
-  end
-
 module RegisterStorage :
   sig
     type tt = (Lang.Register.tt, Lang.Value.tt) Storage.tt
@@ -216,6 +181,30 @@ module ThreadFront :
           into corresponding viewfronts of parent [thrd]
           obtaining new parent thread [thrd'] *)
     val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal
+  end
+
+module type ThreadLocalData =
+  sig
+    include Utils.Logic
+
+    val spawno : ti -> ti -> ti -> MiniKanren.goal
+    val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal
+  end
+
+module ThreadLocalStorage(T : ThreadLocalData) :
+  sig
+    include Utils.Logic
+
+    val nil   : unit -> ti
+    val leaf  : content -> ti
+    val node  : ?left:ti -> ?right:ti -> content -> ti
+
+    val geto : ti       -> Lang.ThreadID.ti -> T.ti -> MiniKanren.goal
+    val seto : ti -> ti -> Lang.ThreadID.ti -> T.ti -> MiniKanren.goal
+
+    val spawno : ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
+
+    val joino  : ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
   end
 
 module LocStory :

@@ -73,157 +73,6 @@ module Storage =
       ]
   end
 
-module ThreadLocalStorage =
-  struct
-    module Tree =
-      struct
-        type ('a, 't) t =
-          | Nil
-          | Node of 'a * 't * 't
-
-        let fmap fa ft = function
-          | Nil            -> Nil
-          | Node (a, l, r) -> Node (fa a, ft l, ft r)
-      end
-
-    type 'at tt = ('at, 'at tt) Tree.t
-
-    type 'al tl = 'al inner MiniKanren.logic
-      and 'al inner = ('al, 'al tl) Tree.t
-
-    type ('at, 'al) ti = ('at tt, 'al tl) MiniKanren.injected
-
-    type ('at, 'al) content = ('at, 'al) MiniKanren.injected
-
-    include Fmap2(Tree)
-
-    let nil () = inj @@ distrib @@ Tree.Nil
-
-    let node ?(left=nil()) ?(right=nil()) x = inj @@ distrib @@ Tree.Node (x, left, right)
-
-    let leaf x = node x
-
-    let reify' = reify
-
-    let rec reify reify_content h = reify' (reify_content) (reify reify_content) h
-
-    let inj' = inj
-
-    let rec inj inj_content tree = to_logic (Tree.fmap (inj_content) (inj inj_content) tree)
-
-    (* let rec to_logic tree = Value (Tree.fmap (ThreadState.to_logic) (to_logic) tree) *)
-
-    (* let create ?rel ?acq vars curr =
-      Tree.Node (ThreadState.create ?rel ?acq vars curr, Tree.Nil, Tree.Nil) *)
-
-    let threads_list thrd_tree =
-      let q = Queue.create () in
-      let lst = ref [] in
-      Queue.push thrd_tree q;
-      while not @@ Queue.is_empty q do
-        match Queue.pop q with
-        | Value (Tree.Node (thrd, l, r)) ->
-          lst := thrd :: !lst;
-          Queue.push l q;
-          Queue.push r q
-        | Value Tree.Nil  -> ()
-        (* TODO handle variables *)
-        (* | Var (i, _) ->
-          lst := (Var (i, [])) :: !lst *)
-      done;
-      List.rev !lst
-
-    let pprint pprint_content ff thrd_tree =
-      let cnt = ref 1 in
-      let pp ff thrd =
-        Format.fprintf ff "@[<v>Thread %d:@;<1 4>%a@;@]" !cnt pprint_content thrd;
-        cnt := !cnt + 1
-      in
-      List.iter (pp ff) @@ threads_list thrd_tree
-
-    let rec geto tree path thrd = Lang.(ThreadID.(
-      fresh (thrd' left right path')
-        (tree === node thrd' ~left ~right)
-        (conde [
-          (path === pathn ()) &&& (thrd === thrd');
-          (conde [
-            (path === pathl path') &&& (geto left  path' thrd);
-            (path === pathr path') &&& (geto right path' thrd);
-          ])
-        ])
-      ))
-
-    let rec seto tree tree' path thrd_new = Lang.(ThreadID.(
-      fresh (thrd thrd' path' l l' r r')
-        (tree  === node thrd  ~left:l  ~right:r )
-        (tree' === node thrd' ~left:l' ~right:r')
-        (conde [
-          (path === pathn ()) &&& (thrd' === thrd_new) &&&
-          (l === l') &&& (r === r');
-
-          (thrd' === thrd) &&&
-          (conde [
-            (path === pathl path') &&& (r === r') &&& (seto l l' path' thrd_new);
-            (path === pathr path') &&& (l === l') &&& (seto r r' path' thrd_new);
-          ])
-        ])
-      ))
-
-    (* let rec laggingo tree b =
-      fresh (thrd l r b1 b2)
-        (conde [
-            (tree === leaf thrd) &&&
-            (ThreadState.laggingo thrd b);
-
-            (tree =/= leaf thrd) &&&
-            (tree === node thrd l r) &&&
-            (laggingo l b1) &&&
-            (laggingo r b2) &&&
-            (MiniKanrenStd.Bool.oro b1 b2 b);
-        ]) *)
-
-    let rec spawno spawn_contento tree tree' path = Lang.(ThreadID.(
-      fresh (thrd l l' r r' path')
-        (tree  === node thrd  ~left:l  ~right:r )
-        (tree' === node thrd  ~left:l' ~right:r')
-        (conde [
-          fresh (a b)
-            (path === pathn ())
-            (l  === nil ())
-            (r  === nil ())
-            (l' === leaf a)
-            (r' === leaf b)
-            (spawn_contento thrd a b);
-
-          (conde [
-            (path === pathl path') &&& (spawno spawn_contento l l' path') &&& (r === r');
-            (path === pathr path') &&& (spawno spawn_contento r r' path') &&& (l === l');
-          ])
-        ])
-      ))
-
-    let rec joino join_contento tree tree' path = Lang.(ThreadID.(
-      fresh (thrd thrd' l l' r r' path')
-        (tree  === node thrd  ~left:l  ~right:r )
-        (tree' === node thrd' ~left:l' ~right:r')
-        (conde [
-          fresh (a b)
-            (path  === pathn ())
-            (l  === leaf a)
-            (r  === leaf b)
-            (l' === nil ())
-            (r' === nil ())
-            (join_contento thrd thrd' a b);
-
-          (thrd === thrd') &&&
-          (conde [
-            (path === pathl path') &&& (r === r') &&& (joino join_contento l l' path');
-            (path === pathr path') &&& (l === l') &&& (joino join_contento r r' path');
-          ]);
-        ])
-      ))
-  end
-
 module RegisterStorage =
   struct
     type tt = (Lang.Register.tt, Lang.Value.tt) Storage.tt
@@ -512,6 +361,148 @@ module ThreadFront =
         (ViewFront.mergeo acq1  acq2  acq' )
         (* (List.appendo prm1 prm2 prm) *)
 
+  end
+
+module ThreadLocalStorage(T : Utils.Logic) =
+  struct
+    module Tree =
+      struct
+        type ('a, 't) t =
+          | Nil
+          | Node of 'a * 't * 't
+
+        let fmap fa ft = function
+          | Nil            -> Nil
+          | Node (a, l, r) -> Node (fa a, ft l, ft r)
+      end
+
+    type tt = (T.tt, tt) Tree.t
+
+    type tl = inner MiniKanren.logic
+      and inner = (T.tl, tl) Tree.t
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    include Fmap2(Tree)
+
+    let nil () = inj @@ distrib @@ Tree.Nil
+
+    let node ?(left=nil()) ?(right=nil()) x = inj @@ distrib @@ Tree.Node (x, left, right)
+
+    let leaf x = node x
+
+    let inj' = inj
+    let rec inj inj_content tree = to_logic (Tree.fmap (inj_content) (inj inj_content) tree)
+
+    let reify' = reify
+    let rec reify reify_content h = reify' (reify_content) (reify reify_content) h
+
+    let threads_list thrd_tree =
+      let q = Queue.create () in
+      let lst = ref [] in
+      Queue.push thrd_tree q;
+      while not @@ Queue.is_empty q do
+        match Queue.pop q with
+        | Value (Tree.Node (thrd, l, r)) ->
+          lst := thrd :: !lst;
+          Queue.push l q;
+          Queue.push r q
+        | Value Tree.Nil  -> ()
+        (* TODO handle variables *)
+        (* | Var (i, _) ->
+          lst := (Var (i, [])) :: !lst *)
+      done;
+      List.rev !lst
+
+    let pprint pprint_content ff thrd_tree =
+      let cnt = ref 1 in
+      let pp ff thrd =
+        Format.fprintf ff "@[<v>Thread %d:@;<1 4>%a@;@]" !cnt pprint_content thrd;
+        cnt := !cnt + 1
+      in
+      List.iter (pp ff) @@ threads_list thrd_tree
+
+    let rec geto tree path thrd = Lang.(ThreadID.(
+      fresh (thrd' left right path')
+        (tree === node thrd' ~left ~right)
+        (conde [
+          (path === pathn ()) &&& (thrd === thrd');
+          (conde [
+            (path === pathl path') &&& (geto left  path' thrd);
+            (path === pathr path') &&& (geto right path' thrd);
+          ])
+        ])
+      ))
+
+    let rec seto tree tree' path thrd_new = Lang.(ThreadID.(
+      fresh (thrd thrd' path' l l' r r')
+        (tree  === node thrd  ~left:l  ~right:r )
+        (tree' === node thrd' ~left:l' ~right:r')
+        (conde [
+          (path === pathn ()) &&& (thrd' === thrd_new) &&&
+          (l === l') &&& (r === r');
+
+          (thrd' === thrd) &&&
+          (conde [
+            (path === pathl path') &&& (r === r') &&& (seto l l' path' thrd_new);
+            (path === pathr path') &&& (l === l') &&& (seto r r' path' thrd_new);
+          ])
+        ])
+      ))
+
+    (* let rec laggingo tree b =
+      fresh (thrd l r b1 b2)
+        (conde [
+            (tree === leaf thrd) &&&
+            (ThreadState.laggingo thrd b);
+
+            (tree =/= leaf thrd) &&&
+            (tree === node thrd l r) &&&
+            (laggingo l b1) &&&
+            (laggingo r b2) &&&
+            (MiniKanrenStd.Bool.oro b1 b2 b);
+        ]) *)
+
+    let rec spawno tree tree' path = Lang.(ThreadID.(
+      fresh (thrd l l' r r' path')
+        (tree  === node thrd  ~left:l  ~right:r )
+        (tree' === node thrd  ~left:l' ~right:r')
+        (conde [
+          fresh (a b)
+            (path === pathn ())
+            (l  === nil ())
+            (r  === nil ())
+            (l' === leaf a)
+            (r' === leaf b)
+            (T.spawno thrd a b);
+
+          (conde [
+            (path === pathl path') &&& (spawno l l' path') &&& (r === r');
+            (path === pathr path') &&& (spawno r r' path') &&& (l === l');
+          ])
+        ])
+      ))
+
+    let rec joino tree tree' path = Lang.(ThreadID.(
+      fresh (thrd thrd' l l' r r' path')
+        (tree  === node thrd  ~left:l  ~right:r )
+        (tree' === node thrd' ~left:l' ~right:r')
+        (conde [
+          fresh (a b)
+            (path  === pathn ())
+            (l  === leaf a)
+            (r  === leaf b)
+            (l' === nil ())
+            (r' === nil ())
+            (T.joino thrd thrd' a b);
+
+          (thrd === thrd') &&&
+          (conde [
+            (path === pathl path') &&& (r === r') &&& (joino l l' path');
+            (path === pathr path') &&& (l === l') &&& (joino r r' path');
+          ]);
+        ])
+      ))
   end
 
 module LocStory =
