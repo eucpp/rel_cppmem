@@ -153,13 +153,13 @@ module Front =
         (ThreadFront.writeo thrd thrd' var value)
 
     let na_awareo na loc last_ts = Timestamp.(
-      fresh (ts na_ts)
+      fresh (na_ts)
         (ViewFront.tso na loc na_ts)
         (na_ts <= last_ts)
     )
 
     let na_stucko na loc last_ts = Timestamp.(
-      fresh (ts na_ts)
+      fresh (na_ts)
         (ViewFront.tso na loc na_ts)
         (na_ts > last_ts)
     )
@@ -189,7 +189,7 @@ module Front =
         (ViewFront.updateo na na' loc ts')
         (MemStory.storeo story story' loc value (ViewFront.bottom ()))
 
-    let no_last_tso story loc ts =
+    let not_last_tso story loc ts =
       fresh (last_ts)
         (MemStory.last_tso story loc last_ts)
         (ts =/= last_ts)
@@ -201,9 +201,9 @@ module Front =
         (ThreadLocalStorage.geto tree thrdId thrd)
         (ThreadFront.tso thrd loc ts)
         (conde [
-          (mo === !!Lang.MemOrder.NA ) &&& ((na_stucko na loc ts) ||| (no_last_tso story loc ts));
-          (mo === !!Lang.MemOrder.ACQ) &&& (na_stucko na loc ts);
-          (mo === !!Lang.MemOrder.SC ) &&& (na_stucko na loc ts);
+          (mo === !!Lang.MemOrder.NA ) &&& ((na_stucko na loc ts) ||| (not_last_tso story loc ts));
+          (* (mo === !!Lang.MemOrder.ACQ) &&& (na_stucko na loc ts); *)
+          (* (mo === !!Lang.MemOrder.SC ) &&& (na_stucko na loc ts); *)
         ])
 
     let load_data_raceo  = data_raceo

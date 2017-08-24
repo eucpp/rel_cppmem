@@ -18,6 +18,11 @@ let mp_prog = <:cppmem<
     }}}
 >>
 
+(* let mp_prog = <:cppmem<
+    x_na := 1;
+    ret 1
+>> *)
+
 module Basic = Rules.Basic(Machines.Front)
 module ThreadSpawning = Rules.ThreadSpawning(Machines.Front)
 module NonAtomic = Rules.NonAtomic(Machines.Front)
@@ -40,7 +45,7 @@ let reify = Semantics.Configuration.reify (Term.reify) (Machines.Front.reify)
 let inj = Semantics.Configuration.inj (Term.inj) (Machines.Front.inj)
 
 let pprint = function
-  | Value c   -> Semantics.(Configuration.(Format.printf "Return: %a\nState: %a" Lang.Term.pprint c.T.prog Machines.Front.pprint c.T.state))
+  | Value c   -> Semantics.(Configuration.(Format.printf "Return: %a\nState:\n %a" Lang.Term.pprint c.T.prog Machines.Front.pprint c.T.state))
   | Var (_,_) -> invalid_arg "Unexpected free variable"
 
 let t = Semantics.Configuration.cfg mp_prog (Machines.Front.preallocate [reg "r1"; reg "r2"] [loc "x"; loc "f"])

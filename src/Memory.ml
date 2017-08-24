@@ -47,7 +47,7 @@ module Storage =
     let rec updateo upo t t' var =
       fresh (k v v' tl tl')
         (t  === (Pair.pair k v ) % tl )
-        (t  === (Pair.pair k v') % tl')
+        (t' === (Pair.pair k v') % tl')
         (conde [
           (k === var) &&& (upo v v') &&& (tl === tl');
           (k =/= var) &&& (v === v') &&& (updateo upo tl tl' var);
@@ -309,10 +309,13 @@ module ViewFront =
     )
 
     let mergeo t1 t2 t' =
-      let r l1 ts1 l2 ts2 l' ts' = Nat.(conde [
-        (ts1 >  ts2) &&& (ts' === ts1);
-        (ts1 <= ts2) &&& (ts' === ts2);
-      ]) in
+      let r l1 ts1 l2 ts2 l' ts' = Nat.(
+        (l1 === l2) &&& (l2 === l') &&&
+        (conde [
+          (ts1 >  ts2) &&& (ts' === ts1);
+          (ts1 <= ts2) &&& (ts' === ts2);
+        ])
+      ) in
       conde [
         (t1 === bottom ()) &&& (t2 === bottom ()) &&& (t' === bottom ());
         (t1 === bottom ()) &&& (t2 =/= bottom ()) &&& (t' === t2);

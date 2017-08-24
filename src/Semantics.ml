@@ -149,7 +149,7 @@ let make_reduction_relation splito plugo rules = fun ctrs term result ->
         (plugo ctx rdx' term');
     ])
 
-let make_eval stepo =
+let make_eval stepo t t' =
   let evalo_norec evalo term term'' =
     fresh (ctrs result)
       (stepo ctrs term result)
@@ -164,7 +164,10 @@ let make_eval stepo =
   let evalo = ref (fun term term' -> assert false) in
   let evalo_tabled = (fun term term' -> tabled2 tbl (evalo_norec !evalo) term term') in
   evalo := evalo_tabled;
-  !evalo
+  evalo_tabled t t' 
+
+
+
   (* evalo_tabled *)
 
 (* module type StepRelation =
