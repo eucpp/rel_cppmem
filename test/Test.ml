@@ -3,12 +3,12 @@ open Memory
 
 let tests =
   "rel_cppmem">::: [
-    LangTest.tests;
+    (* LangTest.tests;
     VarListTest.tests;
     MemoryTest.tests;
     ParserTest.tests;
     PrettyPrinterTest.tests;
-    RulesTest.tests;
+    RulesTest.tests; *)
     LitmusTest.tests;
     (* SynthesisTest.tests; *)
   ]

@@ -94,6 +94,10 @@ module Configuration =
     let cfg prog state =
       inj @@ distrib @@ { prog; state }
 
+    let inj inj_p inj_s t = Value (T.fmap inj_p inj_s t)
+
+    let reify reify_p reify_s = reify reify_p reify_s
+
     let programo t prog =
       fresh (state)
         (t === cfg prog state)

@@ -7,6 +7,11 @@ open Lang
 open Lang.Term
 open Memory
 
+let test_eval evalo asserto t =
+  run q
+    (fun q  -> (evalo t q))
+    (fun qs -> )
+
 let prog_rel_acq = <:cppmem<
     (* x_rlx := 0;
     f_rlx := 0; *)

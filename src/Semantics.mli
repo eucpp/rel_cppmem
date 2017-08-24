@@ -58,7 +58,15 @@ type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule =
 (** Configuration - special case of Term for languages that distinguish a program and a state/environment *)
 module Configuration :
   sig
-    type ('p, 's) t
+    module T :
+      sig
+        type ('p, 's) t = {
+          prog  : 'p;
+          state : 's;
+        }
+      end
+
+    type ('p, 's) t = ('p, 's) T.t
 
     type ('pt, 'st) tt = ('pt, 'st) t
     type ('pl, 'sl) tl = ('pl, 'sl) t MiniKanren.logic
@@ -73,6 +81,13 @@ module Configuration :
       ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> MiniKanren.goal
 
     val cfg : ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> ('pt, 'st, 'pl, 'sl) ti
+
+    val inj : ('pt -> 'pl) -> ('st -> 'sl) -> ('pt, 'st) tt -> ('pl, 'sl) tl
+
+    val reify :
+      (MiniKanren.helper -> ('pt, 'pl) MiniKanren.injected -> 'pl) ->
+      (MiniKanren.helper -> ('st, 'sl) MiniKanren.injected -> 'sl) ->
+      MiniKanren.helper -> ('pt, 'st, 'pl, 'sl) ti -> ('pl, 'sl) tl
 
     val programo : ('pt, 'st, 'pl, 'sl) ti -> ('pt, 'pl) MiniKanren.injected -> MiniKanren.goal
     val stateo   : ('pt, 'st, 'pl, 'sl) ti -> ('st, 'sl) MiniKanren.injected -> MiniKanren.goal

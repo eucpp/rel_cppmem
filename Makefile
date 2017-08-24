@@ -22,7 +22,7 @@ clean:
 	rm -rf ./_build *.byte *.native
 
 relcppmem:
-	$(OCB) $(OCB_FLAGS) $(BYTE_TARGETS) $(NATIVE_TARGETS)
+	$(OCB) $(BYTE_TARGETS) $(NATIVE_TARGETS)
 
 plugin: relcppmem
 	$(OCB) -I camlp5 camlp5/pa_cppmem.cmo
@@ -32,6 +32,10 @@ test: relcppmem plugin
 	./Test.native
 
 ################################# Samples ####################################
+
+mp_eval : relcppmem plugin
+	$(OCB) -I samples mp_eval.native
+	time ./mp_eval.native
 
 mp_synthesis: relcppmem plugin
 	$(OCB) -I samples mp_synthesis.native

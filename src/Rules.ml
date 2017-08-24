@@ -93,12 +93,12 @@ module Basic (Machine : Machines.Sequential) =
         (conde [
           (op === !!Lang.Op.ADD) &&& (addo x y z);
           (op === !!Lang.Op.MUL) &&& (mulo x y z);
-          (op === !!Lang.Op.EQ ) &&& (conde [(eqo x y !!true ) &&& (z === (value 1)); (eqo x y !!false) &&& (z === (value 0))]);
-          (op === !!Lang.Op.NEQ) &&& (conde [(eqo x y !!false) &&& (z === (value 1)); (eqo x y !!true ) &&& (z === (value 0))]);
-          (op === !!Lang.Op.LT ) &&& (conde [(lto x y !!true) &&& (z === (value 1)); (lto x y !!false) &&& (z === (value 0))]);
-          (op === !!Lang.Op.LE ) &&& (conde [(leo x y !!true) &&& (z === (value 1)); (leo x y !!false) &&& (z === (value 0))]);
-          (op === !!Lang.Op.GT ) &&& (conde [(gto x y !!true) &&& (z === (value 1)); (gto x y !!false) &&& (z === (value 0))]);
-          (op === !!Lang.Op.GE ) &&& (conde [(geo x y !!true) &&& (z === (value 1)); (geo x y !!false) &&& (z === (value 0))]);
+          (op === !!Lang.Op.EQ ) &&& (conde [(eqo x y !!true ) &&& (z === (integer 1)); (eqo x y !!false) &&& (z === (integer 0))]);
+          (op === !!Lang.Op.NEQ) &&& (conde [(eqo x y !!false) &&& (z === (integer 1)); (eqo x y !!true ) &&& (z === (integer 0))]);
+          (op === !!Lang.Op.LT ) &&& (conde [(lto x y !!true) &&& (z === (integer 1)); (lto x y !!false) &&& (z === (integer 0))]);
+          (op === !!Lang.Op.LE ) &&& (conde [(leo x y !!true) &&& (z === (integer 1)); (leo x y !!false) &&& (z === (integer 0))]);
+          (op === !!Lang.Op.GT ) &&& (conde [(gto x y !!true) &&& (z === (integer 1)); (gto x y !!false) &&& (z === (integer 0))]);
+          (op === !!Lang.Op.GE ) &&& (conde [(geo x y !!true) &&& (z === (integer 1)); (geo x y !!false) &&& (z === (integer 0))]);
         ])
       ))
 

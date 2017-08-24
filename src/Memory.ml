@@ -105,7 +105,7 @@ module ThreadLocalStorage =
 
     let reify' = reify
 
-    let rec reify reify_content = reify' (reify_content) (reify reify_content)
+    let rec reify reify_content h = reify' (reify_content) (reify reify_content) h
 
     let inj' = inj
 
@@ -232,7 +232,7 @@ module RegisterStorage =
 
     type ti = (Lang.Register.tt, Lang.Value.tt, Lang.Register.tl, Lang.Value.tl) Storage.ti
 
-    let allocate = Storage.allocate (Lang.Value.value 0)
+    let allocate = Storage.allocate (Lang.Value.integer 0)
 
     let from_assoc = Storage.from_assoc
 
@@ -247,7 +247,7 @@ module RegisterStorage =
     let writeo = Storage.seto
 
     let reseto = Storage.mapo (fun k v k' v' ->
-      (k === k') &&& (v' === Lang.Value.value 0)
+      (k === k') &&& (v' === Lang.Value.integer 0)
     )
   end
 
@@ -565,7 +565,7 @@ module LocStory =
       let vf = ViewFront.allocate atomics in
       inj @@ distrib @@ {
         T.tsnext = Timestamp.ts 1;
-        T.story = inj_listi [Cell.cell (Timestamp.ts 0) (Lang.Value.value 0) vf];
+        T.story = inj_listi [Cell.cell (Timestamp.ts 0) (Lang.Value.integer 0) vf];
       }
 
     let reify = reify Timestamp.reify (List.reify Cell.reify)

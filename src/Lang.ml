@@ -47,7 +47,7 @@ module Value =
 
     type ti = MiniKanrenStd.Nat.groundi
 
-    let value = inj_nat
+    let integer = inj_nat
 
     let zero () = Nat.zero
     let succ = Nat.succ

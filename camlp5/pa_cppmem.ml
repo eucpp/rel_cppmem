@@ -17,41 +17,41 @@ EXTEND
   term_eoi: [ [ x = term; EOI -> x ] ];
   term: [ [
         n = INT   ->
-        <:expr< const ( Value.inj (Value.of_string $str:n$)) >>
+        <:expr< const (Value.integer $int:n$) >>
 
       | x = LIDENT ->
         if String.contains x '_' then
           let var::mo::[] = String.split_on_char '_' x in
-          <:expr< read (MemOrder.inj (MemOrder.of_string $str:mo$)) (Var.inj (Var.of_string $str:var$)) >>
+          <:expr< read (MemOrder.mo $str:mo$) (Loc.loc $str:var$) >>
         else
-          <:expr< var (Var.inj (Var.of_string $str:x$)) >>
+          <:expr< var (Register.reg $str:x$) >>
 
       | x = LIDENT; ":="; t = term ->
         if String.contains x '_' then
           let var::mo::[] = String.split_on_char '_' x in
-          <:expr< write (MemOrder.inj (MemOrder.of_string $str:mo$)) (Var.inj (Var.of_string $str:var$)) $t$ >>
+          <:expr< write (MemOrder.mo $str:mo$) (Loc.loc $str:var$) $t$ >>
         else
-          <:expr< asgn (var (Var.inj (Var.of_string $str:x$))) $t$ >>
+          <:expr< asgn (var (Register.reg $str:x$)) $t$ >>
 
       | t1 = term; ":="; t2 = term ->
         <:expr< asgn $t1$ $t2$ >>
 
       | t1 = term; "+" ; t2 = term ->
-        <:expr< binop (Var.inj (Var.of_string "+")) $t1$ $t2$ >>
+        <:expr< binop (Op.op "+") $t1$ $t2$ >>
       | t1 = term; "*" ; t2 = term ->
-        <:expr< binop (Var.inj (Var.of_string "*")) $t1$ $t2$ >>
+        <:expr< binop (Op.op "*") $t1$ $t2$ >>
       | t1 = term; "=" ; t2 = term ->
-        <:expr< binop (Var.inj (Var.of_string "=")) $t1$ $t2$ >>
+        <:expr< binop (Op.op "=") $t1$ $t2$ >>
       | t1 = term; "!=" ; t2 = term ->
-        <:expr< binop (Var.inj (Var.of_string "!=")) $t1$ $t2$ >>
+        <:expr< binop (Op.op "!=") $t1$ $t2$ >>
       | t1 = term; "<" ; t2 = term ->
-        <:expr< binop (Var.inj (Var.of_string "<")) $t1$ $t2$ >>
+        <:expr< binop (Op.op "<") $t1$ $t2$ >>
       | t1 = term; "<=" ; t2 = term ->
-        <:expr< binop (Var.inj (Var.of_string "<=")) $t1$ $t2$ >>
+        <:expr< binop (Op.op "<=") $t1$ $t2$ >>
       | t1 = term; ">" ; t2 = term ->
-        <:expr< binop (Var.inj (Var.of_string ">")) $t1$ $t2$ >>
+        <:expr< binop (Op.op ">") $t1$ $t2$ >>
       | t1 = term; ">=" ; t2 = term ->
-        <:expr< binop (Var.inj (Var.of_string ">=")) $t1$ $t2$ >>
+        <:expr< binop (Op.op ">=") $t1$ $t2$ >>
 
       | "("; t1 = term; ","; t2 = term; ")" ->
         <:expr< pair $t1$ $t2$ >>
@@ -75,7 +75,6 @@ EXTEND
         <:expr< skip () >>
 
       | "ret"; t = term -> t
-
 
       | "?"; q = term_antiquot -> q
   ] ];

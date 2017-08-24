@@ -43,7 +43,7 @@ module Value :
 
     type ti = (tt, tl) MiniKanren.injected
 
-    val value : int -> ti
+    val integer : int -> ti
 
     val zero : unit -> ti
     val succ : ti -> ti
