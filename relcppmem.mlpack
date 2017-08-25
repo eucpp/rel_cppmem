@@ -3,5 +3,5 @@ src/Memory
 src/Machines
 src/Rules
 src/Semantics
+src/MemoryModel
 src/Utils
-src/VarList

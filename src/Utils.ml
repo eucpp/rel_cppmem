@@ -1,6 +1,26 @@
 open MiniKanren
 open MiniKanrenStd
 
+module type Logic =
+  sig
+    type tt
+
+    type tl = inner MiniKanren.logic
+      and inner
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    val inj : tt -> tl
+    val reify : MiniKanren.helper -> ti -> tl
+
+    val pprint : Format.formatter -> tl -> unit
+  end
+
+module Trace(T : Logic) =
+  struct
+    let trace fmt rr = T.pprint fmt @@ rr#refine T.reify ~inj:T.inj
+  end
+
 let rec pprint_logic pp ff = function
   | Value x        -> Format.fprintf ff "%a" pp x
   | Var (i, [])    -> Format.fprintf ff "_.%d" i

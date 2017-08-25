@@ -78,6 +78,7 @@ module RegisterStorage =
     type tt = (Lang.Register.tt, Lang.Value.tt) Storage.tt
 
     type tl = (Lang.Register.tl, Lang.Value.tl) Storage.tl
+      and inner = (Lang.Register.tl, Lang.Value.tl) Storage.inner
 
     type ti = (Lang.Register.tt, Lang.Value.tt, Lang.Register.tl, Lang.Value.tl) Storage.ti
 
@@ -128,6 +129,7 @@ module ViewFront =
     type tt = (Lang.Loc.tt, Timestamp.tt) Storage.tt
 
     type tl = (Lang.Loc.tl, Timestamp.tl) Storage.tl
+      and inner = (Lang.Loc.tl, Timestamp.tl) Storage.inner
 
     type ti = (Lang.Loc.tt, Timestamp.tt, Lang.Loc.tl, Timestamp.tl) Storage.ti
 
@@ -363,7 +365,15 @@ module ThreadFront =
 
   end
 
-module ThreadLocalStorage(T : Utils.Logic) =
+module type ThreadLocalData =
+  sig
+    include Utils.Logic
+
+    val spawno : ti -> ti -> ti -> MiniKanren.goal
+    val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal
+  end
+
+module ThreadLocalStorage(T : ThreadLocalData) =
   struct
     module Tree =
       struct
@@ -391,11 +401,10 @@ module ThreadLocalStorage(T : Utils.Logic) =
 
     let leaf x = node x
 
-    let inj' = inj
-    let rec inj inj_content tree = to_logic (Tree.fmap (inj_content) (inj inj_content) tree)
+    let rec inj tree = to_logic (Tree.fmap T.inj inj tree)
 
     let reify' = reify
-    let rec reify reify_content h = reify' (reify_content) (reify reify_content) h
+    let rec reify h = reify' T.reify reify h
 
     let threads_list thrd_tree =
       let q = Queue.create () in
@@ -414,10 +423,10 @@ module ThreadLocalStorage(T : Utils.Logic) =
       done;
       List.rev !lst
 
-    let pprint pprint_content ff thrd_tree =
+    let pprint ff thrd_tree =
       let cnt = ref 1 in
       let pp ff thrd =
-        Format.fprintf ff "@[<v>Thread %d:@;<1 4>%a@;@]" !cnt pprint_content thrd;
+        Format.fprintf ff "@[<v>Thread %d:@;<1 4>%a@;@]" !cnt T.pprint thrd;
         cnt := !cnt + 1
       in
       List.iter (pp ff) @@ threads_list thrd_tree
@@ -524,10 +533,9 @@ module LocStory =
 
       let reify = ManualReifiers.triple Timestamp.reify Lang.Value.reify ViewFront.reify
 
-      let pprint var =
+      let pprint =
         let pp ff (ts, value, vf) =
-          Format.fprintf ff "@[<h>{%s@%s=%s, %a}@]"
-            (Lang.Loc.show var)
+          Format.fprintf ff "@[<h>{@%s, %s, %a}@]"
             (Timestamp.show ts)
             (Lang.Value.show value)
             ViewFront.pprint vf
@@ -567,17 +575,14 @@ module LocStory =
     let inj x =
       to_logic @@ T.fmap (Timestamp.inj) (List.to_logic (Cell.inj)) x
 
-    (* let to_logic {T.tsnext = tsnext; T.story = story} =
-      Value {T.tsnext = Nat.to_logic tsnext; T.story = List.to_logic Cell.to_logic story} *)
-
     let create tsnext story = {
       T.tsnext = Nat.of_int tsnext;
       T.story  = List.of_list (fun (ts, v, vf) -> (Nat.of_int ts, Nat.of_int v, vf)) story;
     }
 
-    let pprint var =
+    let pprint =
       let pp ff {T.story = story} =
-        pprint_llist (Cell.pprint var) ff story
+        pprint_llist Cell.pprint ff story
       in
       pprint_logic pp
 
@@ -622,6 +627,7 @@ module MemStory =
     type tt = (Lang.Loc.tt, LocStory.tt) Storage.tt
 
     type tl = (Lang.Loc.tl, LocStory.tl) Storage.tl
+      and inner = (Lang.Loc.tl, LocStory.tl) Storage.inner
 
     type ti = (Lang.Loc.tt, LocStory.tt, Lang.Loc.tl, LocStory.tl) Storage.ti
 
@@ -636,7 +642,7 @@ module MemStory =
     (* let create = List.of_list (fun x -> x) *)
 
     let pprint ff story =
-      let pp ff (var, story) = LocStory.pprint var ff story in
+      let pp ff (loc, story) = Format.fprintf ff "%s: [%a]" (Lang.Loc.show loc) LocStory.pprint story in
       Format.fprintf ff "@[<v>Memory :@;<1 4>%a@;@]" (Storage.pprint pp) story
 
     let last_tso t loc ts =

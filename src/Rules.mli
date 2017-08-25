@@ -12,8 +12,10 @@ module Constraints :
 
 module RuleTypes (Machine : Machines.Sequential) :
   sig
-    type tt = (Lang.Term.tt, Machine.tt) Semantics.Configuration.tt
-    type tl = (Lang.Term.tl, Machine.tl) Semantics.Configuration.tl
+    module CFG : module type of Semantics.Configuration(Lang.Term)(Machine)
+
+    type tt = CFG.tt
+    type tl = CFG.tl
 
     type ct = Lang.Context.tt
     type cl = Lang.Context.tl

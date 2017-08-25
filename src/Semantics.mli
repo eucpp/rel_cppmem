@@ -56,49 +56,31 @@ type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule =
   ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
 (** Configuration - special case of Term for languages that distinguish a program and a state/environment *)
-module Configuration :
+module Configuration (P : Utils.Logic) (S : Utils.Logic):
   sig
-    module T :
-      sig
-        type ('p, 's) t = {
-          prog  : 'p;
-          state : 's;
-        }
-      end
-
-    type ('p, 's) t = ('p, 's) T.t
-
-    type ('pt, 'st) tt = ('pt, 'st) t
-    type ('pl, 'sl) tl = ('pl, 'sl) t MiniKanren.logic
-
-    type ('pt, 'st, 'pl, 'sl) ti = (('pt, 'st) tt, ('pl, 'sl) tl) MiniKanren.injected
+    include Utils.Logic
 
     type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule' = ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule
 
     (** [rule constraints context prog state prog' state'] - special case of rule that operates on program/state pairs *)
-    type ('pt, 'ct, 'st, 'cst, 'pl, 'cl, 'sl, 'csl) rule =
+    type ('ct, 'cst, 'cl, 'csl) rule =
       ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti ->
-      ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> MiniKanren.goal
+      P.ti -> S.ti -> P.ti -> S.ti -> MiniKanren.goal
 
-    val cfg : ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> ('pt, 'st, 'pl, 'sl) ti
+    val cfg : P.ti -> S.ti -> ti
 
-    val inj : ('pt -> 'pl) -> ('st -> 'sl) -> ('pt, 'st) tt -> ('pl, 'sl) tl
+    val decompose : tl -> P.tl * S.tl
 
-    val reify :
-      (MiniKanren.helper -> ('pt, 'pl) MiniKanren.injected -> 'pl) ->
-      (MiniKanren.helper -> ('st, 'sl) MiniKanren.injected -> 'sl) ->
-      MiniKanren.helper -> ('pt, 'st, 'pl, 'sl) ti -> ('pl, 'sl) tl
-
-    val programo : ('pt, 'st, 'pl, 'sl) ti -> ('pt, 'pl) MiniKanren.injected -> MiniKanren.goal
-    val stateo   : ('pt, 'st, 'pl, 'sl) ti -> ('st, 'sl) MiniKanren.injected -> MiniKanren.goal
+    val progo  : ti -> P.ti -> MiniKanren.goal
+    val stateo : ti -> S.ti -> MiniKanren.goal
 
     val lift_splitting :
-      ('pt, 'ct, 'pl, 'cl) splitting -> (('pt, 'st) tt, 'ct, ('pl, 'sl) tl, 'cl) splitting
+      (P.tt, 'ct, P.tl, 'cl) splitting -> (tt, 'ct, tl, 'cl) splitting
 
     val lift_plugging :
-      ('pt, 'ct, 'pl, 'cl) plugging -> (('pt, 'st) tt, 'ct, ('pl, 'sl) tl, 'cl) plugging
+      (P.tt, 'ct, P.tl, 'cl) plugging -> (tt, 'ct, tl, 'cl) plugging
 
-    val lift_rule : ('pt, 'ct, 'st, 'cst, 'pl, 'cl, 'sl, 'csl) rule -> (('pt, 'st) tt, 'ct, 'cst, ('pl, 'sl) tl, 'cl, 'csl) rule'
+    val lift_rule : ('ct, 'cst, 'cl, 'csl) rule -> (tt, 'ct, 'cst, tl, 'cl, 'csl) rule'
   end
 
 (** [step constraints term term'] - performs a step that substitutes [term] with [term'] considering provided [constraints],

@@ -2,12 +2,7 @@
       The sequential machine should be capable to maintain a number of per-thread set of registers *)
 module type Sequential =
   sig
-    type tt
-
-    type tl = inner MiniKanren.logic
-      and inner
-
-    type ti = (tt, tl) MiniKanren.injected
+    include Utils.Logic
 
     val reado  : ti ->       Lang.ThreadID.ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
     val writeo : ti -> ti -> Lang.ThreadID.ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
@@ -65,16 +60,6 @@ module Front :
     include ReleaseAcquire
 
     val preallocate : Lang.Register.ti list -> Lang.Loc.ti list -> ti
-
-    val reify : MiniKanren.helper -> ti -> tl
-
-    val inj : tt -> tl
-
-    (* val refine : (tt, tl) MiniKanren.refined -> tl *)
-
-    (* val create : ?na:ViewFront.tt -> ?sc:ViewFront.tt -> Threads.tt -> MemStory.tt -> tt *)
-
-    val pprint : Format.formatter -> tl -> unit
 
     val load_sco  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
     val store_sco : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal

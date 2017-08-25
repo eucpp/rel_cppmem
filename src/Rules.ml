@@ -37,8 +37,10 @@ let check_thrdo ctrs ctx thrdId =
 
 module RuleTypes (Machine : Machines.Sequential) =
   struct
-    type tt = (Lang.Term.tt, Machine.tt) Semantics.Configuration.tt
-    type tl = (Lang.Term.tl, Machine.tl) Semantics.Configuration.tl
+    module CFG = Semantics.Configuration(Lang.Term)(Machine)
+
+    type tt = CFG.tt
+    type tl = CFG.tl
 
     type ct = Lang.Context.tt
     type cl = Lang.Context.tl
@@ -72,7 +74,7 @@ module Basic (Machine : Machines.Sequential) =
         (check_thrdo ctrs ctx thrdId)
         (asgno' l r s s' thrdId)
 
-    let asgno = Semantics.Configuration.lift_rule asgno
+    let asgno = CFG.lift_rule asgno
 
     let varo ctrs ctx t s t' s' =
       fresh (n x thrdId)
@@ -82,7 +84,7 @@ module Basic (Machine : Machines.Sequential) =
         (check_thrdo ctrs ctx thrdId)
         (Machine.reado s thrdId x n)
 
-    let varo = Semantics.Configuration.lift_rule varo
+    let varo = CFG.lift_rule varo
 
     let binopo ctrs ctx t s t' s' = Lang.(Value.(
       fresh (op x y z thrdId)
@@ -102,7 +104,7 @@ module Basic (Machine : Machines.Sequential) =
         ])
       ))
 
-    let binopo = Semantics.Configuration.lift_rule binopo
+    let binopo = CFG.lift_rule binopo
 
     let repeato ctrs ctx t s t' s' =
       fresh (body thrdId)
@@ -111,7 +113,7 @@ module Basic (Machine : Machines.Sequential) =
         (s  === s')
         (check_thrdo ctrs ctx thrdId)
 
-    let repeato = Semantics.Configuration.lift_rule repeato
+    let repeato = CFG.lift_rule repeato
 
     let ifo ctrs ctx t s t' s' =
       fresh (e n btrue bfalse thrdId)
@@ -124,7 +126,7 @@ module Basic (Machine : Machines.Sequential) =
         (s  === s')
         (check_thrdo ctrs ctx thrdId)
 
-    let ifo = Semantics.Configuration.lift_rule ifo
+    let ifo = CFG.lift_rule ifo
 
     let seqo ctrs ctx t s t' s' =
       fresh (thrdId)
@@ -132,7 +134,7 @@ module Basic (Machine : Machines.Sequential) =
         (s  === s')
         (check_thrdo ctrs ctx thrdId)
 
-    let seqo = Semantics.Configuration.lift_rule seqo
+    let seqo = CFG.lift_rule seqo
 
     let all = [varo; binopo; asgno; ifo; repeato; seqo;]
 
@@ -149,7 +151,7 @@ module ThreadSpawning (Machine : Machines.Parallel) =
        (check_thrdo ctrs ctx thrdId)
        (Machine.spawno s s' thrdId)
 
-    let spawno = Semantics.Configuration.lift_rule spawno
+    let spawno = CFG.lift_rule spawno
 
     let joino ctrs ctx t s t' s' =
       let rec expro t = conde [
@@ -171,7 +173,7 @@ module ThreadSpawning (Machine : Machines.Parallel) =
         (check_thrdo ctrs ctx thrdId)
         (Machine.joino s s' thrdId)
 
-    let joino = Semantics.Configuration.lift_rule joino
+    let joino = CFG.lift_rule joino
 
     let all = [spawno; joino]
   end
@@ -188,7 +190,7 @@ module NonAtomic (Machine : Machines.NonAtomic) =
         (check_thrdo ctrs ctx thrdId)
         (Machine.load_nao s s' thrdId l n)
 
-    let load_nao = Semantics.Configuration.lift_rule load_nao
+    let load_nao = CFG.lift_rule load_nao
 
     let store_nao ctrs ctx t s t' s' =
       fresh (l n thrdId)
@@ -197,7 +199,7 @@ module NonAtomic (Machine : Machines.NonAtomic) =
         (check_thrdo ctrs ctx thrdId)
         (Machine.store_nao s s' thrdId l n)
 
-    let store_nao = Semantics.Configuration.lift_rule store_nao
+    let store_nao = CFG.lift_rule store_nao
 
     let load_data_raceo ctrs ctx t s t' s' =
       fresh (mo l n thrdId)
@@ -206,7 +208,7 @@ module NonAtomic (Machine : Machines.NonAtomic) =
         (check_thrdo ctrs ctx thrdId)
         (Machine.load_data_raceo s s' thrdId mo l)
 
-    let load_data_raceo = Semantics.Configuration.lift_rule load_data_raceo
+    let load_data_raceo = CFG.lift_rule load_data_raceo
 
     let store_data_raceo ctrs ctx t s t' s' =
       fresh (mo l n thrdId)
@@ -215,7 +217,7 @@ module NonAtomic (Machine : Machines.NonAtomic) =
         (check_thrdo ctrs ctx thrdId)
         (Machine.store_data_raceo s s' thrdId mo l)
 
-    let store_data_raceo = Semantics.Configuration.lift_rule store_data_raceo
+    let store_data_raceo = CFG.lift_rule store_data_raceo
 
     let all = [load_nao; store_nao; load_data_raceo; store_data_raceo]
   end
@@ -231,7 +233,7 @@ module SequentialConsistent (Machine : Machines.SequentialConsistent) =
         (check_thrdo ctrs ctx thrdId)
         (Machine.load_sco s s' thrdId l n)
 
-    let load_sco = Semantics.Configuration.lift_rule load_sco
+    let load_sco = CFG.lift_rule load_sco
 
     let store_sco ctrs ctx t s t' s' =
       fresh (l n thrdId)
@@ -240,7 +242,7 @@ module SequentialConsistent (Machine : Machines.SequentialConsistent) =
         (check_thrdo ctrs ctx thrdId)
         (Machine.store_sco s s' thrdId l n)
 
-    let store_sco = Semantics.Configuration.lift_rule store_sco
+    let store_sco = CFG.lift_rule store_sco
 
     let all = [load_sco; store_sco;]
   end
@@ -256,7 +258,7 @@ module ReleaseAcquire (Machine : Machines.ReleaseAcquire) =
         (check_thrdo ctrs ctx thrdId)
         (Machine.load_acqo s s' thrdId l n)
 
-    let load_acqo = Semantics.Configuration.lift_rule load_acqo
+    let load_acqo = CFG.lift_rule load_acqo
 
     let store_relo ctrs ctx t s t' s' =
       fresh (l n thrdId)
@@ -265,7 +267,7 @@ module ReleaseAcquire (Machine : Machines.ReleaseAcquire) =
         (check_thrdo ctrs ctx thrdId)
         (Machine.store_relo s s' thrdId l n)
 
-    let store_relo = Semantics.Configuration.lift_rule store_relo
+    let store_relo = CFG.lift_rule store_relo
 
     let all = [load_acqo; store_relo;]
   end

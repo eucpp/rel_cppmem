@@ -8,7 +8,7 @@ PKGS = -pkgs "GT.syntax.all,ocanren.syntax,ocanren"
 CFLGS = -cflags "-g"
 LFLGS = -lflags "-g"
 
-OCB_FLAGS = -use-ocamlfind -use-menhir -syntax camlp5o $(CFLGS) $(LFLGS) $(PKGS) $(SRC)
+OCB_FLAGS = -use-ocamlfind -syntax camlp5o $(CFLGS) $(LFLGS) $(PKGS) $(SRC)
 OCB = ocamlbuild $(OCB_FLAGS)
 
 BYTE_TARGETS = relcppmem.cma

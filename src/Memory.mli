@@ -43,21 +43,11 @@ module Storage :
 
 module RegisterStorage :
   sig
-    type tt = (Lang.Register.tt, Lang.Value.tt) Storage.tt
-
-    type tl = (Lang.Register.tl, Lang.Value.tl) Storage.tl
-
-    type ti = (Lang.Register.tt, Lang.Value.tt, Lang.Register.tl, Lang.Value.tl) Storage.ti
+    include Utils.Logic
 
     val allocate : Lang.Register.ti list -> ti
 
     val from_assoc : (Lang.Register.ti * Lang.Value.ti) list -> ti
-
-    val reify : MiniKanren.helper -> ti -> tl
-
-    val inj : tt -> tl
-
-    val pprint : Format.formatter -> tl -> unit
 
     val reado  : ti ->       Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
     val writeo : ti -> ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
@@ -90,23 +80,13 @@ module Timestamp :
 
 module ViewFront :
   sig
-    type tt = (Lang.Loc.tt, Timestamp.tt) Storage.tt
-
-    type tl = (Lang.Loc.tl, Timestamp.tl) Storage.tl
-
-    type ti = (Lang.Loc.tt, Timestamp.tt, Lang.Loc.tl, Timestamp.tl) Storage.ti
+    include Utils.Logic
 
     val bottom : unit -> ti
 
     val allocate : Lang.Loc.ti list -> ti
 
     val from_assoc : (Lang.Loc.ti * Timestamp.ti) list -> ti
-
-    val reify : MiniKanren.helper -> ti -> tl
-
-    val inj : tt -> tl
-
-    val pprint : Format.formatter -> tl -> unit
 
     val tso     : ti ->       Lang.Loc.ti -> Timestamp.ti -> MiniKanren.goal
     val updateo : ti -> ti -> Lang.Loc.ti -> Timestamp.ti -> MiniKanren.goal
@@ -116,27 +96,11 @@ module ViewFront :
 
 module ThreadFront :
   sig
-    type tt
-
-    type tl = inner MiniKanren.logic
-      and inner
-
-    type ti = (tt, tl) MiniKanren.injected
+    include Utils.Logic
 
     (** [preallocate vars atomics] creates new thread front
           and allocates a storage for [registers] and viewfronts of [atomics] *)
     val preallocate : Lang.Register.ti list -> Lang.Loc.ti list -> ti
-
-    val reify : MiniKanren.helper -> ti -> tl
-
-    val inj : tt -> tl
-
-    (* val create : ?rel: (string * int) list ->
-                 ?acq: (string * int) list ->
-                  (string * int) list ->
-                  (string * int) list -> tt *)
-
-    val pprint : Format.formatter -> tl -> unit
 
     (** [get_varo thrd var val] performs read of thread-local register *)
     val reado : ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
@@ -196,37 +160,21 @@ module ThreadLocalStorage(T : ThreadLocalData) :
     include Utils.Logic
 
     val nil   : unit -> ti
-    val leaf  : content -> ti
-    val node  : ?left:ti -> ?right:ti -> content -> ti
+    val leaf  : T.ti -> ti
+    val node  : ?left:ti -> ?right:ti -> T.ti -> ti
 
     val geto : ti       -> Lang.ThreadID.ti -> T.ti -> MiniKanren.goal
     val seto : ti -> ti -> Lang.ThreadID.ti -> T.ti -> MiniKanren.goal
 
     val spawno : ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
-
     val joino  : ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
   end
 
 module LocStory :
   sig
-    type tt
-
-    type tl = inner MiniKanren.logic
-      and inner
-
-    type ti = (tt, tl) MiniKanren.injected
+    include Utils.Logic
 
     val preallocate : Lang.Loc.ti list -> ti
-
-    val reify : MiniKanren.helper -> ti -> tl
-
-    val inj : tt -> tl
-
-    (* val to_logic : tt -> tl *)
-
-    (* val create : int -> (int * int * ViewFront.tt) list -> tt *)
-
-    val pprint : Lang.Loc.tl -> Format.formatter -> tl -> unit
 
     (** [last_tso story ts] gets timestamp [ts] of last message written to [story] *)
     val last_tso : ti -> Timestamp.ti -> MiniKanren.goal
@@ -249,23 +197,9 @@ module LocStory :
 
 module MemStory :
   sig
-    type tt = (Lang.Loc.tt, LocStory.tt) Storage.tt
-
-    type tl = (Lang.Loc.tl, LocStory.tl) Storage.tl
-
-    type ti = (Lang.Loc.tt, LocStory.tt, Lang.Loc.tl, LocStory.tl) Storage.ti
+    include Utils.Logic
 
     val preallocate : Lang.Loc.ti list -> ti
-
-    val reify : MiniKanren.helper -> ti -> tl
-
-    val inj : tt -> tl
-
-    (* val to_logic : tt -> tl *)
-
-    (* val create : (string * LocStory.tt) list -> tt *)
-
-    val pprint : Format.formatter -> tl -> unit
 
     val last_tso : ti -> Lang.Loc.ti -> Timestamp.ti -> MiniKanren.goal
 

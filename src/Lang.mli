@@ -10,7 +10,6 @@ module Register :
     val reg : string -> ti
 
     val inj : tt -> tl
-
     val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
@@ -28,7 +27,6 @@ module Loc :
     val loc : string -> ti
 
     val inj : tt -> tl
-
     val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
@@ -49,7 +47,6 @@ module Value :
     val succ : ti -> ti
 
     val inj : tt -> tl
-
     val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
@@ -75,7 +72,6 @@ module MemOrder :
     val mo : string -> ti
 
     val inj : tt -> tl
-
     val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
@@ -92,7 +88,6 @@ module Op :
     val op : string -> ti
 
     val inj : tt -> tl
-
     val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
@@ -100,12 +95,7 @@ module Op :
 
 module Term :
   sig
-    type tt
-
-    type tl = inner MiniKanren.logic
-      and inner
-
-    type ti = (tt, tl) Semantics.Term.ti
+    include Utils.Logic
 
     val const   : Value.ti -> ti
     val var     : Register.ti -> ti
@@ -123,16 +113,7 @@ module Term :
     val skip    : unit -> ti
     val stuck   : unit -> ti
 
-    val inj : tt -> tl
-
-    (* val to_logic   : tt -> tl
-    val from_logic : tl -> tt *)
-
-    val reify : MiniKanren.helper -> ti -> tl
-
     val show : tl -> string
-
-    val pprint : Format.formatter -> tl -> unit
   end
 
 module ThreadID :

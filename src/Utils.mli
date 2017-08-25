@@ -15,7 +15,7 @@ module type Logic =
 
 module Trace(T : Logic) :
   sig
-    val trace : Format.formatter -> (tt, tl) MiniKanren.refined -> unit
+    val trace : Format.formatter -> (T.tt, T.tl) MiniKanren.refined -> unit
   end
 
 val pprint_logic : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a MiniKanren.logic -> unit

@@ -65,7 +65,7 @@ type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule =
   ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
 
 (** Configuration - special case of Term for languages that distinguish a program and a state/environment *)
-module Configuration =
+module Configuration (P : Utils.Logic) (S : Utils.Logic) =
   struct
     module T =
       struct
@@ -80,25 +80,36 @@ module Configuration =
     include T
     include Fmap2(T)
 
-    type ('pt, 'st) tt = ('pt, 'st) t
-    type ('pl, 'sl) tl = ('pl, 'sl) t MiniKanren.logic
+    type tt = (P.tt, S.tt) t
+    type tl =  inner MiniKanren.logic
+      and inner = (P.tl, S.tl) t
 
-    type ('pt, 'st, 'pl, 'sl) ti = (('pt, 'st) tt, ('pl, 'sl) tl) MiniKanren.injected
+    type ti = (tt, tl) MiniKanren.injected
 
     type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule' = ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule
 
-    type ('pt, 'ct, 'st, 'cst, 'pl, 'cl, 'sl, 'csl) rule =
+    type ('ct, 'cst, 'cl, 'csl) rule =
       ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti ->
-      ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> ('pt, 'pl) MiniKanren.injected -> ('st, 'sl) MiniKanren.injected -> MiniKanren.goal
+      P.ti -> S.ti -> P.ti -> S.ti -> MiniKanren.goal
 
     let cfg prog state =
       inj @@ distrib @@ { prog; state }
 
-    let inj inj_p inj_s t = Value (T.fmap inj_p inj_s t)
+    let decompose = function
+      | Value {prog; state} -> (prog, state)
+      | Var (_,_) -> invalid_arg "Unexpected free variable"
 
-    let reify reify_p reify_s = reify reify_p reify_s
+    let inj t = Value (T.fmap P.inj S.inj t)
 
-    let programo t prog =
+    let reify = reify P.reify S.reify
+
+    let pprint =
+      let pp ff { prog; state; } =
+        Format.fprintf ff "(%a, %a)" P.pprint prog S.pprint state
+      in
+      Utils.pprint_logic pp
+
+    let progo t prog =
       fresh (state)
         (t === cfg prog state)
 
@@ -164,7 +175,7 @@ let make_eval stepo t t' =
   let evalo = ref (fun term term' -> assert false) in
   let evalo_tabled = (fun term term' -> tabled2 tbl (evalo_norec !evalo) term term') in
   evalo := evalo_tabled;
-  evalo_tabled t t' 
+  evalo_tabled t t'
 
 
 

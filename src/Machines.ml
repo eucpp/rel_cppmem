@@ -4,12 +4,7 @@ open Utils
 
 module type Sequential =
   sig
-    type tt
-
-    type tl = inner MiniKanren.logic
-      and inner
-
-    type ti = (tt, tl) MiniKanren.injected
+    include Utils.Logic
 
     val reado  : ti ->       Lang.ThreadID.ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
     val writeo : ti -> ti -> Lang.ThreadID.ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
@@ -66,11 +61,12 @@ module Front =
         na = fc na;
         sc = fd sc;
       }
-
     end
 
+    module TLS = ThreadLocalStorage(ThreadFront)
+
     type tt = (
-      ThreadFront.tt ThreadLocalStorage.tt,
+      TLS.tt,
       MemStory.tt,
       ViewFront.tt,
       ViewFront.tt
@@ -78,7 +74,7 @@ module Front =
 
     type tl = inner MiniKanren.logic
       and inner = (
-        ThreadFront.tl ThreadLocalStorage.tl,
+        TLS.tl,
         MemStory.tl,
         ViewFront.tl,
         ViewFront.tl
@@ -90,10 +86,10 @@ module Front =
 
     let mem_state thrds story na sc = inj @@ distrib @@ T.({thrds; story; na; sc;})
 
-    let reify = reify (ThreadLocalStorage.reify (ThreadFront.reify)) (MemStory.reify) (ViewFront.reify) (ViewFront.reify)
+    let reify = reify (TLS.reify) (MemStory.reify) (ViewFront.reify) (ViewFront.reify)
 
     let inj x =
-      to_logic @@ T.fmap (ThreadLocalStorage.inj (ThreadFront.inj)) (MemStory.inj) (ViewFront.inj) (ViewFront.inj) x
+      to_logic @@ T.fmap (TLS.inj) (MemStory.inj) (ViewFront.inj) (ViewFront.inj) x
 
     (* let to_logic {T.thrds = thrds; T.story = story; T.na = na; T.sc = sc} =
       Value {
@@ -114,7 +110,7 @@ module Front =
 
     let preallocate vars atomics =
       let thrd  = ThreadFront.preallocate vars atomics in
-      let thrds = ThreadLocalStorage.leaf thrd in
+      let thrds = TLS.leaf thrd in
       let story = MemStory.preallocate atomics in
       let na    = ViewFront.allocate atomics in
       let sc    = ViewFront.allocate atomics in
@@ -123,7 +119,7 @@ module Front =
     let pprint =
       let pp ff {T.thrds = thrds; T.story = story; T.na = na; T.sc = sc;} =
         Format.fprintf ff "@[<v>%a@;%a@;@[<v>NA-front :@;<1 4>%a@;@]@;@[<v>SC-front :@;<1 4>%a@;@]@]"
-          (ThreadLocalStorage.pprint (ThreadFront.pprint)) thrds
+          TLS.pprint thrds
           MemStory.pprint story
           ViewFront.pprint na
           ViewFront.pprint sc
@@ -133,13 +129,13 @@ module Front =
     let get_thrdo t thrdId thrd =
       fresh (tree story na sc)
         (t === mem_state tree story na sc)
-        (ThreadLocalStorage.geto tree thrdId thrd)
+        (TLS.geto tree thrdId thrd)
 
     let set_thrdo t t' thrdId thrd =
       fresh (tree tree' story na sc)
         (t  === mem_state tree  story na sc)
         (t' === mem_state tree' story na sc)
-        (ThreadLocalStorage.seto tree tree' thrdId thrd)
+        (TLS.seto tree tree' thrdId thrd)
 
     let reado t thrdId var value =
       fresh (thrd)
@@ -168,7 +164,7 @@ module Front =
       fresh (tree story na sc thrd ts vf)
         (t === t')
         (t === mem_state tree story na sc)
-        (ThreadLocalStorage.geto tree thrdId thrd)
+        (TLS.geto tree thrdId thrd)
         (ThreadFront.tso thrd loc ts)
         (MemStory.last_tso story loc ts)
         (na_awareo na loc ts)
@@ -178,8 +174,8 @@ module Front =
       fresh (tree tree' story story' na na' sc thrd thrd' ts ts' rel vf)
         (t  === mem_state tree  story  na  sc)
         (t' === mem_state tree' story' na' sc)
-        (ThreadLocalStorage.geto tree       thrdId thrd)
-        (ThreadLocalStorage.seto tree tree' thrdId thrd')
+        (TLS.geto tree       thrdId thrd)
+        (TLS.seto tree tree' thrdId thrd')
         (ThreadFront.tso thrd loc ts)
         (MemStory.last_tso story loc ts)
         (na_awareo na loc ts)
@@ -198,7 +194,7 @@ module Front =
       fresh (tree story na sc thrd ts)
         (t === t')
         (t === mem_state tree story na sc)
-        (ThreadLocalStorage.geto tree thrdId thrd)
+        (TLS.geto tree thrdId thrd)
         (ThreadFront.tso thrd loc ts)
         (conde [
           (mo === !!Lang.MemOrder.NA ) &&& ((na_stucko na loc ts) ||| (not_last_tso story loc ts));
@@ -213,8 +209,8 @@ module Front =
       fresh (tree tree' story story' na sc thrd thrd' thrd'' last_ts vf)
         (t  === mem_state tree  story na sc)
         (t' === mem_state tree' story na sc)
-        (ThreadLocalStorage.geto tree       thrdId thrd)
-        (ThreadLocalStorage.seto tree tree' thrdId thrd'')
+        (TLS.geto tree       thrdId thrd)
+        (TLS.seto tree tree' thrdId thrd'')
         (ThreadFront.tso thrd loc last_ts)
         (na_awareo na loc last_ts)
         (MemStory.loado story loc last_ts ts value vf)
@@ -225,8 +221,8 @@ module Front =
       fresh (tree tree' story story' na sc thrd thrd' last_ts rel)
         (t  === mem_state tree  story  na sc)
         (t' === mem_state tree' story' na sc)
-        (ThreadLocalStorage.geto tree       thrdId thrd)
-        (ThreadLocalStorage.seto tree tree' thrdId thrd')
+        (TLS.geto tree       thrdId thrd)
+        (TLS.seto tree tree' thrdId thrd')
         (ThreadFront.tso thrd loc last_ts)
         (na_awareo na loc last_ts)
         (MemStory.next_tso story loc ts)
@@ -238,16 +234,16 @@ module Front =
       fresh (tree tree' story thrd thrd' na sc)
         (t  === mem_state  tree  story na sc)
         (t' === mem_state  tree' story na sc)
-        (ThreadLocalStorage.geto tree       thrdId thrd )
-        (ThreadLocalStorage.seto tree tree' thrdId thrd')
+        (TLS.geto tree       thrdId thrd )
+        (TLS.seto tree tree' thrdId thrd')
         (ThreadFront.fence_acqo  thrd thrd')
 
     let fence_relo ?loc t t' thrdId =
       fresh (tree tree' story na sc thrd thrd')
         (t  === mem_state  tree  story na sc)
         (t' === mem_state  tree' story na sc)
-        (ThreadLocalStorage.geto tree       thrdId thrd )
-        (ThreadLocalStorage.seto tree tree' thrdId thrd')
+        (TLS.geto tree       thrdId thrd )
+        (TLS.seto tree tree' thrdId thrd')
         (ThreadFront.fence_relo  thrd thrd' ?loc)
 
     let load_acqo t t'' thrdId loc value ts =
@@ -343,11 +339,11 @@ module Front =
       fresh (tree tree' story na sc)
         (t  === mem_state tree  story na sc)
         (t' === mem_state tree' story na sc)
-        (ThreadLocalStorage.spawno (ThreadFront.spawno) tree tree' thrdId)
+        (TLS.spawno tree tree' thrdId)
 
     let joino t t' thrdId =
       fresh (tree tree' story na sc)
         (t  === mem_state tree  story na sc)
         (t' === mem_state tree' story na sc)
-        (ThreadLocalStorage.joino (ThreadFront.joino) tree tree' thrdId)
+        (TLS.joino tree tree' thrdId)
   end
