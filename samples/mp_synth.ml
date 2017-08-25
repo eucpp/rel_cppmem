@@ -42,4 +42,4 @@ let () =
             (q'' === M.terminal rc state'')
             (M.evalo q q'')
         )))
-    (fun qs -> List.iter pprint @@ Stream.take ~n:1 qs)
+    (fun qs -> List.iter pprint @@ Stream.take ~n:3 qs)

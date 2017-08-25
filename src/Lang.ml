@@ -249,11 +249,7 @@ module Term =
         (e === read mo x);
 
       fresh (x mo n)
-        (e  === binop !!Op.EQ (read mo x) (const n))
-        (conde [
-          (n === Nat.one);
-          (n === Nat.zero);
-        ])
+        (e  === binop !!Op.EQ (read mo x) (const Nat.zero));
     ]
 
     let rec stmto t = conde [

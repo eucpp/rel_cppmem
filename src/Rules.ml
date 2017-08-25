@@ -118,7 +118,7 @@ module Basic (Machine : Machines.Sequential) =
     let whileo ctrs ctx t s t' s' =
       fresh (e body thrdId)
         (t  === while' e body)
-        (t' === if' e body t)
+        (t' === if' e (seq body t) t)
         (s  === s')
         (check_thrdo ctrs ctx thrdId)
 
