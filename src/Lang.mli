@@ -103,6 +103,7 @@ module Term :
     val asgn    : ti -> ti -> ti
     val pair    : ti -> ti -> ti
     val if'     : ti -> ti -> ti -> ti
+    val while'  : ti -> ti -> ti
     val repeat  : ti -> ti
     val read    : MemOrder.ti -> Loc.ti -> ti
     val write   : MemOrder.ti -> Loc.ti -> ti -> ti
@@ -114,6 +115,8 @@ module Term :
     val stuck   : unit -> ti
 
     val show : tl -> string
+
+    val enumero : ti -> MiniKanren.goal
   end
 
 module ThreadID :

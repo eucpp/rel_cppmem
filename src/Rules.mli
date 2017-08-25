@@ -35,6 +35,7 @@ module Basic (Machine : Machines.Sequential) :
     val asgno   : rule
     val ifo     : rule
     val repeato : rule
+    val whileo  : rule
     val seqo    : rule
 
     val all : rule list

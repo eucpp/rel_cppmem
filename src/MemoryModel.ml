@@ -9,6 +9,8 @@ module ReleaseAcquire =
 
     let init ~regs ~locs p = CFG.cfg p (Machines.Front.preallocate regs locs)
 
+    let terminal rc state = CFG.cfg rc state
+
     let inj = CFG.inj
     let reify = CFG.reify
 

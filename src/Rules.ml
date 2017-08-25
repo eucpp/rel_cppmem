@@ -107,13 +107,22 @@ module Basic (Machine : Machines.Sequential) =
     let binopo = CFG.lift_rule binopo
 
     let repeato ctrs ctx t s t' s' =
-      fresh (body thrdId)
-        (t  === repeat body)
-        (t' === if' body (skip ()) t)
+      fresh (e thrdId)
+        (t  === repeat e)
+        (t' === if' e (skip ()) t)
         (s  === s')
         (check_thrdo ctrs ctx thrdId)
 
     let repeato = CFG.lift_rule repeato
+
+    let whileo ctrs ctx t s t' s' =
+      fresh (e body thrdId)
+        (t  === while' e body)
+        (t' === if' e body t)
+        (s  === s')
+        (check_thrdo ctrs ctx thrdId)
+
+    let whileo = CFG.lift_rule whileo
 
     let ifo ctrs ctx t s t' s' =
       fresh (e n btrue bfalse thrdId)

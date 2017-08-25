@@ -154,6 +154,7 @@ module Term =
           | Pair     of 't * 't
           | If       of 't * 't * 't
           | Repeat   of 't
+          | While    of 't * 't
           | Read     of 'mo * 'loc
           | Write    of 'mo * 'loc * 't
           | Cas      of 'mo * 'mo * 'loc * 't * 't
@@ -182,6 +183,7 @@ module Term =
     let asgn l r            = inj @@ FT.distrib @@ T.Asgn (l, r)
     let pair l r            = inj @@ FT.distrib @@ T.Pair (l, r)
     let if' cond l r        = inj @@ FT.distrib @@ T.If (cond, l, r)
+    let while' e t          = inj @@ FT.distrib @@ T.While (e, t)
     let repeat t            = inj @@ FT.distrib @@ T.Repeat t
     let read mo l           = inj @@ FT.distrib @@ T.Read (mo, l)
     let write mo l t        = inj @@ FT.distrib @@ T.Write (mo, l, t)
@@ -241,6 +243,52 @@ module Term =
       in
       sl
     )
+
+    let cond_expro e = conde [
+      fresh (x mo)
+        (e === read mo x);
+
+      fresh (x mo n)
+        (e  === binop !!Op.EQ (read mo x) (const n))
+        (conde [
+          (n === Nat.one);
+          (n === Nat.zero);
+        ])
+    ]
+
+    let rec stmto t = conde [
+      fresh (x mo n)
+        (t === write mo x (const n))
+        (conde [
+          (n === Nat.one);
+          (n === Nat.zero);
+        ]);
+
+      fresh (e)
+        (t === repeat e)
+        (cond_expro e);
+
+      fresh (e t1 t2)
+        (t === if' e t1 t2)
+        (cond_expro e)
+        (seqo t1)
+        (seqo t2);
+
+      fresh (e body)
+        (t === while' e body)
+        (cond_expro e)
+        (seqo body)
+    ] and seqo t = conde [
+      (stmto t);
+
+      fresh (t1 t2)
+        (t === seq t1 t2)
+        (stmto t1)
+        (seqo t2)
+    ]
+
+    let enumero = seqo
+
   end
 
 module ThreadID =
