@@ -45,6 +45,105 @@ module type ReleaseAcquire =
     val store_relo : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
   end
 
+  module GlobalStore =
+    struct
+      module T = struct
+        type ('a, 'b) t = {
+          thrds : 'a;
+          sc    : 'b;
+        }
+
+        let fmap fa fb {thrds; sc} = {
+          thrds = fa thrds;
+          sc = fb sc;
+        }
+      end
+
+      module TLS = ThreadLocalStorage(RegisterStorage)
+
+      type tt = (
+        TLS.tt,
+        ValueStorage.tt
+      ) T.t
+
+      type tl = inner MiniKanren.logic
+        and inner = (
+          TLS.tl,
+          ValueStorage.tl
+        ) T.t
+
+      type ti = (tt, tl) MiniKanren.injected
+
+      include Fmap2(T)
+
+      let mem_state thrds sc = inj @@ distrib @@ T.({thrds; sc;})
+
+      let reify = reify (TLS.reify) (ValueStorage.reify)
+
+      let inj x =
+        to_logic @@ T.fmap (TLS.inj) (ValueStorage.inj) x
+
+      let preallocate vars atomics =
+        let thrd  = RegisterStorage.allocate vars in
+        let thrds = TLS.leaf thrd in
+        let sc    = ValueStorage.allocate atomics in
+        mem_state thrds sc
+
+      let pprint =
+        let pp ff {T.thrds = thrds; T.sc = sc;} =
+          Format.fprintf ff "@[<v>%a@;@[<v>Memory :@;<1 4>%a@;@]@]"
+            TLS.pprint thrds
+            ValueStorage.pprint sc
+        in
+        pprint_logic pp
+
+      let get_thrdo t thrdId thrd =
+        fresh (tree sc)
+          (t === mem_state tree sc)
+          (TLS.geto tree thrdId thrd)
+
+      let set_thrdo t t' thrdId thrd =
+        fresh (tree tree' sc)
+          (t  === mem_state tree  sc)
+          (t' === mem_state tree' sc)
+          (TLS.seto tree tree' thrdId thrd)
+
+      let reado t thrdId var value =
+        fresh (thrd)
+          (get_thrdo t thrdId thrd)
+          (RegisterStorage.reado thrd var value)
+
+      let writeo t t' thrdId var value =
+        fresh (thrd thrd')
+          (get_thrdo t    thrdId thrd )
+          (set_thrdo t t' thrdId thrd')
+          (RegisterStorage.writeo thrd thrd' var value)
+
+      let load_sco t t' thrdId loc value =
+        fresh (tree sc)
+          (t === t')
+          (t === mem_state tree sc)
+          (ValueStorage.reado sc loc value)
+
+      let store_sco t t' thrdId loc value =
+        fresh (tree sc sc')
+          (t  === mem_state tree sc )
+          (t' === mem_state tree sc')
+          (ValueStorage.writeo sc sc' loc value)
+
+      let spawno t t' thrdId =
+        fresh (tree tree' sc)
+          (t  === mem_state tree  sc)
+          (t' === mem_state tree' sc)
+          (TLS.spawno tree tree' thrdId)
+
+      let joino t t' thrdId =
+        fresh (tree tree' sc)
+          (t  === mem_state tree  sc)
+          (t' === mem_state tree' sc)
+          (TLS.joino tree tree' thrdId)
+    end
+
 module Front =
   struct
     module T = struct

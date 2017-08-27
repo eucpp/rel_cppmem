@@ -52,7 +52,21 @@ module RegisterStorage :
     val reado  : ti ->       Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
     val writeo : ti -> ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
 
-    val reseto : ti -> ti -> MiniKanren.goal
+    val spawno : ti -> ti -> ti -> MiniKanren.goal
+
+    val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal 
+  end
+
+module ValueStorage :
+  sig
+    include Utils.Logic
+
+    val allocate : Lang.Loc.ti list -> ti
+
+    val from_assoc : (Lang.Loc.ti * Lang.Value.ti) list -> ti
+
+    val reado  : ti ->       Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val writeo : ti -> ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
   end
 
 module Timestamp :

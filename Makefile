@@ -33,6 +33,14 @@ test: relcppmem plugin
 
 ################################# Samples ####################################
 
+sb_eval : relcppmem plugin
+	$(OCB) -I samples sb_eval.native
+	time ./sb_eval.native
+
+sc_sb_eval : relcppmem plugin
+	$(OCB) -I samples sc_sb_eval.native
+	time ./sc_sb_eval.native
+
 mp_eval : relcppmem plugin
 	$(OCB) -I samples mp_eval.native
 	time ./mp_eval.native

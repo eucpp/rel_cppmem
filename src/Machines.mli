@@ -49,6 +49,13 @@ module type ReleaseAcquire =
     val store_relo : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
   end
 
+module GlobalStore : 
+  sig
+    include SequentialConsistent
+
+    val preallocate : Lang.Register.ti list -> Lang.Loc.ti list -> ti
+  end
+
 (** Front machine - this machines is capable to simuate Release-Acquire (or stronger) memory model and also is able to detect data-races between non-atomic acesses.
       It supports sequaltial-consistent read/writes, release write and acquire read, non-atomic read/writes.
       Internally this machines maintains a history of all writes for each location.

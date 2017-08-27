@@ -99,6 +99,37 @@ module RegisterStorage =
     let reseto = Storage.mapo (fun k v k' v' ->
       (k === k') &&& (v' === Lang.Value.integer 0)
     )
+
+    let spawno regs regs1 regs2 =
+        (regs1 === regs2) &&&
+        (reseto regs regs1)
+
+    let joino regs regs' regs1 regs2 =
+        (regs === regs')
+  end
+
+module ValueStorage =
+  struct
+    type tt = (Lang.Loc.tt, Lang.Value.tt) Storage.tt
+
+    type tl = (Lang.Loc.tl, Lang.Value.tl) Storage.tl
+      and inner = (Lang.Loc.tl, Lang.Value.tl) Storage.inner
+
+    type ti = (Lang.Loc.tt, Lang.Value.tt, Lang.Loc.tl, Lang.Value.tl) Storage.ti
+
+    let allocate = Storage.allocate (Lang.Value.integer 0)
+
+    let from_assoc = Storage.from_assoc
+
+    let reify = Storage.reify (Lang.Loc.reify) (Lang.Value.reify)
+
+    let inj = Storage.inj Lang.Loc.inj Lang.Value.inj
+
+    let pprint =
+      Storage.pprint (fun ff (k, v) -> Format.fprintf ff "%s=%s" (Lang.Loc.show k) (Lang.Value.show v))
+
+    let reado  = Storage.geto
+    let writeo = Storage.seto
   end
 
 module Timestamp =
@@ -345,22 +376,23 @@ module ThreadFront =
         (prm   === nil ()) *)
 
     let spawno thrd child1 child2 =
-      fresh (regs regs' curr rel acq)
+      fresh (regs regs1 regs2 curr rel acq)
         (thrd   === thrd_state regs  curr rel acq)
-        (child1 === thrd_state regs' curr rel acq)
-        (child1 === child2)
-        (RegisterStorage.reseto regs regs')
+        (child1 === thrd_state regs1 curr rel acq)
+        (child2 === thrd_state regs2 curr rel acq)
+        (RegisterStorage.spawno regs regs1 regs2)
 
     let joino thrd thrd' child1 child2 =
-      fresh (regs       regs1 regs2
+      fresh (regs regs' regs1 regs2
              curr curr' curr1 curr2
              rel  rel' rel1 rel2
              acq  acq' acq1 acq2
              prm prm1 prm2)
         (thrd   === thrd_state regs  curr  rel  acq )
-        (thrd'  === thrd_state regs  curr' rel' acq')
+        (thrd'  === thrd_state regs' curr' rel' acq')
         (child1 === thrd_state regs1 curr1 rel1 acq1)
         (child2 === thrd_state regs2 curr2 rel2 acq2)
+        (RegisterStorage.joino regs regs' regs1 regs2)
         (ViewFront.mergeo curr1 curr2 curr')
         (ViewFront.mergeo rel1  rel2  rel' )
         (ViewFront.mergeo acq1  acq2  acq' )
