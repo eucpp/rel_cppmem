@@ -17,7 +17,7 @@ module Register =
 
     let inj = to_logic
 
-    let show = GT.show(logic) (GT.show(GT.string))
+    let show = GT.show(logic) (fun s -> s)
   end
 
 module Loc =
@@ -35,7 +35,7 @@ module Loc =
 
     let inj = to_logic
 
-    let show = GT.show(logic) (GT.show(GT.string))
+    let show = GT.show(logic) (fun s -> s)
   end
 
 module Value =
@@ -58,7 +58,10 @@ module Value =
 
     (* let to_logic = Nat.to_logic *)
 
-    let show = GT.show(Nat.logic)
+    (* let show = GT.show(Nat.logic) *)
+    let show n =
+      pprint_nat Format.str_formatter n;
+      Format.flush_str_formatter ()
 
     let addo = Nat.addo
     let mulo = Nat.mulo

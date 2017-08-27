@@ -16,7 +16,7 @@ module ReleaseAcquire =
 
     let pprint ff cfg =
       let prog, state = CFG.decompose cfg in
-      Format.printf "Return: %a\nState:\n %a" Lang.Term.pprint prog Machines.Front.pprint state
+      Format.fprintf ff "@[<v>Return:@;<1 2>%a@;State:@;<1 2>%a@]" Lang.Term.pprint prog Machines.Front.pprint state
 
     module Basic = Rules.Basic(Machines.Front)
     module ThreadSpawning = Rules.ThreadSpawning(Machines.Front)

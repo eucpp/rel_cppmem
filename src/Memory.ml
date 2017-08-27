@@ -116,7 +116,10 @@ module Timestamp =
 
     let inj = Nat.to_logic
 
-    let show = GT.show(Nat.logic)
+    (* let show = GT.show(Nat.logic) *)
+    let show n =
+      pprint_nat Format.str_formatter n;
+      Format.flush_str_formatter ()
 
     let (<)  = Nat.(<)
     let (<=) = Nat.(<=)
@@ -241,7 +244,7 @@ module ThreadFront =
 
     let pprint =
       let pp ff { T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; } =
-        Format.fprintf ff "@[<v>reg: %a @; cur: %a @; acq: %a @; rel: %a @]"
+        Format.fprintf ff "@[<v>reg: %a @;cur: %a @;acq: %a @;rel: %a @]"
           RegisterStorage.pprint regs
           ViewFront.pprint curr
           ViewFront.pprint acq
@@ -564,7 +567,7 @@ module LocStory =
     let loc_story tsnext story = inj @@ distrib @@ {T.tsnext = tsnext; T.story = story}
 
     let preallocate atomics =
-      let vf = ViewFront.allocate atomics in
+      let vf = ViewFront.bottom () in
       inj @@ distrib @@ {
         T.tsnext = Timestamp.ts 1;
         T.story = inj_listi [Cell.cell (Timestamp.ts 0) (Lang.Value.integer 0) vf];
@@ -642,8 +645,8 @@ module MemStory =
     (* let create = List.of_list (fun x -> x) *)
 
     let pprint ff story =
-      let pp ff (loc, story) = Format.fprintf ff "%s: [%a]" (Lang.Loc.show loc) LocStory.pprint story in
-      Format.fprintf ff "@[<v>Memory :@;<1 4>%a@;@]" (Storage.pprint pp) story
+      let pp ff (loc, story) = Format.fprintf ff "%s: %a" (Lang.Loc.show loc) LocStory.pprint story in
+      Format.fprintf ff "@[<v>Memory :@;%a@;@]" (Storage.pprint pp) story
 
     let last_tso t loc ts =
       fresh (story)
