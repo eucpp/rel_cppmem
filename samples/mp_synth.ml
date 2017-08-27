@@ -31,8 +31,8 @@ let () =
   run q
     (fun q  ->
       fresh (q' h1 h2 state)
-        (Term.enumero h1)
-        (Term.enumero h2)
+        (Term.seq_stmto h1)
+        (Term.seq_stmto h2)
         (q  === M.init (mp_sketch h1 h2) ~regs ~locs)
         (q' === M.terminal (const @@ integer 1) state)
         (M.evalo q q')

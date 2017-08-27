@@ -247,7 +247,7 @@ module Term =
       sl
     )
 
-    let cond_expro e = conde [
+    let bool_expro e = conde [
       fresh (x mo)
         (e === read mo x);
 
@@ -265,28 +265,26 @@ module Term =
 
       fresh (e)
         (t === repeat e)
-        (cond_expro e);
+        (bool_expro e);
 
       fresh (e t1 t2)
         (t === if' e t1 t2)
-        (cond_expro e)
-        (seqo t1)
-        (seqo t2);
+        (bool_expro e)
+        (seq_stmto t1)
+        (seq_stmto t2);
 
       fresh (e body)
         (t === while' e body)
-        (cond_expro e)
-        (seqo body)
-    ] and seqo t = conde [
+        (bool_expro e)
+        (seq_stmto body)
+    ] and seq_stmto t = conde [
       (stmto t);
 
       fresh (t1 t2)
         (t === seq t1 t2)
         (stmto t1)
-        (seqo t2)
+        (seq_stmto t2)
     ]
-
-    let enumero = seqo
 
   end
 

@@ -297,8 +297,8 @@ module Front =
         (ThreadFront.tso thrd loc ts)
         (conde [
           (mo === !!Lang.MemOrder.NA ) &&& ((na_stucko na loc ts) ||| (not_last_tso story loc ts));
-          (* (mo === !!Lang.MemOrder.ACQ) &&& (na_stucko na loc ts); *)
-          (* (mo === !!Lang.MemOrder.SC ) &&& (na_stucko na loc ts); *)
+          (mo === !!Lang.MemOrder.ACQ) &&& (na_stucko na loc ts);
+          (mo === !!Lang.MemOrder.SC ) &&& (na_stucko na loc ts);
         ])
 
     let load_data_raceo  = data_raceo

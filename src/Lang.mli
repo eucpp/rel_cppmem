@@ -116,7 +116,9 @@ module Term :
 
     val show : tl -> string
 
-    val enumero : ti -> MiniKanren.goal
+    val bool_expro  : ti -> MiniKanren.goal
+    val stmto       : ti -> MiniKanren.goal
+    val seq_stmto   : ti -> MiniKanren.goal
   end
 
 module ThreadID :

@@ -49,17 +49,21 @@ mp_synth : relcppmem plugin
 	$(OCB) -I samples mp_synth.native
 	time ./mp_synth.native
 
-mp_synthesis: relcppmem plugin
-	$(OCB) -I samples mp_synthesis.native
-	time ./mp_synthesis.native
+mutex_eval: relcppmem plugin
+	$(OCB) -I samples mutex_eval.native
+	time ./mutex_eval.native
 
-mp_sc_synthesis: relcppmem plugin
-	$(OCB) -I samples mp_sc_synthesis.native
-	time ./mp_sc_synthesis.native
+mutex_synth: relcppmem plugin
+	$(OCB) -I samples mutex_synth.native
+	time ./mutex_synth.native
 
-mutex_synthesis: relcppmem plugin
-	$(OCB) -I samples mutex_synthesis.native
-	time ./mutex_synthesis.native
+# mp_synthesis: relcppmem plugin
+# 	$(OCB) -I samples mp_synthesis.native
+# 	time ./mp_synthesis.native
+
+# mp_sc_synthesis: relcppmem plugin
+# 	$(OCB) -I samples mp_sc_synthesis.native
+# 	time ./mp_sc_synthesis.native
 
 ######################## Installation related stuff ##########################
 INSTALL_TARGETS = META \
