@@ -253,7 +253,16 @@ module SequentialConsistent (Machine : Machines.SequentialConsistent) =
 
     let store_sco = CFG.lift_rule store_sco
 
-    let all = [load_sco; store_sco;]
+    let cas_sco ctrs ctx t s t' s' =
+      fresh (l e d v thrdId)
+        (t  === cas !!SC !!SC l (const e) (const d))
+        (t' === const v)
+        (check_thrdo ctrs ctx thrdId)
+        (Machine.cas_sco s s' thrdId l e d v)
+
+    let cas_sco = CFG.lift_rule cas_sco
+
+    let all = [load_sco; store_sco; cas_sco;]
   end
 
 module ReleaseAcquire (Machine : Machines.ReleaseAcquire) =

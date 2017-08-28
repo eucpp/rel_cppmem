@@ -35,6 +35,8 @@ module type SequentialConsistent =
 
     val load_sco  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
     val store_sco : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+
+    val cas_sco : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> Lang.Value.ti -> Lang.Value.ti -> MiniKanren.goal
   end
 
 module type ReleaseAcquire =
@@ -131,6 +133,17 @@ module type ReleaseAcquire =
           (t' === mem_state tree sc')
           (ValueStorage.writeo sc sc' loc value)
 
+      let cas_sco t t' thrdId loc expected desired value =
+      fresh (tree sc sc' b)
+        (t  === mem_state tree sc )
+        (t' === mem_state tree sc')
+        (ValueStorage.reado sc loc value)
+        (Lang.Value.eqo value expected b)
+        (conde [
+          (b === !!true)  &&& (ValueStorage.writeo sc sc' loc desired);
+          (b === !!false) &&& (sc === sc');
+        ])
+
       let spawno t t' thrdId =
         fresh (tree tree' sc)
           (t  === mem_state tree  sc)
@@ -189,23 +202,6 @@ module Front =
 
     let inj x =
       to_logic @@ T.fmap (TLS.inj) (MemStory.inj) (ViewFront.inj) (ViewFront.inj) x
-
-    (* let to_logic {T.thrds = thrds; T.story = story; T.na = na; T.sc = sc} =
-      Value {
-        T.thrds = ThreadLocalStorage.to_logic thrds;
-        T.story = MemStory.to_logic story;
-        T.na    = ViewFront.to_logic na;
-        T.sc    = ViewFront.to_logic sc;
-      } *)
-
-    (* let refine rr = rr#refine (reify ThreadLocalStorage.reify MemStory.reify ViewFront.reify ViewFront.reify) ~inj:to_logic *)
-
-    (* let create ?(na=ViewFront.from_list []) ?(sc=ViewFront.from_list []) thrds story = {
-      T.thrds = thrds;
-      T.story = story;
-      T.na    = na;
-      T.sc    = sc;
-    } *)
 
     let preallocate vars atomics =
       let thrd  = ThreadFront.preallocate vars atomics in
@@ -363,13 +359,6 @@ module Front =
         (sc_ts <= ts)
     )
 
-    (* let read_sco t t' thrdId loc value ts = Nat.(
-      fresh (tree story na sc)
-        (t === t')
-        (t === mem_state tree story na sc)
-        (VarList.geto sc loc value)
-    ) *)
-
     let store_sco t t'' thrdId loc value ts =
       fresh (t' tree story na sc sc' ts)
         (t'   === mem_state tree story na sc )
@@ -393,11 +382,7 @@ module Front =
       fresh (ts)
         (store_sco t t' thrdId loc value ts)
 
-    (* let write_sco t t' thrdId loc value ts =
-      fresh (tree story na sc sc')
-        (t  === mem_state tree story na sc )
-        (t' === mem_state tree story na sc')
-        (VarList.seto sc sc' loc value) *)
+    let cas_sco t t' thrdId loc expected desired value = success
 
     let last_valueo t loc value =
       fresh (tree tree story na sc)

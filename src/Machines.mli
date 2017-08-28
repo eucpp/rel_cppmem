@@ -38,6 +38,8 @@ module type SequentialConsistent =
 
     val load_sco  : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
     val store_sco : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+
+    val cas_sco : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> Lang.Value.ti -> Lang.Value.ti -> MiniKanren.goal
   end
 
 (** ReleaseAcquire - interface of machine that supports acquire-stores and release-writes. *)
@@ -49,7 +51,7 @@ module type ReleaseAcquire =
     val store_relo : ti -> ti -> Lang.ThreadID.ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
   end
 
-module GlobalStore : 
+module GlobalStore :
   sig
     include SequentialConsistent
 
