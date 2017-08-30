@@ -238,6 +238,7 @@ module Term =
         | Repeat t                -> Format.fprintf ff "@[repeat %a end@]" sl t
         | Read (m, l)             -> Format.fprintf ff "@[%a_%a@]" loc l mo m
         | Write (m, l, t)         -> Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" loc l mo m sl t
+        | Cas (m1, m2, l, e, d)   -> Format.fprintf ff "@[cas_%a_%a(%a, %a, %a)@]" mo m1 mo m2 loc l sl e sl d
         | Seq (t, t')             -> Format.fprintf ff "@[<v>%a;@;%a@]" sl t sl t'
         | Spw (t, t')             -> Format.fprintf ff "@[<v>spw {{{@;<1 4>%a@;|||@;<1 4>%a@;}}}@]" sl t sl t'
         | Par (t, t')             -> Format.fprintf ff "@[<v>par {{{@;<1 4>%a@;<1 4>|||@;<1 4>%a@;}}}@]" sl t sl t'
@@ -251,8 +252,20 @@ module Term =
       fresh (x mo)
         (e === read mo x);
 
-      fresh (x mo n)
+      fresh (x mo)
         (e  === binop !!Op.EQ (read mo x) (const Nat.zero));
+
+      fresh (r)
+        (e === var r);
+
+      (* test-and-set *)
+      fresh (x mo1 mo2)
+        (e === cas mo1 mo2 x (const Nat.zero) (const Nat.one));
+
+      (* test-and-set *)
+      fresh (t x mo1 mo2)
+        (e === binop !!Op.EQ t (const Nat.zero))
+        (t === cas mo1 mo2 x (const Nat.zero) (const Nat.one));
     ]
 
     let rec stmto t = conde [

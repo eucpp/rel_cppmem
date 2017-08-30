@@ -9,15 +9,13 @@ open Relcppmem.Lang.Loc
 
 let consensus_prog = <:cppmem<
   spw {{{
-      r1 := CAS(sc, sc, x, 0, 1);
-      if r1 then
+      if CAS(sc, sc, x, 0, 1) then
         ret 0
       else
         ret 1
       fi
   |||
-    r2 := CAS(sc, sc, x, 0, 1);
-    if r2 = 0 then
+    if CAS(sc, sc, x, 0, 1) = 0 then
       ret 0
     else
       ret 1
@@ -32,7 +30,7 @@ let pprint t =
   T.trace Format.std_formatter t;
   Format.fprintf Format.std_formatter "----------------------------------@;"
 
-let t = M.init consensus_prog ~regs:[reg "r1"; reg "r2"] ~locs:[loc "x";]
+let t = M.init consensus_prog ~regs:[] ~locs:[loc "x";]
 
 let () =
   run q

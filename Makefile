@@ -45,10 +45,6 @@ sc_sb_eval : relcppmem plugin
 	$(OCB) -I samples sc_sb_eval.native
 	time ./sc_sb_eval.native
 
-sc_consensus_eval : relcppmem plugin
-	$(OCB) -I samples sc_consensus_eval.native
-	time ./sc_consensus_eval.native
-
 mp_eval : relcppmem plugin
 	$(OCB) -I samples mp_eval.native
 	time ./mp_eval.native
@@ -64,6 +60,14 @@ mutex_eval: relcppmem plugin
 mutex_synth: relcppmem plugin
 	$(OCB) -I samples mutex_synth.native
 	time ./mutex_synth.native
+
+sc_consensus_eval : relcppmem plugin
+	$(OCB) -I samples sc_consensus_eval.native
+	time ./sc_consensus_eval.native
+
+sc_consensus_synth : relcppmem plugin
+	$(OCB) -I samples sc_consensus_synth.native
+	time ./sc_consensus_synth.native
 
 # mp_synthesis: relcppmem plugin
 # 	$(OCB) -I samples mp_synthesis.native
