@@ -36,6 +36,13 @@ EXTEND
       | t1 = term; ":="; t2 = term ->
         <:expr< asgn $t1$ $t2$ >>
 
+      | "CAS"; "("; mo1 = LIDENT; ","; mo2 = LIDENT; ","; x = LIDENT; ","; expected = INT; ","; desired = INT; ")" ->
+        let mo1 = <:expr< MemOrder.mo $str:mo1$ >> in
+        let mo2 = <:expr< MemOrder.mo $str:mo2$ >> in
+        let expected = <:expr< const (Value.integer $int:expected$) >> in
+        let desired = <:expr< const (Value.integer $int:desired$) >> in
+        <:expr< cas $mo1$ $mo2$ (Loc.loc $str:x$) $expected$ $desired$ >>
+
       | t1 = term; "+" ; t2 = term ->
         <:expr< binop (Op.op "+") $t1$ $t2$ >>
       | t1 = term; "*" ; t2 = term ->
