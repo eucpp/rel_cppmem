@@ -248,11 +248,13 @@ module Term =
       sl
     )
 
-    let bool_expro e = conde [
+    let bool_expro ?(loco= fun x -> success) e = conde [
       fresh (x mo)
+        (loco x)
         (e === read mo x);
 
       fresh (x mo)
+        (loco x)
         (e  === binop !!Op.EQ (read mo x) (const Nat.zero));
 
       fresh (r)
@@ -260,16 +262,19 @@ module Term =
 
       (* test-and-set *)
       fresh (x mo1 mo2)
+        (loco x)
         (e === cas mo1 mo2 x (const Nat.zero) (const Nat.one));
 
       (* test-and-set *)
       fresh (t x mo1 mo2)
+        (loco x)
         (e === binop !!Op.EQ t (const Nat.zero))
         (t === cas mo1 mo2 x (const Nat.zero) (const Nat.one));
     ]
 
-    let rec stmto t = conde [
+    let rec stmto ?(loco= fun x -> success) t = conde [
       fresh (x mo n)
+        (loco x)
         (t === write mo x (const n))
         (conde [
           (n === Nat.one);
@@ -278,25 +283,25 @@ module Term =
 
       fresh (e)
         (t === repeat e)
-        (bool_expro e);
+        (bool_expro ~loco e);
 
       fresh (e t1 t2)
         (t === if' e t1 t2)
-        (bool_expro e)
-        (seq_stmto t1)
-        (seq_stmto t2);
+        (bool_expro ~loco e)
+        (seq_stmto ~loco t1)
+        (seq_stmto ~loco t2);
 
       fresh (e body)
         (t === while' e body)
-        (bool_expro e)
-        (seq_stmto body)
-    ] and seq_stmto t = conde [
-      (stmto t);
+        (bool_expro ~loco e)
+        (seq_stmto ~loco body)
+    ] and seq_stmto ?(loco= fun x -> success) t = conde [
+      (stmto ~loco t);
 
       fresh (t1 t2)
         (t === seq t1 t2)
-        (stmto t1)
-        (seq_stmto t2)
+        (stmto ~loco t1)
+        (seq_stmto ~loco t2)
     ]
 
   end

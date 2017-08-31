@@ -49,6 +49,10 @@ mp_eval : relcppmem plugin
 	$(OCB) -I samples mp_eval.native
 	time ./mp_eval.native
 
+sc_mp_eval : relcppmem plugin
+	$(OCB) -I samples sc_mp_eval.native
+	time ./sc_mp_eval.native
+
 mp_synth : relcppmem plugin
 	$(OCB) -I samples mp_synth.native
 	time ./mp_synth.native
