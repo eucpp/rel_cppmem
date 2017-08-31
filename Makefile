@@ -53,6 +53,10 @@ mp_synth : relcppmem plugin
 	$(OCB) -I samples mp_synth.native
 	time ./mp_synth.native
 
+sc_mp_synth : relcppmem plugin
+	$(OCB) -I samples sc_mp_synth.native
+	time ./sc_mp_synth.native
+
 mutex_eval: relcppmem plugin
 	$(OCB) -I samples mutex_eval.native
 	time ./mutex_eval.native
