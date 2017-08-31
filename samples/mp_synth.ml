@@ -30,16 +30,13 @@ let locs = [loc "x"; loc "f"]
 let () =
   run q
     (fun q  ->
-      fresh (q' h1 h2 state)
+      fresh (rc q1 q2 h1 h2 state1 state2)
         (Term.seq_stmto h1)
         (Term.seq_stmto h2)
         (q  === M.init (mp_sketch h1 h2) ~regs ~locs)
-        (q' === M.terminal (const @@ integer 1) state)
-        (M.evalo q q')
-        (negation (
-          fresh (rc q'' state'')
-            (rc =/= const @@ integer 1)
-            (q'' === M.terminal rc state'')
-            (M.evalo q q'')
-        )))
+        (q1 === M.terminal (const @@ integer 1) state1)
+        (q2 === M.terminal rc state2)
+        (rc =/= const @@ integer 1)
+        (M.evalo q q1)
+        (negation (M.evalo q q2)))
     (fun qs -> List.iter pprint @@ Stream.take ~n:1 qs)
