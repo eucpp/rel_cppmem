@@ -18,7 +18,7 @@ module type Logic =
 
 module Trace(T : Logic) =
   struct
-    let trace fmt rr = T.pprint fmt @@ rr#refine T.reify ~inj:T.inj
+    let trace fmt rr = T.pprint fmt @@ rr#reify T.reify ~inj:T.inj
   end
 
 let rec pprint_logic pp ff = function
@@ -48,7 +48,7 @@ let pprint_llist_generic fmt fmt_cell pp ff xs =
 let pprint_llist pp ff xs = Format.fprintf ff "@[<hv>[@;<1 4>%a]@]" (pprint_llist' pp) xs
 
 let rec pprint_nat ff n =
-  try
+  (* try
     match n with
       | Value x        -> Format.fprintf ff "%d" (Nat.to_int @@ Nat.from_logic n)
       | Var (i, [])    -> Format.fprintf ff "_.%d" i
@@ -56,9 +56,9 @@ let rec pprint_nat ff n =
         Format.fprintf ff "_.%d{" i;
         List.iter (fun cstr -> Format.fprintf ff "=/= %a; " (pprint_nat) cstr) cstrs;
         Format.fprintf ff "}"
-    with Not_a_value ->
-      let rec show = fun x -> GT.show(logic) (GT.show(lnat) show) x in
-      Format.fprintf ff "%s" (show n)
+    with Not_a_value -> *)
+      (* let rec show = fun x -> GT.show(logic) (GT.show(nat) show) x in *)
+      Format.fprintf ff "%s" (Nat.show n)
 
 (*
   let nat_to_str n =

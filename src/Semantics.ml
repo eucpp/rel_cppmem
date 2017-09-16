@@ -1,4 +1,5 @@
 open MiniKanren
+open MiniKanren.Std
 
 module Term =
   struct
@@ -7,7 +8,7 @@ module Term =
 
 module MaybeTerm =
   struct
-    type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.Option.groundi
+    type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.Std.Option.groundi
 
     let term t = Option.some t
     let undef () = Option.none ()
@@ -38,8 +39,8 @@ module Split =
     include T
     include Fmap2(T)
 
-    type ('tt, 'ct) tt = ('tt, 'ct) T.t MiniKanren.Option.ground
-    type ('tl, 'cl) tl = ('tl, 'cl) T.t MiniKanren.logic MiniKanren.Option.logic
+    type ('tt, 'ct) tt = ('tt, 'ct) T.t MiniKanren.Std.Option.ground
+    type ('tl, 'cl) tl = ('tl, 'cl) T.t MiniKanren.logic MiniKanren.Std.Option.logic
 
     type ('tt, 'ct, 'tl, 'cl) ti = (('tt, 'ct) tt, ('tl, 'cl) tl) MiniKanren.injected
 
@@ -99,7 +100,7 @@ module Configuration (P : Utils.Logic) (S : Utils.Logic) =
       | Value {prog; state} -> (prog, state)
       | Var (_,_) -> invalid_arg "Unexpected free variable"
 
-    let inj t = Value (T.fmap P.inj S.inj t)
+    let inj t = to_logic (T.fmap P.inj S.inj t)
 
     let reify = reify P.reify S.reify
 
@@ -176,8 +177,6 @@ let make_eval stepo t t' =
   let evalo_tabled = (fun term term' -> tabled2 tbl (evalo_norec !evalo) term term') in
   evalo := evalo_tabled;
   evalo_tabled t t'
-
-
 
   (* evalo_tabled *)
 

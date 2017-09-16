@@ -4,26 +4,26 @@ open Utils
 
 module Storage =
   struct
-    type ('at, 'bt) tt = (('at * 'bt), ('at, 'bt) tt) llist
+    type ('at, 'bt) tt = (('at * 'bt), ('at, 'bt) tt) MiniKanren.Std.list
 
     type ('al, 'bl) tl = ('al, 'bl) inner MiniKanren.logic
-      and ('al, 'bl) inner = (('al, 'bl) MiniKanren.Pair.logic, ('al, 'bl) tl) llist
+      and ('al, 'bl) inner = (('al, 'bl) MiniKanren.Std.Pair.logic, ('al, 'bl) tl) MiniKanren.Std.list
 
     type ('at, 'bt, 'al, 'bl) ti = (('at, 'bt) tt, ('al, 'bl) tl) MiniKanren.injected
 
     type ('at, 'al) key = ('at, 'al) MiniKanren.injected
     type ('bt, 'bl) value = ('bt, 'bl) MiniKanren.injected
 
-    let empty () = inj_listi []
+    let empty = MiniKanren.Std.nil
 
-    let allocate default vars = inj_listi @@ List.map (fun var -> Pair.pair var default) vars
+    let allocate default vars = MiniKanren.Std.List.list @@ List.map (fun var -> pair var default) vars
 
-    let from_assoc assoc = inj_listi @@ List.map (fun (k, v) -> Pair.pair k v) assoc
+    let from_assoc assoc = MiniKanren.Std.List.list @@ List.map (fun (k, v) -> pair k v) assoc
 
     let reify reify_key reify_value = List.reify (Pair.reify reify_key reify_value)
 
     let inj inj_key inj_value s =
-      MiniKanren.List.to_logic (fun (k, v) -> to_logic (inj_key k, inj_value v)) s
+      MiniKanren.Std.List.inj (fun (k, v) -> to_logic (inj_key k, inj_value v)) s
 
     let pprint pp_kv = pprint_llist (pprint_logic pp_kv)
 
@@ -31,23 +31,23 @@ module Storage =
       fresh (hd tl)
         (vars === hd % tl)
         (conde [
-          (hd === Pair.pair var value);
-          (hd =/= Pair.pair var value) &&& (geto tl var value);
+          (hd === pair var value);
+          (hd =/= pair var value) &&& (geto tl var value);
         ])
 
     let rec seto vars vars' var value =
       fresh (hd tl tl' k v)
         (vars === hd % tl)
-        (hd === Pair.pair k v)
+        (hd === pair k v)
         (conde [
-          (k === var) &&& (vars' === (Pair.pair var value) % tl);
+          (k === var) &&& (vars' === (pair var value) % tl);
           (k =/= var) &&& (vars' === hd % tl') &&& (seto tl tl' var value);
         ])
 
     let rec updateo upo t t' var =
       fresh (k v v' tl tl')
-        (t  === (Pair.pair k v ) % tl )
-        (t' === (Pair.pair k v') % tl')
+        (t  === (pair k v ) % tl )
+        (t' === (pair k v') % tl')
         (conde [
           (k === var) &&& (upo v v') &&& (tl === tl');
           (k =/= var) &&& (v === v') &&& (updateo upo tl tl' var);
@@ -137,15 +137,15 @@ module Timestamp =
     type tt = Nat.ground
 
     type tl = inner MiniKanren.logic
-      and inner = tl lnat
+      and inner = tl nat
 
     type ti = (tt, tl) MiniKanren.injected
 
-    let ts = inj_nat
+    let ts = nat
 
     let reify = Nat.reify
 
-    let inj = Nat.to_logic
+    let inj = Nat.inj
 
     (* let show = GT.show(Nat.logic) *)
     let show n =
@@ -167,8 +167,7 @@ module ViewFront =
 
     type ti = (Lang.Loc.tt, Timestamp.tt, Lang.Loc.tl, Timestamp.tl) Storage.ti
 
-    (* let bottom () = Storage.empty () *)
-    let bottom () = inj_listi []
+    let bottom = MiniKanren.Std.nil
 
     let allocate = Storage.allocate (Timestamp.ts 0)
 
@@ -551,32 +550,47 @@ module ThreadLocalStorage(T : ThreadLocalData) =
 
 module LocStory =
   struct
-    module Cell = struct
-      type tt = (Timestamp.tt * Lang.Value.tt * ViewFront.tt)
+    module Cell =
+      struct
+        module T = struct
+          type ('a, 'b, 'c) t = {
+            ts  : 'a;
+            v   : 'b;
+            vf  : 'c;
+          }
 
-      type tl = inner MiniKanren.logic
-        and inner = (Timestamp.tl * Lang.Value.tl * ViewFront.tl)
+          let fmap fa fb fc {ts = a; v = b; vf = c} =
+            {ts = fa a; v = fb b; vf = fc c}
+        end
 
-      type ti = (tt, tl) MiniKanren.injected
+        type tt = (Timestamp.tt, Lang.Value.tt, ViewFront.tt) T.t
 
-      let cell = inj_triple
+        type tl = inner MiniKanren.logic
+          and inner = (Timestamp.tl, Lang.Value.tl, ViewFront.tl) T.t
 
-      let inj (ts, value, vf) =
-        to_logic (Timestamp.inj ts, Lang.Value.inj value, ViewFront.inj vf)
+        type ti = (tt, tl) MiniKanren.injected
 
-      (* let to_logic (ts, value, vf) = Value (Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf) *)
+        include Fmap3(T)
 
-      let reify = ManualReifiers.triple Timestamp.reify Lang.Value.reify ViewFront.reify
+        let cell ts v vf = T.(inj @@ distrib {ts; v; vf})
 
-      let pprint =
-        let pp ff (ts, value, vf) =
-          Format.fprintf ff "@[<h>{@%s, %s, %a}@]"
-            (Timestamp.show ts)
-            (Lang.Value.show value)
-            ViewFront.pprint vf
-        in
-        pprint_logic pp
-    end
+        let inj x =
+          to_logic @@ T.fmap Timestamp.inj Lang.Value.inj ViewFront.inj x
+
+        (* let to_logic (ts, value, vf) = Value (Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf) *)
+
+        let reify = reify Timestamp.reify Lang.Value.reify ViewFront.reify
+
+        let pprint =
+          let open T in
+          let pp ff {ts; v; vf} =
+            Format.fprintf ff "@[<h>{@%s, %s, %a}@]"
+              (Timestamp.show ts)
+              (Lang.Value.show v)
+              ViewFront.pprint vf
+          in
+          pprint_logic pp
+      end
 
     module T = struct
       type ('a, 'b) t = {
@@ -602,13 +616,13 @@ module LocStory =
       let vf = ViewFront.bottom () in
       inj @@ distrib @@ {
         T.tsnext = Timestamp.ts 1;
-        T.story = inj_listi [Cell.cell (Timestamp.ts 0) (Lang.Value.integer 0) vf];
+        T.story = MiniKanren.Std.List.list [Cell.cell (Timestamp.ts 0) (Lang.Value.integer 0) vf];
       }
 
     let reify = reify Timestamp.reify (List.reify Cell.reify)
 
     let inj x =
-      to_logic @@ T.fmap (Timestamp.inj) (List.to_logic (Cell.inj)) x
+      to_logic @@ T.fmap (Timestamp.inj) (List.inj (Cell.inj)) x
 
     let create tsnext story = {
       T.tsnext = Nat.of_int tsnext;
@@ -632,7 +646,7 @@ module LocStory =
 
     let visibleo ts msg b =
       fresh (ts' value vf)
-        (msg === inj_triple ts' value vf)
+        (msg === Cell.cell ts' value vf)
         (Nat.leo ts ts' b)
 
     let loado t last_ts ts value vf =
@@ -640,19 +654,19 @@ module LocStory =
         (t === loc_story tsnext story)
         (MiniKanrenStd.List.filtero (visibleo last_ts) story visible)
         (MiniKanrenStd.List.membero visible msg)
-        (msg === inj_triple ts value vf)
+        (msg === Cell.cell ts value vf)
 
     let storeo t t' value vf =
       fresh (ts ts' story story')
         (t  === loc_story ts  story )
         (t' === loc_story ts' story')
         (ts' === Nat.succ ts)
-        (story' === (inj_triple ts value vf) % story)
+        (story' === (Cell.cell ts value vf) % story)
 
     let last_valueo t value =
       fresh (ts ts' story msg tail vf)
         (t   === loc_story  ts  story)
-        (msg === inj_triple ts' value vf)
+        (msg === Cell.cell ts' value vf)
         (story === msg % tail)
 
   end

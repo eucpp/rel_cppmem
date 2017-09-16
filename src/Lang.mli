@@ -54,11 +54,11 @@ module Value :
     val addo : ti -> ti -> ti -> MiniKanren.goal
     val mulo : ti -> ti -> ti -> MiniKanren.goal
 
-    val eqo : ti -> ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
-    val lto : ti -> ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
-    val leo : ti -> ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
-    val gto : ti -> ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
-    val geo : ti -> ti -> MiniKanren.Bool.groundi -> MiniKanren.goal
+    val eqo : ti -> ti -> MiniKanren.Std.Bool.groundi -> MiniKanren.goal
+    val lto : ti -> ti -> MiniKanren.Std.Bool.groundi -> MiniKanren.goal
+    val leo : ti -> ti -> MiniKanren.Std.Bool.groundi -> MiniKanren.goal
+    val gto : ti -> ti -> MiniKanren.Std.Bool.groundi -> MiniKanren.goal
+    val geo : ti -> ti -> MiniKanren.Std.Bool.groundi -> MiniKanren.goal
   end
 
 module MemOrder :

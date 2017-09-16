@@ -17,7 +17,7 @@ module Constraints =
       end
 
     include T
-    include Fmap1(T)
+    include Fmap(T)
 
     type tt = Lang.ThreadID.tt t
     type tl = Lang.ThreadID.tl t MiniKanren.logic

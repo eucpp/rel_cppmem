@@ -7,7 +7,7 @@ module Term :
 (** MaybeTerm - term augmented with undefined value *)
 module MaybeTerm :
   sig
-    type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.Option.groundi
+    type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.Std.Option.groundi
 
     val term  : ('tt, 'tl) MiniKanren.injected -> ('tt, 'tl) ti
     val undef : unit -> ('tt, 'tl) ti
@@ -31,8 +31,8 @@ module Split :
   sig
     type ('t, 'c) t
 
-    type ('tt, 'ct) tt = ('tt, 'ct) t MiniKanren.Option.ground
-    type ('tl, 'cl) tl = ('tl, 'cl) t MiniKanren.logic MiniKanren.Option.logic
+    type ('tt, 'ct) tt = ('tt, 'ct) t MiniKanren.Std.Option.ground
+    type ('tl, 'cl) tl = ('tl, 'cl) t MiniKanren.logic MiniKanren.Std.Option.logic
 
     type ('tt, 'ct, 'tl, 'cl) ti = (('tt, 'ct) tt, ('tl, 'cl) tl) MiniKanren.injected
 

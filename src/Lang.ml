@@ -13,7 +13,7 @@ module Register =
 
     let reg r = !!r
 
-    let reify = simple_reifier
+    let reify = reify
 
     let inj = to_logic
 
@@ -31,7 +31,7 @@ module Loc =
 
     let loc l = !!l
 
-    let reify = simple_reifier
+    let reify = reify
 
     let inj = to_logic
 
@@ -40,23 +40,23 @@ module Loc =
 
 module Value =
   struct
-    type tt = tt lnat
+    type tt = tt nat
 
     type tl = inner MiniKanren.logic
-      and inner = tl lnat
+      and inner = tl nat
 
     type ti = MiniKanrenStd.Nat.groundi
 
-    let integer = inj_nat
+    let integer = nat
 
     let zero () = Nat.zero
     let succ = Nat.succ
 
     let reify = Nat.reify
 
-    let inj = Nat.to_logic
+    let inj = Nat.inj
 
-    (* let to_logic = Nat.to_logic *)
+    (* let to_logic = Nat.inj *)
 
     (* let show = GT.show(Nat.logic) *)
     let show n =
@@ -66,7 +66,12 @@ module Value =
     let addo = Nat.addo
     let mulo = Nat.mulo
 
-    let eqo = Nat.eqo
+    let eqo x y b = conde [
+      (x === y) &&& (b === !!true);
+      (x =/= y) &&& (b === !!false);
+    ]
+
+
     let lto = Nat.lto
     let leo = Nat.leo
     let gto = Nat.gto
@@ -101,7 +106,7 @@ module MemOrder =
 
     let mo s = !!(of_string s)
 
-    let reify = simple_reifier
+    let reify = reify
 
     let inj = to_logic
 
@@ -138,7 +143,7 @@ module Op =
 
     let op s = !!(of_string s)
 
-    let reify = simple_reifier
+    let reify = reify
 
     let inj = to_logic
 
@@ -197,23 +202,12 @@ module Term =
     let skip ()             = inj @@ FT.distrib @@ T.Skip
     let stuck ()            = inj @@ FT.distrib @@ T.Stuck
 
-    let rec reify h =
-      ManualReifiers.(FT.reify (string) (string) (Nat.reify) (simple_reifier) (simple_reifier) (reify) h)
+    let rec reify' h = FT.reify (reify) (reify) (Nat.reify) (reify) (reify) (reify') h
 
-    let inj' = inj
+    let reify = reify'
 
     let rec inj t =
-      Value (T.fmap (Register.inj) (Loc.inj) (Value.inj) (MemOrder.inj) (Op.inj) (inj) t)
-
-    (* let from_logic' = from_logic
-
-    let rec from_logic = function
-      | Value x    -> T.fmap (Nat.from_logic) (from_logic') (from_logic') (from_logic') (from_logic) x
-      | Var (_, _) -> raise Not_a_value
-
-    let rec to_logic x =
-      let f x = Value x in
-      Value (T.fmap (Nat.to_logic) (f) (f) (f) (to_logic) x) *)
+      to_logic (T.fmap (Register.inj) (Loc.inj) (Value.inj) (MemOrder.inj) (Op.inj) (inj) t)
 
     let rec show t =
       GT.show(logic) (GT.show(T.t) (Register.show) (Loc.show) (Value.show) (MemOrder.show) (Op.show) (show)) t
@@ -318,7 +312,7 @@ module ThreadID =
           | R p -> R (ft p)
       end
 
-    include Fmap1(T)
+    include Fmap(T)
 
     type tt = tt T.t
     type tl = inner MiniKanren.logic
@@ -357,10 +351,6 @@ module Context =
     type ti = (tt, tl) MiniKanren.injected
 
     include Fmap2(T)
-
-    (* let inj' = inj
-
-    let rec inj t  = inj' @@ distrib (T.fmap (Term.inj) (ThreadID.inj) t) *)
 
     let context : Term.ti -> Term.ti -> ThreadID.ti -> ti = fun term hole thrdId ->
       inj @@ distrib @@ T.({term; hole; thrdId})
