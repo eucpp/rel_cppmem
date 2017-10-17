@@ -172,9 +172,10 @@ let make_eval stepo t t' =
           (delay @@ fun () -> evalo term' term'');
       ])
   in
-  let tbl  = make_table () in
+  (* let tbl  = make_table () in *)
   let evalo = ref (fun term term' -> assert false) in
-  let evalo_tabled = (fun term term' -> tabled2 tbl (evalo_norec !evalo) term term') in
+  let evalo_rec term term' = evalo_norec !evalo term term' in
+  let evalo_tabled = tabled2 evalo_rec in
   evalo := evalo_tabled;
   evalo_tabled t t'
 

@@ -58,7 +58,7 @@ let rec pprint_nat ff n =
         Format.fprintf ff "}"
     with Not_a_value -> *)
       (* let rec show = fun x -> GT.show(logic) (GT.show(nat) show) x in *)
-      Format.fprintf ff "%s" (Nat.show n)
+      Format.fprintf ff "%s" (GT.show(Nat.logic) n)
 
 (*
   let nat_to_str n =
