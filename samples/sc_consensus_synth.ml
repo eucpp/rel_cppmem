@@ -51,7 +51,7 @@ let _ =
         )
         (M.evalo q q1)
         (M.evalo q q2)
-        (negation (M.evalo q q3))
+      ?~(M.evalo q q3)
         (* (negation (
           fresh (q' state')
             (conde [
