@@ -451,9 +451,7 @@ module ThreadLocalStorage(T : ThreadLocalData) =
           Queue.push l q;
           Queue.push r q
         | Value Tree.Nil  -> ()
-        (* TODO handle variables *)
-        (* | Var (i, _) ->
-          lst := (Var (i, [])) :: !lst *)
+        | Var (i, _) -> ()
       done;
       List.rev !lst
 
