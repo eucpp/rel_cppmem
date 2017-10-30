@@ -230,6 +230,7 @@ module Term =
         | Pair (x, y)             -> Format.fprintf ff "@[(%a, %a)@]" sl x sl y
         | If (cond, t, f)         -> Format.fprintf ff "@[<v>if %a@;then %a@;else %a@]" sl cond sl t sl f
         | Repeat t                -> Format.fprintf ff "@[repeat %a end@]" sl t
+        | While (cond, t)         -> Format.fprintf ff "@[while (%a) @;<1 4>%a@;@]" sl cond sl t
         | Read (m, l)             -> Format.fprintf ff "@[%a_%a@]" loc l mo m
         | Write (m, l, t)         -> Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" loc l mo m sl t
         | Cas (m1, m2, l, e, d)   -> Format.fprintf ff "@[cas_%a_%a(%a, %a, %a)@]" mo m1 mo m2 loc l sl e sl d
