@@ -29,3 +29,7 @@ let () =
   run q
     (fun q  -> M.evalo t q)
     (fun qs -> Stream.iter pprint qs)
+
+let () =
+  Format.fprintf Format.std_formatter "@?";
+  MiniKanren.report_counters ()

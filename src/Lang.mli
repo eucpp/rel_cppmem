@@ -43,13 +43,13 @@ module Value :
 
     val integer : int -> ti
 
-    val zero : unit -> ti
-    val succ : ti -> ti
-
     val inj : tt -> tl
     val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
+
+    val nullo     : ti -> MiniKanren.goal
+    val not_nullo : ti -> MiniKanren.goal
 
     val addo : ti -> ti -> ti -> MiniKanren.goal
     val mulo : ti -> ti -> ti -> MiniKanren.goal
@@ -79,7 +79,7 @@ module MemOrder :
 
 module Op :
   sig
-    type tt = ADD | MUL | EQ | NEQ | LT | LE | GT | GE
+    type tt = ADD | MUL | EQ | NEQ | LT | LE | GT | GE | OR | AND
 
     type tl = tt MiniKanren.logic
 
@@ -97,22 +97,23 @@ module Term :
   sig
     include Utils.Logic
 
-    val const   : Value.ti -> ti
-    val var     : Register.ti -> ti
-    val binop   : Op.ti -> ti -> ti -> ti
-    val asgn    : ti -> ti -> ti
-    val pair    : ti -> ti -> ti
-    val if'     : ti -> ti -> ti -> ti
-    val while'  : ti -> ti -> ti
-    val repeat  : ti -> ti
-    val read    : MemOrder.ti -> Loc.ti -> ti
-    val write   : MemOrder.ti -> Loc.ti -> ti -> ti
-    val cas     : MemOrder.ti -> MemOrder.ti -> Loc.ti -> ti -> ti -> ti
-    val seq     : ti -> ti -> ti
-    val spw     : ti -> ti -> ti
-    val par     : ti -> ti -> ti
-    val skip    : unit -> ti
-    val stuck   : unit -> ti
+    val const     : Value.ti -> ti
+    val var       : Register.ti -> ti
+    val binop     : Op.ti -> ti -> ti -> ti
+    val asgn      : ti -> ti -> ti
+    val pair      : ti -> ti -> ti
+    val if'       : ti -> ti -> ti -> ti
+    val while'    : ti -> ti -> ti
+    val repeat    : ti -> ti
+    val read      : MemOrder.ti -> Loc.ti -> ti
+    val write     : MemOrder.ti -> Loc.ti -> ti -> ti
+    val cas       : MemOrder.ti -> MemOrder.ti -> Loc.ti -> ti -> ti -> ti
+    val seq       : ti -> ti -> ti
+    val spw       : ti -> ti -> ti
+    val par       : ti -> ti -> ti
+    val assertion : ti -> ti
+    val skip      : unit -> ti
+    val stuck     : unit -> ti
 
     val show : tl -> string
 

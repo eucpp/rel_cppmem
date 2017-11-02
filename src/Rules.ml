@@ -125,14 +125,13 @@ module Basic (Machine : Machines.Sequential) =
     let whileo = CFG.lift_rule whileo
 
     let ifo ctrs ctx t s t' s' =
-      fresh (e n btrue bfalse thrdId)
-        (t === if' (const n) btrue bfalse)
+      fresh (e x t1 t2 thrdId)
+        (t === if' (const x) t1 t2)
         (conde [
-          fresh (x)
-            (n === Lang.Value.succ x) &&& (t' === btrue);
-          (n === Lang.Value.zero ()) &&& (t' === bfalse);
+          (Lang.Value.not_nullo x) &&& (t' === t1);
+          (Lang.Value.nullo x)     &&& (t' === t2);
         ])
-        (s  === s')
+        (s === s')
         (check_thrdo ctrs ctx thrdId)
 
     let ifo = CFG.lift_rule ifo
@@ -145,7 +144,19 @@ module Basic (Machine : Machines.Sequential) =
 
     let seqo = CFG.lift_rule seqo
 
-    let all = [varo; binopo; asgno; ifo; repeato; seqo;]
+    let asserto ctrs ctx t s t' s' =
+      fresh (v thrdId)
+        (t === assertion (const v))
+        (conde [
+          (Lang.Value.nullo v)     &&& (t' === skip ());
+          (Lang.Value.not_nullo v) &&& (t' === stuck ());
+        ])
+        (s === s')
+        (check_thrdo ctrs ctx thrdId)
+
+    let asserto = CFG.lift_rule asserto
+
+    let all = [varo; binopo; asgno; ifo; repeato; seqo; asserto]
 
   end
 

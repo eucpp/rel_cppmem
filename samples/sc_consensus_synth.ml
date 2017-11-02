@@ -38,27 +38,25 @@ let pair a b = pair (const @@ Value.integer a) (const @@ Value.integer b)
 let _ =
   run q
     (fun q ->
-      fresh (h1 h2 q1 q2 q3 q4 state1 state2 state3 state4)
+      fresh (h1 h2 q1 q2 state1 state2)
         (Term.bool_expro h1)
         (Term.bool_expro h2)
         (q  === M.init (consensus_sketch h1 h2) ~regs ~locs)
         (q1 === M.terminal (pair 1 1) state1)
         (q2 === M.terminal (pair 0 0) state2)
-        (
-          (q3 === M.terminal (pair 1 0) state3)
-        |||
-          (q3 === M.terminal (pair 0 1) state4)
-        )
         (M.evalo q q1)
         (M.evalo q q2)
-      ?~(M.evalo q q3)
-        (* (negation (
-          fresh (q' state')
-            (conde [
-              (q' === M.terminal (pair 1 0) state');
-              (q' === M.terminal (pair 0 1) state');
-            ])
-            (M.evalo q q')
-        )) *)
+      ?~(fresh (q' rc state')
+          (q' === M.terminal rc state')
+          (conde [
+            (rc === pair 1 0);
+            (rc === pair 0 1);
+          ])
+          (M.evalo q q')
+        )
     )
     (fun qs -> List.iter pprint @@ Stream.take ~n:1 qs)
+
+let () =
+  Format.fprintf Format.std_formatter "@?";
+  MiniKanren.report_counters ()

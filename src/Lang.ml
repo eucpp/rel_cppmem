@@ -49,9 +49,6 @@ module Value =
 
     let integer = nat
 
-    let zero () = Nat.zero
-    let succ = Nat.succ
-
     let reify = Nat.reify
 
     let inj = Nat.inj
@@ -63,6 +60,10 @@ module Value =
       pprint_nat Format.str_formatter n;
       Format.flush_str_formatter ()
 
+    let nullo v = (v === Nat.zero)
+
+    let not_nullo v = fresh (x) (v === Nat.succ x)
+
     let addo = Nat.addo
     let mulo = Nat.mulo
 
@@ -70,7 +71,6 @@ module Value =
       (x === y) &&& (b === !!true);
       (x =/= y) &&& (b === !!false);
     ]
-
 
     let lto = Nat.lto
     let leo = Nat.leo
@@ -115,7 +115,7 @@ module MemOrder =
 
 module Op =
   struct
-    type tt = ADD | MUL | EQ | NEQ | LT | LE | GT | GE
+    type tt = ADD | MUL | EQ | NEQ | LT | LE | GT | GE | OR | AND
 
     type tl = tt MiniKanren.logic
 
@@ -130,16 +130,20 @@ module Op =
       | "<="  -> LE
       | ">"   -> GT
       | ">="  -> GE
+      | "||"  -> OR
+      | "&&"  -> AND
 
     let to_string = function
       | ADD   -> "+"
-      | MUL   -> "-"
+      | MUL   -> "*"
       | EQ    -> "="
       | NEQ   -> "!="
       | LT    -> "<"
       | LE    -> "<="
       | GT    -> ">"
       | GE    -> ">="
+      | OR    -> "||"
+      | AND   -> "&&"
 
     let op s = !!(of_string s)
 
@@ -169,6 +173,7 @@ module Term =
           | Seq      of 't * 't
           | Spw      of 't * 't
           | Par      of 't * 't
+          | Assert   of 't
           | Skip
           | Stuck
         with gmap, show
@@ -199,6 +204,7 @@ module Term =
     let seq t1 t2           = inj @@ FT.distrib @@ T.Seq (t1, t2)
     let spw t1 t2           = inj @@ FT.distrib @@ T.Spw (t1, t2)
     let par t1 t2           = inj @@ FT.distrib @@ T.Par (t1, t2)
+    let assertion t         = inj @@ FT.distrib @@ T.Assert t
     let skip ()             = inj @@ FT.distrib @@ T.Skip
     let stuck ()            = inj @@ FT.distrib @@ T.Stuck
 
@@ -237,6 +243,7 @@ module Term =
         | Seq (t, t')             -> Format.fprintf ff "@[<v>%a;@;%a@]" sl t sl t'
         | Spw (t, t')             -> Format.fprintf ff "@[<v>spw {{{@;<1 4>%a@;|||@;<1 4>%a@;}}}@]" sl t sl t'
         | Par (t, t')             -> Format.fprintf ff "@[<v>par {{{@;<1 4>%a@;<1 4>|||@;<1 4>%a@;}}}@]" sl t sl t'
+        | Assert t                -> Format.fprintf ff "@[assert %a@;]" sl t
         | Skip                    -> Format.fprintf ff "@[skip@]"
         | Stuck                   -> Format.fprintf ff "@[stuck@]"
       in
@@ -492,6 +499,21 @@ let rec splito term result = Term.(Context.(ThreadID.(conde [
         (ctx  === context t  h (pathr thrdId))
         (ctx' === context t' h thrdId)
         (t === par t1 t')
+        (result === Semantics.Split.split ctx rdx);
+    ]);
+
+  fresh (e)
+    (term === assertion e)
+    (conde [
+      fresh (h)
+        (splito e (Semantics.Split.undef ()))
+        (result === Semantics.Split.split (hole h) term);
+
+      fresh (rdx ctx ctx' t t' h thrdId)
+        (splito e (Semantics.Split.split ctx' rdx))
+        (ctx  === context t  h thrdId)
+        (ctx' === context t' h thrdId)
+        (t === assertion t')
         (result === Semantics.Split.split ctx rdx);
     ]);
 

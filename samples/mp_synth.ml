@@ -40,17 +40,8 @@ let () =
         (rc =/= const @@ integer 1)
       ?~(M.evalo q q2)
     )
-    (* (fun qs -> Stream.iter pprint qs) *)
     (fun qs -> List.iter pprint @@ Stream.take ~n:1 qs)
 
-(* let () =
-  run q
-    (fun q  ->
-      fresh (rc h1 h2 state)
-        (Term.seq_stmto h1)
-        (Term.seq_stmto h2)
-        (q  === M.init (mp_sketch h1 h2) ~regs ~locs)
-        (rc =/= const @@ integer 1)
-      ?~(M.evalo q (M.terminal rc state))
-    )
-    (fun qs -> List.iter pprint @@ Stream.take ~n:1 qs) *)
+let () =
+  Format.fprintf Format.std_formatter "@?";
+  MiniKanren.report_counters ()
