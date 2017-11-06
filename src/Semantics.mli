@@ -19,10 +19,10 @@ module Context :
     type ('ct, 'cl) ti = ('ct, 'cl) MiniKanren.injected
   end
 
-(** Constraints - additional constraints which are required for some rule to fire *)
-module Constraints :
+(* Label - label for Transition Labeled Systems *)
+module Label :
   sig
-    type ('cst, 'csl) ti = ('cst, 'csl) MiniKanren.injected
+    type ('lt, 'll) ti = ('lt, 'll) MiniKanren.injected
   end
 
 (** Split - the result of splitting application, i.e. pair of evaluation context and term to be reduced (redex).
@@ -51,42 +51,56 @@ type ('tt, 'ct, 'tl, 'cl) splitting =
 type ('tt, 'ct, 'tl, 'cl) plugging =
   ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
-(** [rule constraints context term term'] - substitutes [term] with [term'] in a [context] considering provided [constraints] *)
-type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule =
-  ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
+(** [rule context term term'] - substitutes [term] with [term'] in a [context] *)
+type ('tt, 'ct, 'tl, 'cl) rule =
+  ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
-(** Configuration - special case of Term for languages that distinguish a program and a state/environment *)
-module Configuration (P : Utils.Logic) (S : Utils.Logic):
+module type State =
   sig
     include Utils.Logic
 
-    type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule' = ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule
+    val transitiono : ('lt, 'll) Label.ti -> ti -> ti -> MiniKanren.goal
+  end
 
-    (** [rule constraints context prog state prog' state'] - special case of rule that operates on program/state pairs *)
-    type ('ct, 'cst, 'cl, 'csl) rule =
-      ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti ->
-      P.ti -> S.ti -> P.ti -> S.ti -> MiniKanren.goal
+(** TransitionLabeledSystem - special case of [Term] for TLS semantics.
+  *   This kind of semantics can be viewed as graphs.
+  *   Nodes of these graph denotes states of abstract machine,
+  *   and (labeled) edges denotes possible transitions between state.
+  *   [Term] of TLS consists of a program (that defines a set of transitions) and a current state of system.
+  *)
+module TransitionLabeledSystem (P : Utils.Logic) (S : State):
+  sig
+    include Utils.Logic
 
-    val cfg : P.ti -> S.ti -> ti
+    type ('tt, 'ct, 'tl, 'cl) rule' = ('tt, 'ct, 'tl, 'cl) rule
+
+    (** [rule constraints context prog state prog' state'] - special case of rule
+      *   that operates on program terms and labels
+      *)
+    type ('ct, 'lt, 'cl, 'll) rule =
+      ('lt, 'll) Label.ti -> ('ct, 'cl) Context.ti -> P.ti -> P.ti -> MiniKanren.goal
+
+    val init : P.ti -> S.ti -> ti
 
     val decompose : tl -> P.tl * S.tl
 
     val progo  : ti -> P.ti -> MiniKanren.goal
     val stateo : ti -> S.ti -> MiniKanren.goal
 
-    val lift_splitting :
+    val lift_split :
       (P.tt, 'ct, P.tl, 'cl) splitting -> (tt, 'ct, tl, 'cl) splitting
 
-    val lift_plugging :
+    val lift_plug :
       (P.tt, 'ct, P.tl, 'cl) plugging -> (tt, 'ct, tl, 'cl) plugging
 
-    val lift_rule : ('ct, 'cst, 'cl, 'csl) rule -> (tt, 'ct, 'cst, tl, 'cl, 'csl) rule'
+    val lift_rule :
+      ('ct, 'lt, 'cl, 'll) rule -> (tt, 'ct, tl, 'cl) rule'
   end
 
-(** [step constraints term term'] - performs a step that substitutes [term] with [term'] considering provided [constraints],
+(** [step constraints term term'] - performs a step that substitutes [term] with [term'],
       if [term] is irreducible then [term'] is undefined *)
-type ('tt, 'cst, 'tl, 'csl) step =
-  ('cst, 'csl) Constraints.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) MaybeTerm.ti -> MiniKanren.goal
+type ('tt, 'tl) step =
+  ('tt, 'tl) Term.ti -> ('tt, 'tl) MaybeTerm.ti -> MiniKanren.goal
 
 (** [eval term term'] - evaluates [term] to [term'] *)
 type ('tt, 'tl) eval =
@@ -99,7 +113,7 @@ type ('tt, 'tl) eval =
         3) plugs [redex'] back to [context] using [plugging] relation
   *)
 val make_reduction_relation :
-  ('tt, 'ct, 'tl, 'cl) splitting -> ('tt, 'ct, 'tl, 'cl) plugging -> ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule list -> ('tt, 'cst, 'tl, 'csl) step
+  ('tt, 'ct, 'tl, 'cl) splitting -> ('tt, 'ct, 'tl, 'cl) plugging -> ('tt, 'ct, 'tl, 'cl) rule list -> ('tt, 'tl) step
 
 val make_eval :
   ('tt, 'cst, 'tl, 'csl) step -> ('tt, 'tl) eval

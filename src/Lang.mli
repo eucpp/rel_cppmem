@@ -157,6 +157,13 @@ module Context :
     val thrdIdo : ti -> ThreadID.ti -> MiniKanren.goal
   end
 
+module Label :
+  sig
+    include Utils.Logic
+
+    
+  end
+
 val splito : Term.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Split.ti -> MiniKanren.goal
 
 val promiseo : Term.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Split.ti -> MiniKanren.goal

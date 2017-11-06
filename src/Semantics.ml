@@ -19,9 +19,9 @@ module Context =
     type ('ct, 'cl) ti = ('ct, 'cl) MiniKanren.injected
   end
 
-module Constraints =
+module Label =
   struct
-    type ('cst, 'csl) ti = ('cst, 'csl) MiniKanren.injected
+    type ('lt, 'll) ti = ('lt, 'll) MiniKanren.injected
   end
 
 module Split =
@@ -57,16 +57,22 @@ module Split =
   end
 
 type ('tt, 'ct, 'tl, 'cl) splitting =
-  ('tt, 'tl) Term.ti -> ('tt, 'ct, 'tl, 'cl) Split.ti -> goal
+  ('tt, 'tl) Term.ti -> ('tt, 'ct, 'tl, 'cl) Split.ti -> MiniKanren.goal
 
 type ('tt, 'ct, 'tl, 'cl) plugging =
-  ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
+  ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
-type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule =
-  ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
+type ('tt, 'ct, 'tl, 'cl) rule =
+  ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
-(** Configuration - special case of Term for languages that distinguish a program and a state/environment *)
-module Configuration (P : Utils.Logic) (S : Utils.Logic) =
+module type State =
+  sig
+    include Utils.Logic
+
+    val transitiono : ('lt, 'll) Label.ti -> ti -> ti -> MiniKanren.goal
+  end
+
+module TransitionLabeledSystem (P : Utils.Logic) (S : State) =
   struct
     module T =
       struct
@@ -87,13 +93,12 @@ module Configuration (P : Utils.Logic) (S : Utils.Logic) =
 
     type ti = (tt, tl) MiniKanren.injected
 
-    type ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule' = ('tt, 'ct, 'cst, 'tl, 'cl, 'csl) rule
+    type ('tt, 'ct, 'tl, 'cl) rule' = ('tt, 'ct, 'tl, 'cl) rule
 
-    type ('ct, 'cst, 'cl, 'csl) rule =
-      ('cst, 'csl) Constraints.ti -> ('ct, 'cl) Context.ti ->
-      P.ti -> S.ti -> P.ti -> S.ti -> MiniKanren.goal
+    type ('ct, 'lt, 'cl, 'll) rule =
+      ('lt, 'll) Label.ti -> ('ct, 'cl) Context.ti -> P.ti -> P.ti -> MiniKanren.goal
 
-    let cfg prog state =
+    let init prog state =
       inj @@ distrib @@ { prog; state }
 
     let decompose = function
@@ -118,7 +123,7 @@ module Configuration (P : Utils.Logic) (S : Utils.Logic) =
       fresh (prog)
         (t === cfg prog state)
 
-    let lift_splitting splito t result =
+    let lift_split splito t result =
       fresh (prog state result')
         (t === cfg prog state)
         (splito prog result')
@@ -129,27 +134,28 @@ module Configuration (P : Utils.Logic) (S : Utils.Logic) =
             (result === Split.split ctx (cfg rdx state));
         ])
 
-    let lift_plugging plugo ctx rdx term =
+    let lift_plug plugo ctx rdx term =
       fresh (prog state prog')
         (rdx  === cfg prog  state)
         (term === cfg prog' state)
         (plugo ctx prog prog')
 
-    let lift_rule rule ctrs ctx t t' =
-    fresh (prog state prog' state')
-      (t  === cfg prog  state )
-      (t' === cfg prog' state')
-      (rule ctrs ctx prog state prog' state')
+    let lift_rule rule ctx t t' =
+      fresh (label prog state prog' state')
+        (t  === cfg prog  state )
+        (t' === cfg prog' state')
+        (rule label ctx prog prog')
+        (S.transitiono label state state')
 
   end
 
 type ('tt, 'cst, 'tl, 'csl) step =
-  ('cst, 'csl) Constraints.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) MaybeTerm.ti -> goal
+  ('tt, 'tl) Term.ti -> ('tt, 'tl) MaybeTerm.ti -> goal
 
 type ('tt, 'tl) eval =
   ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
-let make_reduction_relation splito plugo rules = fun ctrs term result ->
+let make_reduction_relation splito plugo rules = fun term result ->
   fresh (ctx_rdx)
     (splito term ctx_rdx)
     (conde [
@@ -157,7 +163,7 @@ let make_reduction_relation splito plugo rules = fun ctrs term result ->
       fresh (ctx rdx rdx' term')
         (ctx_rdx === Split.split ctx rdx)
         (result === MaybeTerm.term term')
-        (conde @@ List.map (fun rule -> rule ctrs ctx rdx rdx') rules)
+        (conde @@ List.map (fun rule -> rule ctx rdx rdx') rules)
         (plugo ctx rdx' term');
     ])
 
@@ -177,48 +183,3 @@ let make_eval stepo t t' =
   let evalo_tabled = Tabling.(tabled two) evalo_rec in
   evalo := evalo_tabled;
   evalo_tabled t t'
-
-(* module type StepRelation =
-  sig
-    type tt
-    type tl
-    type ti = (tt, tl) MiniKanren.injected
-
-    type st
-    type sl
-    type si = (st, sl) MiniKanren.injected
-
-    type helper = ((tt * st) option, (tl * sl) MiniKanren.logic option MiniKanren.logic) MiniKanren.injected
-
-    val (-->) : ti * si -> helper -> MiniKanren.goal
-  end *)
-
-  (* module UnionRelation
-    (S1 : StepRelation)
-    (S2 : StepRelation with
-      type tt = S1.tt  and
-      type tl = S1.tl  and
-      type st = S1.st  and
-      type sl = S1.sl) =
-  struct
-    type tt = S1.tt
-    type tl = S1.tl
-    type ti = (tt, tl) MiniKanren.injected
-
-    type st = S1.st
-    type sl = S1.sl
-    type si = (st, sl) MiniKanren.injected
-
-    type helper = ((tt * st) option, (tl * sl) MiniKanren.logic option MiniKanren.logic) MiniKanren.injected
-
-    let (-->) t t' =
-      fresh (t1 t2 a b)
-        (S1.(-->) t t1)
-        (S2.(-->) t t2)
-        (conde [
-          (t1 === Option.none ()) &&& (t' === t2);
-          (t1 === Option.some a)  &&& (t2 === Option.none ()) &&& (t' === t1);
-          (t1 === Option.some a)  &&& (t2 === Option.some b)  &&& ((t' === t1) ||| (t' === t2));
-        ])
-
-  end *)
