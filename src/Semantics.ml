@@ -174,19 +174,15 @@ let make_step splito plugo rules = fun term result ->
         (plugo ctx rdx' term');
     ])
 
-let make_eval stepo t t' =
-  let evalo_norec evalo term term'' =
+let make_eval stepo =
+  let evalo_norec evalo t t'' =
     fresh (result)
-      (stepo term result)
+      (stepo t result)
       (conde [
-        (result === MaybeTerm.undef ()) &&& (term === term'');
-        fresh (term')
-          (result === MaybeTerm.term term')
-          (delay @@ fun () -> evalo term' term'');
+        (result === MaybeTerm.undef ()) &&& (t === t'');
+        fresh (t')
+          (result === MaybeTerm.term t')
+          (delay @@ fun () -> evalo t' t'');
       ])
   in
-  let evalo = ref (fun term term' -> assert false) in
-  let evalo_rec term term' = evalo_norec !evalo term term' in
-  let evalo_tabled = Tabling.(tabled two) evalo_rec in
-  evalo := evalo_tabled;
-  evalo_tabled t t'
+  Tabling.(tabledrec two) evalo_norec
