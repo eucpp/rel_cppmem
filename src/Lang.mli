@@ -134,7 +134,7 @@ module ThreadID :
     val pathl : ti -> ti
     val pathr : ti -> ti
 
-    val inj : tt -> ti
+    val inj : tt -> tl
 
     val reify : MiniKanren.helper -> ti -> tl
   end
@@ -161,11 +161,24 @@ module Label :
   sig
     include Utils.Logic
 
-    
+    val empty : unit -> ti
+
+    val spawn : ThreadID.ti -> ti
+    val join  : ThreadID.ti -> ti
+
+    val regread  : ThreadID.ti -> Register.ti -> Value.ti -> ti
+    val regwrite : ThreadID.ti -> Register.ti -> Value.ti -> ti
+
+    val load  : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> ti
+    val store : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> ti
+
+    val datarace : ThreadID.ti -> MemOrder.ti -> Loc.ti -> ti
+
+    val cas :
+      ThreadID.ti -> MemOrder.ti -> MemOrder.ti -> Loc.ti ->
+      Value.ti -> Value.ti -> Value.ti -> ti
   end
 
 val splito : Term.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Split.ti -> MiniKanren.goal
-
-val promiseo : Term.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Split.ti -> MiniKanren.goal
 
 val plugo : Context.ti -> Term.ti -> Term.ti -> MiniKanren.goal

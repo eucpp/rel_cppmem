@@ -69,10 +69,17 @@ module type State =
   sig
     include Utils.Logic
 
-    val transitiono : ('lt, 'll) Label.ti -> ti -> ti -> MiniKanren.goal
+    type lt
+
+    type ll = linner MiniKanren.logic
+      and linner
+
+    type li = (lt, ll) MiniKanren.injected
+
+    val transitiono : li -> ti -> ti -> MiniKanren.goal
   end
 
-module TransitionLabeledSystem (P : Utils.Logic) (S : State) =
+module TLSNode (P : Utils.Logic) (S : State) =
   struct
     module T =
       struct
@@ -95,10 +102,10 @@ module TransitionLabeledSystem (P : Utils.Logic) (S : State) =
 
     type ('tt, 'ct, 'tl, 'cl) rule' = ('tt, 'ct, 'tl, 'cl) rule
 
-    type ('ct, 'lt, 'cl, 'll) rule =
-      ('lt, 'll) Label.ti -> ('ct, 'cl) Context.ti -> P.ti -> P.ti -> MiniKanren.goal
+    type ('ct, 'cl) rule =
+      S.li -> ('ct, 'cl) Context.ti -> P.ti -> P.ti -> MiniKanren.goal
 
-    let init prog state =
+    let node prog state =
       inj @@ distrib @@ { prog; state }
 
     let decompose = function
@@ -111,51 +118,51 @@ module TransitionLabeledSystem (P : Utils.Logic) (S : State) =
 
     let pprint =
       let pp ff { prog; state; } =
-        Format.fprintf ff "(%a, %a)" P.pprint prog S.pprint state
+        Format.fprintf ff "@[<v>Prog:@;<1 2>%a@;State:@;<1 2>%a@;@]" P.pprint prog S.pprint state
       in
       Utils.pprint_logic pp
 
     let progo t prog =
       fresh (state)
-        (t === cfg prog state)
+        (t === node prog state)
 
     let stateo t state =
       fresh (prog)
-        (t === cfg prog state)
+        (t === node prog state)
 
     let lift_split splito t result =
       fresh (prog state result')
-        (t === cfg prog state)
+        (t === node prog state)
         (splito prog result')
         (conde [
           (result' === Split.undef ()) &&& (result === Split.undef ());
           fresh (ctx rdx)
             (result' === Split.split ctx rdx)
-            (result === Split.split ctx (cfg rdx state));
+            (result  === Split.split ctx (node rdx state));
         ])
 
     let lift_plug plugo ctx rdx term =
       fresh (prog state prog')
-        (rdx  === cfg prog  state)
-        (term === cfg prog' state)
+        (rdx  === node prog  state)
+        (term === node prog' state)
         (plugo ctx prog prog')
 
     let lift_rule rule ctx t t' =
       fresh (label prog state prog' state')
-        (t  === cfg prog  state )
-        (t' === cfg prog' state')
+        (t  === node prog  state )
+        (t' === node prog' state')
         (rule label ctx prog prog')
         (S.transitiono label state state')
 
   end
 
-type ('tt, 'cst, 'tl, 'csl) step =
+type ('tt, 'tl) step =
   ('tt, 'tl) Term.ti -> ('tt, 'tl) MaybeTerm.ti -> goal
 
 type ('tt, 'tl) eval =
   ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
-let make_reduction_relation splito plugo rules = fun term result ->
+let make_step splito plugo rules = fun term result ->
   fresh (ctx_rdx)
     (splito term ctx_rdx)
     (conde [
@@ -169,8 +176,8 @@ let make_reduction_relation splito plugo rules = fun term result ->
 
 let make_eval stepo t t' =
   let evalo_norec evalo term term'' =
-    fresh (ctrs result)
-      (stepo ctrs term result)
+    fresh (result)
+      (stepo term result)
       (conde [
         (result === MaybeTerm.undef ()) &&& (term === term'');
         fresh (term')

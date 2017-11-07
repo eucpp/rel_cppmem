@@ -1,21 +1,27 @@
 module SequentialConsistent :
   sig
-    include Utils.Logic
+    module State :
+      sig
+        include Semantics.State
 
-    val init : regs:Lang.Register.ti list -> locs:Lang.Loc.ti list ->  Lang.Term.ti -> ti
+        val init : regs:Lang.Register.ti list -> locs:Lang.Loc.ti list -> ti
+      end
 
-    val terminal : Lang.Term.ti -> Machines.GlobalStore.ti -> ti
+    module TLSNode : module type of Semantics.TLSNode(Lang.Term)(State)
 
-    val evalo : (tt, tl) Semantics.eval
+    val evalo : (TLSNode.tt, TLSNode.tl) Semantics.eval
   end
 
 module ReleaseAcquire :
   sig
-    include Utils.Logic
+    module State :
+      sig
+        include Semantics.State
 
-    val init : regs:Lang.Register.ti list -> locs:Lang.Loc.ti list ->  Lang.Term.ti -> ti
+        val init : regs:Lang.Register.ti list -> locs:Lang.Loc.ti list -> ti
+      end
 
-    val terminal : Lang.Term.ti -> Machines.Front.ti -> ti
+    module TLSNode : module type of Semantics.TLSNode(Lang.Term)(State)
 
-    val evalo : (tt, tl) Semantics.eval
+    val evalo : (TLSNode.tt, TLSNode.tl) Semantics.eval
   end

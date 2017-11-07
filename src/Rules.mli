@@ -1,5 +1,5 @@
 
-type rule :
+type rule =
   Lang.Label.ti -> Lang.Context.ti -> Lang.Term.ti -> Lang.Term.ti -> MiniKanren.goal
 
 module Basic :
@@ -26,10 +26,9 @@ module ThreadSpawning :
 
 module Atomic :
   sig
-    val loado  : rule
-    val storeo : rule
-
-    val data_raceo  : rule
+    val loado     : rule
+    val storeo    : rule
+    val dataraceo : rule
 
     val all : rule list
   end

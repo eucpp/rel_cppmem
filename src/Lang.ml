@@ -53,9 +53,6 @@ module Value =
 
     let inj = Nat.inj
 
-    (* let to_logic = Nat.inj *)
-
-    (* let show = GT.show(Nat.logic) *)
     let show n =
       pprint_nat Format.str_formatter n;
       Format.flush_str_formatter ()
@@ -312,12 +309,10 @@ module ThreadID =
   struct
     module T =
       struct
-        type 'a t = N | L of 'a | R of 'a
+        @type 'a t = N | L of 'a | R of 'a with gmap, show
 
-        let fmap ft = function
-          | N   -> N
-          | L p -> L (ft p)
-          | R p -> R (ft p)
+        let fmap fa x = GT.gmap(t) fa x
+        let show fa x = GT.show(t) fa x
       end
 
     include Fmap(T)
@@ -334,11 +329,14 @@ module ThreadID =
 
     let inj' = inj
 
-    let rec inj p = inj' @@ distrib (T.fmap (inj) p)
+    let rec inj x =
+      to_logic (T.fmap inj x)
 
     let pathn ()  = inj' @@ distrib @@ T.N
     let pathl p   = inj' @@ distrib @@ T.L p
     let pathr p   = inj' @@ distrib @@ T.R p
+
+    let rec show x = GT.show(logic) (T.show show) x
   end
 
 module Context =
@@ -368,6 +366,79 @@ module Context =
     let thrdIdo ctx thrdId =
       fresh (term hole)
         (ctx === context term hole thrdId)
+  end
+
+module Label =
+  struct
+    module T =
+      struct
+        @type ('thrdId, 'mo, 'reg, 'loc, 'value) t =
+          | Empty
+          | Spawn     of 'thrdId
+          | Join      of 'thrdId
+          | RegRead   of 'thrdId * 'reg * 'value
+          | RegWrite  of 'thrdId * 'reg * 'value
+          | Load      of 'thrdId * 'mo * 'loc * 'value
+          | Store     of 'thrdId * 'mo * 'loc * 'value
+          | Datarace  of 'thrdId * 'mo * 'loc
+          | CAS       of 'thrdId * 'mo * 'mo * 'loc * 'value * 'value * 'value
+        with gmap
+
+        let fmap fa fb fc fd fe x = GT.gmap(t) (fa) (fb) (fc) (fd) (fe) x
+      end
+
+    type tt = (ThreadID.tt, MemOrder.tt, Register.tt, Loc.tt, Value.tt) T.t
+
+    type tl = inner MiniKanren.logic
+      and inner = (ThreadID.tl, MemOrder.tl, Register.tl, Loc.tl, Value.tl) T.t
+
+    type ti = (tt, tl) Semantics.Label.ti
+
+    module FT = Fmap5(T)
+
+    let empty ()                      = inj @@ FT.distrib @@ T.Empty
+    let spawn thrdId                  = inj @@ FT.distrib @@ T.Spawn thrdId
+    let join  thrdId                  = inj @@ FT.distrib @@ T.Join  thrdId
+    let regread  thrdId reg v         = inj @@ FT.distrib @@ T.RegRead  (thrdId, reg, v)
+    let regwrite thrdId reg v         = inj @@ FT.distrib @@ T.RegWrite (thrdId, reg, v)
+    let load  thrdId mo loc v         = inj @@ FT.distrib @@ T.Load  (thrdId, mo, loc, v)
+    let store thrdId mo loc v         = inj @@ FT.distrib @@ T.Store (thrdId, mo, loc, v)
+    let datarace thrdId mo loc        = inj @@ FT.distrib @@ T.Datarace (thrdId, mo, loc)
+    let cas thrdId mo1 mo2 loc e d v  = inj @@ FT.distrib @@ T.CAS (thrdId, mo1, mo2, loc, e, d, v)
+
+    let rec reify' h = FT.reify (ThreadID.reify) (MemOrder.reify) (Register.reify) (Loc.reify) (Value.reify) h
+
+    let reify = reify'
+
+    let inj t =
+      to_logic (T.fmap (ThreadID.inj) (MemOrder.inj) (Register.inj) (Loc.inj) (Value.inj) t)
+
+    let pprint =
+      let pp ff = T.(function
+        | Empty ->
+          Format.fprintf ff "@[<>@]"
+        | Spawn thrdId ->
+          Format.fprintf ff "@[<spawn %s>@]" (ThreadID.show thrdId)
+        | Join thrdId ->
+          Format.fprintf ff "@[<join %s>@]" (ThreadID.show thrdId)
+        | RegRead (thrdId, reg, v) ->
+          Format.fprintf ff "@[<regread %s %s %s>@]" (ThreadID.show thrdId) (Register.show reg) (Value.show v)
+        | RegWrite (thrdId, reg, v) ->
+          Format.fprintf ff "@[<regwrite %s %s %s>@]" (ThreadID.show thrdId) (Register.show reg) (Value.show v)
+        | Load (thrdId, mo, loc, v) ->
+          Format.fprintf ff "@[<load %s %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Value.show v)
+        | Store (thrdId, mo, loc, v) ->
+          Format.fprintf ff "@[<store %s %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Value.show v)
+        | Datarace (thrdId, mo, loc) ->
+          Format.fprintf ff "@[<datarace %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc)
+        | CAS (thrdId, mo1, mo2, loc, e, d, v) ->
+          Format.fprintf ff "@[<CAS %s %s %s %s %s %s %s>@]"
+            (ThreadID.show thrdId) (MemOrder.show mo1) (MemOrder.show mo2)
+            (Loc.show loc) (Value.show e) (Value.show d) (Value.show v)
+    )
+    in
+    pprint_logic pp
+
   end
 
 let rec splito term result = Term.(Context.(ThreadID.(conde [
@@ -507,75 +578,6 @@ let rec splito term result = Term.(Context.(ThreadID.(conde [
             (splito t2 (Semantics.Split.split ctx' rdx));
         ])
     ]);
-])))
-
-let rec promiseo term result = Term.(Context.(ThreadID.(conde [
-  fresh (loc n h)
-    (term === write !!MemOrder.RLX loc (const n))
-    (result === Semantics.Split.split (hole h) term);
-
-  fresh (t1 t2)
-    (term === seq t1 t2)
-    (conde [
-      fresh (rdx ctx ctx' t t' h thrdId)
-        (promiseo t1 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h thrdId)
-        (ctx' === context t' h thrdId)
-        (t === seq t' t2)
-        (result === Semantics.Split.split ctx rdx);
-
-      fresh (rdx ctx ctx' t t' h thrdId)
-        (promiseo t2 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h thrdId)
-        (ctx' === context t' h thrdId)
-        (t === seq t1 t')
-        (result === Semantics.Split.split ctx rdx);
-    ]);
-
-  fresh (t1 t2)
-    (term === par t1 t2)
-    (conde [
-      fresh (rdx ctx ctx' t t' h thrdId)
-        (promiseo t1 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h thrdId)
-        (ctx' === context t' h thrdId)
-        (t === par t' t2)
-        (result === Semantics.Split.split ctx rdx);
-
-      fresh (rdx ctx ctx' t t' h thrdId)
-        (promiseo t2 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h thrdId)
-        (ctx' === context t' h thrdId)
-        (t === par t1 t')
-        (result === Semantics.Split.split ctx rdx);
-    ]);
-
-  fresh (cond t1 t2)
-    (term === if' cond t1 t2)
-    (conde [
-      fresh (rdx ctx ctx' t t' h thrdId)
-        (promiseo t1 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h thrdId)
-        (ctx' === context t' h thrdId)
-        (t === if' cond t' t2)
-        (result === Semantics.Split.split ctx rdx);
-
-      fresh (rdx ctx ctx' t t' h thrdId)
-        (promiseo t2 (Semantics.Split.split ctx' rdx))
-        (ctx  === context t  h thrdId)
-        (ctx' === context t' h thrdId)
-        (t === if' cond t1 t')
-        (result === Semantics.Split.split ctx rdx);
-    ]);
-
-  fresh (loop rdx ctx ctx' t t' h thrdId)
-    (term === repeat loop)
-    (promiseo loop (Semantics.Split.split ctx' rdx))
-    (ctx  === context t  h thrdId)
-    (ctx' === context t' h thrdId)
-    (t === repeat t')
-    (result === Semantics.Split.split ctx rdx);
-
 ])))
 
 let plugo ctx rdx term = Term.(Context.(conde [

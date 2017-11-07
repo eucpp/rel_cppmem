@@ -59,16 +59,23 @@ module type State =
   sig
     include Utils.Logic
 
-    val transitiono : ('lt, 'll) Label.ti -> ti -> ti -> MiniKanren.goal
+    type lt
+
+    type ll = linner MiniKanren.logic
+      and linner
+
+    type li = (lt, ll) MiniKanren.injected
+
+    val transitiono : li -> ti -> ti -> MiniKanren.goal
   end
 
-(** TransitionLabeledSystem - special case of [Term] for TLS semantics.
+(** TLSNode - special case of [Term] for Transition Labeled System semantics.
   *   This kind of semantics can be viewed as graphs.
   *   Nodes of these graph denotes states of abstract machine,
   *   and (labeled) edges denotes possible transitions between state.
   *   [Term] of TLS consists of a program (that defines a set of transitions) and a current state of system.
   *)
-module TransitionLabeledSystem (P : Utils.Logic) (S : State):
+module TLSNode (P : Utils.Logic) (S : State):
   sig
     include Utils.Logic
 
@@ -77,10 +84,10 @@ module TransitionLabeledSystem (P : Utils.Logic) (S : State):
     (** [rule constraints context prog state prog' state'] - special case of rule
       *   that operates on program terms and labels
       *)
-    type ('ct, 'lt, 'cl, 'll) rule =
-      ('lt, 'll) Label.ti -> ('ct, 'cl) Context.ti -> P.ti -> P.ti -> MiniKanren.goal
+    type ('ct, 'cl) rule =
+      S.li -> ('ct, 'cl) Context.ti -> P.ti -> P.ti -> MiniKanren.goal
 
-    val init : P.ti -> S.ti -> ti
+    val node : P.ti -> S.ti -> ti
 
     val decompose : tl -> P.tl * S.tl
 
@@ -94,7 +101,7 @@ module TransitionLabeledSystem (P : Utils.Logic) (S : State):
       (P.tt, 'ct, P.tl, 'cl) plugging -> (tt, 'ct, tl, 'cl) plugging
 
     val lift_rule :
-      ('ct, 'lt, 'cl, 'll) rule -> (tt, 'ct, tl, 'cl) rule'
+      ('ct, 'cl) rule -> (tt, 'ct, tl, 'cl) rule'
   end
 
 (** [step constraints term term'] - performs a step that substitutes [term] with [term'],
@@ -112,8 +119,8 @@ type ('tt, 'tl) eval =
         2) applies each [rule] from list of [rules], i.e. [rule constraints context redex redex']
         3) plugs [redex'] back to [context] using [plugging] relation
   *)
-val make_reduction_relation :
+val make_step :
   ('tt, 'ct, 'tl, 'cl) splitting -> ('tt, 'ct, 'tl, 'cl) plugging -> ('tt, 'ct, 'tl, 'cl) rule list -> ('tt, 'tl) step
 
 val make_eval :
-  ('tt, 'cst, 'tl, 'csl) step -> ('tt, 'tl) eval
+  ('tt, 'tl) step -> ('tt, 'tl) eval

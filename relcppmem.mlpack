@@ -1,6 +1,5 @@
 src/Lang
 src/Memory
-src/Machines
 src/Rules
 src/Semantics
 src/MemoryModel
