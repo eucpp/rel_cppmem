@@ -3,4 +3,5 @@ src/Memory
 src/Rules
 src/Semantics
 src/MemoryModel
+src/Query
 src/Utils
