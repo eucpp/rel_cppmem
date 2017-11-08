@@ -1,8 +1,3 @@
-module type T =
-  sig
-
-  end
-
 module SequentialConsistent :
   sig
     module State :
