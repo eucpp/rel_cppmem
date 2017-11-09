@@ -240,7 +240,7 @@ module Term =
         | Seq (t, t')             -> Format.fprintf ff "@[<v>%a;@;%a@]" sl t sl t'
         | Spw (t, t')             -> Format.fprintf ff "@[<v>spw {{{@;<1 4>%a@;|||@;<1 4>%a@;}}}@]" sl t sl t'
         | Par (t, t')             -> Format.fprintf ff "@[<v>par {{{@;<1 4>%a@;<1 4>|||@;<1 4>%a@;}}}@]" sl t sl t'
-        | Assert t                -> Format.fprintf ff "@[assert %a@;]" sl t
+        | Assert t                -> Format.fprintf ff "@[assert (%a)@;@]" sl t
         | Skip                    -> Format.fprintf ff "@[skip@]"
         | Stuck                   -> Format.fprintf ff "@[stuck@]"
       in

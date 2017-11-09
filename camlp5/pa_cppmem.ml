@@ -10,13 +10,51 @@ open Lang.Term
 (* let op s = <:expr<  >> *)
 
 let gram = Grammar.gcreate (Plexer.gmake ());;
-let term_eoi = Grammar.Entry.create gram "cppmem";;
-let term = Grammar.Entry.create gram "cppmem";;
-let term_antiquot = Grammar.Entry.create gram "cppmem";;
+
+let cppmem_eoi      = Grammar.Entry.create gram "cppmem";;
+let cppmem_expr     = Grammar.Entry.create gram "cppmem";;
+let cppmem_stmt     = Grammar.Entry.create gram "cppmem";;
+let cppmem_antiquot = Grammar.Entry.create gram "cppmem";;
+
 EXTEND
-  term_eoi: [ [ x = term; EOI -> x ] ];
-  term: [ [
-        n = INT   ->
+  cppmem_eoi: [ [ x = cppmem_stmt; EOI -> x ] ];
+
+  cppmem_expr:
+    [ [ x = cppmem_expr; "&&"; y = cppmem_expr ->
+        <:expr< binop (Op.op "&&") $x$ $y$ >>
+
+      | x = cppmem_expr; "||"; y = cppmem_expr ->
+        <:expr< binop (Op.op "||") $x$ $y$ >>
+      ]
+
+    | [ x = cppmem_expr; "="; y = cppmem_expr ->
+        <:expr< binop (Op.op "=") $x$ $y$ >>
+
+      | x = cppmem_expr; "!="; y = cppmem_expr ->
+        <:expr< binop (Op.op "!=") $x$ $y$ >>
+
+      | x = cppmem_expr; "<"; y = cppmem_expr ->
+        <:expr< binop (Op.op "<") $x$ $y$ >>
+
+      | x = cppmem_expr; ">"; y = cppmem_expr ->
+        <:expr< binop (Op.op ">") $x$ $y$ >>
+
+      | x = cppmem_expr; "<="; y = cppmem_expr ->
+        <:expr< binop (Op.op "<=") $x$ $y$ >>
+
+      | x = cppmem_expr; ">="; y = cppmem_expr ->
+        <:expr< binop (Op.op ">=") $x$ $y$ >>
+      ]
+
+    | [ x = cppmem_expr; "+"; y = cppmem_expr ->
+        <:expr< binop (Op.op "+") $x$ $y$ >>
+      ]
+
+    | [ x = cppmem_expr; "*"; y = cppmem_expr ->
+        <:expr< binop (Op.op "*") $x$ $y$ >>
+      ]
+
+    | [ n = INT ->
         <:expr< const (Value.integer $int:n$) >>
 
       | x = LIDENT ->
@@ -26,16 +64,6 @@ EXTEND
         else
           <:expr< var (Register.reg $str:x$) >>
 
-      | x = LIDENT; ":="; t = term ->
-        if String.contains x '_' then
-          let var::mo::[] = String.split_on_char '_' x in
-          <:expr< write (MemOrder.mo $str:mo$) (Loc.loc $str:var$) $t$ >>
-        else
-          <:expr< asgn (var (Register.reg $str:x$)) $t$ >>
-
-      | t1 = term; ":="; t2 = term ->
-        <:expr< asgn $t1$ $t2$ >>
-
       | "CAS"; "("; mo1 = LIDENT; ","; mo2 = LIDENT; ","; x = LIDENT; ","; expected = INT; ","; desired = INT; ")" ->
         let mo1 = <:expr< MemOrder.mo $str:mo1$ >> in
         let mo2 = <:expr< MemOrder.mo $str:mo2$ >> in
@@ -43,61 +71,55 @@ EXTEND
         let desired = <:expr< const (Value.integer $int:desired$) >> in
         <:expr< cas $mo1$ $mo2$ (Loc.loc $str:x$) $expected$ $desired$ >>
 
-      | t1 = term; "+" ; t2 = term ->
-        <:expr< binop (Op.op "+") $t1$ $t2$ >>
-      | t1 = term; "*" ; t2 = term ->
-        <:expr< binop (Op.op "*") $t1$ $t2$ >>
-      | t1 = term; "=" ; t2 = term ->
-        <:expr< binop (Op.op "=") $t1$ $t2$ >>
-      | t1 = term; "!=" ; t2 = term ->
-        <:expr< binop (Op.op "!=") $t1$ $t2$ >>
-      | t1 = term; "<" ; t2 = term ->
-        <:expr< binop (Op.op "<") $t1$ $t2$ >>
-      | t1 = term; "<=" ; t2 = term ->
-        <:expr< binop (Op.op "<=") $t1$ $t2$ >>
-      | t1 = term; ">" ; t2 = term ->
-        <:expr< binop (Op.op ">") $t1$ $t2$ >>
-      | t1 = term; ">=" ; t2 = term ->
-        <:expr< binop (Op.op ">=") $t1$ $t2$ >>
+      | "("; x = cppmem_expr; ")"
+        -> x
+      ]
+    ];
 
-      | "("; t1 = term; ","; t2 = term; ")" ->
-        <:expr< pair $t1$ $t2$ >>
+  cppmem_stmt:
+    [ [ x = LIDENT; ":="; e = cppmem_expr ->
+        if String.contains x '_' then
+          let var::mo::[] = String.split_on_char '_' x in
+          <:expr< write (MemOrder.mo $str:mo$) (Loc.loc $str:var$) $e$ >>
+        else
+          <:expr< asgn (var (Register.reg $str:x$)) $e$ >>
 
-      | "if"; t1 = term; "then"; t2 = term; "else"; t3 = term; "fi" ->
-        <:expr< if' $t1$ $t2$ $t3$ >>
+      | "if"; e = cppmem_expr; "then"; t1 = cppmem_stmt; "else"; t2 = cppmem_stmt; "fi" ->
+        <:expr< if' $e$ $t1$ $t2$ >>
 
-      | "repeat"; t = term; "end" ->
-        <:expr< repeat $t$ >>
+      | "repeat"; e = cppmem_expr; "end" ->
+        <:expr< repeat $e$ >>
 
-      | t1 = term; ";"; t2 = term ->
+      | t1 = cppmem_stmt; ";"; t2 = cppmem_stmt ->
         <:expr< seq $t1$ $t2$ >>
 
-      | "spw"; "{";"{";"{"; t1 = term; "|||"; t2 = term; "}";"}";"}" ->
+      | "spw"; "{";"{";"{"; t1 = cppmem_stmt; "|||"; t2 = cppmem_stmt; "}";"}";"}" ->
         <:expr< spw $t1$ $t2$ >>
 
-      | "par"; "{";"{";"{"; t1 = term; "|||"; t2 = term; "}";"}";"}" ->
-        <:expr< par $t1$ $t2$ >>
+      | "assert"; "("; e = cppmem_expr; ")" ->
+        <:expr< assertion $e$ >>
 
       | "skip" ->
         <:expr< skip () >>
 
-      | "ret"; t = term -> t
+      | "ret"; e = cppmem_expr -> e
 
-      | "?"; q = term_antiquot -> q
-  ] ];
+      | "?"; q = cppmem_antiquot -> q
+      ]
+    ];
 
-  term_antiquot: [ [
-    x = LIDENT ->
-      let ast =
+  cppmem_antiquot:
+    [ [ x = LIDENT ->
+        let ast =
         let loc = Ploc.make_unlined (0, String.length x) in
         <:expr< $lid:x$ >>
-      in
-      <:expr< $anti:ast$ >>
-  ] ];
+        in
+        <:expr< $anti:ast$ >>
+      ]
+    ];
 
 END;;
 
-let cppmem_exp s = Grammar.Entry.parse term_eoi (Stream.of_string s);;
+let cppmem_exp s = Grammar.Entry.parse cppmem_eoi (Stream.of_string s);;
 let cppmem_pat s = failwith "not implemented cppmem_pat";;
 Quotation.add "cppmem" (Quotation.ExAst (cppmem_exp, cppmem_pat));;
-(* Quotation.default := "term";; *)

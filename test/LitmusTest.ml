@@ -1,33 +1,39 @@
 open OUnit2
 open MiniKanren
 open MiniKanrenStd
-open TestUtils
 
 open Lang
 open Lang.Term
-open Memory
 
-let test_eval evalo asserto t =
-  run q
-    (fun q  -> (evalo t q))
-    (fun qs -> )
+let fail_k cexs =
+  let module Trace = Utils.Trace(Lang.Term) in
+  let ff = Format.str_formatter in
+  Format.fprintf ff "Verification query fails!@; List of counterexamples:@;";
+  List.iter (fun cex -> Format.fprintf ff "%a@;" Trace.trace cex) cexs;
+  assert_failure @@ Format.flush_str_formatter ()
 
 let prog_rel_acq = <:cppmem<
-    (* x_rlx := 0;
-    f_rlx := 0; *)
     spw {{{
         x_rlx := 1;
         f_rel := 1
     |||
         r1 := f_acq;
         r2 := x_rlx;
-        (r1, r2)
+        assert (
+          (r1 = 0 && r2 = 0) ||
+          (r1 = 0 && r2 = 1) ||
+          (r1 = 1 && r2 = 1)
+        )
     }}}
 >>
 
-let test_rel_acq step = test_prog step prog_rel_acq ["(0, 0)"; "(0, 1)"; "(1, 1)";]
+let _ =
+  pprint Format.std_formatter @@ inj @@ prj @@ prog_rel_acq  
+  (* Printf.printf "%s\n" @@ pprint @@ inj @@ prj @@ prog_rel_acq *)
 
-let prog_data_race_1 = <:cppmem<
+(* let test_rel_acq step = test_prog step prog_rel_acq ["(0, 0)"; "(0, 1)"; "(1, 1)";] *)
+
+(* let prog_data_race_1 = <:cppmem<
   (* x_rlx := 0; *)
   spw {{{
       x_rlx := 1
@@ -244,10 +250,11 @@ let promisingStep =
   (module struct
     include Semantics.UnionRelation(Rules.ThreadSpawning.Step)(CertStep)
   end : Rules.CppMemStep)
+*)
 
 let tests =
   "Litmus">::: [
-    "DR_1">:: test_data_race_1 rlxStep;
+    (* "DR_1">:: test_data_race_1 rlxStep;
     "DR_2">:: test_data_race_2 rlxStep;
 
     "rel_acq">:: test_rel_acq relAcqStep;
@@ -263,5 +270,5 @@ let tests =
     "SB_sc">:: test_SB_sc scStep;
 
     "LB">:: test_LB promisingStep;
-    "LBd">:: test_LBd promisingStep;
+    "LBd">:: test_LBd promisingStep; *)
   ]
