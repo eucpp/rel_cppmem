@@ -34,10 +34,24 @@ module Basic =
           (op === !!Lang.Op.MUL) &&& (mulo x y z);
           (op === !!Lang.Op.EQ ) &&& (conde [(eqo x y !!true ) &&& (z === (integer 1)); (eqo x y !!false) &&& (z === (integer 0))]);
           (op === !!Lang.Op.NEQ) &&& (conde [(eqo x y !!false) &&& (z === (integer 1)); (eqo x y !!true ) &&& (z === (integer 0))]);
-          (op === !!Lang.Op.LT ) &&& (conde [(lto x y !!true) &&& (z === (integer 1)); (lto x y !!false) &&& (z === (integer 0))]);
-          (op === !!Lang.Op.LE ) &&& (conde [(leo x y !!true) &&& (z === (integer 1)); (leo x y !!false) &&& (z === (integer 0))]);
-          (op === !!Lang.Op.GT ) &&& (conde [(gto x y !!true) &&& (z === (integer 1)); (gto x y !!false) &&& (z === (integer 0))]);
-          (op === !!Lang.Op.GE ) &&& (conde [(geo x y !!true) &&& (z === (integer 1)); (geo x y !!false) &&& (z === (integer 0))]);
+          (op === !!Lang.Op.LT ) &&& (conde [(lto x y !!true ) &&& (z === (integer 1)); (lto x y !!false) &&& (z === (integer 0))]);
+          (op === !!Lang.Op.LE ) &&& (conde [(leo x y !!true ) &&& (z === (integer 1)); (leo x y !!false) &&& (z === (integer 0))]);
+          (op === !!Lang.Op.GT ) &&& (conde [(gto x y !!true ) &&& (z === (integer 1)); (gto x y !!false) &&& (z === (integer 0))]);
+          (op === !!Lang.Op.GE ) &&& (conde [(geo x y !!true ) &&& (z === (integer 1)); (geo x y !!false) &&& (z === (integer 0))]);
+
+          (op === !!Lang.Op.OR ) &&& (conde [
+            (nullo x)     &&& (nullo y)     &&& (z === (integer 0));
+            (not_nullo x) &&& (nullo y)     &&& (z === (integer 1));
+            (nullo x)     &&& (not_nullo y) &&& (z === (integer 1));
+            (not_nullo x) &&& (not_nullo y) &&& (z === (integer 1));
+          ])
+
+          (op === !!Lang.Op.AND) &&& (conde [
+            (nullo x)     &&& (nullo y)     &&& (z === (integer 0));
+            (not_nullo x) &&& (nullo y)     &&& (z === (integer 0));
+            (nullo x)     &&& (not_nullo y) &&& (z === (integer 0));
+            (not_nullo x) &&& (not_nullo y) &&& (z === (integer 1));
+          ]);
         ])
       ))
 
