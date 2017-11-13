@@ -4,15 +4,23 @@ open MiniKanrenStd
 
 open Lang
 open Lang.Term
+open Lang.Loc
+open Lang.Register
+open MemoryModel
 
 let fail_k cexs =
-  let module Trace = Utils.Trace(Lang.Term) in
-  let ff = Format.str_formatter in
+  let module Trace = Utils.Trace(ReleaseAcquire.TLSNode) in
+  let ff = Format.std_formatter in
   Format.fprintf ff "Verification query fails!@; List of counterexamples:@;";
   List.iter (fun cex -> Format.fprintf ff "%a@;" Trace.trace cex) cexs;
-  assert_failure @@ Format.flush_str_formatter ()
+  assert_failure @@ ""
 
-let prog_rel_acq = <:cppmem<
+let asserto t =
+  fresh (p s)
+    (t === ReleaseAcquire.TLSNode.node p s)
+    (p =/= stuck ())
+
+(* let prog_SW = <:cppmem<
     spw {{{
         x_rlx := 1;
         f_rel := 1
@@ -25,10 +33,25 @@ let prog_rel_acq = <:cppmem<
           (r1 = 1 && r2 = 1)
         )
     }}}
+>> *)
+
+let prog_SW = <:cppmem<
+    spw {{{
+        x_rlx := 1;
+        f_rel := 1
+    |||
+        r1 := f_acq;
+        r2 := x_rlx
+    }}}
 >>
 
-let _ =
-  pprint Format.std_formatter @@ inj @@ prj @@ prog_rel_acq  
+let test_SW_RA =
+  let state = ReleaseAcquire.State.init ~regs:[reg "r1"; reg "r2"] ~locs:[loc "x"; loc "f"] in
+  let node  = ReleaseAcquire.TLSNode.node prog_SW state in
+  Query.verify ~n:1 ~fail_k ReleaseAcquire.evalo asserto node
+
+(* let _ =
+  pprint Format.std_formatter @@ inj @@ prj @@ prog_rel_acq *)
   (* Printf.printf "%s\n" @@ pprint @@ inj @@ prj @@ prog_rel_acq *)
 
 (* let test_rel_acq step = test_prog step prog_rel_acq ["(0, 0)"; "(0, 1)"; "(1, 1)";] *)
@@ -254,6 +277,9 @@ let promisingStep =
 
 let tests =
   "Litmus">::: [
+    "RelAcq">::: [
+      "SW">:: fun test_ctx -> test_SW_RA;
+    ]
     (* "DR_1">:: test_data_race_1 rlxStep;
     "DR_2">:: test_data_race_2 rlxStep;
 

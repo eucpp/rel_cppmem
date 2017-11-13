@@ -161,6 +161,21 @@ module SequentialConsistent =
       Rules.ThreadSpawning.all;
     ]
 
+    let thrd_local_stepo thrdId =
+      ()
+
+    let inter_thrd_stepo thrdId =
+      ()
+
+    let stepo t result =
+      fresh (thrdId t')
+        (thrd_local_evalo thrdId t t')
+        (inter_thrd_stepo thrdId t' result)
+
+    let evalo = Semantics.seq
+      (Semantics.make_eval)
+      ()
+
     let stepo = Semantics.make_step
       (TLSNode.lift_split Lang.splito)
       (TLSNode.lift_plug Lang.plugo)
@@ -323,7 +338,7 @@ module ReleaseAcquire =
             (ThreadFront.tso thrd loc ts)
             (na_stucko na loc ts)
 
-        let loado t t' thrdId loc value ts =
+        let load_rlxo t t' thrdId loc value ts =
           fresh (tree tree' story story' na sc thrd thrd' thrd'' last_ts vf)
             (t  === state tree  story na sc)
             (t' === state tree' story na sc)
@@ -335,7 +350,7 @@ module ReleaseAcquire =
             (ThreadFront.update_acqo thrd thrd' vf)
             (ThreadFront.updateo thrd' thrd'' loc ts)
 
-        let storeo t t' thrdId loc value ts =
+        let store_rlxo t t' thrdId loc value ts =
           fresh (tree tree' story story' na sc thrd thrd' last_ts rel)
             (t  === state tree  story  na sc)
             (t' === state tree' story' na sc)
@@ -366,13 +381,13 @@ module ReleaseAcquire =
 
         let load_acqo t t'' thrdId loc value ts =
           fresh (t')
-            (loado t t' thrdId loc value ts)
+            (load_rlxo t t' thrdId loc value ts)
             (fence_acqo t' t'' thrdId)
 
         let store_relo t t'' thrdId loc value ts =
           fresh (t')
             (fence_relo t t' thrdId ~loc)
-            (storeo t' t'' thrdId loc value ts)
+            (store_rlxo t' t'' thrdId loc value ts)
 
         let load_sco t t' thrdId loc value ts = Timestamp.(
           fresh (tree story na sc sc_ts ts)
@@ -388,6 +403,14 @@ module ReleaseAcquire =
             (t''  === state tree story na sc')
             (store_relo t t' thrdId loc value ts)
             (ViewFront.updateo sc sc' loc ts)
+
+        let load_rlxo t t' thrdId loc value =
+          fresh (ts)
+            (load_rlxo t t' thrdId loc value ts)
+
+        let store_rlxo t t' thrdId loc value =
+          fresh (ts)
+            (store_rlxo t t' thrdId loc value ts)
 
         let load_acqo t t' thrdId loc value =
           fresh (ts)
@@ -406,11 +429,6 @@ module ReleaseAcquire =
             (store_sco t t' thrdId loc value ts)
 
         let cas_sco t t' thrdId loc expected desired value = success
-
-        let last_valueo t loc value =
-          fresh (tree tree story na sc)
-            (t  === state tree story na sc)
-            (MemStory.last_valueo story loc value)
 
         let spawno t t' thrdId =
           fresh (tree tree' story na sc)
@@ -458,6 +476,14 @@ module ReleaseAcquire =
           fresh (thrdId loc v)
             (label === Label.store thrdId !!MemOrder.REL loc v)
             (store_relo t t' thrdId loc v);
+
+          fresh (thrdId loc v)
+            (label === Label.load thrdId !!MemOrder.RLX loc v)
+            (load_rlxo t t' thrdId loc v);
+
+          fresh (thrdId loc v)
+            (label === Label.store thrdId !!MemOrder.RLX loc v)
+            (store_rlxo t t' thrdId loc v);
 
           fresh (thrdId loc v)
             (label === Label.load thrdId !!MemOrder.NA loc v)

@@ -169,7 +169,7 @@ let make_step splito plugo rules = fun term result ->
       (ctx_rdx === Split.undef ()) &&& (result === MaybeTerm.undef ());
       fresh (ctx rdx rdx' term')
         (ctx_rdx === Split.split ctx rdx)
-        (result === MaybeTerm.term term')
+        (result  === MaybeTerm.term term')
         (conde @@ List.map (fun rule -> rule ctx rdx rdx') rules)
         (plugo ctx rdx' term');
     ])

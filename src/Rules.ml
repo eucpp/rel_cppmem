@@ -44,7 +44,7 @@ module Basic =
             (not_nullo x) &&& (nullo y)     &&& (z === (integer 1));
             (nullo x)     &&& (not_nullo y) &&& (z === (integer 1));
             (not_nullo x) &&& (not_nullo y) &&& (z === (integer 1));
-          ])
+          ]);
 
           (op === !!Lang.Op.AND) &&& (conde [
             (nullo x)     &&& (nullo y)     &&& (z === (integer 0));

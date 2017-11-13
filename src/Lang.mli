@@ -181,4 +181,6 @@ module Label :
 
 val splito : Term.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Split.ti -> MiniKanren.goal
 
+val thrd_splito : ThreadID.ti -> Term.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Split.ti -> MiniKanren.goal
+
 val plugo : Context.ti -> Term.ti -> Term.ti -> MiniKanren.goal
