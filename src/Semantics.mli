@@ -120,4 +120,4 @@ val make_path :
   ('tt, 'tl) step -> ('tt, 'tl) path
 
 val make_eval :
-  irreducibleo:('tt, 'tl) tpred -> ('tt, 'tl) path -> ('tt, 'tl) eval
+  irreducibleo:('tt, 'tl) tpred -> ('tt, 'tl) step -> ('tt, 'tl) eval

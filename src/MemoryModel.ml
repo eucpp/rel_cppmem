@@ -538,17 +538,6 @@ module ReleaseAcquire =
       (TLSNode.lift_plug Lang.plugo)
       (List.map (fun rule -> TLSNode.lift_rule rule) Rules.Basic.all)
 
-    (* let thrd_local_patho thrdId = Semantics.make_path @@ thrd_local_stepo thrdId *)
-    let thrd_local_patho =
-      let patho_norec patho thrdId t t'' = conde [
-        (t === t'');
-
-        fresh (t')
-          (thrd_local_stepo thrdId t t')
-          (patho thrdId t' t'')
-      ] in
-      Tabling.(tabledrec three) patho_norec
-
     let thrd_local_evalo thrdId =
       let irreducibleo = TLSNode.lift_tpred @@ fun t ->
         fresh (subt)
@@ -558,7 +547,7 @@ module ReleaseAcquire =
             (Lang.Term.thrd_inter_termo subt);
           ])
       in
-      Semantics.make_eval ~irreducibleo (thrd_local_patho thrdId)
+      Semantics.make_eval ~irreducibleo (thrd_local_stepo thrdId)
 
     let thrd_inter_stepo thrdId = Semantics.make_step
       (TLSNode.lift_split @@ thrd_splito thrdId)
@@ -579,8 +568,6 @@ module ReleaseAcquire =
           ]);
         ])
 
-    let patho = Semantics.make_path @@ stepo
-
-    let evalo = Semantics.make_eval ~irreducibleo:(TLSNode.lift_tpred Lang.Term.irreducibleo) patho
+    let evalo = Semantics.make_eval ~irreducibleo:(TLSNode.lift_tpred Lang.Term.irreducibleo) stepo
 
   end
