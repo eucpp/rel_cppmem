@@ -120,6 +120,8 @@ module Term :
     val thrd_local_termo : ti -> MiniKanren.goal
     val thrd_inter_termo : ti -> MiniKanren.goal
 
+    val irreducibleo : ti -> MiniKanren.goal
+
     val bool_expro  : ?loco:(Loc.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal
     val stmto       : ?loco:(Loc.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal
     val seq_stmto   : ?loco:(Loc.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal
@@ -182,8 +184,8 @@ module Label :
       Value.ti -> Value.ti -> Value.ti -> ti
   end
 
-val splito : Term.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Split.ti -> MiniKanren.goal
+val splito : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.splitting
 
-val thrd_splito : ThreadID.ti -> Term.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Split.ti -> MiniKanren.goal
+val thrd_splito : ThreadID.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.splitting
 
-val plugo : Context.ti -> Term.ti -> Term.ti -> MiniKanren.goal
+val plugo : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.plugging

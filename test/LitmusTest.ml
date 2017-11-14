@@ -36,8 +36,13 @@ let asserto t =
 >> *)
 
 let prog_SW = <:cppmem<
-    r1 := 1;
-    ret r1
+  spw {{{
+      x_rlx := 1;
+      f_rel := 1
+  |||
+      r1 := f_acq;
+      r2 := x_rlx
+  }}}
 >>
 
 let test_SW_RA () =
@@ -53,7 +58,8 @@ let _ =
   let stream = run q (fun t' -> (ReleaseAcquire.evalo t t')) (fun qs -> qs) in
   let cexs = Stream.take stream in
   List.iter (fun cex -> Format.fprintf ff "%a@;" Trace.trace cex) cexs;
-  Format.fprintf ff "TEST@;"
+  Format.fprintf ff "TEST@;";
+  MiniKanren.report_counters ()
 
 (* let _ =
   pprint Format.std_formatter @@ inj @@ prj @@ prog_rel_acq *)

@@ -287,6 +287,20 @@ module Term =
         (t === par t1 t2);
     ]
 
+    let rec irreducibleo t = conde [
+      (t === skip ());
+
+      (t === stuck ());
+
+      fresh (n)
+        (t === const n);
+
+      (* fresh (t1 t2)
+        (t === pair t1 t2)
+        (irreducibleo t1)
+        (irreducibleo t2); *)
+    ]
+
     let bool_expro ?(loco= fun x -> success) e = conde [
       fresh (x mo)
         (loco x)
@@ -481,80 +495,76 @@ module Label =
 
   end
 
-let rec splito term result = Term.(Context.(ThreadID.(conde [
+let rec splito term ctx rdx = Term.(Context.(ThreadID.(conde [
   (* first we handle cases when term is simple and context is `empty`;
    * in this case the resulting split is equal to ({}, term),
    * when {} denotes `hole`, i.e. free variable
    *)
   fresh (h)
-    (result === Semantics.Split.split (hole h) term)
+    (rdx === term)
+    (ctx === hole h)
     (conde [
+      (irreducibleo term);
+
       fresh (x)
         (term === var x);
 
       fresh (op l r)
         (term === binop op l r)
-        (splito l (Semantics.Split.undef ()))
-        (splito r (Semantics.Split.undef ()));
+        (irreducibleo l)
+        (irreducibleo r);
+
+      (* fresh (t1 t2)
+        (term === pair t1 t2)
+        (irreducibleo t1)
+        (irreducibleo t2); *)
 
       fresh (l r)
         (term === asgn l r)
-        (splito r (Semantics.Split.undef ()));
+        (irreducibleo r);
 
       fresh (mo l)
         (term === read mo l);
 
       fresh (mo loc e)
         (term === write mo loc e)
-        (splito e (Semantics.Split.undef ()));
+        (irreducibleo e);
 
       fresh (mo1 mo2 l t1 t2)
         (term === cas mo1 mo2 l t1 t2);
 
       fresh (e t1 t2)
         (term === if' e t1 t2)
-        (splito e (Semantics.Split.undef ()));
+        (irreducibleo e);
 
       fresh (loop)
         (term === repeat loop);
 
       fresh (t1 t2)
         (term === seq t1 t2)
-        (splito t1 (Semantics.Split.undef ()));
+        (irreducibleo t1);
 
       fresh (t1 t2)
         (term === spw t1 t2);
 
       fresh (t1 t2)
         (term === par t1 t2)
-        (splito t1 (Semantics.Split.undef ()))
-        (splito t2 (Semantics.Split.undef ()));
+        (irreducibleo t1)
+        (irreducibleo t2);
 
       fresh (e)
         (term === assertion e)
-        (splito e (Semantics.Split.undef ()));
+        (irreducibleo e);
+
+      (term === skip ());
+
+      (term === stuck ());
     ]);
 
-  (* here we handle irreducible terms *)
-  (result === Semantics.Split.undef ()) &&& (conde [
-    fresh (n)
-      (term === const n);
-
-    fresh (t1 t2)
-      (term === pair t1 t2)
-      (splito t1 (Semantics.Split.undef ()))
-      (splito t2 (Semantics.Split.undef ()));
-
-    (term === skip ());
-
-    (term === stuck ());
-  ]);
-
-  (* finally we handle complex terms *)
-  fresh (h t t' ctx ctx' rdx thrdId thrdId')
-    (ctx    === context t  h thrdId )
-    (ctx'   === context t' h thrdId')
-    (result === Semantics.Split.split ctx rdx)
+  (* second we handle complex terms *)
+  fresh (h t t' ctx' thrdId thrdId')
+    (ctx  === context t  h thrdId )
+    (ctx' === context t' h thrdId')
     (conde [
       (thrdId === thrdId') &&&
       (conde [
@@ -562,48 +572,48 @@ let rec splito term result = Term.(Context.(ThreadID.(conde [
           (term === binop op l r)
           (conde [
               (t === binop op t' r) &&&
-              (splito l (Semantics.Split.split ctx' rdx));
+              (splito l ctx' rdx);
 
               (t === binop op l t') &&&
-              (splito l (Semantics.Split.undef ())) &&&
-              (splito r (Semantics.Split.split ctx' rdx));
+              (irreducibleo l) &&&
+              (splito r ctx' rdx);
           ]);
 
-        fresh (t1 t2)
+        (* fresh (t1 t2)
           (term === pair t1 t2)
           (conde [
               (t === pair t' t2) &&&
-              (splito t1 (Semantics.Split.split ctx' rdx));
+              (splito t1 ctx' rdx);
 
               (t === pair t1 t') &&&
-              (splito t1 (Semantics.Split.undef ())) &&&
-              (splito t2 (Semantics.Split.split ctx' rdx));
-          ]);
+              (irreducibleo t1) &&&
+              (splito t2 ctx' rdx);
+          ]); *)
 
         fresh (t1 t2)
           (term === asgn t1 t2)
           (t    === asgn t1 t')
-          (splito t2 (Semantics.Split.split ctx' rdx));
+          (splito t2 ctx' rdx);
 
         fresh (e t1 t2)
           (term === if' e  t1 t2)
           (t    === if' t' t1 t2)
-          (splito e (Semantics.Split.split ctx' rdx));
+          (splito e ctx' rdx);
 
         fresh (mo loc e)
           (term === write mo loc e )
           (t    === write mo loc t')
-          (splito e (Semantics.Split.split ctx' rdx));
+          (splito e ctx' rdx);
 
         fresh (e)
           (term === assertion e )
           (t    === assertion t')
-          (splito e (Semantics.Split.split ctx' rdx));
+          (splito e ctx' rdx);
 
         fresh (t1 t2)
           (term === seq t1 t2)
           (t    === seq t' t2)
-          (splito t1 (Semantics.Split.split ctx' rdx));
+          (splito t1 ctx' rdx);
       ]);
 
       fresh (t1 t2)
@@ -611,27 +621,19 @@ let rec splito term result = Term.(Context.(ThreadID.(conde [
         (conde [
             (t === par t' t2) &&&
             (thrdId === pathl thrdId') &&&
-            (splito t1 (Semantics.Split.split ctx' rdx));
+            (splito t1 ctx' rdx);
 
             (t === par t1 t') &&&
             (thrdId === pathr thrdId') &&&
-            (splito t2 (Semantics.Split.split ctx' rdx));
+            (splito t2 ctx' rdx);
         ])
     ]);
 ])))
 
-let thrd_splito thrdId term result = Term.(Context.(ThreadID.(
-  (conde [
-    fresh (ctx rdx t h)
-      (ctx === context t h thrdId)
-      (result === Semantics.Split.split ctx rdx);
-
-    (result === Semantics.Split.undef ()) &&&
-    (thrdId === pathn ());
-  ])
-  &&&
-  (splito term result)
-)))
+let thrd_splito thrdId term ctx rdx =
+  fresh (t h)
+    (ctx === Context.context t h thrdId)
+    (splito term ctx rdx)
 
 let plugo ctx rdx term = Term.(Context.(conde [
   fresh (thrdId)

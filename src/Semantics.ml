@@ -56,8 +56,11 @@ module Split =
         (s === split ctx rdx)
   end
 
+type ('tt, 'tl) tpred =
+  ('tt, 'tl) Term.ti -> MiniKanren.goal
+
 type ('tt, 'ct, 'tl, 'cl) splitting =
-  ('tt, 'tl) Term.ti -> ('tt, 'ct, 'tl, 'cl) Split.ti -> MiniKanren.goal
+  ('tt, 'tl) Term.ti -> ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
 type ('tt, 'ct, 'tl, 'cl) plugging =
   ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
@@ -130,16 +133,16 @@ module TLSNode (P : Utils.Logic) (S : State) =
       fresh (prog)
         (t === node prog state)
 
-    let lift_split splito t result =
-      fresh (prog state result')
+    let lift_tpred predo t =
+      fresh (prog state)
         (t === node prog state)
-        (splito prog result')
-        (conde [
-          (result' === Split.undef ()) &&& (result === Split.undef ());
-          fresh (ctx rdx)
-            (result' === Split.split ctx rdx)
-            (result  === Split.split ctx (node rdx state));
-        ])
+        (predo prog)
+
+    let lift_split splito t ctx rdx =
+      fresh (prog state rdx')
+        (t   === node prog  state)
+        (rdx === node rdx' state)
+        (splito prog ctx rdx')
 
     let lift_plug plugo ctx rdx term =
       fresh (prog state prog')
@@ -157,32 +160,30 @@ module TLSNode (P : Utils.Logic) (S : State) =
   end
 
 type ('tt, 'tl) step =
-  ('tt, 'tl) Term.ti -> ('tt, 'tl) MaybeTerm.ti -> goal
+  ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> goal
+
+type ('tt, 'tl) path =
+  ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
 type ('tt, 'tl) eval =
   ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
-let make_step splito plugo rules = fun term result ->
-  fresh (ctx_rdx)
-    (splito term ctx_rdx)
-    (conde [
-      (ctx_rdx === Split.undef ()) &&& (result === MaybeTerm.undef ());
-      fresh (ctx rdx rdx' term')
-        (ctx_rdx === Split.split ctx rdx)
-        (result  === MaybeTerm.term term')
-        (conde @@ List.map (fun rule -> rule ctx rdx rdx') rules)
-        (plugo ctx rdx' term');
-    ])
+let make_step splito plugo rules t t' =
+  fresh (ctx rdx rdx')
+    (splito t ctx rdx)
+    (conde @@ List.map (fun rule -> rule ctx rdx rdx') rules)
+    (plugo ctx rdx' t')
 
-let make_eval stepo =
-  let evalo_norec evalo t t'' =
-    fresh (result)
-      (stepo t result)
-      (conde [
-        (result === MaybeTerm.undef ()) &&& (t === t'');
-        fresh (t')
-          (result === MaybeTerm.term t')
-          (delay @@ fun () -> evalo t' t'');
-      ])
-  in
-  Tabling.(tabledrec two) evalo_norec
+let make_path stepo =
+  let patho_norec patho t t'' = conde [
+    (t === t'');
+
+    fresh (t')
+      (stepo t t')
+      (patho t' t'')
+  ] in
+  Tabling.(tabledrec two) patho_norec
+
+let make_eval ~irreducibleo patho t t' =
+  (irreducibleo t') &&& (patho t t')
+  (* (patho t t') &&& (irreducibleo t')  *)

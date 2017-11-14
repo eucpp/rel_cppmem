@@ -25,27 +25,13 @@ module Label :
     type ('lt, 'll) ti = ('lt, 'll) MiniKanren.injected
   end
 
-(** Split - the result of splitting application, i.e. pair of evaluation context and term to be reduced (redex).
-      Since some terms may be irreducible, the context/redex pair may be undefined *)
-module Split :
-  sig
-    type ('t, 'c) t
+(** [tpred t] - some predicate defined on a set of terms *)
+type ('tt, 'tl) tpred =
+  ('tt, 'tl) Term.ti -> MiniKanren.goal
 
-    type ('tt, 'ct) tt = ('tt, 'ct) t MiniKanren.Std.Option.ground
-    type ('tl, 'cl) tl = ('tl, 'cl) t MiniKanren.logic MiniKanren.Std.Option.logic
-
-    type ('tt, 'ct, 'tl, 'cl) ti = (('tt, 'ct) tt, ('tl, 'cl) tl) MiniKanren.injected
-
-    val split : ('ct, 'cl) MiniKanren.injected -> ('tt, 'tl) MiniKanren.injected -> ('tt, 'ct, 'tl, 'cl) ti
-    val undef : unit -> ('tt, 'ct, 'tl, 'cl) ti
-
-    val redexo   : ('tt, 'ct, 'tl, 'cl) ti -> ('tt, 'tl) MiniKanren.injected -> MiniKanren.goal
-    val contexto : ('tt, 'ct, 'tl, 'cl) ti -> ('ct, 'cl) MiniKanren.injected -> MiniKanren.goal
-  end
-
-(** [splitting term split] - either splits [term] into [split] = [(context, redex)], or binds irreducible [term] with [undef] *)
+(** [splitting term ctx rdx] - splits [term] into pair [context] and [redex] *)
 type ('tt, 'ct, 'tl, 'cl) splitting =
-  ('tt, 'tl) Term.ti -> ('tt, 'ct, 'tl, 'cl) Split.ti -> MiniKanren.goal
+  ('tt, 'tl) Term.ti -> ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
 (** [plugging context redex term] - plugs [redex] into [context] obtaining new [term] *)
 type ('tt, 'ct, 'tl, 'cl) plugging =
@@ -94,6 +80,9 @@ module TLSNode (P : Utils.Logic) (S : State):
     val progo  : ti -> P.ti -> MiniKanren.goal
     val stateo : ti -> S.ti -> MiniKanren.goal
 
+    val lift_tpred :
+      (P.tt, P.tl) tpred -> (tt, tl) tpred
+
     val lift_split :
       (P.tt, 'ct, P.tl, 'cl) splitting -> (tt, 'ct, tl, 'cl) splitting
 
@@ -104,12 +93,17 @@ module TLSNode (P : Utils.Logic) (S : State):
       ('ct, 'cl) rule -> (tt, 'ct, tl, 'cl) rule'
   end
 
-(** [step constraints term term'] - performs a step that substitutes [term] with [term'],
-      if [term] is irreducible then [term'] is undefined *)
+(** [step term term'] - performs a step that substitutes [term] with [term'] *)
 type ('tt, 'tl) step =
-  ('tt, 'tl) Term.ti -> ('tt, 'tl) MaybeTerm.ti -> MiniKanren.goal
+  ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
-(** [eval term term'] - evaluates [term] to [term'] *)
+(** [path term term'] - binds [term] and [term'] such that there exist
+  *   a series of steps in semantics that reduces [term] to [term']
+  *)
+type ('tt, 'tl) path =
+  ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
+
+(** [eval ~irreducibleo term term'] - evaluates [term] to [term'], where [term'] is irreducible *)
 type ('tt, 'tl) eval =
   ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
@@ -122,5 +116,8 @@ type ('tt, 'tl) eval =
 val make_step :
   ('tt, 'ct, 'tl, 'cl) splitting -> ('tt, 'ct, 'tl, 'cl) plugging -> ('tt, 'ct, 'tl, 'cl) rule list -> ('tt, 'tl) step
 
+val make_path :
+  ('tt, 'tl) step -> ('tt, 'tl) path
+
 val make_eval :
-  ('tt, 'tl) step -> ('tt, 'tl) eval
+  irreducibleo:('tt, 'tl) tpred -> ('tt, 'tl) path -> ('tt, 'tl) eval

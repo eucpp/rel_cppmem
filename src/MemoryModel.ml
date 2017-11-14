@@ -3,7 +3,7 @@ open Memory
 open Lang
 open Utils
 
-module SequentialConsistent =
+(* module SequentialConsistent =
   struct
     module State =
       struct
@@ -203,7 +203,7 @@ module SequentialConsistent =
         (thrd_inter_stepo thrdId t' result)
 
     let evalo = Semantics.make_eval stepo
-  end
+  end *)
 
 module ReleaseAcquire =
   struct
@@ -533,7 +533,7 @@ module ReleaseAcquire =
 
     module TLSNode = Semantics.TLSNode(Lang.Term)(State)
 
-    let thrd_local_splito thrdId term result =
+    (* let thrd_local_splito thrdId term result =
       fresh (result')
         (thrd_splito thrdId term result')
         (conde [
@@ -573,15 +573,25 @@ module ReleaseAcquire =
     let thrd_inter_stepo thrdId = Semantics.make_step
       (TLSNode.lift_split @@ thrd_inter_splito thrdId)
       (TLSNode.lift_plug Lang.plugo)
-      (List.map (fun rule -> TLSNode.lift_rule rule) (Rules.ThreadSpawning.all @ Rules.Atomic.all))
+      (List.map (fun rule -> TLSNode.lift_rule rule) (Rules.ThreadSpawning.all @ Rules.Atomic.all)) *)
 
-    let stepo t result =
+    (* let stepo t result =
       fresh (thrdId t')
         (thrd_local_evalo thrdId t t')
         (result === Semantics.MaybeTerm.undef ())
-        (* (thrd_inter_stepo thrdId t' result) *)
+        (thrd_inter_stepo thrdId t' result) *)
 
-    let evalo = Semantics.make_eval stepo
+    (* let evalo = Semantics.make_eval stepo *)
     (* let evalo t t' =
       fresh (thrdId) (thrd_local_evalo thrdId t t') *)
+
+    let stepo = Semantics.make_step
+      (TLSNode.lift_split Lang.splito)
+      (TLSNode.lift_plug Lang.plugo)
+      (List.map (fun rule -> TLSNode.lift_rule rule) (Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.Atomic.all))
+
+    let patho = Semantics.make_path stepo
+
+    let evalo = Semantics.make_eval ~irreducibleo:(TLSNode.lift_tpred Lang.Term.irreducibleo) patho
+
   end

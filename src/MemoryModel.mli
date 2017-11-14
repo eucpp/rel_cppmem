@@ -1,4 +1,4 @@
-module SequentialConsistent :
+(* module SequentialConsistent :
   sig
     module State :
       sig
@@ -10,7 +10,7 @@ module SequentialConsistent :
     module TLSNode : module type of Semantics.TLSNode(Lang.Term)(State)
 
     val evalo : (TLSNode.tt, TLSNode.tl) Semantics.eval
-  end
+  end *)
 
 module ReleaseAcquire :
   sig
