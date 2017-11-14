@@ -538,15 +538,18 @@ module ReleaseAcquire =
       (TLSNode.lift_plug Lang.plugo)
       (List.map (fun rule -> TLSNode.lift_rule rule) Rules.Basic.all)
 
-    let thrd_local_evalo thrdId =
-      let irreducibleo = TLSNode.lift_tpred @@ fun t ->
-        fresh (subt)
-          (Lang.Term.thrd_termo t thrdId subt)
+    let rec thrd_local_evalo thrdId =
+      let irreducibleo = TLSNode.lift_tpred @@ fun t -> conde [
+        (t === Lang.Term.stuck ());
+
+        fresh (ctx rdx)
+          (t =/= Lang.Term.stuck ())
+          (thrd_splito thrdId t ctx rdx)
           (conde [
-            (Lang.Term.irreducibleo subt);
-            (Lang.Term.thrd_inter_termo subt);
-          ])
-      in
+            (Lang.Term.irreducibleo rdx);
+            (Lang.Term.thrd_inter_termo rdx);
+          ]);
+      ] in
       Semantics.make_eval ~irreducibleo (thrd_local_stepo thrdId)
 
     let thrd_inter_stepo thrdId = Semantics.make_step

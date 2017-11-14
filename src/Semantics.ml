@@ -175,14 +175,13 @@ let make_step splito plugo rules t t' =
     (plugo ctx rdx' t')
 
 let make_path stepo =
-  let patho_norec patho t t'' =
+  let patho_norec patho t t'' = conde [
+    (t === t'');
+
     fresh (t')
       (stepo t t')
-      (conde [
-        (t' === t'');
-        (patho t' t'');
-      ])
-  in
+      (patho t' t'');
+  ] in
   Tabling.(tabledrec two) patho_norec
 
 (* let make_eval ~irreducibleo patho t t' =
@@ -196,6 +195,5 @@ let make_eval ~irreducibleo stepo =
     fresh (t')
       (stepo t t')
       (evalo t' t'');
-  ]
-  in
+  ] in
   Tabling.(tabledrec two) evalo_norec

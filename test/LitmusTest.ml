@@ -41,7 +41,8 @@ let prog_SW = <:cppmem<
       f_rel := 1
   |||
       r1 := f_acq;
-      r2 := x_rlx
+      r2 := x_rlx;
+      assert (0)
   }}}
 >>
 
@@ -67,7 +68,7 @@ let _ =
   MiniKanren.report_counters ()
 
 (* let _ =
-  pprint Format.std_formatter @@ inj @@ prj @@ prog_rel_acq *)
+  Lang.Term.pprint Format.std_formatter @@ Lang.Term.inj @@ MiniKanren.prj @@ prog_SW *)
   (* Printf.printf "%s\n" @@ pprint @@ inj @@ prj @@ prog_rel_acq *)
 
 (* let test_rel_acq step = test_prog step prog_rel_acq ["(0, 0)"; "(0, 1)"; "(1, 1)";] *)

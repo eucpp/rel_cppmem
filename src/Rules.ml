@@ -84,8 +84,8 @@ module Basic =
       fresh (v)
         (t === assertion (const v))
         (conde [
-          (Lang.Value.nullo v)     &&& (t' === skip ());
-          (Lang.Value.not_nullo v) &&& (t' === stuck ());
+          (Lang.Value.nullo v)     &&& (t' === stuck ());
+          (Lang.Value.not_nullo v) &&& (t' === skip  ());
         ])
         (label === Label.empty ())
 
@@ -103,21 +103,12 @@ module ThreadSpawning =
        (Context.thrdIdo ctx thrdId)
 
     let joino label ctx t t' =
-      let rec expro t = conde [
-        fresh (n)
-          (t === const n);
-        fresh (t1 t2)
-          (t === pair t1 t2)
-          (expro t1)
-          (expro t2);
-      ] in
       fresh (t1 t2 thrdId)
         (t === par t1 t2)
         (conde [
-          (t1 === skip ()) &&& (t2 === skip ()) &&& (t' === skip ());
-          (t1 === skip ()) &&& (expro t2) &&& (t' === t2);
-          (expro t1) &&& (t2 === skip ()) &&& (t' === t1);
-          (expro t1) &&& (expro t2)       &&& (t' === pair t1 t2);
+          (t1 =/= stuck ()) &&& (t2 =/= stuck ()) &&& (t' === skip ());
+          (t1 =/= stuck ()) &&& (t2 === stuck ()) &&& (t' === stuck ());
+          (t1 === stuck ()) &&& (t' === stuck ());
         ])
         (label === Label.join thrdId)
         (Context.thrdIdo ctx thrdId)

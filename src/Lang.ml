@@ -363,12 +363,12 @@ module Term =
         (t === assertion e);
     ]
 
-    let thrd_inter_termo t = conde [
+    let rec thrd_inter_termo t = conde [
       fresh (mo l)
         (t === read mo l);
 
-      fresh (x mo l)
-        (t === asgn (var x) (read mo l));
+      (* fresh (x mo l)
+        (t === asgn (var x) (read mo l)); *)
 
       fresh (mo loc e)
         (t === write mo loc e);
@@ -381,6 +381,9 @@ module Term =
 
       fresh (t1 t2)
         (t === par t1 t2);
+
+      (* fresh (t1 t2)
+        (t === seq t1 t2); *)
     ]
 
     let rec irreducibleo t = conde [
@@ -701,7 +704,7 @@ let plugo ctx rdx term = Term.(Context.(conde [
   fresh (thrdId)
     (rdx  =/= stuck ())
     (term =/= stuck ())
-    (ctx === context term rdx thrdId);
+    (ctx  === context term rdx thrdId);
 
   (rdx === stuck ()) &&& (term === stuck ());
 ]))
