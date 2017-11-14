@@ -247,6 +247,46 @@ module Term =
       sl
     )
 
+    let thrd_local_termo t = conde [
+      fresh (x)
+        (t === var x);
+
+      fresh (op l r)
+        (t === binop op l r);
+
+      fresh (l r)
+        (t === asgn l r);
+
+      fresh (e t1 t2)
+        (t === if' e t1 t2);
+
+      fresh (loop)
+        (t === repeat loop);
+
+      fresh (t1 t2)
+        (t === seq t1 t2);
+
+      fresh (e)
+        (t === assertion e);
+    ]
+
+    let thrd_inter_termo t = conde [
+      fresh (mo l)
+        (t === read mo l);
+
+      fresh (mo loc e)
+        (t === write mo loc e);
+
+      fresh (mo1 mo2 l t1 t2)
+        (t === cas mo1 mo2 l t1 t2);
+
+      fresh (t1 t2)
+        (t === spw t1 t2);
+
+      fresh (t1 t2)
+        (t === par t1 t2);
+    ]
+
     let bool_expro ?(loco= fun x -> success) e = conde [
       fresh (x mo)
         (loco x)
@@ -580,66 +620,17 @@ let rec splito term result = Term.(Context.(ThreadID.(conde [
     ]);
 ])))
 
-(* let thrd_splito thrdId term result = Term.(Context.(ThreadID.(
-  fresh (result')
-    (conde [
-      fresh (ctx rdx t h)
-        (ctx === context t h thrdId)
-        (result' === Semantics.Split.split ctx rdx);
-
-      (result' === Semantics.Split.undef ()) &&&
-      (thrdId  === Path.pathn ());
-    ])
-    (splito term result')
-))) *)
-
 let thrd_splito thrdId term result = Term.(Context.(ThreadID.(
-  fresh (ctx rdx t h result')
-    (ctx === context t h thrdId)
-    (result' === Semantics.Split.split ctx rdx)
-    (splito term result')
-    (conde [
-      (*  *)
-      (result === result') &&& conde [
-        fresh (x)
-          (rdx === var x);
+  (conde [
+    fresh (ctx rdx t h)
+      (ctx === context t h thrdId)
+      (result === Semantics.Split.split ctx rdx);
 
-        fresh (op l r)
-          (rdx === binop op l r);
-
-        fresh (l r)
-          (rdx === asgn l r);
-
-        fresh (e t1 t2)
-          (rdx === if' e t1 t2);
-
-        fresh (loop)
-          (rdx === repeat loop);
-
-        fresh (t1 t2)
-          (rdx === seq t1 t2);
-
-        fresh (e)
-          (rdx === assertion e);
-      ];
-
-      (result === Semantics.Split.undef ()) &&& conde [
-        fresh (mo l)
-          (rdx === read mo l);
-
-        fresh (mo loc e)
-          (rdx === write mo loc e);
-
-        fresh (mo1 mo2 l t1 t2)
-          (rdx === cas mo1 mo2 l t1 t2);
-
-        fresh (t1 t2)
-          (rdx === spw t1 t2);
-
-        fresh (t1 t2)
-          (rdx === par t1 t2);
-      ]
-    ])
+    (result === Semantics.Split.undef ()) &&&
+    (thrdId === pathn ());
+  ])
+  &&&
+  (splito term result)
 )))
 
 let plugo ctx rdx term = Term.(Context.(conde [

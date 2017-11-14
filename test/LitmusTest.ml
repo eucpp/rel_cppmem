@@ -36,19 +36,24 @@ let asserto t =
 >> *)
 
 let prog_SW = <:cppmem<
-    spw {{{
-        x_rlx := 1;
-        f_rel := 1
-    |||
-        r1 := f_acq;
-        r2 := x_rlx
-    }}}
+    r1 := 1;
+    ret r1
 >>
 
-let test_SW_RA =
+let test_SW_RA () =
   let state = ReleaseAcquire.State.init ~regs:[reg "r1"; reg "r2"] ~locs:[loc "x"; loc "f"] in
   let node  = ReleaseAcquire.TLSNode.node prog_SW state in
   Query.verify ~n:1 ~fail_k ReleaseAcquire.evalo asserto node
+
+let _ =
+  let module Trace = Utils.Trace(ReleaseAcquire.TLSNode) in
+  let ff = Format.std_formatter in
+  let state = ReleaseAcquire.State.init ~regs:[reg "r1"; reg "r2"] ~locs:[loc "x"; loc "f"] in
+  let t = ReleaseAcquire.TLSNode.node prog_SW state in
+  let stream = run q (fun t' -> (ReleaseAcquire.evalo t t')) (fun qs -> qs) in
+  let cexs = Stream.take stream in
+  List.iter (fun cex -> Format.fprintf ff "%a@;" Trace.trace cex) cexs;
+  Format.fprintf ff "TEST@;"
 
 (* let _ =
   pprint Format.std_formatter @@ inj @@ prj @@ prog_rel_acq *)
@@ -278,7 +283,7 @@ let promisingStep =
 let tests =
   "Litmus">::: [
     "RelAcq">::: [
-      "SW">:: fun test_ctx -> test_SW_RA;
+      (* "SW">:: fun test_ctx -> test_SW_RA; *)
     ]
     (* "DR_1">:: test_data_race_1 rlxStep;
     "DR_2">:: test_data_race_2 rlxStep;
