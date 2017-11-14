@@ -45,6 +45,11 @@ let prog_SW = <:cppmem<
   }}}
 >>
 
+(* let prog_SW = <:cppmem<
+  r1 := 1;
+  ret r1
+>> *)
+
 let test_SW_RA () =
   let state = ReleaseAcquire.State.init ~regs:[reg "r1"; reg "r2"] ~locs:[loc "x"; loc "f"] in
   let node  = ReleaseAcquire.TLSNode.node prog_SW state in

@@ -96,6 +96,9 @@ EXTEND
       | "spw"; "{";"{";"{"; t1 = cppmem_stmt; "|||"; t2 = cppmem_stmt; "}";"}";"}" ->
         <:expr< spw $t1$ $t2$ >>
 
+      | "par"; "{";"{";"{"; t1 = cppmem_stmt; "|||"; t2 = cppmem_stmt; "}";"}";"}" ->
+        <:expr< par $t1$ $t2$ >>
+
       | "assert"; "("; e = cppmem_expr; ")" ->
         <:expr< assertion $e$ >>
 

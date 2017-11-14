@@ -185,5 +185,5 @@ let make_path stepo =
   Tabling.(tabledrec two) patho_norec
 
 let make_eval ~irreducibleo patho t t' =
-  (irreducibleo t') &&& (patho t t')
-  (* (patho t t') &&& (irreducibleo t')  *)
+  (* (irreducibleo t') &&& (patho t t') *)
+  (patho t t') &&& (irreducibleo t') 

@@ -93,6 +93,23 @@ module Op :
     val show : tl -> string
   end
 
+module ThreadID :
+  sig
+    type tt
+    type tl = inner MiniKanren.logic
+      and inner
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    val pathn : unit -> ti
+    val pathl : ti -> ti
+    val pathr : ti -> ti
+
+    val inj : tt -> tl
+
+    val reify : MiniKanren.helper -> ti -> tl
+  end
+
 module Term :
   sig
     include Utils.Logic
@@ -117,6 +134,8 @@ module Term :
 
     val show : tl -> string
 
+    val thrd_termo : ti -> ThreadID.ti -> ti -> MiniKanren.goal
+
     val thrd_local_termo : ti -> MiniKanren.goal
     val thrd_inter_termo : ti -> MiniKanren.goal
 
@@ -125,23 +144,6 @@ module Term :
     val bool_expro  : ?loco:(Loc.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal
     val stmto       : ?loco:(Loc.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal
     val seq_stmto   : ?loco:(Loc.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal
-  end
-
-module ThreadID :
-  sig
-    type tt
-    type tl = inner MiniKanren.logic
-      and inner
-
-    type ti = (tt, tl) MiniKanren.injected
-
-    val pathn : unit -> ti
-    val pathl : ti -> ti
-    val pathr : ti -> ti
-
-    val inj : tt -> tl
-
-    val reify : MiniKanren.helper -> ti -> tl
   end
 
 module Context :

@@ -533,64 +533,53 @@ module ReleaseAcquire =
 
     module TLSNode = Semantics.TLSNode(Lang.Term)(State)
 
-    (* let thrd_local_splito thrdId term result =
-      fresh (result')
-        (thrd_splito thrdId term result')
-        (conde [
-          fresh (ctx rdx)
-            (result' === Semantics.Split.split ctx rdx)
-            (conde [
-              (result === result') &&& (Lang.Term.thrd_local_termo rdx);
-
-              (result === Semantics.Split.undef ()) &&& (Lang.Term.thrd_inter_termo rdx);
-            ]);
-
-          (result' === Semantics.Split.undef ()) &&& (result === result');
-        ])
-
     let thrd_local_stepo thrdId = Semantics.make_step
-      (TLSNode.lift_split @@ thrd_local_splito thrdId)
+      (TLSNode.lift_split @@ thrd_splito thrdId)
       (TLSNode.lift_plug Lang.plugo)
       (List.map (fun rule -> TLSNode.lift_rule rule) Rules.Basic.all)
 
-    let thrd_local_evalo thrdId = Semantics.make_eval @@ thrd_local_stepo thrdId
+    (* let thrd_local_patho thrdId = Semantics.make_path @@ thrd_local_stepo thrdId *)
+    let thrd_local_patho =
+      let patho_norec patho thrdId t t'' = conde [
+        (t === t'');
 
-    let thrd_inter_splito thrdId term result =
-      fresh (result')
-        (thrd_splito thrdId term result')
-        (conde [
-          fresh (ctx rdx)
-            (result' === Semantics.Split.split ctx rdx)
-            (conde [
-              (result === Semantics.Split.undef ()) &&& (Lang.Term.thrd_local_termo rdx);
+        fresh (t')
+          (thrd_local_stepo thrdId t t')
+          (patho thrdId t' t'')
+      ] in
+      Tabling.(tabledrec three) patho_norec
 
-              (result === result') &&& (Lang.Term.thrd_inter_termo rdx);
-            ]);
-
-          (result' === Semantics.Split.undef ()) &&& (result === result');
-        ])
+    let thrd_local_evalo thrdId =
+      let irreducibleo = TLSNode.lift_tpred @@ fun t ->
+        fresh (subt)
+          (Lang.Term.thrd_termo t thrdId subt)
+          (conde [
+            (Lang.Term.irreducibleo subt);
+            (Lang.Term.thrd_inter_termo subt);
+          ])
+      in
+      Semantics.make_eval ~irreducibleo (thrd_local_patho thrdId)
 
     let thrd_inter_stepo thrdId = Semantics.make_step
-      (TLSNode.lift_split @@ thrd_inter_splito thrdId)
+      (TLSNode.lift_split @@ thrd_splito thrdId)
       (TLSNode.lift_plug Lang.plugo)
-      (List.map (fun rule -> TLSNode.lift_rule rule) (Rules.ThreadSpawning.all @ Rules.Atomic.all)) *)
+      (List.map (fun rule -> TLSNode.lift_rule rule) (Rules.ThreadSpawning.all @ Rules.Atomic.all))
 
-    (* let stepo t result =
+    let stepo t t'' =
       fresh (thrdId t')
         (thrd_local_evalo thrdId t t')
-        (result === Semantics.MaybeTerm.undef ())
-        (thrd_inter_stepo thrdId t' result) *)
+        (conde [
+          fresh (thrdId')
+            (t === t')
+            (thrd_inter_stepo thrdId' t' t'');
 
-    (* let evalo = Semantics.make_eval stepo *)
-    (* let evalo t t' =
-      fresh (thrdId) (thrd_local_evalo thrdId t t') *)
+          (t =/= t') &&& (conde [
+            (t' === t'');
+            (thrd_inter_stepo thrdId t' t'');
+          ]);
+        ])
 
-    let stepo = Semantics.make_step
-      (TLSNode.lift_split Lang.splito)
-      (TLSNode.lift_plug Lang.plugo)
-      (List.map (fun rule -> TLSNode.lift_rule rule) (Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.Atomic.all))
-
-    let patho = Semantics.make_path stepo
+    let patho = Semantics.make_path @@ stepo
 
     let evalo = Semantics.make_eval ~irreducibleo:(TLSNode.lift_tpred Lang.Term.irreducibleo) patho
 

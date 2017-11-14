@@ -151,6 +151,40 @@ module Op =
     let show = GT.show(logic) (to_string)
   end
 
+module ThreadID =
+  struct
+    module T =
+      struct
+        @type 'a t = N | L of 'a | R of 'a with gmap, show
+
+        let fmap fa x = GT.gmap(t) fa x
+        let show fa x = GT.show(t) fa x
+      end
+
+    include Fmap(T)
+
+    type tt = tt T.t
+    type tl = inner MiniKanren.logic
+      and inner = tl T.t
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    let reify' = reify
+
+    let rec reify t = reify' (reify) t
+
+    let inj' = inj
+
+    let rec inj x =
+      to_logic (T.fmap inj x)
+
+    let pathn ()  = inj' @@ distrib @@ T.N
+    let pathl p   = inj' @@ distrib @@ T.L p
+    let pathr p   = inj' @@ distrib @@ T.R p
+
+    let rec show x = GT.show(logic) (T.show show) x
+  end
+
 module Term =
   struct
     module T =
@@ -247,6 +281,65 @@ module Term =
       sl
     )
 
+    let rec thrd_termo t thrdId subt = conde [
+      (thrdId === ThreadID.pathn ()) &&& (t === subt) &&& (conde [
+        (t === skip ());
+
+        (t === stuck ());
+
+        fresh (n)
+          (t === const n);
+
+        fresh (x)
+          (t === var x);
+
+        fresh (op l r)
+          (t === binop op l r);
+
+        fresh (l r)
+          (t === asgn l r);
+
+        fresh (e t1 t2)
+          (t === if' e t1 t2);
+
+        fresh (loop)
+          (t === repeat loop);
+
+        fresh (t1 t2)
+          (t === seq t1 t2);
+
+        fresh (e)
+          (t === assertion e);
+
+        fresh (mo l)
+          (t === read mo l);
+
+        fresh (mo loc e)
+          (t === write mo loc e);
+
+        fresh (mo1 mo2 l t1 t2)
+          (t === cas mo1 mo2 l t1 t2);
+
+        fresh (t1 t2)
+          (t === spw t1 t2);
+
+        fresh (t1 t2)
+          (t === par t1 t2);
+      ]);
+
+      fresh (t1 t2)
+        (t === par t1 t2)
+        (conde [
+          fresh (thrdId')
+            (thrdId === ThreadID.pathl thrdId')
+            (thrd_termo t1 thrdId' subt);
+
+          fresh (thrdId')
+            (thrdId === ThreadID.pathr thrdId')
+            (thrd_termo t2 thrdId' subt);
+        ]);
+    ]
+
     let thrd_local_termo t = conde [
       fresh (x)
         (t === var x);
@@ -273,6 +366,9 @@ module Term =
     let thrd_inter_termo t = conde [
       fresh (mo l)
         (t === read mo l);
+
+      fresh (x mo l)
+        (t === asgn (var x) (read mo l));
 
       fresh (mo loc e)
         (t === write mo loc e);
@@ -357,40 +453,6 @@ module Term =
         (seq_stmto ~loco t2)
     ]
 
-  end
-
-module ThreadID =
-  struct
-    module T =
-      struct
-        @type 'a t = N | L of 'a | R of 'a with gmap, show
-
-        let fmap fa x = GT.gmap(t) fa x
-        let show fa x = GT.show(t) fa x
-      end
-
-    include Fmap(T)
-
-    type tt = tt T.t
-    type tl = inner MiniKanren.logic
-      and inner = tl T.t
-
-    type ti = (tt, tl) MiniKanren.injected
-
-    let reify' = reify
-
-    let rec reify t = reify' (reify) t
-
-    let inj' = inj
-
-    let rec inj x =
-      to_logic (T.fmap inj x)
-
-    let pathn ()  = inj' @@ distrib @@ T.N
-    let pathl p   = inj' @@ distrib @@ T.L p
-    let pathr p   = inj' @@ distrib @@ T.R p
-
-    let rec show x = GT.show(logic) (T.show show) x
   end
 
 module Context =
