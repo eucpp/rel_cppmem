@@ -106,11 +106,10 @@ module ThreadSpawning =
       fresh (t1 t2 thrdId)
         (t === par t1 t2)
         (conde [
-          (t1 =/= stuck ()) &&& (t2 =/= stuck ()) &&& (t' === skip ());
-          (t1 =/= stuck ()) &&& (t2 === stuck ()) &&& (t' === stuck ());
-          (t1 === stuck ()) &&& (t' === stuck ());
+          (t1 =/= stuck ()) &&& (t2 =/= stuck ()) &&& (t' === skip ())  &&& (label === Label.join thrdId);
+          (t1 =/= stuck ()) &&& (t2 === stuck ()) &&& (t' === stuck ()) &&& (label === Label.empty ());
+          (t1 === stuck ()) &&& (t' === stuck ()) &&& (label === Label.empty ());
         ])
-        (label === Label.join thrdId)
         (Context.thrdIdo ctx thrdId)
 
     let all = [spawno; joino]

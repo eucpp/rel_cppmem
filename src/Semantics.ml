@@ -184,14 +184,11 @@ let make_path stepo =
   ] in
   Tabling.(tabledrec two) patho_norec
 
-(* let make_eval ~irreducibleo patho t t' =
-  (* (irreducibleo t') &&& (patho t t') *)
-  (patho t t') &&& (irreducibleo t') *)
-
 let make_eval ~irreducibleo stepo =
   let evalo_norec evalo t t'' = conde [
     (irreducibleo t) &&& (t === t'');
 
+  ?~(irreducibleo t) &&&
     fresh (t')
       (stepo t t')
       (evalo t' t'');

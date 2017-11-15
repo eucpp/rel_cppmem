@@ -42,7 +42,11 @@ let prog_SW = <:cppmem<
   |||
       r1 := f_acq;
       r2 := x_rlx;
-      assert (0)
+      assert (
+        (r1 = 0 && r2 = 0) ||
+        (r1 = 0 && r2 = 1) ||
+        (r1 = 1 && r2 = 1)
+      )
   }}}
 >>
 

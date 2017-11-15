@@ -29,7 +29,6 @@ plugin: relcppmem
 
 test: relcppmem plugin
 	$(OCB) -I test -pkgs "oUnit" Test.native
-	./Test.native
 
 ################################# Samples ####################################
 

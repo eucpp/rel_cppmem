@@ -542,12 +542,15 @@ module ReleaseAcquire =
       let irreducibleo = TLSNode.lift_tpred @@ fun t -> conde [
         (t === Lang.Term.stuck ());
 
-        fresh (ctx rdx)
+        fresh (subt)
           (t =/= Lang.Term.stuck ())
-          (thrd_splito thrdId t ctx rdx)
+          (Lang.Term.thrd_termo t thrdId subt)
           (conde [
-            (Lang.Term.irreducibleo rdx);
-            (Lang.Term.thrd_inter_termo rdx);
+            (Lang.Term.irreducibleo subt);
+
+            fresh (ctx rdx)
+              (Lang.splito subt ctx rdx)
+              (Lang.Term.thrd_inter_termo rdx);
           ]);
       ] in
       Semantics.make_eval ~irreducibleo (thrd_local_stepo thrdId)
