@@ -134,7 +134,7 @@ module Term :
     val while'    : Expr.ti -> ti -> ti
     val load      : MemOrder.ti -> Loc.ti -> Register.ti -> ti
     val store     : MemOrder.ti -> Loc.ti -> Expr.ti     -> ti
-    val cas       : MemOrder.ti -> MemOrder.ti -> Loc.ti -> ti -> ti -> ti
+    val cas       : MemOrder.ti -> MemOrder.ti -> Loc.ti -> Expr.ti -> Expr.ti -> ti
     val repeat    : MemOrder.ti -> Loc.ti -> ti
     val seq       : ti -> ti -> ti
     val spw       : ti -> ti -> ti
