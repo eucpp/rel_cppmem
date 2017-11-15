@@ -435,8 +435,6 @@ module ThreadLocalStorage(T : ThreadLocalData) =
 
     let leaf x = node x
 
-    let rec inj tree = to_logic (Tree.fmap T.inj inj tree)
-
     let reify' = reify
     let rec reify h = reify' T.reify reify h
 

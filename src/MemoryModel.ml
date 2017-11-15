@@ -255,9 +255,6 @@ module ReleaseAcquire =
 
         let reify = reify (TLS.reify) (MemStory.reify) (ViewFront.reify) (ViewFront.reify)
 
-        let inj x =
-          to_logic @@ T.fmap (TLS.inj) (MemStory.inj) (ViewFront.inj) (ViewFront.inj) x
-
         let init ~regs ~locs =
           let thrd  = ThreadFront.preallocate regs locs in
           let thrds = TLS.leaf thrd in

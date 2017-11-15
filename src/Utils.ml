@@ -10,7 +10,6 @@ module type Logic =
 
     type ti = (tt, tl) MiniKanren.injected
 
-    val inj : tt -> tl
     val reify : MiniKanren.helper -> ti -> tl
 
     val pprint : Format.formatter -> tl -> unit
@@ -18,7 +17,7 @@ module type Logic =
 
 module Trace(T : Logic) =
   struct
-    let trace fmt rr = T.pprint fmt @@ rr#reify T.reify ~inj:T.inj
+    let trace fmt rr = T.pprint fmt @@ rr#reify T.reify
   end
 
 let rec pprint_logic pp ff = function

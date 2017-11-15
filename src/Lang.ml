@@ -64,15 +64,12 @@ module Value =
     let addo = Nat.addo
     let mulo = Nat.mulo
 
-    let eqo x y b = conde [
-      (x === y) &&& (b === !!true);
-      (x =/= y) &&& (b === !!false);
-    ]
-
-    let lto = Nat.lto
-    let leo = Nat.leo
-    let gto = Nat.gto
-    let geo = Nat.geo
+    let eqo   = (===)
+    let neqo  = (=/=)
+    let lto   = Nat.(<)
+    let leo   = Nat.(<=)
+    let gto   = Nat.(>)
+    let geo   = Nat.(>=)
   end
 
 module MemOrder =
@@ -185,98 +182,127 @@ module ThreadID =
     let rec show x = GT.show(logic) (T.show show) x
   end
 
+module Expr =
+  struct
+    module T =
+      struct
+        @type ('var, 'value, 'op, 't) t =
+          | Var     of 'var
+          | Const   of 'value
+          | Binop   of 'op * 't * 't
+        with gmap, show
+
+        let fmap fa fb fc fd x = GT.gmap(t) fa fb fc fd x
+      end
+
+    type tt = (Register.tt, Value.tt, Op.tt, tt) T.t
+
+    type tl = inner MiniKanren.logic
+      and inner = (Register.tl, Value.tl, Op.tl, tl) T.t
+
+    type ti = (tt, tl) Semantics.Term.ti
+
+    module FT = Fmap4(T)
+
+    let var x         = inj @@ FT.distrib @@ T.Var x
+    let const v       = inj @@ FT.distrib @@ T.Const v
+    let binop op l r  = inj @@ FT.distrib @@ T.Binop (op, l, r)
+
+    let rec reify h = FT.reify (Register.reify) (Value.reify) (Op.reify) reify h
+
+    let rec show t =
+      GT.show(logic) (GT.show(T.t) Register.show Value.show Op.show show) t
+
+    let rec pprint = T.(
+      let s ff = function
+        | Var x            -> Format.fprintf ff "@[%a@]" Register.pprint x
+        | Const n          -> Format.fprintf ff "@[%a@]" Value.pprint n
+        | Binop (op, l, r) -> Format.fprintf ff "@[%a %a %a@]" pprint l Op.pprint op pprint b
+      in
+      pprint_logic s
+    )
+  end
+
 module Term =
   struct
     module T =
       struct
-        @type ('reg, 'loc, 'value, 'mo, 'op, 't) t =
-          | Const    of 'value
-          | Var      of 'reg
-          | Binop    of 'op * 't * 't
-          | Asgn     of 't * 't
-          | Pair     of 't * 't
-          | If       of 't * 't * 't
-          | Repeat   of 't
-          | While    of 't * 't
-          | Read     of 'mo * 'loc
-          | Write    of 'mo * 'loc * 't
-          | Cas      of 'mo * 'mo * 'loc * 't * 't
+        @type ('reg, 'loc, 'mo, 'e, 't) t =
+          | Skip
+          | Stuck
+          | Assert   of 'e
+          | Asgn     of 'reg * 'e
+          | If       of 'e * 't * 't
+          | While    of 'e * 't
+          | Load     of 'mo * 'loc * 'reg
+          | Store    of 'mo * 'loc * 'e
+          | Cas      of 'mo * 'mo * 'loc * 'e * 'e
+          | Repeat   of 'mo * 'loc
           | Seq      of 't * 't
           | Spw      of 't * 't
           | Par      of 't * 't
-          | Assert   of 't
-          | Skip
-          | Stuck
         with gmap, show
 
-        let fmap fa fb fc fd fe ff x = GT.gmap(t) (fa) (fb) (fc) (fd) (fe) (ff) x
+        let fmap fa fb fc fd fe x = GT.gmap(t) fa fb fc fd fe x
       end
 
-    type tt = (Register.tt, Loc.tt, Value.tt, MemOrder.tt, Op.tt, tt) T.t
+    type tt = (Register.tt, Loc.tt, MemOrder.tt, Expr.tt, tt) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (Register.tl, Loc.tl, Value.tl, MemOrder.tl, Op.tl, tl) T.t
+      and inner = (Register.tl, Loc.tl, MemOrder.tl, Expr.tl, tl) T.t
 
     type ti = (tt, tl) Semantics.Term.ti
 
-    module FT = Fmap6(T)
+    module FT = Fmap5(T)
 
-    let const n             = inj @@ FT.distrib @@ T.Const n
-    let var x               = inj @@ FT.distrib @@ T.Var x
-    let binop op l r        = inj @@ FT.distrib @@ T.Binop (op, l, r)
-    let asgn l r            = inj @@ FT.distrib @@ T.Asgn (l, r)
-    let pair l r            = inj @@ FT.distrib @@ T.Pair (l, r)
-    let if' cond l r        = inj @@ FT.distrib @@ T.If (cond, l, r)
+    let assertion e         = inj @@ FT.distrib @@ T.Assert e
+    let skip ()             = inj @@ FT.distrib @@ T.Skip
+    let stuck ()            = inj @@ FT.distrib @@ T.Stuck
+    let asgn r e            = inj @@ FT.distrib @@ T.Asgn (r, e)
+    let if' e l r           = inj @@ FT.distrib @@ T.If (e, l, r)
     let while' e t          = inj @@ FT.distrib @@ T.While (e, t)
-    let repeat t            = inj @@ FT.distrib @@ T.Repeat t
-    let read mo l           = inj @@ FT.distrib @@ T.Read (mo, l)
-    let write mo l t        = inj @@ FT.distrib @@ T.Write (mo, l, t)
-    let cas mo1 mo2 l t1 t2 = inj @@ FT.distrib @@ T.Cas (mo1, mo2, l, t1, t2)
+    let load mo l r         = inj @@ FT.distrib @@ T.Load (mo, l, r)
+    let store mo l t        = inj @@ FT.distrib @@ T.Store (mo, l, t)
+    let cas mo1 mo2 l e1 e2 = inj @@ FT.distrib @@ T.Cas (mo1, mo2, l, e1, e2)
+    let repeat mo l         = inj @@ FT.distrib @@ T.Repeat (mo, l)
     let seq t1 t2           = inj @@ FT.distrib @@ T.Seq (t1, t2)
     let spw t1 t2           = inj @@ FT.distrib @@ T.Spw (t1, t2)
     let par t1 t2           = inj @@ FT.distrib @@ T.Par (t1, t2)
-    let assertion t         = inj @@ FT.distrib @@ T.Assert t
-    let skip ()             = inj @@ FT.distrib @@ T.Skip
-    let stuck ()            = inj @@ FT.distrib @@ T.Stuck
 
-    let rec reify' h = FT.reify (reify) (reify) (Nat.reify) (reify) (reify) (reify') h
-
-    let reify = reify'
-
-    let rec inj t =
-      to_logic (T.fmap (Register.inj) (Loc.inj) (Value.inj) (MemOrder.inj) (Op.inj) (inj) t)
+    let rec reify h = FT.reify Register.reify Loc.reify Value.reify MemOrder.reify Expr.reify reify h
 
     let rec show t =
-      GT.show(logic) (GT.show(T.t) (Register.show) (Loc.show) (Value.show) (MemOrder.show) (Op.show) (show)) t
+      GT.show(logic) (GT.show(T.t) (Register.show) (Loc.show) (MemOrder.show) (Expr.show) (show)) t
 
     let pprint = T.(
-      let rec const   = pprint_nat    in
-      let var         = pprint_string in
-      let loc         = pprint_string in
-
-      let kwd_op  = pprint_logic (fun ff op -> Format.fprintf ff "%s" (Op.to_string op)) in
-      let mo      = pprint_logic (fun ff m  -> Format.fprintf ff "%s" (MemOrder.to_string m))  in
-
       let rec sl ff x = pprint_logic s ff x
-
       and s ff = function
-        | Const n                 -> Format.fprintf ff "@[%a@]" const n
-        | Var x                   -> Format.fprintf ff "@[%a@]" var x
-        | Binop (op, a, b)        -> Format.fprintf ff "@[%a %a %a@]" sl a kwd_op op sl b
-        | Asgn (x, y)             -> Format.fprintf ff "@[<hv>%a := %a@]" sl x sl y
-        | Pair (x, y)             -> Format.fprintf ff "@[(%a, %a)@]" sl x sl y
-        | If (cond, t, f)         -> Format.fprintf ff "@[<v>if %a@;then %a@;else %a@]" sl cond sl t sl f
-        | Repeat t                -> Format.fprintf ff "@[repeat %a end@]" sl t
-        | While (cond, t)         -> Format.fprintf ff "@[while (%a) @;<1 4>%a@;@]" sl cond sl t
-        | Read (m, l)             -> Format.fprintf ff "@[%a_%a@]" loc l mo m
-        | Write (m, l, t)         -> Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" loc l mo m sl t
-        | Cas (m1, m2, l, e, d)   -> Format.fprintf ff "@[cas_%a_%a(%a, %a, %a)@]" mo m1 mo m2 loc l sl e sl d
-        | Seq (t, t')             -> Format.fprintf ff "@[<v>%a;@;%a@]" sl t sl t'
-        | Spw (t, t')             -> Format.fprintf ff "@[<v>spw {{{@;<1 4>%a@;|||@;<1 4>%a@;}}}@]" sl t sl t'
-        | Par (t, t')             -> Format.fprintf ff "@[<v>par {{{@;<1 4>%a@;<1 4>|||@;<1 4>%a@;}}}@]" sl t sl t'
-        | Assert t                -> Format.fprintf ff "@[assert (%a)@;@]" sl t
-        | Skip                    -> Format.fprintf ff "@[skip@]"
-        | Stuck                   -> Format.fprintf ff "@[stuck@]"
+        | Skip                    ->
+          Format.fprintf ff "@[skip@]"
+        | Stuck                   ->
+          Format.fprintf ff "@[stuck@]"
+        | Assert e                ->
+          Format.fprintf ff "@[assert (%a)@;@]" Expr.pprint e
+        | Asgn (r, e)             ->
+          Format.fprintf ff "@[%a := %a@]" Register.pprint r Expr.pprint e
+        | If (e, t1, t2)          ->
+          Format.fprintf ff "@[<v>if %a@;then %a@;else %a@]" Expr.pprint e sl t1 sl t2
+        | While (e, t)            ->
+          Format.fprintf ff "@[while (%a) @;<1 4>%a@;@]" Expr.pprint e sl t
+        | Load (m, l, r)          ->
+          Format.fprintf ff "@[%a := %a_%a@]" Register.pprint r Loc.pprint l MemOrder.pprint m
+        | Store (m, l, t)         ->
+          Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" Loc.pprint l MemOrder.pprint m sl t
+        | Cas (m1, m2, l, e, d)   ->
+          Format.fprintf ff "@[cas_%a_%a(%a, %a, %a)@]" MemOrder.pprint m1 MemOrder.pprint m2 Loc.pprint l Expr.pprint e Expr.pprint d
+        | Repeat (m, l)           ->
+          Format.fprintf ff "@[repeat %a_%a end@]" Loc.pprint l MemOrder.pprint m
+        | Seq (t, t')             ->
+          Format.fprintf ff "@[<v>%a;@;%a@]" sl t sl t'
+        | Spw (t, t')             ->
+          Format.fprintf ff "@[<v>spw {{{@;<1 4>%a@;|||@;<1 4>%a@;}}}@]" sl t sl t'
+        | Par (t, t')             ->
+          Format.fprintf ff "@[<v>par {{{@;<1 4>%a@;<1 4>|||@;<1 4>%a@;}}}@]" sl t sl t'
       in
       sl
     )
@@ -287,23 +313,14 @@ module Term =
 
         (t === stuck ());
 
-        fresh (n)
-          (t === const n);
-
-        fresh (x)
-          (t === var x);
-
-        fresh (op l r)
-          (t === binop op l r);
-
         fresh (l r)
           (t === asgn l r);
 
         fresh (e t1 t2)
           (t === if' e t1 t2);
 
-        fresh (loop)
-          (t === repeat loop);
+        fresh (l mo)
+          (t === repeat l mo);
 
         fresh (t1 t2)
           (t === seq t1 t2);
@@ -312,10 +329,10 @@ module Term =
           (t === assertion e);
 
         fresh (mo l)
-          (t === read mo l);
+          (t === load mo l);
 
         fresh (mo loc e)
-          (t === write mo loc e);
+          (t === store mo loc e);
 
         fresh (mo1 mo2 l t1 t2)
           (t === cas mo1 mo2 l t1 t2);
@@ -386,76 +403,8 @@ module Term =
         (t === seq t1 t2); *)
     ]
 
-    let rec irreducibleo t = conde [
-      (t === skip ());
-
-      (t === stuck ());
-
-      fresh (n)
-        (t === const n);
-
-      (* fresh (t1 t2)
-        (t === pair t1 t2)
-        (irreducibleo t1)
-        (irreducibleo t2); *)
-    ]
-
-    let bool_expro ?(loco= fun x -> success) e = conde [
-      fresh (x mo)
-        (loco x)
-        (e === read mo x);
-
-      fresh (x mo)
-        (loco x)
-        (e  === binop !!Op.EQ (read mo x) (const Nat.zero));
-
-      fresh (r)
-        (e === var r);
-
-      (* test-and-set *)
-      fresh (x mo1 mo2)
-        (loco x)
-        (e === cas mo1 mo2 x (const Nat.zero) (const Nat.one));
-
-      (* test-and-set *)
-      fresh (t x mo1 mo2)
-        (loco x)
-        (e === binop !!Op.EQ t (const Nat.zero))
-        (t === cas mo1 mo2 x (const Nat.zero) (const Nat.one));
-    ]
-
-    let rec stmto ?(loco= fun x -> success) t = conde [
-      fresh (x mo n)
-        (loco x)
-        (t === write mo x (const n))
-        (conde [
-          (n === Nat.one);
-          (n === Nat.zero);
-        ]);
-
-      fresh (e)
-        (t === repeat e)
-        (bool_expro ~loco e);
-
-      fresh (e t1 t2)
-        (t === if' e t1 t2)
-        (bool_expro ~loco e)
-        (seq_stmto ~loco t1)
-        (seq_stmto ~loco t2);
-
-      fresh (e body)
-        (t === while' e body)
-        (bool_expro ~loco e)
-        (seq_stmto ~loco body)
-    ] and seq_stmto ?(loco= fun x -> success) t = conde [
-      (stmto ~loco t);
-
-      fresh (t1 t2)
-        (t === seq t1 t2)
-        (stmto ~loco t1)
-        (seq_stmto ~loco t2)
-    ]
-
+    let rec irreducibleo t =
+      (t === skip ()) ||| (t === stuck ())
   end
 
 module Context =

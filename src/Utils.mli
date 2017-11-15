@@ -7,7 +7,6 @@ module type Logic =
 
     type ti = (tt, tl) MiniKanren.injected
 
-    val inj : tt -> tl
     val reify : MiniKanren.helper -> ti -> tl
 
     val pprint : Format.formatter -> tl -> unit

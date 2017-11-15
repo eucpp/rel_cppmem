@@ -25,6 +25,39 @@ module Label :
     type ('lt, 'll) ti = ('lt, 'll) MiniKanren.injected
   end
 
+module type Config =
+  sig
+    include Utils.Logic
+
+    type pt
+    type pl = p_inner MiniKanren.logic
+      and p_inner
+    type pi = (pt, pl) MiniKanren.injected
+
+    type st
+    type sl = s_inner MiniKanren.logic
+      and s_inner
+    type si = (st, sl) MiniKanren.injected
+
+    val cfg : pi -> si -> ti
+
+    val decompose : tl -> pl * sl
+
+    val progo  : ti -> pi -> MiniKanren.goal
+    val stateo : ti -> si -> MiniKanren.goal
+  end
+
+module MakeConfig(P : Utils.Logic)(S : Utils.Logic) : Config with
+      type pt       = P.tt
+  and type p_inner  = P.inner
+  and type pl       = P.tl
+  and type pi       = P.ti
+  and type st       = S.tt
+  and type s_inner  = S.inner
+  and type sl       = S.inner MiniKanren.logic
+  and type si       = S.ti
+
+
 (** [tpred t] - some predicate defined on a set of terms *)
 type ('tt, 'tl) tpred =
   ('tt, 'tl) Term.ti -> MiniKanren.goal

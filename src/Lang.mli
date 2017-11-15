@@ -54,11 +54,12 @@ module Value :
     val addo : ti -> ti -> ti -> MiniKanren.goal
     val mulo : ti -> ti -> ti -> MiniKanren.goal
 
-    val eqo : ti -> ti -> MiniKanren.Std.Bool.groundi -> MiniKanren.goal
-    val lto : ti -> ti -> MiniKanren.Std.Bool.groundi -> MiniKanren.goal
-    val leo : ti -> ti -> MiniKanren.Std.Bool.groundi -> MiniKanren.goal
-    val gto : ti -> ti -> MiniKanren.Std.Bool.groundi -> MiniKanren.goal
-    val geo : ti -> ti -> MiniKanren.Std.Bool.groundi -> MiniKanren.goal
+    val eqo  : ti -> ti -> MiniKanren.goal
+    val neqo : ti -> ti -> MiniKanren.goal
+    val lto  : ti -> ti -> MiniKanren.goal
+    val leo  : ti -> ti -> MiniKanren.goal
+    val gto  : ti -> ti -> MiniKanren.goal
+    val geo  : ti -> ti -> MiniKanren.goal
   end
 
 module MemOrder :
@@ -110,27 +111,34 @@ module ThreadID :
     val reify : MiniKanren.helper -> ti -> tl
   end
 
+module Expr :
+  sig
+    include Utils.Logic
+
+    val var       : Register.ti -> ti
+    val const     : Value.ti -> ti
+    val binop     : Op.ti -> ti -> ti -> ti
+
+    val show : tl -> string
+  end
+
 module Term :
   sig
     include Utils.Logic
 
-    val const     : Value.ti -> ti
-    val var       : Register.ti -> ti
-    val binop     : Op.ti -> ti -> ti -> ti
-    val asgn      : ti -> ti -> ti
-    val pair      : ti -> ti -> ti
-    val if'       : ti -> ti -> ti -> ti
-    val while'    : ti -> ti -> ti
-    val repeat    : ti -> ti
-    val read      : MemOrder.ti -> Loc.ti -> ti
-    val write     : MemOrder.ti -> Loc.ti -> ti -> ti
+    val skip      : unit -> ti
+    val stuck     : unit -> ti
+    val assertion : Expr.ti -> ti
+    val asgn      : Register.ti -> Expr.ti -> ti
+    val if'       : Expr.ti -> ti -> ti -> ti
+    val while'    : Expr.ti -> ti -> ti
+    val load      : MemOrder.ti -> Loc.ti -> Register.ti -> ti
+    val store     : MemOrder.ti -> Loc.ti -> Expr.ti     -> ti
     val cas       : MemOrder.ti -> MemOrder.ti -> Loc.ti -> ti -> ti -> ti
+    val repeat    : MemOrder.ti -> Loc.ti -> ti
     val seq       : ti -> ti -> ti
     val spw       : ti -> ti -> ti
     val par       : ti -> ti -> ti
-    val assertion : ti -> ti
-    val skip      : unit -> ti
-    val stuck     : unit -> ti
 
     val show : tl -> string
 

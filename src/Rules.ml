@@ -2,6 +2,7 @@ open MiniKanren
 open MiniKanrenStd
 open Memory
 open Lang
+open Expr
 open Term
 open MemOrder
 
@@ -10,6 +11,47 @@ type rule =
 
 module Basic =
   struct
+    let rec expr_evalo s e e' = conde [
+      fresh (v)
+        (e  === const v)
+        (e' === e);
+
+      fresh (x v)
+        (e  === var x)
+        (e' === const v)
+        (RegisterStorage.reado s x v);
+
+      fresh (op l r)
+        (e  === binop op l r)
+        (e' === const z)
+        (expr_evalo s l (const x))
+        (expr_evalo s r (const y))
+        (conde [
+          (op === !!Op.ADD) &&& (addo x y z);
+          (op === !!Op.MUL) &&& (mulo x y z);
+          (op === !!Op.EQ ) &&& (conde [(eqo x y) &&& (z === (integer 1)); (nqo x y) &&& (z === (integer 0))]);
+          (op === !!Op.NEQ) &&& (conde [(nqo x y) &&& (z === (integer 1)); (eqo x y) &&& (z === (integer 0))]);
+          (op === !!Op.LT ) &&& (conde [(lto x y) &&& (z === (integer 1)); (geo x y) &&& (z === (integer 0))]);
+          (op === !!Op.LE ) &&& (conde [(leo x y) &&& (z === (integer 1)); (gto x y) &&& (z === (integer 0))]);
+          (op === !!Op.GT ) &&& (conde [(gto x y) &&& (z === (integer 1)); (leo x y) &&& (z === (integer 0))]);
+          (op === !!Op.GE ) &&& (conde [(geo x y) &&& (z === (integer 1)); (lto x y) &&& (z === (integer 0))]);
+
+          (op === !!Lang.Op.OR ) &&& (conde [
+            (nullo x)     &&& (nullo y)     &&& (z === (integer 0));
+            (not_nullo x) &&& (nullo y)     &&& (z === (integer 1));
+            (nullo x)     &&& (not_nullo y) &&& (z === (integer 1));
+            (not_nullo x) &&& (not_nullo y) &&& (z === (integer 1));
+          ]);
+
+          (op === !!Lang.Op.AND) &&& (conde [
+            (nullo x)     &&& (nullo y)     &&& (z === (integer 0));
+            (not_nullo x) &&& (nullo y)     &&& (z === (integer 0));
+            (nullo x)     &&& (not_nullo y) &&& (z === (integer 0));
+            (not_nullo x) &&& (not_nullo y) &&& (z === (integer 1));
+          ]);
+        ])
+    ]
+
     let asgno label ctx t t' =
       fresh (x n thrdId)
         (t  === asgn (var x) (const n))

@@ -24,6 +24,91 @@ module Label =
     type ('lt, 'll) ti = ('lt, 'll) MiniKanren.injected
   end
 
+module type Config =
+  sig
+    include Utils.Logic
+
+    type pt
+    type pl = p_inner MiniKanren.logic
+      and p_inner
+    type pi = (pt, pl) MiniKanren.injected
+
+    type st
+    type sl = s_inner MiniKanren.logic
+      and s_inner
+    type si = (st, sl) MiniKanren.injected
+
+    val cfg : pi -> si -> ti
+
+    val decompose : tl -> pl * sl
+
+    val progo  : ti -> pi -> MiniKanren.goal
+    val stateo : ti -> si -> MiniKanren.goal
+  end
+
+module MakeConfig(P : Utils.Logic)(S : Utils.Logic) (*: Config with
+      type pt       = P.tt
+  and type p_inner  = P.inner
+  and type pl       = P.tl
+  and type pi       = P.ti
+  and type st       = S.tt
+  and type s_inner  = S.inner
+  and type sl       = S.inner MiniKanren.logic
+  and type si       = S.ti *)
+  =
+  struct
+    type pt = P.tt
+    type pl = p_inner MiniKanren.logic
+      and p_inner = P.inner
+    type pi = (pt, pl) MiniKanren.injected
+
+    type st = S.tt
+    type sl = s_inner MiniKanren.logic
+      and s_inner = S.inner
+    type si = (st, sl) MiniKanren.injected
+
+    module T =
+      struct
+        type ('p, 's) t = {
+          prog  : 'p;
+          state : 's;
+        }
+
+        let fmap f g { prog; state } = { prog = f prog; state = g state }
+      end
+
+    include T
+    include Fmap2(T)
+
+    type tt = (pt, st) T.t
+    type tl =  inner MiniKanren.logic
+      and inner = (pl, sl) T.t
+    type ti = (tt, tl) MiniKanren.injected
+
+    let cfg prog state =
+      inj @@ distrib @@ { prog; state }
+
+    let decompose = function
+      | Value {prog; state} -> (prog, state)
+      | Var (_,_) -> invalid_arg "Unexpected free variable"
+
+    let reify = reify P.reify S.reify
+
+    let pprint =
+      let pp ff { prog; state; } =
+        Format.fprintf ff "(%a, %a)" P.pprint prog S.pprint state
+      in
+      Utils.pprint_logic pp
+
+    let progo t prog =
+      fresh (state)
+        (t === cfg prog state)
+
+    let stateo t state =
+      fresh (prog)
+        (t === cfg prog state)
+  end
+
 module Split =
   struct
     module T =
@@ -114,8 +199,6 @@ module TLSNode (P : Utils.Logic) (S : State) =
     let decompose = function
       | Value {prog; state} -> (prog, state)
       | Var (_,_) -> invalid_arg "Unexpected free variable"
-
-    let inj t = to_logic (T.fmap P.inj S.inj t)
 
     let reify = reify P.reify S.reify
 
