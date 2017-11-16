@@ -138,9 +138,23 @@ module Timestamp =
 
     let reify = Nat.reify
 
-    let show n =
-      pprint_nat Format.str_formatter n;
-      Format.flush_str_formatter ()
+    let rec show n =
+      let rec to_ground : tl -> int = function
+      | Value (S n) -> 1 + (to_ground n)
+      | Value (O)   -> 0
+      | Var (i, _)  -> invalid_arg "Free Var"
+      in
+      try
+        string_of_int @@ to_ground n
+      with Invalid_argument _ ->
+        match n with
+        | Value (S n) ->
+          Printf.sprintf "_.??"
+        | Var (i, []) ->
+          Printf.sprintf "_.%d" i
+        | Var (i, cs) ->
+          let cs = String.concat "; " @@ List.map show cs in
+          Printf.sprintf "_.%d{=/= %s}" i cs
 
     let pprint ff ts = Format.fprintf ff "%s" @@ show ts
 
