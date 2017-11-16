@@ -15,9 +15,9 @@ module Register =
 
     let reify = reify
 
-    let inj = to_logic
-
     let show = GT.show(logic) (fun s -> s)
+
+    let pprint ff r = Format.fprintf ff @@ show r
   end
 
 module Loc =
@@ -33,9 +33,9 @@ module Loc =
 
     let reify = reify
 
-    let inj = to_logic
-
     let show = GT.show(logic) (fun s -> s)
+
+    let pprint ff l = Format.fprintf ff @@ show l
   end
 
 module Value =
@@ -53,9 +53,11 @@ module Value =
 
     let inj = Nat.inj
 
-    let show n =
+    let show =
       pprint_nat Format.str_formatter n;
       Format.flush_str_formatter ()
+
+    let pprint = pprint_nat
 
     let nullo v = (v === Nat.zero)
 
@@ -105,6 +107,8 @@ module MemOrder =
     let inj = to_logic
 
     let show = GT.show(logic) (to_string)
+
+    let pprint ff mo = Format.fprintf ff @@ show mo
   end
 
 module Op =
@@ -146,6 +150,8 @@ module Op =
     let inj = to_logic
 
     let show = GT.show(logic) (to_string)
+
+    let pprint ff op = Format.fprintf ff @@ show op
   end
 
 module ThreadID =
@@ -167,13 +173,7 @@ module ThreadID =
     type ti = (tt, tl) MiniKanren.injected
 
     let reify' = reify
-
     let rec reify t = reify' (reify) t
-
-    let inj' = inj
-
-    let rec inj x =
-      to_logic (T.fmap inj x)
 
     let pathn ()  = inj' @@ distrib @@ T.N
     let pathl p   = inj' @@ distrib @@ T.L p
@@ -307,100 +307,38 @@ module Term =
       sl
     )
 
-    let rec thrd_termo t thrdId subt = conde [
-      (thrdId === ThreadID.pathn ()) &&& (t === subt) &&& (conde [
-        (t === skip ());
-
-        (t === stuck ());
-
-        fresh (l r)
-          (t === asgn l r);
-
-        fresh (e t1 t2)
-          (t === if' e t1 t2);
-
-        fresh (l mo)
-          (t === repeat l mo);
-
-        fresh (t1 t2)
-          (t === seq t1 t2);
-
-        fresh (e)
-          (t === assertion e);
-
-        fresh (mo l)
-          (t === load mo l);
-
-        fresh (mo loc e)
-          (t === store mo loc e);
-
-        fresh (mo1 mo2 l t1 t2)
-          (t === cas mo1 mo2 l t1 t2);
-
-        fresh (t1 t2)
-          (t === spw t1 t2);
-
-        fresh (t1 t2)
-          (t === par t1 t2);
-      ]);
-
-      fresh (t1 t2)
-        (t === par t1 t2)
-        (conde [
-          fresh (thrdId')
-            (thrdId === ThreadID.pathl thrdId')
-            (thrd_termo t1 thrdId' subt);
-
-          fresh (thrdId')
-            (thrdId === ThreadID.pathr thrdId')
-            (thrd_termo t2 thrdId' subt);
-        ]);
-    ]
-
     let thrd_local_termo t = conde [
-      fresh (x)
-        (t === var x);
+      fresh (e)
+        (t === assertion e);
 
-      fresh (op l r)
-        (t === binop op l r);
-
-      fresh (l r)
-        (t === asgn l r);
+      fresh (r e)
+        (t === asgn r e);
 
       fresh (e t1 t2)
         (t === if' e t1 t2);
 
-      fresh (loop)
-        (t === repeat loop);
-
       fresh (t1 t2)
         (t === seq t1 t2);
-
-      fresh (e)
-        (t === assertion e);
     ]
 
     let rec thrd_inter_termo t = conde [
       fresh (mo l)
-        (t === read mo l);
-
-      (* fresh (x mo l)
-        (t === asgn (var x) (read mo l)); *)
+        (t === load mo l);
 
       fresh (mo loc e)
-        (t === write mo loc e);
+        (t === store mo loc e);
 
-      fresh (mo1 mo2 l t1 t2)
-        (t === cas mo1 mo2 l t1 t2);
+      fresh (mo1 mo2 loc e d)
+        (t === cas mo1 mo2 loc e d);
+
+      fresh (loc mo)
+        (t === repeat loc mo);
 
       fresh (t1 t2)
         (t === spw t1 t2);
 
       fresh (t1 t2)
         (t === par t1 t2);
-
-      (* fresh (t1 t2)
-        (t === seq t1 t2); *)
     ]
 
     let rec irreducibleo t =
@@ -520,39 +458,26 @@ let rec splito term ctx rdx = Term.(Context.(ThreadID.(conde [
     (conde [
       (irreducibleo term);
 
-      fresh (x)
-        (term === var x);
+      fresh (e)
+        (term === assertion e);
 
-      fresh (op l r)
-        (term === binop op l r)
-        (irreducibleo l)
-        (irreducibleo r);
-
-      (* fresh (t1 t2)
-        (term === pair t1 t2)
-        (irreducibleo t1)
-        (irreducibleo t2); *)
-
-      fresh (l r)
-        (term === asgn l r)
-        (irreducibleo r);
-
-      fresh (mo l)
-        (term === read mo l);
-
-      fresh (mo loc e)
-        (term === write mo loc e)
-        (irreducibleo e);
-
-      fresh (mo1 mo2 l t1 t2)
-        (term === cas mo1 mo2 l t1 t2);
+      fresh (r e)
+        (term === asgn r e);
 
       fresh (e t1 t2)
-        (term === if' e t1 t2)
-        (irreducibleo e);
+        (term === if' e t1 t2);
 
-      fresh (loop)
-        (term === repeat loop);
+      fresh (mo l r)
+        (term === load mo l r);
+
+      fresh (mo loc e)
+        (term === store mo loc e);
+
+      fresh (mo1 mo2 loc e d)
+        (term === cas mo1 mo2 loc e d);
+
+      fresh (loc mo)
+        (term === repeat loc mo);
 
       fresh (t1 t2)
         (term === seq t1 t2)
@@ -565,14 +490,6 @@ let rec splito term ctx rdx = Term.(Context.(ThreadID.(conde [
         (term === par t1 t2)
         (irreducibleo t1)
         (irreducibleo t2);
-
-      fresh (e)
-        (term === assertion e)
-        (irreducibleo e);
-
-      (term === skip ());
-
-      (term === stuck ());
     ]);
 
   (* second we handle complex terms *)
@@ -580,55 +497,11 @@ let rec splito term ctx rdx = Term.(Context.(ThreadID.(conde [
     (ctx  === context t  h thrdId )
     (ctx' === context t' h thrdId')
     (conde [
-      (thrdId === thrdId') &&&
-      (conde [
-        fresh (op l r)
-          (term === binop op l r)
-          (conde [
-              (t === binop op t' r) &&&
-              (splito l ctx' rdx);
-
-              (t === binop op l t') &&&
-              (irreducibleo l) &&&
-              (splito r ctx' rdx);
-          ]);
-
-        (* fresh (t1 t2)
-          (term === pair t1 t2)
-          (conde [
-              (t === pair t' t2) &&&
-              (splito t1 ctx' rdx);
-
-              (t === pair t1 t') &&&
-              (irreducibleo t1) &&&
-              (splito t2 ctx' rdx);
-          ]); *)
-
-        fresh (t1 t2)
-          (term === asgn t1 t2)
-          (t    === asgn t1 t')
-          (splito t2 ctx' rdx);
-
-        fresh (e t1 t2)
-          (term === if' e  t1 t2)
-          (t    === if' t' t1 t2)
-          (splito e ctx' rdx);
-
-        fresh (mo loc e)
-          (term === write mo loc e )
-          (t    === write mo loc t')
-          (splito e ctx' rdx);
-
-        fresh (e)
-          (term === assertion e )
-          (t    === assertion t')
-          (splito e ctx' rdx);
-
-        fresh (t1 t2)
-          (term === seq t1 t2)
-          (t    === seq t' t2)
-          (splito t1 ctx' rdx);
-      ]);
+      fresh (t1 t2)
+        (term === seq t1 t2)
+        (t    === seq t' t2)
+        (thrdId === thrdId')
+        (splito t1 ctx' rdx);
 
       fresh (t1 t2)
         (term === par t1 t2)

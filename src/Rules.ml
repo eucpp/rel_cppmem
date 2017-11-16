@@ -52,56 +52,27 @@ module Basic =
         ])
     ]
 
-    let asgno label ctx t t' =
-      fresh (x n thrdId)
-        (t  === asgn (var x) (const n))
-        (t' === skip ())
-        (label === Label.regwrite thrdId x n)
-        (Context.thrdIdo ctx thrdId)
-
-    let varo label ctx t t' =
-      fresh (n x thrdId)
-        (t  === var x)
-        (t' === const n)
-        (label === Label.regread thrdId x n)
-        (Context.thrdIdo ctx thrdId)
-
-    let binopo label ctx t t' = Lang.(Value.(
-      fresh (op x y z)
-        (t  === binop op (const x) (const y))
-        (t' === const z)
-        (label === Label.empty ())
+    let asserto label ctx t t' =
+      fresh (v)
+        (t === assertion (const v))
         (conde [
-          (op === !!Lang.Op.ADD) &&& (addo x y z);
-          (op === !!Lang.Op.MUL) &&& (mulo x y z);
-          (op === !!Lang.Op.EQ ) &&& (conde [(eqo x y !!true ) &&& (z === (integer 1)); (eqo x y !!false) &&& (z === (integer 0))]);
-          (op === !!Lang.Op.NEQ) &&& (conde [(eqo x y !!false) &&& (z === (integer 1)); (eqo x y !!true ) &&& (z === (integer 0))]);
-          (op === !!Lang.Op.LT ) &&& (conde [(lto x y !!true ) &&& (z === (integer 1)); (lto x y !!false) &&& (z === (integer 0))]);
-          (op === !!Lang.Op.LE ) &&& (conde [(leo x y !!true ) &&& (z === (integer 1)); (leo x y !!false) &&& (z === (integer 0))]);
-          (op === !!Lang.Op.GT ) &&& (conde [(gto x y !!true ) &&& (z === (integer 1)); (gto x y !!false) &&& (z === (integer 0))]);
-          (op === !!Lang.Op.GE ) &&& (conde [(geo x y !!true ) &&& (z === (integer 1)); (geo x y !!false) &&& (z === (integer 0))]);
-
-          (op === !!Lang.Op.OR ) &&& (conde [
-            (nullo x)     &&& (nullo y)     &&& (z === (integer 0));
-            (not_nullo x) &&& (nullo y)     &&& (z === (integer 1));
-            (nullo x)     &&& (not_nullo y) &&& (z === (integer 1));
-            (not_nullo x) &&& (not_nullo y) &&& (z === (integer 1));
-          ]);
-
-          (op === !!Lang.Op.AND) &&& (conde [
-            (nullo x)     &&& (nullo y)     &&& (z === (integer 0));
-            (not_nullo x) &&& (nullo y)     &&& (z === (integer 0));
-            (nullo x)     &&& (not_nullo y) &&& (z === (integer 0));
-            (not_nullo x) &&& (not_nullo y) &&& (z === (integer 1));
-          ]);
+          (Lang.Value.nullo v)     &&& (t' === stuck ());
+          (Lang.Value.not_nullo v) &&& (t' === skip  ());
         ])
-      ))
+        (label === Label.empty ())
 
-    let repeato label ctx t t' =
+    let asgno label ctx t t' =
+      fresh (r e thrdId)
+        (t  === asgn r e)
+        (t' === skip ())
+        (label === Label.regwrite thrdId r e)
+        (Context.thrdIdo ctx thrdId)
+
+    (* let repeato label ctx t t' =
       fresh (e)
         (t  === repeat e)
         (t' === if' e (skip ()) t)
-        (label === Label.empty ())
+        (label === Label.empty ()) *)
 
     let whileo label ctx t t' =
       fresh (e body)
@@ -122,16 +93,7 @@ module Basic =
       (t  === seq (skip ()) t') &&&
       (label === Label.empty ())
 
-    let asserto label ctx t t' =
-      fresh (v)
-        (t === assertion (const v))
-        (conde [
-          (Lang.Value.nullo v)     &&& (t' === stuck ());
-          (Lang.Value.not_nullo v) &&& (t' === skip  ());
-        ])
-        (label === Label.empty ())
-
-    let all = [varo; binopo; asgno; ifo; whileo; repeato; seqo; asserto]
+    let all = [asserto; asgno; ifo; whileo; seqo]
 
   end
 
