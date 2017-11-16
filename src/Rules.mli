@@ -7,8 +7,8 @@ module Context :
 
     val context : Lang.Context.ti -> Memory.RegisterStorage.ti -> ti
 
-    val tlso    : ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
-    val thrdIdo : ti -> ThreadID.ti               -> MiniKanren.goal
+    val regso   : ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+    val thrdIdo : ti -> Lang.ThreadID.ti          -> MiniKanren.goal
   end
 
 type rule =
@@ -16,14 +16,14 @@ type rule =
 
 module Basic :
   sig
-    val varo    : rule
-    val binopo  : rule
+    (* val varo    : rule *)
+    (* val binopo  : rule *)
+    val asserto : rule
     val asgno   : rule
     val ifo     : rule
-    val repeato : rule
-    val whileo  : rule
+    (* val repeato : rule *)
+    (* val whileo  : rule *)
     val seqo    : rule
-    val asserto : rule
 
     val all : rule list
   end

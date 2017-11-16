@@ -21,8 +21,6 @@ module Storage :
       (MiniKanren.helper -> ('bt, 'bl) MiniKanren.injected -> 'bl) ->
       MiniKanren.helper -> ('at, 'bt, 'al, 'bl) ti -> ('al, 'bl) tl
 
-    val inj : ('at -> 'al) -> ('bt -> 'bl) -> ('at, 'bt) tt -> ('al, 'bl) tl
-
     val pprint : (Format.formatter -> 'al * 'bl -> unit) -> Format.formatter -> ('al, 'bl) tl -> unit
 
     val geto : ('at, 'bt, 'al, 'bl) ti ->                            ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal
@@ -54,7 +52,7 @@ module RegisterStorage :
 
     val spawno : ti -> ti -> ti -> MiniKanren.goal
 
-    val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal 
+    val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal
   end
 
 module ValueStorage :
@@ -71,18 +69,9 @@ module ValueStorage :
 
 module Timestamp :
   sig
-    type tt
-
-    type tl = inner MiniKanren.logic
-      and inner
-
-    type ti = (tt, tl) MiniKanren.injected
+    include Utils.Logic
 
     val ts : int -> ti
-
-    val reify : MiniKanren.helper -> ti -> tl
-
-    val inj : tt -> tl
 
     val show : tl -> string
 
@@ -115,6 +104,8 @@ module ThreadFront :
     (** [preallocate vars atomics] creates new thread front
           and allocates a storage for [registers] and viewfronts of [atomics] *)
     val preallocate : Lang.Register.ti list -> Lang.Loc.ti list -> ti
+
+    val regso : ti -> RegisterStorage.ti -> MiniKanren.goal
 
     (** [get_varo thrd var val] performs read of thread-local register *)
     val reado : ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal

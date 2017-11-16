@@ -6,6 +6,7 @@ open Printf
 (* open MiniKanren *)
 open Lang
 open Lang.Term
+open Lang.Expr
 
 (* let op s = <:expr<  >> *)
 
@@ -71,24 +72,36 @@ EXTEND
         let desired = <:expr< const (Value.integer $int:desired$) >> in
         <:expr< cas $mo1$ $mo2$ (Loc.loc $str:x$) $expected$ $desired$ >>
 
-      | "("; x = cppmem_expr; ")"
-        -> x
+      | "("; x = cppmem_expr; ")" -> x
       ]
     ];
 
   cppmem_stmt:
-    [ [ x = LIDENT; ":="; e = cppmem_expr ->
+    [ [ "assert"; "("; e = cppmem_expr; ")" ->
+        <:expr< assertion $e$ >>
+
+      | "skip" ->
+        <:expr< skip () >>
+
+      | x = LIDENT; ":="; e = cppmem_expr ->
         if String.contains x '_' then
           let var::mo::[] = String.split_on_char '_' x in
-          <:expr< write (MemOrder.mo $str:mo$) (Loc.loc $str:var$) $e$ >>
+          <:expr< store (MemOrder.mo $str:mo$) (Loc.loc $str:var$) $e$ >>
         else
-          <:expr< asgn (var (Register.reg $str:x$)) $e$ >>
+          <:expr< asgn (Register.reg $str:x$) $e$ >>
+
+      | x = LIDENT; ":="; l = LIDENT ->
+        if String.contains l '_' then
+          let var::mo::[] = String.split_on_char '_' x in
+          <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:var$) (Register.reg $str:x$) >>
+        else
+          assert false
 
       | "if"; e = cppmem_expr; "then"; t1 = cppmem_stmt; "else"; t2 = cppmem_stmt; "fi" ->
         <:expr< if' $e$ $t1$ $t2$ >>
 
-      | "repeat"; e = cppmem_expr; "end" ->
-        <:expr< repeat $e$ >>
+      (* | "repeat"; e = cppmem_expr; "end" ->
+        <:expr< repeat $e$ >> *)
 
       | t1 = cppmem_stmt; ";"; t2 = cppmem_stmt ->
         <:expr< seq $t1$ $t2$ >>
@@ -98,14 +111,6 @@ EXTEND
 
       | "par"; "{";"{";"{"; t1 = cppmem_stmt; "|||"; t2 = cppmem_stmt; "}";"}";"}" ->
         <:expr< par $t1$ $t2$ >>
-
-      | "assert"; "("; e = cppmem_expr; ")" ->
-        <:expr< assertion $e$ >>
-
-      | "skip" ->
-        <:expr< skip () >>
-
-      | "ret"; e = cppmem_expr -> e
 
       | "?"; q = cppmem_antiquot -> q
       ]

@@ -1,50 +1,26 @@
 module Register :
   sig
-    type tt
-
-    type tl = inner MiniKanren.logic
-      and inner
-
-    type ti = (tt, tl) MiniKanren.injected
+    include Utils.Logic
 
     val reg : string -> ti
-
-    val inj : tt -> tl
-    val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
   end
 
 module Loc :
   sig
-    type tt
-
-    type tl = inner MiniKanren.logic
-      and inner
-
-    type ti = (tt, tl) MiniKanren.injected
+    include Utils.Logic
 
     val loc : string -> ti
-
-    val inj : tt -> tl
-    val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
   end
 
 module Value :
   sig
-    type tt
-
-    type tl = inner MiniKanren.logic
-      and inner
-
-    type ti = (tt, tl) MiniKanren.injected
+    include Utils.Logic
 
     val integer : int -> ti
-
-    val inj : tt -> tl
-    val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
 
@@ -54,12 +30,12 @@ module Value :
     val addo : ti -> ti -> ti -> MiniKanren.goal
     val mulo : ti -> ti -> ti -> MiniKanren.goal
 
-    val eqo  : ti -> ti -> MiniKanren.goal
-    val neqo : ti -> ti -> MiniKanren.goal
-    val lto  : ti -> ti -> MiniKanren.goal
-    val leo  : ti -> ti -> MiniKanren.goal
-    val gto  : ti -> ti -> MiniKanren.goal
-    val geo  : ti -> ti -> MiniKanren.goal
+    val eqo : ti -> ti -> MiniKanren.goal
+    val nqo : ti -> ti -> MiniKanren.goal
+    val lto : ti -> ti -> MiniKanren.goal
+    val leo : ti -> ti -> MiniKanren.goal
+    val gto : ti -> ti -> MiniKanren.goal
+    val geo : ti -> ti -> MiniKanren.goal
   end
 
 module MemOrder :
@@ -72,7 +48,6 @@ module MemOrder :
 
     val mo : string -> ti
 
-    val inj : tt -> tl
     val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
@@ -88,7 +63,6 @@ module Op :
 
     val op : string -> ti
 
-    val inj : tt -> tl
     val reify : MiniKanren.helper -> ti -> tl
 
     val show : tl -> string
@@ -96,19 +70,11 @@ module Op :
 
 module ThreadID :
   sig
-    type tt
-    type tl = inner MiniKanren.logic
-      and inner
-
-    type ti = (tt, tl) MiniKanren.injected
+    include Utils.Logic
 
     val pathn : unit -> ti
     val pathl : ti -> ti
     val pathr : ti -> ti
-
-    val inj : tt -> tl
-
-    val reify : MiniKanren.helper -> ti -> tl
   end
 
 module Expr :
@@ -178,7 +144,7 @@ module Label :
     val regread  : ThreadID.ti -> Register.ti -> Value.ti -> ti
     val regwrite : ThreadID.ti -> Register.ti -> Value.ti -> ti
 
-    val load  : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> ti
+    val load  : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Register.ti -> ti
     val store : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> ti
 
     val datarace : ThreadID.ti -> MemOrder.ti -> Loc.ti -> ti
@@ -188,8 +154,8 @@ module Label :
       Value.ti -> Value.ti -> Value.ti -> ti
   end
 
-val splito : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.splitting
+val splito : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Reduction.splitting
 
-val thrd_splito : ThreadID.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.splitting
+val thrd_splito : ThreadID.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Reduction.splitting
 
-val plugo : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.plugging
+val plugo : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Reduction.plugging

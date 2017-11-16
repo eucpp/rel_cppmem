@@ -17,7 +17,7 @@ module Register =
 
     let show = GT.show(logic) (fun s -> s)
 
-    let pprint ff r = Format.fprintf ff @@ show r
+    let pprint ff r = Format.fprintf ff "%s" @@ show r
   end
 
 module Loc =
@@ -35,7 +35,7 @@ module Loc =
 
     let show = GT.show(logic) (fun s -> s)
 
-    let pprint ff l = Format.fprintf ff @@ show l
+    let pprint ff l = Format.fprintf ff "%s" @@ show l
   end
 
 module Value =
@@ -53,7 +53,7 @@ module Value =
 
     let inj = Nat.inj
 
-    let show =
+    let show n =
       pprint_nat Format.str_formatter n;
       Format.flush_str_formatter ()
 
@@ -66,12 +66,12 @@ module Value =
     let addo = Nat.addo
     let mulo = Nat.mulo
 
-    let eqo   = (===)
-    let neqo  = (=/=)
-    let lto   = Nat.(<)
-    let leo   = Nat.(<=)
-    let gto   = Nat.(>)
-    let geo   = Nat.(>=)
+    let eqo = (===)
+    let nqo = (=/=)
+    let lto = Nat.(<)
+    let leo = Nat.(<=)
+    let gto = Nat.(>)
+    let geo = Nat.(>=)
   end
 
 module MemOrder =
@@ -108,7 +108,7 @@ module MemOrder =
 
     let show = GT.show(logic) (to_string)
 
-    let pprint ff mo = Format.fprintf ff @@ show mo
+    let pprint ff mo = Format.fprintf ff "%s" @@ show mo
   end
 
 module Op =
@@ -151,7 +151,7 @@ module Op =
 
     let show = GT.show(logic) (to_string)
 
-    let pprint ff op = Format.fprintf ff @@ show op
+    let pprint ff op = Format.fprintf ff "%s" @@ show op
   end
 
 module ThreadID =
@@ -175,11 +175,13 @@ module ThreadID =
     let reify' = reify
     let rec reify t = reify' (reify) t
 
-    let pathn ()  = inj' @@ distrib @@ T.N
-    let pathl p   = inj' @@ distrib @@ T.L p
-    let pathr p   = inj' @@ distrib @@ T.R p
+    let pathn ()  = inj @@ distrib @@ T.N
+    let pathl p   = inj @@ distrib @@ T.L p
+    let pathr p   = inj @@ distrib @@ T.R p
 
     let rec show x = GT.show(logic) (T.show show) x
+
+    let pprint ff thrdId = Format.fprintf ff "%s" @@ show thrdId
   end
 
 module Expr =
@@ -213,13 +215,13 @@ module Expr =
     let rec show t =
       GT.show(logic) (GT.show(T.t) Register.show Value.show Op.show show) t
 
-    let rec pprint = T.(
+    let rec pprint ff x = T.(
       let s ff = function
         | Var x            -> Format.fprintf ff "@[%a@]" Register.pprint x
         | Const n          -> Format.fprintf ff "@[%a@]" Value.pprint n
-        | Binop (op, l, r) -> Format.fprintf ff "@[%a %a %a@]" pprint l Op.pprint op pprint b
+        | Binop (op, l, r) -> Format.fprintf ff "@[%a %a %a@]" pprint l Op.pprint op pprint r
       in
-      pprint_logic s
+      pprint_logic s ff x
     )
   end
 
@@ -269,7 +271,7 @@ module Term =
     let spw t1 t2           = inj @@ FT.distrib @@ T.Spw (t1, t2)
     let par t1 t2           = inj @@ FT.distrib @@ T.Par (t1, t2)
 
-    let rec reify h = FT.reify Register.reify Loc.reify Value.reify MemOrder.reify Expr.reify reify h
+    let rec reify h = FT.reify Register.reify Loc.reify MemOrder.reify Expr.reify reify h
 
     let rec show t =
       GT.show(logic) (GT.show(T.t) (Register.show) (Loc.show) (MemOrder.show) (Expr.show) (show)) t
@@ -291,8 +293,8 @@ module Term =
           Format.fprintf ff "@[while (%a) @;<1 4>%a@;@]" Expr.pprint e sl t
         | Load (m, l, r)          ->
           Format.fprintf ff "@[%a := %a_%a@]" Register.pprint r Loc.pprint l MemOrder.pprint m
-        | Store (m, l, t)         ->
-          Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" Loc.pprint l MemOrder.pprint m sl t
+        | Store (m, l, e)         ->
+          Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" Loc.pprint l MemOrder.pprint m Expr.pprint e
         | Cas (m1, m2, l, e, d)   ->
           Format.fprintf ff "@[cas_%a_%a(%a, %a, %a)@]" MemOrder.pprint m1 MemOrder.pprint m2 Loc.pprint l Expr.pprint e Expr.pprint d
         | Repeat (m, l)           ->
@@ -322,8 +324,8 @@ module Term =
     ]
 
     let rec thrd_inter_termo t = conde [
-      fresh (mo l)
-        (t === load mo l);
+      fresh (mo l r)
+        (t === load mo l r);
 
       fresh (mo loc e)
         (t === store mo loc e);
@@ -384,7 +386,7 @@ module Label =
           | Join      of 'thrdId
           | RegRead   of 'thrdId * 'reg * 'value
           | RegWrite  of 'thrdId * 'reg * 'value
-          | Load      of 'thrdId * 'mo * 'loc * 'value
+          | Load      of 'thrdId * 'mo * 'loc * 'reg
           | Store     of 'thrdId * 'mo * 'loc * 'value
           | Datarace  of 'thrdId * 'mo * 'loc
           | CAS       of 'thrdId * 'mo * 'mo * 'loc * 'value * 'value * 'value
@@ -398,7 +400,7 @@ module Label =
     type tl = inner MiniKanren.logic
       and inner = (ThreadID.tl, MemOrder.tl, Register.tl, Loc.tl, Value.tl) T.t
 
-    type ti = (tt, tl) Semantics.Label.ti
+    type ti = (tt, tl) MiniKanren.injected
 
     module FT = Fmap5(T)
 
@@ -407,17 +409,12 @@ module Label =
     let join  thrdId                  = inj @@ FT.distrib @@ T.Join  thrdId
     let regread  thrdId reg v         = inj @@ FT.distrib @@ T.RegRead  (thrdId, reg, v)
     let regwrite thrdId reg v         = inj @@ FT.distrib @@ T.RegWrite (thrdId, reg, v)
-    let load  thrdId mo loc v         = inj @@ FT.distrib @@ T.Load  (thrdId, mo, loc, v)
+    let load  thrdId mo loc r         = inj @@ FT.distrib @@ T.Load  (thrdId, mo, loc, r)
     let store thrdId mo loc v         = inj @@ FT.distrib @@ T.Store (thrdId, mo, loc, v)
     let datarace thrdId mo loc        = inj @@ FT.distrib @@ T.Datarace (thrdId, mo, loc)
     let cas thrdId mo1 mo2 loc e d v  = inj @@ FT.distrib @@ T.CAS (thrdId, mo1, mo2, loc, e, d, v)
 
-    let rec reify' h = FT.reify (ThreadID.reify) (MemOrder.reify) (Register.reify) (Loc.reify) (Value.reify) h
-
-    let reify = reify'
-
-    let inj t =
-      to_logic (T.fmap (ThreadID.inj) (MemOrder.inj) (Register.inj) (Loc.inj) (Value.inj) t)
+    let reify h = FT.reify ThreadID.reify MemOrder.reify Register.reify Loc.reify Value.reify h
 
     let pprint =
       let pp ff = T.(function
@@ -431,8 +428,8 @@ module Label =
           Format.fprintf ff "@[<regread %s %s %s>@]" (ThreadID.show thrdId) (Register.show reg) (Value.show v)
         | RegWrite (thrdId, reg, v) ->
           Format.fprintf ff "@[<regwrite %s %s %s>@]" (ThreadID.show thrdId) (Register.show reg) (Value.show v)
-        | Load (thrdId, mo, loc, v) ->
-          Format.fprintf ff "@[<load %s %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Value.show v)
+        | Load (thrdId, mo, loc, r) ->
+          Format.fprintf ff "@[<load %s %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Register.show r)
         | Store (thrdId, mo, loc, v) ->
           Format.fprintf ff "@[<store %s %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Value.show v)
         | Datarace (thrdId, mo, loc) ->

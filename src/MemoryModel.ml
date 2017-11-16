@@ -3,6 +3,90 @@ open Memory
 open Lang
 open Utils
 
+module type State =
+  sig
+    include Utils.Logic
+
+    val init : regs:Lang.Register.ti list -> locs:Lang.Loc.ti list -> ti
+
+    val regso : ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+
+    val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
+  end
+
+module Make (S : State) =
+  struct
+    module Node = Semantics.MakeConfig(Lang.Term)(S)
+
+    let ctx_lifto ctx' state ctx =
+      fresh (rs thrdId)
+        (ctx === Rules.Context.context ctx' rs)
+        (Lang.Context.thrdIdo ctx' thrdId)
+        (S.regso state thrdId rs)
+
+    let lift_split splito term ctx rdx =
+      fresh (term' ctx' rdx' state)
+        (term === Node.cfg term' state)
+        (rdx  === Node.cfg rdx'  state)
+        (splito term' ctx' rdx')
+        (ctx_lifto ctx' state ctx)
+
+    let lift_plug plugo ctx rdx term =
+      fresh (term' ctx' rdx' state)
+        (term === Node.cfg term' state)
+        (rdx  === Node.cfg rdx'  state)
+        (plugo ctx' rdx' term')
+        (ctx_lifto ctx' state ctx)
+
+    let lift_rule rule ctx t t' =
+      fresh (label prog prog' state state')
+        (t  === Node.cfg prog  state )
+        (t' === Node.cfg prog' state')
+        (rule label ctx prog prog')
+        (S.transitiono label state state')
+
+    let thrd_local_stepo thrdId = Semantics.Reduction.make_step
+      (lift_split @@ thrd_splito thrdId)
+      (lift_plug Lang.plugo)
+      (List.map lift_rule Rules.Basic.all)
+
+    let rec thrd_local_evalo thrdId =
+      let irreducibleo = Node.lift_tpred @@ fun term -> conde [
+        (term === Lang.Term.stuck ());
+
+        fresh (ctx rdx)
+          (term =/= Lang.Term.stuck ())
+          (Lang.thrd_splito thrdId term ctx rdx)
+          (conde [
+            (Lang.Term.irreducibleo rdx);
+            (Lang.Term.thrd_inter_termo rdx);
+          ]);
+      ] in
+      Semantics.Reduction.make_eval ~irreducibleo (thrd_local_stepo thrdId)
+
+  let thrd_inter_stepo thrdId = Semantics.Reduction.make_step
+    (lift_split @@ thrd_splito thrdId)
+    (lift_plug Lang.plugo)
+    (List.map lift_rule (Rules.ThreadSpawning.all @ Rules.Atomic.all))
+
+  let stepo t t'' =
+    fresh (thrdId t')
+      (thrd_local_evalo thrdId t t')
+      (conde [
+        fresh (thrdId')
+          (t === t')
+          (thrd_inter_stepo thrdId' t' t'');
+
+        (t =/= t') &&& (conde [
+          (t' === t'');
+          (thrd_inter_stepo thrdId t' t'');
+        ]);
+      ])
+
+  let evalo = Semantics.Reduction.make_eval ~irreducibleo:(Node.lift_tpred Lang.Term.irreducibleo) stepo
+
+  end
+
 (* module SequentialConsistent =
   struct
     module State =
@@ -461,6 +545,16 @@ module ReleaseAcquire =
             (t' === state tree' story na sc)
             (TLS.joino tree tree' thrdId)
 
+            let get_thrdo t thrdId thrd =
+              fresh (tree story na sc)
+                (t === state tree story na sc)
+                (TLS.geto tree thrdId thrd)
+
+        let regso t thrdId rs =
+          fresh (thrd)
+            (get_thrdo t thrdId thrd)
+            (ThreadFront.regso thrd rs)
+
         let transitiono label t t' = conde [
           (label === Label.empty ()) &&& (t === t');
 
@@ -480,33 +574,37 @@ module ReleaseAcquire =
             (label === Label.regwrite thrdId reg v)
             (regwriteo t t' thrdId reg v);
 
-          fresh (thrdId loc v)
-            (label === Label.load thrdId !!MemOrder.SC loc v)
-            (load_sco t t' thrdId loc v);
+          fresh (t'' thrdId loc reg v)
+            (label === Label.load thrdId !!MemOrder.SC loc reg)
+            (load_sco  t   t'' thrdId loc v)
+            (regwriteo t'' t'  thrdId reg v);
 
           fresh (thrdId loc v)
             (label === Label.store thrdId !!MemOrder.SC loc v)
             (store_sco t t' thrdId loc v);
 
-          fresh (thrdId loc v)
-            (label === Label.load thrdId !!MemOrder.ACQ loc v)
-            (load_acqo t t' thrdId loc v);
+          fresh (t'' thrdId loc reg v)
+            (label === Label.load thrdId !!MemOrder.ACQ loc reg)
+            (load_acqo t   t'' thrdId loc v)
+            (regwriteo t'' t'  thrdId reg v);
 
           fresh (thrdId loc v)
             (label === Label.store thrdId !!MemOrder.REL loc v)
             (store_relo t t' thrdId loc v);
 
-          fresh (thrdId loc v)
-            (label === Label.load thrdId !!MemOrder.RLX loc v)
-            (load_rlxo t t' thrdId loc v);
+          fresh (t'' thrdId loc reg v)
+            (label === Label.load thrdId !!MemOrder.RLX loc reg)
+            (load_rlxo t   t'' thrdId loc v)
+            (regwriteo t'' t'  thrdId reg v);
 
           fresh (thrdId loc v)
             (label === Label.store thrdId !!MemOrder.RLX loc v)
             (store_rlxo t t' thrdId loc v);
 
-          fresh (thrdId loc v)
-            (label === Label.load thrdId !!MemOrder.NA loc v)
-            (load_nao t t' thrdId loc v);
+          fresh (t'' thrdId loc reg v)
+            (label === Label.load thrdId !!MemOrder.NA loc reg)
+            (load_nao  t   t'' thrdId loc v)
+            (regwriteo t'' t'  thrdId reg v);
 
           fresh (thrdId loc v)
             (label === Label.store thrdId !!MemOrder.NA loc v)
@@ -528,49 +626,6 @@ module ReleaseAcquire =
         ]
       end
 
-    module TLSNode = Semantics.TLSNode(Lang.Term)(State)
-
-    let thrd_local_stepo thrdId = Semantics.make_step
-      (TLSNode.lift_split @@ thrd_splito thrdId)
-      (TLSNode.lift_plug Lang.plugo)
-      (List.map (fun rule -> TLSNode.lift_rule rule) Rules.Basic.all)
-
-    let rec thrd_local_evalo thrdId =
-      let irreducibleo = TLSNode.lift_tpred @@ fun t -> conde [
-        (t === Lang.Term.stuck ());
-
-        fresh (subt)
-          (t =/= Lang.Term.stuck ())
-          (Lang.Term.thrd_termo t thrdId subt)
-          (conde [
-            (Lang.Term.irreducibleo subt);
-
-            fresh (ctx rdx)
-              (Lang.splito subt ctx rdx)
-              (Lang.Term.thrd_inter_termo rdx);
-          ]);
-      ] in
-      Semantics.make_eval ~irreducibleo (thrd_local_stepo thrdId)
-
-    let thrd_inter_stepo thrdId = Semantics.make_step
-      (TLSNode.lift_split @@ thrd_splito thrdId)
-      (TLSNode.lift_plug Lang.plugo)
-      (List.map (fun rule -> TLSNode.lift_rule rule) (Rules.ThreadSpawning.all @ Rules.Atomic.all))
-
-    let stepo t t'' =
-      fresh (thrdId t')
-        (thrd_local_evalo thrdId t t')
-        (conde [
-          fresh (thrdId')
-            (t === t')
-            (thrd_inter_stepo thrdId' t' t'');
-
-          (t =/= t') &&& (conde [
-            (t' === t'');
-            (thrd_inter_stepo thrdId t' t'');
-          ]);
-        ])
-
-    let evalo = Semantics.make_eval ~irreducibleo:(TLSNode.lift_tpred Lang.Term.irreducibleo) stepo
+    include Make(State)
 
   end

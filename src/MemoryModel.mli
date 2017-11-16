@@ -1,10 +1,13 @@
+module type State =
+  sig
+    include Utils.Logic
 
+    val init : regs:Lang.Register.ti list -> locs:Lang.Loc.ti list -> ti
 
-val splito : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.splitting
+    val regso : ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
 
-val thrd_splito : ThreadID.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.splitting
-
-val plugo : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.plugging
+    val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
+  end
 
 (* module SequentialConsistent :
   sig
@@ -22,14 +25,9 @@ val plugo : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.plugging
 
 module ReleaseAcquire :
   sig
-    module State :
-      sig
-        include Semantics.State
+    module State : State
 
-        val init : regs:Lang.Register.ti list -> locs:Lang.Loc.ti list -> ti
-      end
+    module Node : module type of Semantics.MakeConfig(Lang.Term)(State)
 
-    module TLSNode : module type of Semantics.TLSNode(Lang.Term)(State)
-
-    val evalo : (TLSNode.tt, TLSNode.tl) Semantics.eval
+    val evalo : (Node.tt, Node.tl) Semantics.eval
   end

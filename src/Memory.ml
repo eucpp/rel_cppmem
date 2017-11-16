@@ -22,9 +22,6 @@ module Storage =
 
     let reify reify_key reify_value = List.reify (Pair.reify reify_key reify_value)
 
-    let inj inj_key inj_value s =
-      MiniKanren.Std.List.inj (fun (k, v) -> to_logic (inj_key k, inj_value v)) s
-
     let pprint pp_kv = pprint_llist (pprint_logic pp_kv)
 
     let rec geto vars var value =
@@ -88,8 +85,6 @@ module RegisterStorage =
 
     let reify = Storage.reify (Lang.Register.reify) (Lang.Value.reify)
 
-    let inj = Storage.inj Lang.Register.inj Lang.Value.inj
-
     let pprint =
       Storage.pprint (fun ff (k, v) -> Format.fprintf ff "%s=%s" (Lang.Register.show k) (Lang.Value.show v))
 
@@ -123,8 +118,6 @@ module ValueStorage =
 
     let reify = Storage.reify (Lang.Loc.reify) (Lang.Value.reify)
 
-    let inj = Storage.inj Lang.Loc.inj Lang.Value.inj
-
     let pprint =
       Storage.pprint (fun ff (k, v) -> Format.fprintf ff "%s=%s" (Lang.Loc.show k) (Lang.Value.show v))
 
@@ -145,12 +138,11 @@ module Timestamp =
 
     let reify = Nat.reify
 
-    let inj = Nat.inj
-
-    (* let show = GT.show(Nat.logic) *)
     let show n =
       pprint_nat Format.str_formatter n;
       Format.flush_str_formatter ()
+
+    let pprint ff ts = Format.fprintf ff "%s" @@ show ts
 
     let (<)  = Nat.(<)
     let (<=) = Nat.(<=)
@@ -175,12 +167,8 @@ module ViewFront =
 
     let reify = Storage.reify (Lang.Loc.reify) (Timestamp.reify)
 
-    let inj = Storage.inj Lang.Loc.inj Timestamp.inj
-
     let pprint =
       Storage.pprint (fun ff (k, v) -> Format.fprintf ff "%s@%s" (Lang.Loc.show k) (Timestamp.show v))
-
-    (* let to_logic = List.to_logic (fun (loc, ts) -> Value (Value loc, Nat.to_logic ts)) *)
 
     let tso = Storage.geto
 
@@ -234,37 +222,9 @@ module ThreadFront =
     let thrd_state regs curr rel acq =
       inj @@ distrib @@ {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; }
 
-    let inj x =
-      to_logic @@ T.fmap (RegisterStorage.inj) (ViewFront.inj) (ViewFront.inj) (ViewFront.inj) x
-
-    (* let to_logic { T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; T.prm = prm } =
-      Value {
-        T.regs = RegisterStorage.to_logic regs;
-        T.curr = ViewFront.to_logic curr;
-        T.rel  = ViewFront.to_logic rel;
-        T.acq  = ViewFront.to_logic acq;
-        T.prm  = PromiseSet.to_logic prm;
-      } *)
-
     let reify = reify RegisterStorage.reify ViewFront.reify ViewFront.reify ViewFront.reify
 
     let convert = (fun (var, value) -> (var, Nat.of_int value))
-
-    (* let create ?(rel) ?(acq) vars curr =
-      let rel = match rel with
-        | Some rel -> rel
-        | None     -> curr
-      in
-      let acq = match acq with
-        | Some acq -> acq
-        | None     -> curr
-      in {
-      T.regs = List.of_list convert vars;
-      T.curr = List.of_list convert curr;
-      T.rel  = List.of_list convert rel;
-      T.acq  = List.of_list convert acq;
-      T.prm  = Nil;
-    } *)
 
     let preallocate vars atomics = thrd_state
       (RegisterStorage.allocate vars)
@@ -281,6 +241,10 @@ module ThreadFront =
           ViewFront.pprint rel
       in
       pprint_logic pp
+
+    let regso thrd regs =
+      fresh (curr rel acq)
+        (thrd === thrd_state regs curr rel acq)
 
     let reado thrd var value =
       fresh (regs curr rel acq)
@@ -303,7 +267,6 @@ module ThreadFront =
         (thrd  === thrd_state regs curr  rel  acq )
         (thrd' === thrd_state regs curr' rel  acq')
         (ViewFront.updateo curr curr' loc ts)
-        (* (VarList.seto rel  rel'  loc ts) *)
         (ViewFront.updateo acq  acq'  loc ts)
 
     let front_relo thrd loc rel =
@@ -326,54 +289,6 @@ module ThreadFront =
         (thrd  === thrd_state regs curr rel  acq)
         (thrd' === thrd_state regs curr curr acq)
 
-    (* let promiseo thrd thrd' loc ts value vf =
-      fresh (regs curr rel acq prm prm' p)
-        (thrd  === thrd_state regs curr rel  acq prm )
-        (thrd' === thrd_state regs curr curr acq prm')
-        (p === Promise.promise loc ts value vf)
-        (prm' === p % prm) *)
-
-    (* let betweeno ts_lb ts_ub ts =
-      fresh (sum n d d')
-        (Rational.lto ts_lb ts_ub !!true)
-        (ts  === n %% d')
-        (sum === n %% d )
-        (Rational.addo ts_lb ts_ub sum)
-        (Nat.mulo d 2 d') *)
-
-    (* let removeo prm prm' p =
-      let pred p' b = conde [
-        (p =/= p') &&& (b === !!true);
-        (p === p') &&& (b === !!false);
-      ] in
-      List.filtero pred prm prm'
-
-    let fulfillo thrd thrd'' = Nat.(
-      fresh (thrd' regs curr rel acq prm prm' p loc ts last_ts value vf)
-        (thrd  === thrd_state regs curr rel acq prm )
-        (thrd' === thrd_state regs curr rel acq prm')
-        (List.membero prm p)
-        (p === Promise.promise loc ts value vf)
-        (tso thrd loc last_ts)
-        (last_ts < ts)
-        (* (vf === rel) *)
-        (removeo prm prm' p)
-        (updateo thrd' thrd'' loc ts)
-      )
-
-    let laggingo thrd b =
-      fresh (regs curr rel acq prm)
-        (thrd === thrd_state regs curr rel acq prm)
-        (conde [
-          (prm =/= inj_listi []) &&& (b === !!true);
-          (prm === inj_listi []) &&& (b === !!false);
-        ])
-
-    let certifyo thrd =
-      fresh (regs curr rel acq prm)
-        (thrd  === thrd_state regs curr rel acq prm)
-        (prm   === nil ()) *)
-
     let spawno thrd child1 child2 =
       fresh (regs regs1 regs2 curr rel acq)
         (thrd   === thrd_state regs  curr rel acq)
@@ -395,7 +310,6 @@ module ThreadFront =
         (ViewFront.mergeo curr1 curr2 curr')
         (ViewFront.mergeo rel1  rel2  rel' )
         (ViewFront.mergeo acq1  acq2  acq' )
-        (* (List.appendo prm1 prm2 prm) *)
 
   end
 
@@ -489,19 +403,6 @@ module ThreadLocalStorage(T : ThreadLocalData) =
         ])
       ))
 
-    (* let rec laggingo tree b =
-      fresh (thrd l r b1 b2)
-        (conde [
-            (tree === leaf thrd) &&&
-            (ThreadState.laggingo thrd b);
-
-            (tree =/= leaf thrd) &&&
-            (tree === node thrd l r) &&&
-            (laggingo l b1) &&&
-            (laggingo r b2) &&&
-            (MiniKanrenStd.Bool.oro b1 b2 b);
-        ]) *)
-
     let rec spawno tree tree' path = Lang.(ThreadID.(
       fresh (thrd l l' r r' path')
         (tree  === node thrd  ~left:l  ~right:r )
@@ -570,11 +471,6 @@ module LocStory =
 
         let cell ts v vf = T.(inj @@ distrib {ts; v; vf})
 
-        let inj x =
-          to_logic @@ T.fmap Timestamp.inj Lang.Value.inj ViewFront.inj x
-
-        (* let to_logic (ts, value, vf) = Value (Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf) *)
-
         let reify = reify Timestamp.reify Lang.Value.reify ViewFront.reify
 
         let pprint =
@@ -616,9 +512,6 @@ module LocStory =
       }
 
     let reify = reify Timestamp.reify (List.reify Cell.reify)
-
-    let inj x =
-      to_logic @@ T.fmap (Timestamp.inj) (List.inj (Cell.inj)) x
 
     let create tsnext story = {
       T.tsnext = Nat.of_int tsnext;
@@ -680,12 +573,6 @@ module MemStory =
 
     let reify = Storage.reify (Lang.Loc.reify) (LocStory.reify)
 
-    let inj = Storage.inj (Lang.Loc.inj) (LocStory.inj)
-
-    (* let to_logic = List.to_logic (fun (var, story) -> Value (Value var, LocStory.to_logic story)) *)
-
-    (* let create = List.of_list (fun x -> x) *)
-
     let pprint ff story =
       let pp ff (loc, story) = Format.fprintf ff "%s: %a" (Lang.Loc.show loc) LocStory.pprint story in
       Format.fprintf ff "@[<v>Memory :@;%a@;@]" (Storage.pprint pp) story
@@ -717,56 +604,3 @@ module MemStory =
         (LocStory.last_valueo story value)
 
   end
-
-  (* module Promise =
-    struct
-      module T = struct
-        type ('a, 'b, 'c, 'd) t = 'a * 'b * 'c * 'd
-
-        let fmap fa fb fc fd (a, b, c, d) = (fa a, fb b, fc c, fd d)
-      end
-
-      type tt = (Lang.Loc.tt, Timestamp.tt, Lang.Value.tt, ViewFront.tt) T.t
-      type tl = (Lang.Loc.tl, Timestamp.tl, Lang.Value.tl, ViewFront.tl) T.t MiniKanren.logic
-      type ti = (tt, tl) MiniKanren.injected
-
-      include Fmap4(T)
-
-      let promise loc ts value vf =
-        inj @@ distrib @@ (loc, ts, value, vf)
-
-      let inj (loc, ts, value, vf) =
-        promise (!!loc) (Nat.inj ts) (Nat.inj value) (ViewFront.inj vf)
-
-      let to_logic (loc, ts, value, vf) = Value (Lang.Loc.to_logic loc, Nat.to_logic ts, Nat.to_logic value, ViewFront.to_logic vf)
-
-      let reify = reify ManualReifiers.string Nat.reify Nat.reify ViewFront.reify
-
-      let printer =
-        let pp ff (loc, ts, value, vf) =
-          Format.fprintf ff "@[<h>{%a@%a=%a, %a}@]"
-            pprint_string loc
-            pprint_nat ts
-            pprint_nat value
-            ViewFront.printer vf
-        in
-        pprint_logic pp
-
-    end
-
-  module PromiseSet =
-    struct
-      type tt = Promise.tt List.ground
-      type tl = Promise.tl List.logic
-      type ti = (Promise.tt, Promise.tl) List.groundi
-
-      let inj = List.inj (Promise.inj)
-
-      let to_logic = List.to_logic (Promise.to_logic)
-
-      let reify = List.reify (Promise.reify)
-
-      let printer =
-        pprint_llist Promise.printer
-
-    end *)
