@@ -59,18 +59,14 @@ EXTEND
         <:expr< const (Value.integer $int:n$) >>
 
       | x = LIDENT ->
-        if String.contains x '_' then
-          let var::mo::[] = String.split_on_char '_' x in
-          <:expr< read (MemOrder.mo $str:mo$) (Loc.loc $str:var$) >>
-        else
-          <:expr< var (Register.reg $str:x$) >>
+        <:expr< var (Register.reg $str:x$) >>
 
-      | "CAS"; "("; mo1 = LIDENT; ","; mo2 = LIDENT; ","; x = LIDENT; ","; expected = INT; ","; desired = INT; ")" ->
+      (* | "CAS"; "("; mo1 = LIDENT; ","; mo2 = LIDENT; ","; x = LIDENT; ","; expected = INT; ","; desired = INT; ")" ->
         let mo1 = <:expr< MemOrder.mo $str:mo1$ >> in
         let mo2 = <:expr< MemOrder.mo $str:mo2$ >> in
         let expected = <:expr< const (Value.integer $int:expected$) >> in
         let desired = <:expr< const (Value.integer $int:desired$) >> in
-        <:expr< cas $mo1$ $mo2$ (Loc.loc $str:x$) $expected$ $desired$ >>
+        <:expr< cas $mo1$ $mo2$ (Loc.loc $str:x$) $expected$ $desired$ >> *)
 
       | "("; x = cppmem_expr; ")" -> x
       ]
@@ -90,9 +86,16 @@ EXTEND
         else
           <:expr< asgn (Register.reg $str:x$) $e$ >>
 
+      (* | "load"; x = LIDENT; l = LIDENT ->
+        if String.contains l '_' then
+          let var::mo::[] = String.split_on_char '_' l in
+          <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:var$) (Register.reg $str:x$) >>
+        else
+          assert false *)
+
       | x = LIDENT; ":="; l = LIDENT ->
         if String.contains l '_' then
-          let var::mo::[] = String.split_on_char '_' x in
+          let var::mo::[] = String.split_on_char '_' l in
           <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:var$) (Register.reg $str:x$) >>
         else
           assert false

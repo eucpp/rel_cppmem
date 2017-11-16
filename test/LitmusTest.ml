@@ -4,12 +4,13 @@ open MiniKanrenStd
 
 open Lang
 open Lang.Term
+open Lang.Expr
 open Lang.Loc
 open Lang.Register
 open MemoryModel
 
 let fail_k cexs =
-  let module Trace = Utils.Trace(ReleaseAcquire.TLSNode) in
+  let module Trace = Utils.Trace(ReleaseAcquire.Node) in
   let ff = Format.std_formatter in
   Format.fprintf ff "Verification query fails!@; List of counterexamples:@;";
   List.iter (fun cex -> Format.fprintf ff "%a@;" Trace.trace cex) cexs;
@@ -17,7 +18,7 @@ let fail_k cexs =
 
 let asserto t =
   fresh (p s)
-    (t === ReleaseAcquire.TLSNode.node p s)
+    (t === ReleaseAcquire.Node.cfg p s)
     (p =/= stuck ())
 
 (* let prog_SW = <:cppmem<
@@ -40,6 +41,8 @@ let prog_SW = <:cppmem<
       x_rlx := 1;
       f_rel := 1
   |||
+      (* load r1 f_acq; *)
+      (* load r2 x_rlx; *)
       r1 := f_acq;
       r2 := x_rlx;
       assert (
@@ -57,22 +60,25 @@ let prog_SW = <:cppmem<
 
 let test_SW_RA () =
   let state = ReleaseAcquire.State.init ~regs:[reg "r1"; reg "r2"] ~locs:[loc "x"; loc "f"] in
-  let node  = ReleaseAcquire.TLSNode.node prog_SW state in
+  let node  = ReleaseAcquire.Node.cfg prog_SW state in
   Query.verify ~n:1 ~fail_k ReleaseAcquire.evalo asserto node
 
 let _ =
-  let module Trace = Utils.Trace(ReleaseAcquire.TLSNode) in
+  let module Trace = Utils.Trace(ReleaseAcquire.Node) in
   let ff = Format.std_formatter in
   let state = ReleaseAcquire.State.init ~regs:[reg "r1"; reg "r2"] ~locs:[loc "x"; loc "f"] in
-  let t = ReleaseAcquire.TLSNode.node prog_SW state in
+  let t = ReleaseAcquire.Node.cfg prog_SW state in
   let stream = run q (fun t' -> (ReleaseAcquire.evalo t t')) (fun qs -> qs) in
   let cexs = Stream.take stream in
   List.iter (fun cex -> Format.fprintf ff "%a@;" Trace.trace cex) cexs;
   Format.fprintf ff "TEST@;";
   MiniKanren.report_counters ()
 
-(* let _ =
-  Lang.Term.pprint Format.std_formatter @@ Lang.Term.inj @@ MiniKanren.prj @@ prog_SW *)
+let _ =
+  let [p] = Stream.take ~n:1 @@ run q (fun q -> q === prog_SW) (fun qs -> qs) in
+  Lang.Term.pprint Format.std_formatter @@ p#reify Lang.Term.reify;
+  Format.fprintf Format.std_formatter "TEST@;"
+
   (* Printf.printf "%s\n" @@ pprint @@ inj @@ prj @@ prog_rel_acq *)
 
 (* let test_rel_acq step = test_prog step prog_rel_acq ["(0, 0)"; "(0, 1)"; "(1, 1)";] *)
