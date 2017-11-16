@@ -77,7 +77,7 @@ module MakeConfig(P : Utils.Logic)(S : Utils.Logic) =
 
     let pprint =
       let pp ff { prog; state; } =
-        Format.fprintf ff "Prog:@;%a@;State:@;%a@;)" P.pprint prog S.pprint state
+        Format.fprintf ff "@[<v>Prog:@;<1 2>%a@;State:@;<1 2>%a@;@]" P.pprint prog S.pprint state
       in
       Utils.pprint_logic pp
 

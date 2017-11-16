@@ -74,10 +74,10 @@ let _ =
   Format.fprintf ff "TEST@;";
   MiniKanren.report_counters ()
 
-let _ =
+(* let _ =
   let [p] = Stream.take ~n:1 @@ run q (fun q -> q === prog_SW) (fun qs -> qs) in
   Lang.Term.pprint Format.std_formatter @@ p#reify Lang.Term.reify;
-  Format.fprintf Format.std_formatter "TEST@;"
+  Format.fprintf Format.std_formatter "TEST@;" *)
 
   (* Printf.printf "%s\n" @@ pprint @@ inj @@ prj @@ prog_rel_acq *)
 

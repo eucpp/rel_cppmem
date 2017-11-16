@@ -18,25 +18,21 @@ module Make (S : State) =
   struct
     module Node = Semantics.MakeConfig(Lang.Term)(S)
 
-    let ctx_lifto ctx' state ctx =
-      fresh (rs thrdId)
+    let lift_split splito term ctx rdx =
+      fresh (term' ctx' rdx' state rs thrdId)
+        (term === Node.cfg term' state)
+        (rdx  === Node.cfg rdx'  state)
+        (splito term' ctx' rdx')
         (ctx === Rules.Context.context ctx' rs)
         (Lang.Context.thrdIdo ctx' thrdId)
         (S.regso state thrdId rs)
 
-    let lift_split splito term ctx rdx =
-      fresh (term' ctx' rdx' state)
-        (term === Node.cfg term' state)
-        (rdx  === Node.cfg rdx'  state)
-        (splito term' ctx' rdx')
-        (ctx_lifto ctx' state ctx)
-
     let lift_plug plugo ctx rdx term =
-      fresh (term' ctx' rdx' state)
+      fresh (term' ctx' rdx' state rs)
         (term === Node.cfg term' state)
         (rdx  === Node.cfg rdx'  state)
+        (ctx  === Rules.Context.context ctx' rs)
         (plugo ctx' rdx' term')
-        (ctx_lifto ctx' state ctx)
 
     let lift_rule rule ctx t t' =
       fresh (label prog prog' state state')
@@ -84,6 +80,7 @@ module Make (S : State) =
       ])
 
   let evalo = Semantics.Reduction.make_eval ~irreducibleo:(Node.lift_tpred Lang.Term.irreducibleo) stepo
+  (* let evalo = Semantics.Reduction.make_path stepo *)
 
   end
 
