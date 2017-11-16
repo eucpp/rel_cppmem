@@ -142,16 +142,10 @@ module Term :
 
     val show : tl -> string
 
-    val thrd_termo : ti -> ThreadID.ti -> ti -> MiniKanren.goal
-
     val thrd_local_termo : ti -> MiniKanren.goal
     val thrd_inter_termo : ti -> MiniKanren.goal
 
     val irreducibleo : ti -> MiniKanren.goal
-
-    val bool_expro  : ?loco:(Loc.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal
-    val stmto       : ?loco:(Loc.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal
-    val seq_stmto   : ?loco:(Loc.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal
   end
 
 module Context :

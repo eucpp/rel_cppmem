@@ -1,6 +1,18 @@
+module Context :
+  sig
+    type tt
+    type tl = inner MiniKanren.logic
+      and inner
+    type ti = (tt, tl) MiniKanren.injected
+
+    val context : Lang.Context.ti -> Memory.RegisterStorage.ti -> ti
+
+    val tlso    : ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+    val thrdIdo : ti -> ThreadID.ti               -> MiniKanren.goal
+  end
 
 type rule =
-  Lang.Label.ti -> Lang.Context.ti -> Lang.Term.ti -> Lang.Term.ti -> MiniKanren.goal
+  Lang.Label.ti -> Context.ti -> Lang.Term.ti -> Lang.Term.ti -> MiniKanren.goal
 
 module Basic :
   sig

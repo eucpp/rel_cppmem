@@ -1,3 +1,11 @@
+
+
+val splito : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.splitting
+
+val thrd_splito : ThreadID.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.splitting
+
+val plugo : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.plugging
+
 (* module SequentialConsistent :
   sig
     module State :

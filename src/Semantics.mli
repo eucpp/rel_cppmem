@@ -4,15 +4,6 @@ module Term :
     type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.injected
   end
 
-(** MaybeTerm - term augmented with undefined value *)
-module MaybeTerm :
-  sig
-    type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.Std.Option.groundi
-
-    val term  : ('tt, 'tl) MiniKanren.injected -> ('tt, 'tl) ti
-    val undef : unit -> ('tt, 'tl) ti
-  end
-
 (** Context - evaluation context *)
 module Context :
   sig
