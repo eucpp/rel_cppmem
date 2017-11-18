@@ -32,6 +32,9 @@ test: relcppmem plugin
 
 ################################# Samples ####################################
 
+expr : relcppmem plugin
+	$(OCB) -I samples expr.native
+
 addo : relcppmem plugin
 	$(OCB) -I samples addo.native
 	time ./addo.native
