@@ -29,5 +29,5 @@ module ReleaseAcquire :
 
     module Node : module type of Semantics.MakeConfig(Lang.Term)(State)
 
-    val evalo : (Node.tt, Node.tl) Semantics.eval
+    val evalo : (Node.tt, Node.tt, Node.tl, Node.tl) Semantics.eval
   end

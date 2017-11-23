@@ -1,5 +1,5 @@
 (** Term *)
-module Term : Utils.Injected
+module Term : module type of Utils.Injected
 
 (** [tpred t] - some predicate defined on a set of terms *)
 type ('tt, 'tl) tpred =
@@ -97,13 +97,13 @@ module Reduction :
   end
 
 (** Prog *)
-module Prog : Utils.Injected
+module Prog : module type of Utils.Injected
 
 (** In *)
-module Input : Utils.Injected
+module Input : module type of Utils.Injected
 
 (** Out *)
-module Output : Utils.Injected
+module Output : module type of Utils.Injected
 
 type ('at, 'bt, 'ct, 'al, 'bl, 'cl) interpreter =
   ('at, 'al) Prog.ti -> ('bt, 'bl) Input.ti -> ('ct, 'cl) Output.ti -> MiniKanren.goal

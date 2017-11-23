@@ -1,4 +1,4 @@
-module type Injected =
+module Injected :
   sig
     type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.injected
 

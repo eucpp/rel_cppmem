@@ -124,16 +124,48 @@ module Expr =
       val intrpo prog input output = evalo input prog output
   end
 
-let emax x y = Expr.(
-  if' (lt x y) x x
+let emax = Expr.(
+  let x = var !!"x" in
+  let y = var !!"y" in
+  if' (lt x y) y x
 )
+
+let input v1 v2 =
+  let inj_pair (x, v) = Pair.pair x v in
+  MiniKanren.list inj_pair [(!!"x", v1); (!!"y", v2)]
+
+let show_inut =
+  | [("x", x); ("y", y)] -> sprintf "x=%d, y=%d" (Nat.to_int x) (Nat.to_int y)
+  | _ -> invalid_arg ""
 
 let reifyq  qs    = Stream.map (fun rr -> rr#reify Expr.reify) qs
 let reifyqr qs rs = Stream.zip (reifyq qs) (reifyq rs)
 
 let nati n = Nat.(nat @@ of_int n)
 
-let () = Expr.(
+let () = Expr.(Nat.(
+  let reify = List.reify (Pair.reify reify Nat.reify) in
+  let inputo i =
+    fresh (v1 v2)
+      (i === input v1 v2)
+      (v1 < nati 16)
+      (v2 < nati 16)
+      (v1 < v2)
+  in
+  let asserto i o =
+    fresh (v1 v2)
+      (i === input v1 v2)
+      (v2 === o)
+  in
+  let stream = Query.verify Expr.intrpo inputo asserto emax in
+  if Stream.is_empty stream then
+    printf "Success!\n"
+  else
+    let [cex] = Stream.take ~n:1 stream in
+    printf "Fail!\nCounterexample: %s\n" (show_input @@ cex#reify reify)
+))
+
+(* let () = Expr.(
   let x, y = one (), zero () in
   let answs = run q (fun z -> evalo (emax x y) z) reifyq in
   let [z] = Stream.take answs in
@@ -158,8 +190,8 @@ let () = Expr.(Nat.(
     printf "success\n"
   else
     let [(x, y)] = Stream.take ~n:1 answs in
-    printf "fail\ncounterexample: x=%s, y=%s\n" (show x) (show y)
-))
+    printf "fail\ncounterexample: %s\n" (show_input x) (show y)
+)) *)
 
 (* let () = Expr.(Nat.(
   let answs = run q (fun p ->
