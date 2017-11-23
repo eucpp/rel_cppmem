@@ -1,3 +1,10 @@
+module type Injected =
+  sig
+    type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.injected
+
+    type ('tt, 'tl) reified = ('tt, 'tl) MiniKanren.injected
+  end
+
 module type Logic =
   sig
     type tt

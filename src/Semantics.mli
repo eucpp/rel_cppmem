@@ -1,16 +1,13 @@
 (** Term *)
-module Term :
-  sig
-    type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.injected
-  end
+module Term : Utils.Injected
 
 (** [tpred t] - some predicate defined on a set of terms *)
 type ('tt, 'tl) tpred =
   ('tt, 'tl) Term.ti -> MiniKanren.goal
 
 (** [eval term term'] - evaluates [term] to [term'] *)
-type ('tt, 'tl) eval =
-  ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
+type ('at, 'bt, 'al, 'bl) eval =
+  ('at, 'al) Term.ti -> ('bt, 'bl) Term.ti -> MiniKanren.goal
 
 (** Config - special case of term for languages that distinguish
   *   syntactic and semantic components.
@@ -96,5 +93,17 @@ module Reduction :
       ('tt, 'tl) step -> ('tt, 'tl) path
 
     val make_eval :
-      irreducibleo:('tt, 'tl) tpred -> ('tt, 'tl) step -> ('tt, 'tl) eval
+      irreducibleo:('tt, 'tl) tpred -> ('tt, 'tl) step -> ('tt, 'tt, 'tl, 'tl) eval
   end
+
+(** Prog *)
+module Prog : Utils.Injected
+
+(** In *)
+module Input : Utils.Injected
+
+(** Out *)
+module Output : Utils.Injected
+
+type ('at, 'bt, 'ct, 'al, 'bl, 'cl) interpreter =
+  ('at, 'al) Prog.ti -> ('bt, 'bl) Input.ti -> ('ct, 'cl) Output.ti -> MiniKanren.goal
