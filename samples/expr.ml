@@ -25,7 +25,7 @@ module Expr =
 
     type ti = (tt, tl) MiniKanren.injected
 
-    module F = Fmap2(T)
+    module F = Fmap3(T)
 
     let const v     = inj @@ F.distrib @@ T.Const v
     let var x       = inj @@ F.distrib @@ T.Var x
@@ -116,15 +116,15 @@ module Expr =
           (e === if' c l r)
           (evalo s c x)
           (conde
-          [ (x === one ) &&& (evalo l v)
-          ; (x === zero) &&& (evalo r v)
+          [ (x === Nat.one ) &&& (evalo s l v)
+          ; (x === Nat.zero) &&& (evalo s r v)
           ])
       ])
 
-      val intrpo prog input output = evalo input prog output
+      let intrpo prog input output = evalo input prog output
   end
 
-let emax = Expr.(
+let emax : Expr.ti = Expr.(
   let x = var !!"x" in
   let y = var !!"y" in
   if' (lt x y) y x
@@ -132,10 +132,11 @@ let emax = Expr.(
 
 let input v1 v2 =
   let inj_pair (x, v) = Pair.pair x v in
-  MiniKanren.list inj_pair [(!!"x", v1); (!!"y", v2)]
+  MiniKanrenStd.List.list @@ List.map inj_pair [(!!"x", v1); (!!"y", v2)]
 
-let show_inut =
-  | [("x", x); ("y", y)] -> sprintf "x=%d, y=%d" (Nat.to_int x) (Nat.to_int y)
+let show_input input =
+  match MiniKanrenStd.List.to_list (fun (x, v) -> (x, Nat.to_int v)) input with
+  | [("x", x); ("y", y)] -> sprintf "x=%d, y=%d" x y
   | _ -> invalid_arg ""
 
 let reifyq  qs    = Stream.map (fun rr -> rr#reify Expr.reify) qs
@@ -144,7 +145,7 @@ let reifyqr qs rs = Stream.zip (reifyq qs) (reifyq rs)
 let nati n = Nat.(nat @@ of_int n)
 
 let () = Expr.(Nat.(
-  let reify = List.reify (Pair.reify reify Nat.reify) in
+  let reify = List.reify (Pair.reify MiniKanren.reify Nat.reify) in
   let inputo i =
     fresh (v1 v2)
       (i === input v1 v2)
@@ -158,11 +159,12 @@ let () = Expr.(Nat.(
       (v2 === o)
   in
   let stream = Query.verify Expr.intrpo inputo asserto emax in
+  printf "Verifying that max(x, y)=y for every x<y (x,y<16)\n";
   if Stream.is_empty stream then
-    printf "Success!\n"
+    printf "    Success!\n"
   else
     let [cex] = Stream.take ~n:1 stream in
-    printf "Fail!\nCounterexample: %s\n" (show_input @@ cex#reify reify)
+    printf "    Fail!\nCounterexample: %s\n" (show_input @@ cex#prj)
 ))
 
 (* let () = Expr.(

@@ -9,11 +9,11 @@ val exec :
 (**   *)
 val verify :
   ('at, 'bt, 'ct, 'al, 'bl, 'cl) Semantics.interpreter ->
-  ('bt, 'bl) Semantics.tpred -> ('bt, 'ct, 'bl, 'cl') assertion ->
+  ('bt, 'bl) Semantics.tpred -> ('bt, 'ct, 'bl, 'cl) assertion ->
   ('at, 'al) Semantics.Prog.ti ->
   ('bt, 'bl) Semantics.Input.reified MiniKanren.Stream.t
 
-val synth :
+(* val synth :
   ('at, 'bt, 'ct, 'al, 'bl, 'cl) Semantics.interpreter ->
   ('bt, 'bl) Semantics.tpred -> ('bt, 'ct, 'bl, 'cl) assertion ->
-  ('at, 'al) Semantics.Prog.ti -> unit
+  ('at, 'al) Semantics.Prog.ti -> unit *)

@@ -1,6 +1,12 @@
 open MiniKanren
 open MiniKanrenStd
 
+module Injected =
+  struct
+    type ('tt, 'tl) ti = ('tt, 'tl) MiniKanren.injected
+    type ('tt, 'tl) reified = ('tt, 'tl) MiniKanren.reified
+  end
+
 module type Logic =
   sig
     type tt
