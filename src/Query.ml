@@ -14,14 +14,21 @@ let exec intrpo prog input =
   run q (fun output -> intrpo prog input output)
   (fun qs -> qs)
 
+let verify_exists intrpo inputo asserto prog =
+  run qr (fun input output ->
+      (inputo input) &&&
+      (intrpo prog input output) &&&
+      (asserto input output)
+  )
+  (fun qs rs -> Stream.zip qs rs)
+
 let verify intrpo inputo asserto prog =
-  run q (fun input ->
-    fresh (output)
-      (inputo input)
-      (intrpo prog input output)
+  run qr (fun input output ->
+      (inputo input) &&&
+      (intrpo prog input output) &&&
     ?~(asserto input output)
   )
-  (fun qs -> qs)
+  (fun qs rs -> Stream.zip qs rs)
 
   (* in
   if Stream.is_empty stream then

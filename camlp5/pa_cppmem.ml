@@ -81,24 +81,29 @@ EXTEND
 
       | x = LIDENT; ":="; e = cppmem_expr ->
         if String.contains x '_' then
-          let var::mo::[] = String.split_on_char '_' x in
-          <:expr< store (MemOrder.mo $str:mo$) (Loc.loc $str:var$) $e$ >>
+          let l::mo::[] = String.split_on_char '_' x in
+          <:expr< store (MemOrder.mo $str:mo$) (Loc.loc $str:l$) $e$ >>
         else
-          <:expr< asgn (Register.reg $str:x$) $e$ >>
+        <:expr< asgn (Register.reg $str:x$) $e$ >>
 
-      (* | "load"; x = LIDENT; l = LIDENT ->
-        if String.contains l '_' then
-          let var::mo::[] = String.split_on_char '_' l in
-          <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:var$) (Register.reg $str:x$) >>
-        else
-          assert false *)
+      (* | "load"; x = LIDENT; r = LIDENT ->
+        let l::mo::[] = String.split_on_char '_' x in
+        <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:l$) (Register.reg $str:r$) >>
 
-      | x = LIDENT; ":="; l = LIDENT ->
-        if String.contains l '_' then
-          let var::mo::[] = String.split_on_char '_' l in
-          <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:var$) (Register.reg $str:x$) >>
+      | "store"; x = LIDENT; e = cppmem_expr ->
+        let l::mo::[] = String.split_on_char '_' x in
+        <:expr< store (MemOrder.mo $str:mo$) (Loc.loc $str:l$) $e$ >> *)
+
+      | x = LIDENT; ":="; y = LIDENT ->
+        if String.contains y '_' then
+          let l::mo::[] = String.split_on_char '_' y in
+          <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:l$) (Register.reg $str:x$) >>
         else
-          assert false
+          if String.contains x '_' then
+            let l::mo::[] = String.split_on_char '_' x in
+            <:expr< store (MemOrder.mo $str:mo$) (Loc.loc $str:l$) (var (Register.reg $str:y$)) >>
+          else
+            assert false
 
       | "if"; e = cppmem_expr; "then"; t1 = cppmem_stmt; "else"; t2 = cppmem_stmt; "fi" ->
         <:expr< if' $e$ $t1$ $t2$ >>

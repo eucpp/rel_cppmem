@@ -6,12 +6,18 @@ val exec :
   ('at, 'al) Semantics.Prog.ti -> ('bt, 'bl) Semantics.Input.ti ->
   ('ct, 'cl) Semantics.Output.reified MiniKanren.Stream.t
 
+val verify_exists :
+  ('at, 'bt, 'ct, 'al, 'bl, 'cl) Semantics.interpreter ->
+  ('bt, 'bl) Semantics.tpred -> ('bt, 'ct, 'bl, 'cl) assertion ->
+  ('at, 'al) Semantics.Prog.ti ->
+  (('bt, 'bl) Semantics.Input.reified * ('ct, 'cl) Semantics.Input.reified) MiniKanren.Stream.t
+
 (**   *)
 val verify :
   ('at, 'bt, 'ct, 'al, 'bl, 'cl) Semantics.interpreter ->
   ('bt, 'bl) Semantics.tpred -> ('bt, 'ct, 'bl, 'cl) assertion ->
   ('at, 'al) Semantics.Prog.ti ->
-  ('bt, 'bl) Semantics.Input.reified MiniKanren.Stream.t
+  (('bt, 'bl) Semantics.Input.reified * ('ct, 'cl) Semantics.Input.reified) MiniKanren.Stream.t
 
 (* val synth :
   ('at, 'bt, 'ct, 'al, 'bl, 'cl) Semantics.interpreter ->
