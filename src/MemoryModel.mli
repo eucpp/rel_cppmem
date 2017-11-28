@@ -11,6 +11,22 @@ module type State =
     val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
   end
 
+module type T =
+  sig
+    module State : State
+
+    module Node : module type of Semantics.MakeConfig(Lang.Term)(State)
+
+    type nt = Node.tt
+    type nl
+
+    type npred = (Node.tt, Node.tl) Semantics.tpred
+
+    val intrpo : (Lang.Term.tt, State.tt, Node.tt, Lang.Term.tl, State.tl, Node.tl) Semantics.interpreter
+
+    (* val evalo : (Node.tt, Node.tt, Node.tl, Node.tl) Semantics.eval *)
+  end
+
 (* module SequentialConsistent :
   sig
     module State :
@@ -25,11 +41,4 @@ module type State =
     val evalo : (TLSNode.tt, TLSNode.tl) Semantics.eval
   end *)
 
-module ReleaseAcquire :
-  sig
-    module State : State
-
-    module Node : module type of Semantics.MakeConfig(Lang.Term)(State)
-
-    val evalo : (Node.tt, Node.tt, Node.tl, Node.tl) Semantics.eval
-  end
+module ReleaseAcquire : T

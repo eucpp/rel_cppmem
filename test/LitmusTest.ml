@@ -10,67 +10,66 @@ open Lang.Register
 open Lang.Value
 open MemoryModel
 
+let litmus_test_exists ?pprint ~intrpo ~name ~prog ~initstate ~asserto : test_fun = fun test_ctx ->
+  let inputo s = (s === initstate) in
+  let stream = Query.angelic intrpo inputo asserto prog in
+  if not @@ Stream.is_empty stream then
+    ()
+  else
+    assert_failure @@ ""
+
+let litmus_test_forall ?pprint ~intrpo ~name ~prog ~initstate ~asserto : test_fun = fun test_ctx ->
+  let inputo s = (s === initstate) in
+  let asserto _ output = asserto output in
+  let stream = Query.verify intrpo inputo asserto prog in
+  if Stream.is_empty stream then
+    ()
+  else begin
+    let ff = Format.std_formatter in
+    Format.fprintf ff "Litmus test %s fails!@;" name;
+    begin match pprint with
+      | Some pprint ->
+        let cexs = Stream.take stream in
+        Format.fprintf ff "List of counterexamples:@;";
+        (* input is irrelevant for litmus test, we show only final state *)
+        List.iter (fun (_, cex) -> Format.fprintf ff "%a@;" pprint cex) cexs
+      | None -> ()
+    end;
+    assert_failure @@ ""
+    end
+
 type litmus_test_tag = Exists | Forall
 
-let litmus_test ?trace ~tag evalo asserto prog : test_fun = fun test_ctx ->
-  (* litmus tests do not take any input *)
-  let inputo _ = MiniKanren.success in
-  (* for litmus test [intrpo] just evaluates the program *)
-  let intrpo prog _ output = evalo prog output in
-  (* for litmus test [asserto] checks final state of abstract machine *)
-  let asserto _ output = asserto output in
-  let ff = Format.std_formatter in
+let litmus_test ?pprint ~intrpo ~name ~prog ~initstate ~asserto ~tag =
   match tag with
-  | Exists -> (
-    let stream = Query.verify_exists intrpo inputo asserto prog in
-    if not @@ Stream.is_empty stream then
-      ()
-    else (
-      Format.fprintf ff "Verification query fails!@;";
-      assert_failure @@ ""
-  ))
-  | Forall -> (
-    let stream = Query.verify intrpo inputo asserto prog in
-    if Stream.is_empty stream then
-      ()
-    else
-      (Format.fprintf ff "Verification query fails!@;";
-      begin match trace with
-        | Some trace ->
-          let cexs = Stream.take stream in
-          Format.fprintf ff "List of counterexamples:@;";
-          (* again, input is irrelevant for litmus test, we show only final state *)
-          List.iter (fun (_, cex) -> Format.fprintf ff "%a@;" trace cex) cexs
-        | None -> ()
-      end;
-      assert_failure @@ "")
-    )
+  | Exists -> litmus_test_exists ?pprint ~intrpo ~name ~prog ~initstate ~asserto
+  | Forall -> litmus_test_forall ?pprint ~intrpo ~name ~prog ~initstate ~asserto
 
-let asserto_RA t =
+let litmus_test_RA ~name ~prog ~regs ~locs ~asserto ~tag =
+  let module Trace = Utils.Trace(ReleaseAcquire.Node) in
+  litmus_test
+    ~pprint:Trace.trace
+    ~intrpo:ReleaseAcquire.intrpo
+    ~initstate:(ReleaseAcquire.State.init ~regs ~locs)
+    ~name ~prog ~asserto ~tag
+
+let safeo_RA t =
   fresh (p s)
     (t === ReleaseAcquire.Node.cfg p s)
     (p =/= stuck ())
 
-let asserto_DR_RA t =
+let dataraceo_RA t =
   fresh (p s)
     (t === ReleaseAcquire.Node.cfg p s)
     (p === stuck ())
-
-let trace_RA =
-  let module Trace = Utils.Trace(ReleaseAcquire.Node) in
-  Trace.trace
 
 let prog_SW = <:cppmem<
   spw {{{
       x_rlx := 1;
       f_rel := 1
-      (* store x_rlx 1; *)
-      (* store f_rel 1 *)
   |||
       r1 := f_acq;
       r2 := x_rlx;
-      (* load f_acq r1;
-      load x_rlx r2; *)
       assert (
         (r1 = 0 && r2 = 0) ||
         (r1 = 0 && r2 = 1) ||
@@ -79,75 +78,72 @@ let prog_SW = <:cppmem<
   }}}
 >>
 
-(* let _ = Term.show prog_SW *)
-
-let test_SW_RA =
-  let state = ReleaseAcquire.State.init ~regs:[reg "r1"; reg "r2"] ~locs:[loc "x"; loc "f"] in
-  let node  = ReleaseAcquire.Node.cfg prog_SW state in
-  litmus_test ~trace:trace_RA ~tag:Forall ReleaseAcquire.evalo asserto_RA node
+let test_SW_RA = litmus_test_RA
+  ~name:"SW_RA"
+  ~prog:prog_SW
+  ~regs:[reg "r1"; reg "r2"]
+  ~locs:[loc "x"; loc "f"]
+  ~tag:Forall
+  ~asserto:safeo_RA
 
 let prog_DR1 = <:cppmem<
   spw {{{
       x_rlx := 1
-      (* store x_rlx 1 *)
   |||
       r1 := x_na;
-      (* load x_na r1; *)
       assert (r1 = 0)
   }}}
 >>
 
-let test_DR1_RA =
-  let state = ReleaseAcquire.State.init ~regs:[reg "r1";] ~locs:[loc "x"] in
-  let node  = ReleaseAcquire.Node.cfg prog_DR1 state in
-  litmus_test ~trace:trace_RA ~tag:Exists ReleaseAcquire.evalo asserto_DR_RA node
-
+let test_DR1_RA = litmus_test_RA
+  ~name:"DR1_RA"
+  ~prog:prog_DR1
+  ~regs:[reg "r1"]
+  ~locs:[loc "x"]
+  ~tag:Exists
+  ~asserto:dataraceo_RA
 
 let prog_DR2 = <:cppmem<
   spw {{{
       x_na := 1
-      (* store x_na 1 *)
   |||
       r1 := x_rlx;
-      (* load x_rlx r1; *)
       assert (r1 = 0)
   }}}
 >>
 
-let test_DR2_RA =
-  let state = ReleaseAcquire.State.init ~regs:[reg "r1";] ~locs:[loc "x"] in
-  let node  = ReleaseAcquire.Node.cfg prog_DR2 state in
-  litmus_test ~trace:trace_RA ~tag:Exists ReleaseAcquire.evalo asserto_DR_RA node
+let test_DR2_RA = litmus_test_RA
+  ~name:"DR2_RA"
+  ~prog:prog_DR2
+  ~regs:[reg "r1"]
+  ~locs:[loc "x"]
+  ~tag:Exists
+  ~asserto:dataraceo_RA
 
 let prog_SB = <:cppmem<
   spw {{{
       x_rel := 1;
       r1 := y_acq;
       a_rlx := r1
-      (* store x_rel 1;
-      load y_acq r1;
-      store a_rlx r1 *)
   |||
       y_rel := 1;
       r2 := x_acq;
       b_rlx := r2
-      (* store y_rel 1;
-      load x_acq r2;
-      store b_rlx r2 *)
   }}}
 >>
 
-let test_SB_RA =
-  let state = ReleaseAcquire.State.init ~regs:[reg "r1"; reg "r2"] ~locs:[loc "x"; loc "y"; loc "a"; loc "b"] in
-  let node  = ReleaseAcquire.Node.cfg prog_SB state in
-  let asserto t =
+let test_SB_RA = litmus_test_RA
+  ~name:"SB_RA"
+  ~prog:prog_SB
+  ~regs:[reg "r1"; reg "r2"]
+  ~locs:[loc "x"; loc "y"; loc "a"; loc "b"]
+  ~tag:Exists
+  ~asserto:(fun t ->
     fresh (p s)
       (t === ReleaseAcquire.Node.cfg p s)
       (ReleaseAcquire.State.checko s (loc "a") (integer 1))
       (ReleaseAcquire.State.checko s (loc "b") (integer 1))
-  in
-  litmus_test ~trace:trace_RA ~tag:Exists ReleaseAcquire.evalo asserto node
-
+  )
 
 let prog_LB_RA = <:cppmem<
     spw {{{
@@ -161,35 +157,47 @@ let prog_LB_RA = <:cppmem<
     }}}
 >>
 
-let test_LB_RA =
-  let state = ReleaseAcquire.State.init ~regs:[reg "r1"; reg "r2"] ~locs:[loc "x"; loc "y"; loc "a"; loc "b"] in
-  let node  = ReleaseAcquire.Node.cfg prog_LB_RA state in
-  let asserto t =
+let test_LB_RA = litmus_test_RA
+  ~name:"LB_RA"
+  ~prog:prog_LB_RA
+  ~regs:[reg "r1"; reg "r2"]
+  ~locs:[loc "x"; loc "y"; loc "a"; loc "b"]
+  ~tag:Forall
+  ~asserto:(fun t ->
     fresh (p s a b)
       (t === ReleaseAcquire.Node.cfg p s)
       (ReleaseAcquire.State.checko s (loc "a") a)
       (ReleaseAcquire.State.checko s (loc "b") b)
       ((a =/= integer 1) ||| (b =/= integer 1))
-  in
-  litmus_test ~trace:trace_RA ~tag:Forall ReleaseAcquire.evalo asserto node
+  )
 
-(*
 let prog_LB_rel_acq_rlx = <:cppmem<
-    x_rlx := 0;
-    y_rlx := 0;
     spw {{{
         r1 := x_acq;
         y_rlx := 1;
-        ret r1
+        a_rlx := r1
     |||
         r2 := y_rlx;
         x_rel := 1;
-        ret r2
+        b_rlx := r2
     }}}
 >>
 
-let test_LB_rel_acq_rlx step = test_prog step prog_LB_rel_acq_rlx ["(0, 0)"; "(1, 0)"; "(0, 1)"]
+let test_LB_RA_rlx = litmus_test_RA
+  ~name:"LB_RA+rlx"
+  ~prog:prog_LB_RA
+  ~regs:[reg "r1"; reg "r2"]
+  ~locs:[loc "x"; loc "y"; loc "a"; loc "b"]
+  ~tag:Forall
+  ~asserto:(fun t ->
+    fresh (p s a b)
+      (t === ReleaseAcquire.Node.cfg p s)
+      (ReleaseAcquire.State.checko s (loc "a") a)
+      (ReleaseAcquire.State.checko s (loc "b") b)
+      ((a =/= integer 1) ||| (b =/= integer 1))
+  )
 
+(*)
 let prog_MP = <:cppmem<
     x_rlx := 0;
     f_rlx := 0;
@@ -345,8 +353,9 @@ let tests =
       "LB">:: test_LB_RA;
       "DR1">:: test_DR1_RA;
       "DR2">:: test_DR2_RA;
+      "LB+rlx">:: test_LB_RA_rlx;
     ]
-    
+
     (* "DR_1">:: test_data_race_1 rlxStep;
     "DR_2">:: test_data_race_2 rlxStep;
 

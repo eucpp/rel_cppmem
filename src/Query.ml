@@ -14,11 +14,11 @@ let exec intrpo prog input =
   run q (fun output -> intrpo prog input output)
   (fun qs -> qs)
 
-let verify_exists intrpo inputo asserto prog =
+let angelic intrpo inputo outputo prog =
   run qr (fun input output ->
       (inputo input) &&&
       (intrpo prog input output) &&&
-      (asserto input output)
+      (outputo output)
   )
   (fun qs rs -> Stream.zip qs rs)
 

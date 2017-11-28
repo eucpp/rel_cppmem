@@ -16,9 +16,28 @@ module type State =
     val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
   end
 
+module type T =
+  sig
+    module State : State
+
+    module Node : module type of Semantics.MakeConfig(Lang.Term)(State)
+
+    type nt = Node.tt
+    type nl
+
+    type npred = (Node.tt, Node.tl) Semantics.tpred
+
+    val intrpo : (Lang.Term.tt, State.tt, Node.tt, Lang.Term.tl, State.tl, Node.tl) Semantics.interpreter
+  end
+
 module Make (S : State) =
   struct
     module Node = Semantics.MakeConfig(Lang.Term)(S)
+
+    type nt = Node.tt
+    type nl = Node.tl
+
+    type npred = (Node.tt, Node.tl) Semantics.tpred
 
     let lift_split splito term ctx rdx =
       fresh (term' ctx' rdx' state rs thrdId)
@@ -83,6 +102,11 @@ module Make (S : State) =
 
   let evalo = Semantics.Reduction.make_eval ~irreducibleo:(Node.lift_tpred Lang.Term.irreducibleo) stepo
   (* let evalo = Semantics.Reduction.make_path stepo *)
+
+  let intrpo p i o =
+    fresh (s)
+      (s === Node.cfg p i)
+      (evalo s o)
 
   end
 
@@ -621,6 +645,7 @@ module ReleaseAcquire =
                 (mo === !!MemOrder.SC);
                 (mo === !!MemOrder.ACQ);
                 (mo === !!MemOrder.REL);
+                (mo === !!MemOrder.RLX);
               ]) &&&
               (dataraceo t t' thrdId loc);
 
