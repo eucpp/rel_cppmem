@@ -108,8 +108,10 @@ EXTEND
       | "if"; e = cppmem_expr; "then"; t1 = cppmem_stmt; "else"; t2 = cppmem_stmt; "fi" ->
         <:expr< if' $e$ $t1$ $t2$ >>
 
-      (* | "repeat"; e = cppmem_expr; "end" ->
-        <:expr< repeat $e$ >> *)
+      | "repeat"; x = LIDENT; "end" ->
+        if String.contains x '_' then
+          let l::mo::[] = String.split_on_char '_' x in
+          <:expr< repeat (MemOrder.mo $str:mo$) (Loc.loc $str:l$) >>
 
       | t1 = cppmem_stmt; ";"; t2 = cppmem_stmt ->
         <:expr< seq $t1$ $t2$ >>

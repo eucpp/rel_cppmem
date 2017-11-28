@@ -3,13 +3,6 @@ open MiniKanren
 type ('at, 'bt, 'al, 'bl) assertion =
   ('at, 'al) Semantics.Input.ti -> ('bt, 'bl) Semantics.Output.ti -> MiniKanren.goal
 
-(* let verify ?n ?(succ_k=def_succ_k) ?(fail_k=def_fail_k) evalo asserto t =
-  let stream = run q (fun t' -> (evalo t t') &&& (asserto t')) (fun qs -> qs) in
-  if Stream.is_empty stream then
-    succ_k ()
-  else
-    fail_k @@ Stream.take ?n stream *)
-
 let exec intrpo prog input =
   run q (fun output -> intrpo prog input output)
   (fun qs -> qs)
@@ -30,16 +23,21 @@ let verify intrpo inputo asserto prog =
   )
   (fun qs rs -> Stream.zip qs rs)
 
-  (* in
-  if Stream.is_empty stream then
-    succ_k ()
-  else
-    fail_k @@ Stream.take ?n stream *)
-
-let synth intrpo geno verifyo =
-  run q (fun input ->
-    fresh (prog)
-      (geno prog)
-      (verifyo prog)
+let synth ~interpo ~tplo ~positive ~negative =
+  run q (fun prog ->
+    (* search among program candidates/templates *)
+    (tplo prog) &&&
+    (* evaluate candidate on all positive examples *)
+    ?& (ListLabels.map positive ~f:(fun io ->
+      fresh (i o)
+        (io i o)
+        (interpo prog i o)
+    )) &&&
+    (* ensure that program doesn't evalute on negative examples *)
+    ?& (ListLabels.map negative ~f:(fun io ->
+      fresh (i o)
+        (io i o)
+      ?~(interpo prog i o)
+    ))
   )
   (fun qs -> qs)
