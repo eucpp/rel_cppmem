@@ -26,6 +26,8 @@ module Storage :
     val geto : ('at, 'bt, 'al, 'bl) ti ->                            ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal
     val seto : ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal
 
+    val shapeo : ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key list -> MiniKanren.goal
+
     val updateo :
       (('bt, 'bl) value -> ('bt, 'bl) value -> MiniKanren.goal) ->
       ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key -> MiniKanren.goal
@@ -90,6 +92,8 @@ module ViewFront :
     val allocate : Lang.Loc.ti list -> ti
 
     val from_assoc : (Lang.Loc.ti * Timestamp.ti) list -> ti
+
+    val shapeo : ti -> Lang.Loc.ti list -> MiniKanren.goal
 
     val tso     : ti ->       Lang.Loc.ti -> Timestamp.ti -> MiniKanren.goal
     val updateo : ti -> ti -> Lang.Loc.ti -> Timestamp.ti -> MiniKanren.goal
@@ -205,6 +209,8 @@ module MemStory :
     include Utils.Logic
 
     val preallocate : Lang.Loc.ti list -> ti
+
+    val shapeo : ti -> Lang.Loc.ti list -> MiniKanren.goal
 
     val last_tso : ti -> Lang.Loc.ti -> Timestamp.ti -> MiniKanren.goal
 

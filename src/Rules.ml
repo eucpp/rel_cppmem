@@ -44,43 +44,47 @@ module Context =
 type rule =
   Lang.Label.ti -> Context.ti -> Lang.Term.ti -> Lang.Term.ti -> MiniKanren.goal
 
-let rec expr_evalo rs e e' = Value.(conde [
-  fresh (v)
-    (e  === const v)
-    (e' === e);
+let rec expr_evalo rs e v = Value.(conde [
+  (e  === const v);
 
   fresh (x v)
     (e  === var x)
-    (e' === const v)
     (RegisterStorage.reado rs x v);
 
-  fresh (op l r x y z)
-    (e  === binop op l r)
-    (e' === const z)
-    (expr_evalo rs l (const x))
-    (expr_evalo rs r (const y))
+  fresh (op e' v')
+    (e === unop !!Uop.NOT e')
     (conde [
-      (op === !!Op.ADD) &&& (addo x y z);
-      (op === !!Op.MUL) &&& (mulo x y z);
-      (op === !!Op.EQ ) &&& (conde [(eqo x y) &&& (z === (integer 1)); (nqo x y) &&& (z === (integer 0))]);
-      (op === !!Op.NEQ) &&& (conde [(nqo x y) &&& (z === (integer 1)); (eqo x y) &&& (z === (integer 0))]);
-      (op === !!Op.LT ) &&& (conde [(lto x y) &&& (z === (integer 1)); (geo x y) &&& (z === (integer 0))]);
-      (op === !!Op.LE ) &&& (conde [(leo x y) &&& (z === (integer 1)); (gto x y) &&& (z === (integer 0))]);
-      (op === !!Op.GT ) &&& (conde [(gto x y) &&& (z === (integer 1)); (leo x y) &&& (z === (integer 0))]);
-      (op === !!Op.GE ) &&& (conde [(geo x y) &&& (z === (integer 1)); (lto x y) &&& (z === (integer 0))]);
+      (Value.nullo v')     &&& (v === (integer 1));
+      (Value.not_nullo v') &&& (v === (integer 0));
+    ])
+    (expr_evalo rs e' v');
 
-      (op === !!Lang.Op.OR ) &&& (conde [
-        (nullo x)     &&& (nullo y)     &&& (z === (integer 0));
-        (not_nullo x) &&& (nullo y)     &&& (z === (integer 1));
-        (nullo x)     &&& (not_nullo y) &&& (z === (integer 1));
-        (not_nullo x) &&& (not_nullo y) &&& (z === (integer 1));
+  fresh (op l r x y)
+    (e  === binop op l r)
+    (expr_evalo rs l x)
+    (expr_evalo rs r y)
+    (conde [
+      (op === !!Bop.ADD) &&& (addo x y v);
+      (op === !!Bop.MUL) &&& (mulo x y v);
+      (op === !!Bop.EQ ) &&& (conde [(eqo x y) &&& (v === (integer 1)); (nqo x y) &&& (v === (integer 0))]);
+      (op === !!Bop.NEQ) &&& (conde [(nqo x y) &&& (v === (integer 1)); (eqo x y) &&& (v === (integer 0))]);
+      (op === !!Bop.LT ) &&& (conde [(lto x y) &&& (v === (integer 1)); (geo x y) &&& (v === (integer 0))]);
+      (op === !!Bop.LE ) &&& (conde [(leo x y) &&& (v === (integer 1)); (gto x y) &&& (v === (integer 0))]);
+      (op === !!Bop.GT ) &&& (conde [(gto x y) &&& (v === (integer 1)); (leo x y) &&& (v === (integer 0))]);
+      (op === !!Bop.GE ) &&& (conde [(geo x y) &&& (v === (integer 1)); (lto x y) &&& (v === (integer 0))]);
+
+      (op === !!Lang.Bop.OR ) &&& (conde [
+        (nullo x)     &&& (nullo y)     &&& (v === (integer 0));
+        (not_nullo x) &&& (nullo y)     &&& (v === (integer 1));
+        (nullo x)     &&& (not_nullo y) &&& (v === (integer 1));
+        (not_nullo x) &&& (not_nullo y) &&& (v === (integer 1));
       ]);
 
-      (op === !!Lang.Op.AND) &&& (conde [
-        (nullo x)     &&& (nullo y)     &&& (z === (integer 0));
-        (not_nullo x) &&& (nullo y)     &&& (z === (integer 0));
-        (nullo x)     &&& (not_nullo y) &&& (z === (integer 0));
-        (not_nullo x) &&& (not_nullo y) &&& (z === (integer 1));
+      (op === !!Lang.Bop.AND) &&& (conde [
+        (nullo x)     &&& (nullo y)     &&& (v === (integer 0));
+        (not_nullo x) &&& (nullo y)     &&& (v === (integer 0));
+        (nullo x)     &&& (not_nullo y) &&& (v === (integer 0));
+        (not_nullo x) &&& (not_nullo y) &&& (v === (integer 1));
       ]);
     ])
 ])
@@ -92,7 +96,7 @@ module Basic =
         (t === assertion e)
         (label === Label.empty ())
         (Context.regso ctx rs)
-        (expr_evalo rs e (const v))
+        (expr_evalo rs e v)
         (conde [
           (Lang.Value.nullo v)     &&& (t' === stuck ());
           (Lang.Value.not_nullo v) &&& (t' === skip  ());
@@ -104,27 +108,27 @@ module Basic =
         (t' === skip ())
         (label === Label.regwrite thrdId r v)
         (Context.regso ctx rs)
-        (expr_evalo rs e (const v))
+        (expr_evalo rs e v)
         (Context.thrdIdo ctx thrdId)
 
-    (* let repeato label ctx t t' =
-      fresh (e)
-        (t  === repeat e)
-        (t' === if' e (skip ()) t)
-        (label === Label.empty ()) *)
-
-    (* let whileo label ctx t t' =
+    let whileo label ctx t t' =
       fresh (e body)
         (t  === while' e body)
         (t' === if' e (seq body t) t)
-        (label === Label.empty ()) *)
+        (label === Label.empty ())
+
+    let repeato label ctx t t' =
+      fresh (e body)
+        (t  === repeat body e)
+        (t' === seq (body) (while' (unop !!Uop.NOT e) body))
+        (label === Label.empty ())
 
     let ifo label ctx t t' =
       fresh (e v rs t1 t2 thrdId)
         (t === if' e t1 t2)
         (label === Label.empty ())
         (Context.regso ctx rs)
-        (expr_evalo rs e (const v))
+        (expr_evalo rs e v)
         (conde [
           (Lang.Value.not_nullo v) &&& (t' === t1);
           (Lang.Value.nullo v)     &&& (t' === t2);
@@ -134,7 +138,7 @@ module Basic =
       (t === seq (skip ()) t') &&&
       (label === Label.empty ())
 
-    let all = [asserto; asgno; ifo; seqo]
+    let all = [asserto; asgno; ifo; whileo; repeato; seqo]
 
   end
 
@@ -175,7 +179,7 @@ module Atomic =
         (t' === skip ())
         (label === Label.store thrdId mo l v)
         (Context.regso ctx rs)
-        (expr_evalo rs e (const v))
+        (expr_evalo rs e v)
         (Context.thrdIdo ctx thrdId)
 
     let dataraceo label ctx t t' =

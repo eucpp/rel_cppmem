@@ -123,7 +123,32 @@ module MemOrder =
     let pprint ff mo = Format.fprintf ff "%s" @@ show mo
   end
 
-module Op =
+module Uop =
+  struct
+    type tt = NOT
+
+    type tl = tt MiniKanren.logic
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    let of_string = function
+      | "!"   -> NOT
+
+    let to_string = function
+      | NOT   -> "!"
+
+    let uop s = !!(of_string s)
+
+    let reify = reify
+
+    let inj = to_logic
+
+    let show = GT.show(logic) (to_string)
+
+    let pprint ff op = Format.fprintf ff "%s" @@ show op
+  end
+
+module Bop =
   struct
     type tt = ADD | MUL | EQ | NEQ | LT | LE | GT | GE | OR | AND
 
@@ -155,7 +180,7 @@ module Op =
       | OR    -> "||"
       | AND   -> "&&"
 
-    let op s = !!(of_string s)
+    let bop s = !!(of_string s)
 
     let reify = reify
 
@@ -200,38 +225,41 @@ module Expr =
   struct
     module T =
       struct
-        @type ('var, 'value, 'op, 't) t =
+        @type ('var, 'value, 'uop, 'bop, 't) t =
           | Var     of 'var
           | Const   of 'value
-          | Binop   of 'op * 't * 't
+          | Unop    of 'uop * 't
+          | Binop   of 'bop * 't * 't
         with gmap, show
 
-        let fmap fa fb fc fd x = GT.gmap(t) fa fb fc fd x
+        let fmap fa fb fc fd fe x = GT.gmap(t) fa fb fc fd fe x
       end
 
-    type tt = (Register.tt, Value.tt, Op.tt, tt) T.t
+    type tt = (Register.tt, Value.tt, Uop.tt, Bop.tt, tt) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (Register.tl, Value.tl, Op.tl, tl) T.t
+      and inner = (Register.tl, Value.tl, Uop.tl, Bop.tl, tl) T.t
 
     type ti = (tt, tl) Semantics.Term.ti
 
-    module FT = Fmap4(T)
+    module FT = Fmap5(T)
 
     let var x         = inj @@ FT.distrib @@ T.Var x
     let const v       = inj @@ FT.distrib @@ T.Const v
+    let unop op e     = inj @@ FT.distrib @@ T.Unop (op, e)
     let binop op l r  = inj @@ FT.distrib @@ T.Binop (op, l, r)
 
-    let rec reify h = FT.reify (Register.reify) (Value.reify) (Op.reify) reify h
+    let rec reify h = FT.reify (Register.reify) (Value.reify) (Uop.reify) (Bop.reify) reify h
 
     let rec show t =
-      GT.show(logic) (GT.show(T.t) Register.show Value.show Op.show show) t
+      GT.show(logic) (GT.show(T.t) Register.show Value.show Uop.show Bop.show show) t
 
     let rec pprint ff x = T.(
       let s ff = function
         | Var x            -> Format.fprintf ff "@[%a@]" Register.pprint x
         | Const n          -> Format.fprintf ff "@[%a@]" Value.pprint n
-        | Binop (op, l, r) -> Format.fprintf ff "@[%a %a %a@]" pprint l Op.pprint op pprint r
+        | Unop (op, e)     -> Format.fprintf ff "@[%a (%a)@]" Uop.pprint op pprint e
+        | Binop (op, l, r) -> Format.fprintf ff "@[%a %a %a@]" pprint l Bop.pprint op pprint r
       in
       pprint_logic s ff x
     )
@@ -248,10 +276,10 @@ module Term =
           | Asgn     of 'reg * 'e
           | If       of 'e * 't * 't
           | While    of 'e * 't
+          | Repeat   of 't * 'e
           | Load     of 'mo * 'loc * 'reg
           | Store    of 'mo * 'loc * 'e
           | Cas      of 'mo * 'mo * 'loc * 'e * 'e
-          | Repeat   of 'mo * 'loc
           | Seq      of 't * 't
           | Spw      of 't * 't
           | Par      of 't * 't
@@ -275,10 +303,10 @@ module Term =
     let asgn r e            = inj @@ FT.distrib @@ T.Asgn (r, e)
     let if' e l r           = inj @@ FT.distrib @@ T.If (e, l, r)
     let while' e t          = inj @@ FT.distrib @@ T.While (e, t)
+    let repeat t e          = inj @@ FT.distrib @@ T.Repeat (t, e)
     let load mo l r         = inj @@ FT.distrib @@ T.Load (mo, l, r)
     let store mo l t        = inj @@ FT.distrib @@ T.Store (mo, l, t)
     let cas mo1 mo2 l e1 e2 = inj @@ FT.distrib @@ T.Cas (mo1, mo2, l, e1, e2)
-    let repeat mo l         = inj @@ FT.distrib @@ T.Repeat (mo, l)
     let seq t1 t2           = inj @@ FT.distrib @@ T.Seq (t1, t2)
     let spw t1 t2           = inj @@ FT.distrib @@ T.Spw (t1, t2)
     let par t1 t2           = inj @@ FT.distrib @@ T.Par (t1, t2)
@@ -303,14 +331,14 @@ module Term =
           Format.fprintf ff "@[<v>if %a@;then %a@;else %a@]" Expr.pprint e sl t1 sl t2
         | While (e, t)            ->
           Format.fprintf ff "@[while (%a) @;<1 4>%a@;@]" Expr.pprint e sl t
+        | Repeat (t, e)           ->
+          Format.fprintf ff "@[repeat @;<1 4>%a@; until (%a)@]" sl t Expr.pprint e
         | Load (m, l, r)          ->
           Format.fprintf ff "@[%a := %a_%a@]" Register.pprint r Loc.pprint l MemOrder.pprint m
         | Store (m, l, e)         ->
           Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" Loc.pprint l MemOrder.pprint m Expr.pprint e
         | Cas (m1, m2, l, e, d)   ->
           Format.fprintf ff "@[cas_%a_%a(%a, %a, %a)@]" MemOrder.pprint m1 MemOrder.pprint m2 Loc.pprint l Expr.pprint e Expr.pprint d
-        | Repeat (m, l)           ->
-          Format.fprintf ff "@[repeat %a_%a end@]" Loc.pprint l MemOrder.pprint m
         | Seq (t, t')             ->
           Format.fprintf ff "@[<v>%a;@;%a@]" sl t sl t'
         | Spw (t, t')             ->

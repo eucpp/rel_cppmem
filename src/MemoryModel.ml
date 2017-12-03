@@ -11,6 +11,8 @@ module type State =
 
     val regso : ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
 
+    val shapeo : ti -> Lang.Loc.ti list -> MiniKanren.goal
+
     val checko : ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
 
     val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
@@ -577,6 +579,13 @@ module ReleaseAcquire =
           fresh (thrd)
             (get_thrdo t thrdId thrd)
             (ThreadFront.regso thrd rs)
+
+        let shapeo t locs =
+          fresh (tree story na sc)
+            (t === state tree story na sc)
+            (MemStory.shapeo story locs)
+            (ViewFront.shapeo na locs)
+            (ViewFront.shapeo sc locs)
 
         let checko t loc v =
           fresh (tree story na sc)

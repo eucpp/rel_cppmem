@@ -6,6 +6,8 @@ module type State =
 
     val regso : ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
 
+    val shapeo : ti -> Lang.Loc.ti list -> MiniKanren.goal
+
     val checko : ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
 
     val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal

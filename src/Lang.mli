@@ -53,7 +53,22 @@ module MemOrder :
     val show : tl -> string
   end
 
-module Op :
+module Uop :
+  sig
+    type tt = NOT
+
+    type tl = tt MiniKanren.logic
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    val uop : string -> ti
+
+    val reify : MiniKanren.helper -> ti -> tl
+
+    val show : tl -> string
+  end
+
+module Bop :
   sig
     type tt = ADD | MUL | EQ | NEQ | LT | LE | GT | GE | OR | AND
 
@@ -61,7 +76,7 @@ module Op :
 
     type ti = (tt, tl) MiniKanren.injected
 
-    val op : string -> ti
+    val bop : string -> ti
 
     val reify : MiniKanren.helper -> ti -> tl
 
@@ -83,7 +98,8 @@ module Expr :
 
     val var       : Register.ti -> ti
     val const     : Value.ti -> ti
-    val binop     : Op.ti -> ti -> ti -> ti
+    val unop      : Uop.ti -> ti -> ti
+    val binop     : Bop.ti -> ti -> ti -> ti
 
     val show : tl -> string
   end
@@ -98,10 +114,10 @@ module Term :
     val asgn      : Register.ti -> Expr.ti -> ti
     val if'       : Expr.ti -> ti -> ti -> ti
     val while'    : Expr.ti -> ti -> ti
+    val repeat    : ti -> Expr.ti -> ti
     val load      : MemOrder.ti -> Loc.ti -> Register.ti -> ti
     val store     : MemOrder.ti -> Loc.ti -> Expr.ti     -> ti
     val cas       : MemOrder.ti -> MemOrder.ti -> Loc.ti -> Expr.ti -> Expr.ti -> ti
-    val repeat    : MemOrder.ti -> Loc.ti -> ti
     val seq       : ti -> ti -> ti
     val spw       : ti -> ti -> ti
     val par       : ti -> ti -> ti

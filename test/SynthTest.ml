@@ -10,7 +10,7 @@ open Lang.Register
 open Lang.Value
 open MemoryModel
 
-let expr_tplo e = conde [
+let rec expr_tplo e = conde [
   fresh (v)
     (e === const v);
 
@@ -33,9 +33,9 @@ let rec stmto ?(loco= fun x -> success) t = conde [
           (v === integer 0);
         ]);
 
-      fresh (mo x)
-        (loco x)
-        (t === repeat mo x);
+      fresh (mo x r)
+        (* (loco x) *)
+        (t === repeat (load mo x r) (var r));
 
       fresh (e t1 t2)
         (t === if' e t1 t2)
@@ -51,28 +51,64 @@ let rec stmto ?(loco= fun x -> success) t = conde [
         (seq_stmto ~loco t2)
     ]
 
-let mp_sketch = fun h1 h2 -> <:cppmem<
+let mp_sketch = (*fun h1 h2 ->*) <:cppmem<
     spw {{{
         x_na := 1;
-        ? h1
+        f_rel := 1
     |||
-        ? h2;
-        r1 := x_na;
-        y_na := r1
+        repeat r1 := f_acq until r1;
+        r2 := x_na;
+        y_na := r2
     }}}
 >>
 
-let mp_tplo t =
-  fresh (h1 h2)
-    (t === mp_sketch h1 h2)
-    (seq_stmto h1)
-    (seq_stmto h2)
+let _ =
+  (* let module Trace = Utils.Trace(Lang.Term) in *)
+  Stream.iter (fun p -> Format.fprintf Format.std_formatter "%s@;" (Lang.Term.show @@ p#reify Lang.Term.reify)) @@
+    run q (fun q -> q === mp_sketch) (fun qs -> qs) in
+  Format.fprintf Format.std_formatter "@."
 
 let _ =
-  Query.synth
-    ~interpo:ReleaseAcquire.intrpo
-    ~tplo:mp_tplo
-    ~positive:[ fun i o ->
-      (i === ReleaseAcquire.State.init ~regs:[])
-    
-    ]
+  let module Trace = Utils.Trace(ReleaseAcquire.Node) in
+  Stream.iter (Trace.trace Format.std_formatter) @@
+    Query.exec
+      ReleaseAcquire.intrpo
+      mp_sketch
+      (ReleaseAcquire.State.init ~regs:[reg "r1"] ~locs:[loc "x"; loc "y"; loc "f"]);
+  Format.fprintf Format.std_formatter "@."
+
+let mp_tplo t =
+  fresh (h1 h2)
+    (t === mp_sketch (*h1 h2*))
+    (* (seq_stmto ~loco:((===) (loc "f")) h1) *)
+    (* (seq_stmto ~loco:((===) (loc "f")) h2) *)
+
+(* let _ =
+  let [prog] = Stream.take ~n:1 @@
+    Query.synth
+      ~positive: [ fun i o ->
+        fresh (p s)
+          (i === ReleaseAcquire.State.init ~regs:[reg "r1"; reg "r2"] ~locs:[loc "x"; loc "f"])
+          (o === ReleaseAcquire.Node.cfg p s)
+          (ReleaseAcquire.State.shapeo s [loc "x"; loc "f"])
+          (ReleaseAcquire.State.checko s (loc "x") (integer 1))
+      ]
+      ~negative: [ fun i o ->
+        fresh (p s)
+          (i === ReleaseAcquire.State.init ~regs:[reg "r1"; reg "r2"] ~locs:[loc "x"; loc "f"])
+          (o === ReleaseAcquire.Node.cfg p s)
+          (p === stuck ())
+          (* (ReleaseAcquire.State.checko s (loc "x") (integer 1)) *)
+      ]
+      ReleaseAcquire.intrpo mp_tplo
+      (* ~negative: fun  *)
+      (* ~negative: [fun i o -> success] *)
+  in
+  let module Trace = Utils.Trace(Lang.Term) in
+  Format.fprintf Format.std_formatter "Result@;";
+  Trace.trace Format.std_formatter prog *)
+
+let tests =
+  "Synth">::: [
+    "RelAcq">::: []
+  ]

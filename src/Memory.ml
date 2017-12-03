@@ -41,6 +41,17 @@ module Storage =
           (k =/= var) &&& (vars' === hd % tl') &&& (seto tl tl' var value);
         ])
 
+    let shapeo t keys =
+      let rec helper t keys = conde [
+        (t === nil ()) &&& (keys === nil ());
+
+        fresh (tl k v ks)
+          (t === (pair k v) % tl)
+          (keys === k % ks)
+          (helper tl ks);
+      ] in
+      helper t @@ MiniKanren.Std.List.list keys
+
     let rec updateo upo t t' var =
       fresh (k v v' tl tl')
         (t  === (pair k v ) % tl )
@@ -183,6 +194,8 @@ module ViewFront =
 
     let pprint =
       Storage.pprint (fun ff (k, v) -> Format.fprintf ff "%s@%s" (Lang.Loc.show k) (Timestamp.show v))
+
+    let shapeo = Storage.shapeo
 
     let tso = Storage.geto
 
@@ -591,6 +604,8 @@ module MemStory =
       let pp ff (loc, story) = Format.fprintf ff "%s: %a" (Lang.Loc.show loc) LocStory.pprint story in
       Format.fprintf ff "@[<v>Memory :@;%a@;@]" (Storage.pprint pp) story
 
+    let shapeo = Storage.shapeo
+
     let last_tso t loc ts =
       fresh (story)
         (Storage.geto t loc story)
@@ -613,7 +628,7 @@ module MemStory =
         (LocStory.storeo story story' value vf)
 
     let last_valueo t loc value =
-      fresh (story story)
+      fresh (story)
         (Storage.geto t loc story)
         (LocStory.last_valueo story value)
 

@@ -73,7 +73,19 @@ EXTEND
     ];
 
   cppmem_stmt:
-    [ [ "assert"; "("; e = cppmem_expr; ")" ->
+    [ RIGHTA
+      [ t1 = cppmem_stmt; ";"; t2 = cppmem_stmt ->
+        <:expr< seq $t1$ $t2$ >>
+
+      | "spw"; "{";"{";"{"; t1 = cppmem_stmt; "|||"; t2 = cppmem_stmt; "}";"}";"}" ->
+        <:expr< spw $t1$ $t2$ >>
+
+      | "par"; "{";"{";"{"; t1 = cppmem_stmt; "|||"; t2 = cppmem_stmt; "}";"}";"}" ->
+        <:expr< par $t1$ $t2$ >>
+
+      ]
+
+    | [ "assert"; "("; e = cppmem_expr; ")" ->
         <:expr< assertion $e$ >>
 
       | "skip" ->
@@ -86,13 +98,13 @@ EXTEND
         else
         <:expr< asgn (Register.reg $str:x$) $e$ >>
 
-      (* | "load"; x = LIDENT; r = LIDENT ->
-        let l::mo::[] = String.split_on_char '_' x in
-        <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:l$) (Register.reg $str:r$) >>
+        (* | "load"; x = LIDENT; r = LIDENT ->
+          let l::mo::[] = String.split_on_char '_' x in
+          <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:l$) (Register.reg $str:r$) >>
 
-      | "store"; x = LIDENT; e = cppmem_expr ->
-        let l::mo::[] = String.split_on_char '_' x in
-        <:expr< store (MemOrder.mo $str:mo$) (Loc.loc $str:l$) $e$ >> *)
+        | "store"; x = LIDENT; e = cppmem_expr ->
+          let l::mo::[] = String.split_on_char '_' x in
+          <:expr< store (MemOrder.mo $str:mo$) (Loc.loc $str:l$) $e$ >> *)
 
       | x = LIDENT; ":="; y = LIDENT ->
         if String.contains y '_' then
@@ -108,22 +120,13 @@ EXTEND
       | "if"; e = cppmem_expr; "then"; t1 = cppmem_stmt; "else"; t2 = cppmem_stmt; "fi" ->
         <:expr< if' $e$ $t1$ $t2$ >>
 
-      | "repeat"; x = LIDENT; "end" ->
-        if String.contains x '_' then
-          let l::mo::[] = String.split_on_char '_' x in
-          <:expr< repeat (MemOrder.mo $str:mo$) (Loc.loc $str:l$) >>
-
-      | t1 = cppmem_stmt; ";"; t2 = cppmem_stmt ->
-        <:expr< seq $t1$ $t2$ >>
-
-      | "spw"; "{";"{";"{"; t1 = cppmem_stmt; "|||"; t2 = cppmem_stmt; "}";"}";"}" ->
-        <:expr< spw $t1$ $t2$ >>
-
-      | "par"; "{";"{";"{"; t1 = cppmem_stmt; "|||"; t2 = cppmem_stmt; "}";"}";"}" ->
-        <:expr< par $t1$ $t2$ >>
+      | "repeat"; t = cppmem_stmt; "until"; e = cppmem_expr ->
+        <:expr< repeat $t$ $e$ >>
 
       | "?"; q = cppmem_antiquot -> q
+
       ]
+
     ];
 
   cppmem_antiquot:

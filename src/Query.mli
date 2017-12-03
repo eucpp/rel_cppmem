@@ -21,10 +21,10 @@ val verify :
   (('bt, 'bl) Semantics.Input.reified * ('ct, 'cl) Semantics.Input.reified) MiniKanren.Stream.t
 
 val synth :
-  interpo: ('at, 'bt, 'ct, 'al, 'bl, 'cl) Semantics.interpreter ->
-  tplo: ('at, 'al) Semantics.tpred ->
-  positive: (('bt, 'bl) MiniKanren.injected -> ('ct, 'cl) MiniKanren.injected -> MiniKanren.goal) list ->
-  negative: (('bt, 'bl) MiniKanren.injected -> ('ct, 'cl) MiniKanren.injected -> MiniKanren.goal) list ->
+  ?positive: (('bt, 'bl) MiniKanren.injected -> ('ct, 'cl) MiniKanren.injected -> MiniKanren.goal) list ->
+  ?negative: (('bt, 'bl) MiniKanren.injected -> ('ct, 'cl) MiniKanren.injected -> MiniKanren.goal) list ->
+  ('at, 'bt, 'ct, 'al, 'bl, 'cl) Semantics.interpreter ->
+  ('at, 'al) Semantics.tpred ->
   ('at, 'al) Semantics.Prog.reified MiniKanren.Stream.t
 
 
