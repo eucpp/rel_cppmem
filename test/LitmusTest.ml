@@ -15,8 +15,19 @@ let litmus_test_exists ?pprint ~intrpo ~name ~prog ~initstate ~asserto : test_fu
   let stream = Query.angelic intrpo inputo asserto prog in
   if not @@ Stream.is_empty stream then
     ()
-  else
+  else begin
+    let ff = Format.std_formatter in
+    Format.fprintf ff "Litmus test %s fails!@;" name;
+    begin match pprint with
+      | Some pprint ->
+        let outs = Query.exec intrpo prog initstate in
+        Format.fprintf ff "List of outputs:@;";
+        (* input is irrelevant for litmus test, we show only final state *)
+        Stream.iter (fun out -> Format.fprintf ff "%a@;" pprint out) outs
+      | None -> ()
+    end;
     assert_failure @@ ""
+  end
 
 let litmus_test_forall ?pprint ~intrpo ~name ~prog ~initstate ~asserto : test_fun = fun test_ctx ->
   let inputo s = (s === initstate) in
@@ -198,55 +209,77 @@ let test_LB_RA_rlx = litmus_test_RA
       ((a =/= integer 1) ||| (b =/= integer 1))
   )
 
-(*)
 let prog_MP = <:cppmem<
-    x_rlx := 0;
-    f_rlx := 0;
     spw {{{
         x_rlx := 1;
-        f_rel := 1;
-        ret 1
+        f_rel := 1
     |||
-        repeat f_acq end;
+        repeat r1 := f_acq until r1;
         r2 := x_rlx;
-        ret r2
+        y_rlx := r2
     }}}
 >>
 
-let test_MP step = test_prog step prog_MP ["(1, 1)"]
+let test_MP_RA = litmus_test_RA
+  ~name:"MP_RA"
+  ~prog:prog_MP
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y"; "f"]
+  ~tag:Forall
+  ~asserto:(fun t ->
+    fresh (p s a b)
+      (t === ReleaseAcquire.Node.cfg p s)
+      (ReleaseAcquire.State.checko s (loc "y") (integer 1))
+  )
 
-let prog_MP_rlx_1 = <:cppmem<
-    x_rlx := 0;
-    f_rlx := 0;
+
+let prog_MP_rlx1 = <:cppmem<
     spw {{{
         x_rlx := 1;
-        f_rlx := 1;
-        ret 1
+        f_rlx := 1
     |||
-        repeat f_acq end;
+        repeat r1 := f_acq until r1;
         r2 := x_rlx;
-        ret r2
+        y_rlx := r2
     }}}
 >>
 
-let test_MP_rlx_1 step = test_prog step prog_MP_rlx_1 ["(1, 0)"; "(1, 1)"]
+let test_MP_RA_rlx1 = litmus_test_RA
+  ~name:"MP_RA+rlx1"
+  ~prog:prog_MP_rlx1
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y"; "f"]
+  ~tag:Exists
+  ~asserto:(fun t ->
+    fresh (p s a b)
+      (t === ReleaseAcquire.Node.cfg p s)
+      (ReleaseAcquire.State.checko s (loc "y") (integer 0))
+  )
 
 let prog_MP_rlx_2 = <:cppmem<
-    x_rlx := 0;
-    f_rlx := 0;
     spw {{{
         x_rlx := 1;
-        f_rel := 1;
-        ret 1
+        f_rel := 1
     |||
-        repeat f_rlx end;
+        repeat r1 := f_rlx until r1;
         r2 := x_rlx;
-        ret r2
+        y_rlx := r2
     }}}
 >>
 
-let test_MP_rlx_2 step = test_prog step prog_MP_rlx_2 ["(1, 0)"; "(1, 1)";]
+let test_MP_RA_rlx2 = litmus_test_RA
+  ~name:"MP_RA+rlx2"
+  ~prog:prog_MP_rlx_2
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y"; "f"]
+  ~tag:Exists
+  ~asserto:(fun t ->
+    fresh (p s)
+      (t === ReleaseAcquire.Node.cfg p s)
+      (ReleaseAcquire.State.checko s (loc "y") (integer 0))
+  )
 
+(*)
 let prog_MP_rel_seq = <:cppmem<
   x_rlx := 0;
   f_rlx := 0;
@@ -355,6 +388,9 @@ let tests =
       "DR1">:: test_DR1_RA;
       "DR2">:: test_DR2_RA;
       "LB+rlx">:: test_LB_RA_rlx;
+      "test_MP_RA">:: test_MP_RA;
+      "test_MP_RA+rlx1">:: test_MP_RA_rlx1;
+      "test_MP_RA+rlx2">:: test_MP_RA_rlx2;
     ]
 
     (* "DR_1">:: test_data_race_1 rlxStep;

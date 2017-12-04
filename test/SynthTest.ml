@@ -79,29 +79,6 @@ let prog = <:cppmem<
     }}}
 >>
 
-(* let _ =
-  (* let module Trace = Utils.Trace(Lang.Term) in *)
-  Stream.iter (fun p -> Format.fprintf Format.std_formatter "%s@;" (Lang.Term.show @@ p#reify Lang.Term.reify)) @@
-    run q (fun q -> q === mp_sketch) (fun qs -> qs) in
-  Format.fprintf Format.std_formatter "@." *)
-
-(* let _ =
-  let module Trace = Utils.Trace(ReleaseAcquire.Node) in
-  Stream.iter (Trace.trace Format.std_formatter) @@
-    (* (run q (fun q ->
-        ?~(fresh (i o p s)
-          (i === ReleaseAcquire.State.init ~regs:["r1"; "r2"] ~mem:[("x", 0); ("y", 0); ("f", 0); ("m", 0)])
-          (o === ReleaseAcquire.Node.cfg p s)
-          (p === stuck ())
-          (ReleaseAcquire.intrpo prog i o)
-      ))
-      (fun qs -> qs)); *)
-    Query.exec
-      ReleaseAcquire.intrpo
-      prog
-      (ReleaseAcquire.State.init ~regs:["r1"; "r2"] ~mem:[("x", 0); ("y", 0); ("f", 0); ("m", 0)]);
-  Format.fprintf Format.std_formatter "@." *)
-
 let mp_tplo t =
   fresh (h1 h2)
     (t === mp_sketch h1 h2)
