@@ -45,10 +45,10 @@ type rule =
   Lang.Label.ti -> Context.ti -> Lang.Term.ti -> Lang.Term.ti -> MiniKanren.goal
 
 let rec expr_evalo rs e v = Value.(conde [
-  (e  === const v);
+  (e === const v);
 
   fresh (x v)
-    (e  === var x)
+    (e === var x)
     (RegisterStorage.reado rs x v);
 
   fresh (op e' v')
@@ -111,20 +111,8 @@ module Basic =
         (expr_evalo rs e v)
         (Context.thrdIdo ctx thrdId)
 
-    let whileo label ctx t t' =
-      fresh (e body)
-        (t  === while' e body)
-        (t' === if' e (seq body t) t)
-        (label === Label.empty ())
-
-    let repeato label ctx t t' =
-      fresh (e body)
-        (t  === repeat body e)
-        (t' === seq (body) (while' (unop !!Uop.NOT e) body))
-        (label === Label.empty ())
-
     let ifo label ctx t t' =
-      fresh (e v rs t1 t2 thrdId)
+      fresh (e v rs t1 t2)
         (t === if' e t1 t2)
         (label === Label.empty ())
         (Context.regso ctx rs)
@@ -133,6 +121,18 @@ module Basic =
           (Lang.Value.not_nullo v) &&& (t' === t1);
           (Lang.Value.nullo v)     &&& (t' === t2);
         ])
+
+    let whileo label ctx t t' =
+      fresh (e body u)
+        (t  === while' e body)
+        (t' === if' e (seq body t) (skip ()))
+        (label === Label.empty ())
+
+    let repeato label ctx t t' =
+      fresh (e body)
+        (t  === repeat body e)
+        (t' === seq body (while' (e) body))
+        (label === Label.empty ())
 
     let seqo label ctx t t' =
       (t === seq (skip ()) t') &&&

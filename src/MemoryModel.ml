@@ -104,6 +104,7 @@ module Make (S : State) =
 
   let evalo = Semantics.Reduction.make_eval ~irreducibleo:(Node.lift_tpred Lang.Term.irreducibleo) stepo
   (* let evalo = Semantics.Reduction.make_path stepo *)
+  (* let evalo = Semantics.Reduction.make_path (thrd_local_stepo @@ ThreadID.pathn ()) *)
 
   let intrpo p i o =
     fresh (s)

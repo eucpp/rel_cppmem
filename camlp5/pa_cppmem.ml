@@ -22,37 +22,37 @@ EXTEND
 
   cppmem_expr:
     [ [ x = cppmem_expr; "&&"; y = cppmem_expr ->
-        <:expr< binop (Op.op "&&") $x$ $y$ >>
+        <:expr< binop (Bop.bop "&&") $x$ $y$ >>
 
       | x = cppmem_expr; "||"; y = cppmem_expr ->
-        <:expr< binop (Op.op "||") $x$ $y$ >>
+        <:expr< binop (Bop.bop "||") $x$ $y$ >>
       ]
 
     | [ x = cppmem_expr; "="; y = cppmem_expr ->
-        <:expr< binop (Op.op "=") $x$ $y$ >>
+        <:expr< binop (Bop.bop "=") $x$ $y$ >>
 
       | x = cppmem_expr; "!="; y = cppmem_expr ->
-        <:expr< binop (Op.op "!=") $x$ $y$ >>
+        <:expr< binop (Bop.bop "!=") $x$ $y$ >>
 
       | x = cppmem_expr; "<"; y = cppmem_expr ->
-        <:expr< binop (Op.op "<") $x$ $y$ >>
+        <:expr< binop (Bop.bop "<") $x$ $y$ >>
 
       | x = cppmem_expr; ">"; y = cppmem_expr ->
-        <:expr< binop (Op.op ">") $x$ $y$ >>
+        <:expr< binop (Bop.bop ">") $x$ $y$ >>
 
       | x = cppmem_expr; "<="; y = cppmem_expr ->
-        <:expr< binop (Op.op "<=") $x$ $y$ >>
+        <:expr< binop (Bop.bop "<=") $x$ $y$ >>
 
       | x = cppmem_expr; ">="; y = cppmem_expr ->
-        <:expr< binop (Op.op ">=") $x$ $y$ >>
+        <:expr< binop (Bop.bop ">=") $x$ $y$ >>
       ]
 
     | [ x = cppmem_expr; "+"; y = cppmem_expr ->
-        <:expr< binop (Op.op "+") $x$ $y$ >>
+        <:expr< binop (Bop.bop "+") $x$ $y$ >>
       ]
 
     | [ x = cppmem_expr; "*"; y = cppmem_expr ->
-        <:expr< binop (Op.op "*") $x$ $y$ >>
+        <:expr< binop (Bop.bop "*") $x$ $y$ >>
       ]
 
     | [ n = INT ->

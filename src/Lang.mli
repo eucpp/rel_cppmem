@@ -122,6 +122,8 @@ module Term :
     val spw       : ti -> ti -> ti
     val par       : ti -> ti -> ti
 
+    val concato : ti -> ti -> ti -> MiniKanren.goal 
+
     val show : tl -> string
 
     val thrd_local_termo : ti -> MiniKanren.goal

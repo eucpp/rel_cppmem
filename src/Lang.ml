@@ -349,6 +349,17 @@ module Term =
       sl
     )
 
+    let rec concato t1 t2 t3 = conde [
+      fresh (a b c)
+        (t1 === seq a b)
+        (t3 === seq a c)
+        (concato b t2 c);
+
+      fresh (a b)
+      ?~(t1 === seq a b)
+        (t3 === seq t1 t2)
+    ]
+
     let thrd_local_termo t = conde [
       fresh (e)
         (t === assertion e);
@@ -372,9 +383,6 @@ module Term =
 
       fresh (mo1 mo2 loc e d)
         (t === cas mo1 mo2 loc e d);
-
-      fresh (loc mo)
-        (t === repeat loc mo);
 
       fresh (t1 t2)
         (t === spw t1 t2);
@@ -504,6 +512,12 @@ let rec splito term ctx rdx = Term.(Context.(ThreadID.(conde [
       fresh (e t1 t2)
         (term === if' e t1 t2);
 
+      fresh (e body)
+        (term === while' e body);
+
+      fresh (e body)
+        (term === repeat body e);
+
       fresh (mo l r)
         (term === load mo l r);
 
@@ -512,9 +526,6 @@ let rec splito term ctx rdx = Term.(Context.(ThreadID.(conde [
 
       fresh (mo1 mo2 loc e d)
         (term === cas mo1 mo2 loc e d);
-
-      fresh (loc mo)
-        (term === repeat loc mo);
 
       fresh (t1 t2)
         (term === seq t1 t2)

@@ -52,14 +52,17 @@ let rec stmto ?(loco= fun x -> success) t = conde [
     ]
 
 let mp_sketch = (*fun h1 h2 ->*) <:cppmem<
-    spw {{{
+    (* spw {{{
         x_na := 1;
         f_rel := 1
-    |||
-        repeat r1 := f_acq until r1;
-        r2 := x_na;
-        y_na := r2
-    }}}
+    ||| *)
+        (* repeat r1 := f_acq until r1;
+        r2 := x_na *)
+        (* if r1 then r1 := 1 else r2 := 1 fi *)
+        assert (r1)
+        (* r2 := x_na *)
+        (* y_na := r2 *)
+    (* }}} *)
 >>
 
 let _ =
@@ -74,7 +77,7 @@ let _ =
     Query.exec
       ReleaseAcquire.intrpo
       mp_sketch
-      (ReleaseAcquire.State.init ~regs:[reg "r1"] ~locs:[loc "x"; loc "y"; loc "f"]);
+      (ReleaseAcquire.State.init ~regs:[reg "r1"; reg "r2"] ~locs:[loc "x"; loc "y"; loc "f"]);
   Format.fprintf Format.std_formatter "@."
 
 let mp_tplo t =
