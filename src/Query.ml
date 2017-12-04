@@ -32,12 +32,12 @@ let synth ?positive ?negative interpo tplo =
         (interpo prog i o)
       ))
   in
-  let nexso prog = match positive with
+  let nexso prog = match negative with
     | None      -> success
-    | Some exs  -> ?& (ListLabels.map exs ~f:(fun io -> (
+    | Some exs  -> ?& (ListLabels.map exs ~f:(fun io -> ?~(
       fresh (i o)
         (io i o)
-      ?~(interpo prog i o)
+        (interpo prog i o)
       )))
   in
   run q (fun prog ->

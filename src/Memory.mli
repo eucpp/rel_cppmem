@@ -26,8 +26,6 @@ module Storage :
     val geto : ('at, 'bt, 'al, 'bl) ti ->                            ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal
     val seto : ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal
 
-    val shapeo : ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key list -> MiniKanren.goal
-
     val updateo :
       (('bt, 'bl) value -> ('bt, 'bl) value -> MiniKanren.goal) ->
       ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key -> MiniKanren.goal
@@ -39,6 +37,13 @@ module Storage :
     val map2o :
       (('at, 'al) key -> ('bt, 'bl) value -> ('at, 'al) key -> ('bt, 'bl) value -> ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal) ->
       ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> MiniKanren.goal
+
+    val shapeo : ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key list -> MiniKanren.goal
+
+    val constro :
+      ('at, 'bt, 'al, 'bl) ti ->
+      (('at, 'al) key * (('bt, 'bl) value -> MiniKanren.goal)) list ->
+      MiniKanren.goal
   end
 
 module RegisterStorage :
@@ -107,7 +112,7 @@ module ThreadFront :
 
     (** [preallocate vars atomics] creates new thread front
           and allocates a storage for [registers] and viewfronts of [atomics] *)
-    val preallocate : Lang.Register.ti list -> Lang.Loc.ti list -> ti
+    val allocate : Lang.Register.ti list -> Lang.Loc.ti list -> ti
 
     val regso : ti -> RegisterStorage.ti -> MiniKanren.goal
 
@@ -183,7 +188,7 @@ module LocStory :
   sig
     include Utils.Logic
 
-    val preallocate : Lang.Loc.ti list -> ti
+    val allocate : Lang.Loc.ti list -> ti
 
     (** [last_tso story ts] gets timestamp [ts] of last message written to [story] *)
     val last_tso : ti -> Timestamp.ti -> MiniKanren.goal
@@ -208,9 +213,11 @@ module MemStory :
   sig
     include Utils.Logic
 
-    val preallocate : Lang.Loc.ti list -> ti
+    val allocate : Lang.Loc.ti list -> ti
 
     val shapeo : ti -> Lang.Loc.ti list -> MiniKanren.goal
+
+    val snapshoto : ti -> (Lang.Loc.ti * Lang.Value.ti) list -> MiniKanren.goal
 
     val last_tso : ti -> Lang.Loc.ti -> Timestamp.ti -> MiniKanren.goal
 

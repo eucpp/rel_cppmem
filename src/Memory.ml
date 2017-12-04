@@ -41,16 +41,15 @@ module Storage =
           (k =/= var) &&& (vars' === hd % tl') &&& (seto tl tl' var value);
         ])
 
-    let shapeo t keys =
-      let rec helper t keys = conde [
-        (t === nil ()) &&& (keys === nil ());
-
-        fresh (tl k v ks)
+    let rec constro t = function
+      | []          -> (t === nil ())
+      | (k, p)::xs  ->
+        fresh (v tl)
           (t === (pair k v) % tl)
-          (keys === k % ks)
-          (helper tl ks);
-      ] in
-      helper t @@ MiniKanren.Std.List.list keys
+          (p v)
+          (constro tl xs)
+
+    let shapeo t keys = constro t @@ List.map (fun k -> (k, fun v -> success)) keys
 
     let rec updateo upo t t' var =
       fresh (k v v' tl tl')
@@ -253,7 +252,7 @@ module ThreadFront =
 
     let convert = (fun (var, value) -> (var, Nat.of_int value))
 
-    let preallocate vars atomics = thrd_state
+    let allocate vars atomics = thrd_state
       (RegisterStorage.allocate vars)
       (ViewFront.allocate atomics)
       (ViewFront.allocate atomics)
@@ -531,7 +530,7 @@ module LocStory =
 
     let loc_story tsnext story = inj @@ distrib @@ {T.tsnext = tsnext; T.story = story}
 
-    let preallocate atomics =
+    let allocate atomics =
       let vf = ViewFront.bottom () in
       inj @@ distrib @@ {
         T.tsnext = Timestamp.ts 1;
@@ -596,7 +595,7 @@ module MemStory =
 
     type ti = (Lang.Loc.tt, LocStory.tt, Lang.Loc.tl, LocStory.tl) Storage.ti
 
-    let preallocate atomics = Storage.allocate (LocStory.preallocate atomics) atomics
+    let allocate atomics = Storage.allocate (LocStory.allocate atomics) atomics
 
     let reify = Storage.reify (Lang.Loc.reify) (LocStory.reify)
 
@@ -605,6 +604,12 @@ module MemStory =
       Format.fprintf ff "@[<v>Memory :@;%a@;@]" (Storage.pprint pp) story
 
     let shapeo = Storage.shapeo
+
+    let snapshoto t xs =
+      let make_constro (l, v) =
+        (l, fun story -> LocStory.last_valueo story v)
+      in
+      Storage.constro t @@ List.map make_constro xs
 
     let last_tso t loc ts =
       fresh (story)

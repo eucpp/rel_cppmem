@@ -7,7 +7,7 @@ module type State =
   sig
     include Utils.Logic
 
-    val init : regs:Lang.Register.ti list -> locs:Lang.Loc.ti list -> ti
+    val init : regs:string list -> mem:(string * int) list -> ti
 
     val regso : ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
 
@@ -365,10 +365,13 @@ module ReleaseAcquire =
 
         let reify = reify (TLS.reify) (MemStory.reify) (ViewFront.reify) (ViewFront.reify)
 
-        let init ~regs ~locs =
-          let thrd  = ThreadFront.preallocate regs locs in
+        let init ~regs ~mem =
+          let mem   = List.map (fun (l, v) -> (Loc.loc l, Value.integer v)) mem in
+          let regs  = List.map Register.reg regs in
+          let locs  = List.map fst mem in
+          let thrd  = ThreadFront.allocate regs locs in
           let thrds = TLS.leaf thrd in
-          let story = MemStory.preallocate locs in
+          let story = MemStory.allocate locs in
           let na    = ViewFront.allocate locs in
           let sc    = ViewFront.allocate locs in
           state thrds story na sc

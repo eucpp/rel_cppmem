@@ -2,7 +2,7 @@ module type State =
   sig
     include Utils.Logic
 
-    val init : regs:Lang.Register.ti list -> locs:Lang.Loc.ti list -> ti
+    val init : regs:string list -> mem:(string * int) list -> ti
 
     val regso : ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
 

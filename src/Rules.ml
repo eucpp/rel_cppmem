@@ -47,7 +47,7 @@ type rule =
 let rec expr_evalo rs e v = Value.(conde [
   (e === const v);
 
-  fresh (x v)
+  fresh (x)
     (e === var x)
     (RegisterStorage.reado rs x v);
 
@@ -131,7 +131,7 @@ module Basic =
     let repeato label ctx t t' =
       fresh (e body)
         (t  === repeat body e)
-        (t' === seq body (while' (e) body))
+        (t' === seq body (while' (unop !!Uop.NOT e) body))
         (label === Label.empty ())
 
     let seqo label ctx t t' =
