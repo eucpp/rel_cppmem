@@ -103,6 +103,14 @@ module Make (S : State) =
       ])
 
   let evalo = Semantics.Reduction.make_eval ~irreducibleo:(Node.lift_tpred Lang.Term.irreducibleo) stepo
+
+  let stepo = Semantics.Reduction.make_step
+    (lift_split Lang.splito)
+    (lift_plug Lang.plugo)
+    (List.map lift_rule (Rules.Basic.all @ Rules.Atomic.all @ Rules.ThreadSpawning.all))
+
+  let evalo = Semantics.Reduction.make_eval ~irreducibleo:(Node.lift_tpred Lang.Term.irreducibleo) stepo
+
   (* let evalo = Semantics.Reduction.make_path stepo *)
   (* let evalo = Semantics.Reduction.make_path (thrd_local_stepo @@ ThreadID.pathn ()) *)
 

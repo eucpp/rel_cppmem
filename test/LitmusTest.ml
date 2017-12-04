@@ -47,10 +47,11 @@ let litmus_test ?pprint ~intrpo ~name ~prog ~initstate ~asserto ~tag =
 
 let litmus_test_RA ~name ~prog ~regs ~locs ~asserto ~tag =
   let module Trace = Utils.Trace(ReleaseAcquire.Node) in
+  let mem = List.map (fun l -> (l, 0)) locs in
   litmus_test
     ~pprint:Trace.trace
     ~intrpo:ReleaseAcquire.intrpo
-    ~initstate:(ReleaseAcquire.State.init ~regs ~locs)
+    ~initstate:(ReleaseAcquire.State.init ~regs ~mem)
     ~name ~prog ~asserto ~tag
 
 let safeo_RA t =
@@ -81,8 +82,8 @@ let prog_SW = <:cppmem<
 let test_SW_RA = litmus_test_RA
   ~name:"SW_RA"
   ~prog:prog_SW
-  ~regs:[reg "r1"; reg "r2"]
-  ~locs:[loc "x"; loc "f"]
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "f"]
   ~tag:Forall
   ~asserto:safeo_RA
 
@@ -98,8 +99,8 @@ let prog_DR1 = <:cppmem<
 let test_DR1_RA = litmus_test_RA
   ~name:"DR1_RA"
   ~prog:prog_DR1
-  ~regs:[reg "r1"]
-  ~locs:[loc "x"]
+  ~regs:["r1"]
+  ~locs:["x"]
   ~tag:Exists
   ~asserto:dataraceo_RA
 
@@ -115,8 +116,8 @@ let prog_DR2 = <:cppmem<
 let test_DR2_RA = litmus_test_RA
   ~name:"DR2_RA"
   ~prog:prog_DR2
-  ~regs:[reg "r1"]
-  ~locs:[loc "x"]
+  ~regs:["r1"]
+  ~locs:["x"]
   ~tag:Exists
   ~asserto:dataraceo_RA
 
@@ -135,8 +136,8 @@ let prog_SB = <:cppmem<
 let test_SB_RA = litmus_test_RA
   ~name:"SB_RA"
   ~prog:prog_SB
-  ~regs:[reg "r1"; reg "r2"]
-  ~locs:[loc "x"; loc "y"; loc "a"; loc "b"]
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y"; "a"; "b"]
   ~tag:Exists
   ~asserto:(fun t ->
     fresh (p s)
@@ -160,8 +161,8 @@ let prog_LB_RA = <:cppmem<
 let test_LB_RA = litmus_test_RA
   ~name:"LB_RA"
   ~prog:prog_LB_RA
-  ~regs:[reg "r1"; reg "r2"]
-  ~locs:[loc "x"; loc "y"; loc "a"; loc "b"]
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y"; "a"; "b"]
   ~tag:Forall
   ~asserto:(fun t ->
     fresh (p s a b)
@@ -186,8 +187,8 @@ let prog_LB_rel_acq_rlx = <:cppmem<
 let test_LB_RA_rlx = litmus_test_RA
   ~name:"LB_RA+rlx"
   ~prog:prog_LB_RA
-  ~regs:[reg "r1"; reg "r2"]
-  ~locs:[loc "x"; loc "y"; loc "a"; loc "b"]
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y"; "a"; "b"]
   ~tag:Forall
   ~asserto:(fun t ->
     fresh (p s a b)

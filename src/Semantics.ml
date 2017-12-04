@@ -134,7 +134,6 @@ module Reduction =
       let evalo_norec evalo t t'' = conde [
         (irreducibleo t) &&& (t === t'');
 
-      ?~(irreducibleo t) &&&
         fresh (t')
           (stepo t t')
           (evalo t' t'');

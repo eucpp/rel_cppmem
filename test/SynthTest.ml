@@ -55,8 +55,8 @@ let mp_sketch = fun h1 h2 -> <:cppmem<
     spw {{{
         r1 := x_na;
         m_na := r1;
-        f_rel := 1
-        (* ? h1 *)
+        (* f_rel := 1 *)
+        ? h1
     |||
         (* repeat r1 := f_acq until r1; *)
         ? h2;
