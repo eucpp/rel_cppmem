@@ -24,7 +24,7 @@ let rec expr_tplo e = conde [
 ]
 
 let rec stmto ?(loco= fun x -> success) t = conde [
-      fresh (x mo n e v)
+      fresh (x mo e v)
         (loco x)
         (t === store mo x e)
         (e === const v)
@@ -35,6 +35,7 @@ let rec stmto ?(loco= fun x -> success) t = conde [
 
       fresh (mo x r)
         (loco x)
+        (r === reg "r1")
         (t === repeat (load mo x r) (var r));
 
       (* fresh (e t1 t2)
@@ -65,20 +66,6 @@ let mp_sketch = fun h1 h2 -> <:cppmem<
     }}}
 >>
 
-let prog = <:cppmem<
-    spw {{{
-        (* r1 := x_na; *)
-        x_na := 1;
-        f_rel := 1
-        (* ? h1 *)
-    |||
-        repeat r1 := f_acq until r1;
-        (* ? h2; *)
-        r2 := x_na;
-        y_na := r2
-    }}}
->>
-
 let mp_tplo t =
   fresh (h1 h2)
     (t === mp_sketch h1 h2)
@@ -87,22 +74,41 @@ let mp_tplo t =
 
 let _ =
   let progs = Stream.take ~n:1 @@
-    Query.synth
+  run q
+    (fun q  ->
+      fresh (t h1 h2 i o p s v)
+        (seq_stmto ~loco:((===) (loc "f")) h1)
+        (seq_stmto ~loco:((===) (loc "f")) h2)
+        (q === t)
+        (t === mp_sketch h1 h2)
+        (i === ReleaseAcquire.State.init ~regs:["r1"; "r2"] ~mem:[("x", 0); ("y", 0); ("f", 0); ("m", 0)])
+        (o === ReleaseAcquire.Node.cfg p s)
+        (ReleaseAcquire.State.shapeo s [loc "x"; loc "y"; loc "f"; loc "m"])
+        (ReleaseAcquire.State.checko s (loc "x") v)
+        (ReleaseAcquire.State.checko s (loc "y") v)
+        (ReleaseAcquire.intrpo t i o)
+      ?~(fresh (p s o)
+          (o === ReleaseAcquire.Node.cfg p s)
+          (p === stuck ())
+          (ReleaseAcquire.intrpo t i o)
+        )
+    )
+    (fun qs -> qs)
+    (* Query.synth
       ~positive:
-      [ fun i o ->
+      [ (fun i o ->
           fresh (p s v)
             (i === ReleaseAcquire.State.init ~regs:["r1"; "r2"] ~mem:[("x", 0); ("y", 0); ("f", 0); ("m", 0)])
             (o === ReleaseAcquire.Node.cfg p s)
             (ReleaseAcquire.State.shapeo s [loc "x"; loc "y"; loc "f"; loc "m"])
             (ReleaseAcquire.State.checko s (loc "x") v)
-            (ReleaseAcquire.State.checko s (loc "y") v)
-      (* ; fun i o ->
-          fresh (p s)
-            (i === ReleaseAcquire.State.init ~regs:["r1"; "r2"] ~mem:[("x", 0); ("f", 0); ("y", 0)])
+            (ReleaseAcquire.State.checko s (loc "y") v))
+      ; (fun i o ->
+          fresh (p s v)
+            (i === ReleaseAcquire.State.init ~regs:["r1"; "r2"] ~mem:[("x", 1); ("y", 0); ("f", 0); ("m", 0)])
             (o === ReleaseAcquire.Node.cfg p s)
-            (ReleaseAcquire.State.shapeo s [loc "x"; loc "f"; loc "y"])
-            (ReleaseAcquire.State.checko s (loc "y") (integer 1))
-      ] *)
+            (ReleaseAcquire.State.checko s (loc "x") v)
+            (ReleaseAcquire.State.checko s (loc "y") v))
       ]
       ~negative: [ fun i o ->
         fresh (p s)
@@ -111,7 +117,7 @@ let _ =
           (p === stuck ())
           (* (ReleaseAcquire.State.checko s (loc "x") (integer 1)) *)
       ]
-      ReleaseAcquire.intrpo mp_tplo
+      ReleaseAcquire.intrpo mp_tplo *)
       (* ~negative: fun  *)
       (* ~negative: [fun i o -> success] *)
   in

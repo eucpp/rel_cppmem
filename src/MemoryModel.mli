@@ -1,4 +1,19 @@
-module type State =
+module Error :
+  sig
+    type tt =
+      | DataRace
+      | AssertionFailed
+
+    type tl = tt MiniKanren.logic
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    val reify : MiniKanren.helper -> ti -> tl
+
+    val show : tl -> string
+  end
+
+module type Memory =
   sig
     include Utils.Logic
 
@@ -13,18 +28,26 @@ module type State =
     val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
   end
 
+module State (M : Memory) :
+  sig
+    include Utils.Logic
+
+    val mem   : M.ti -> ti
+    val error : Error.ti -> M.ti -> ti
+
+    val regso : ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+    val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
+  end
+
 module type T =
   sig
-    module State : State
+    module Memory : Memory
+
+    module State : module type of State(Memory)
 
     module Node : module type of Semantics.MakeConfig(Lang.Term)(State)
 
-    type nt = Node.tt
-    type nl
-
-    type npred = (Node.tt, Node.tl) Semantics.tpred
-
-    val intrpo : (Lang.Term.tt, State.tt, Node.tt, Lang.Term.tl, State.tl, Node.tl) Semantics.interpreter
+    val intrpo : (Lang.Term.tt, State.tt, State.tt, Lang.Term.tl, State.tl, State.tl) Semantics.interpreter
 
     (* val evalo : (Node.tt, Node.tt, Node.tl, Node.tl) Semantics.eval *)
   end

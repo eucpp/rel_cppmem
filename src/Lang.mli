@@ -122,7 +122,7 @@ module Term :
     val spw       : ti -> ti -> ti
     val par       : ti -> ti -> ti
 
-    val concato : ti -> ti -> ti -> MiniKanren.goal 
+    val concato : ti -> ti -> ti -> MiniKanren.goal
 
     val show : tl -> string
 
@@ -165,11 +165,13 @@ module Label :
     val load  : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Register.ti -> ti
     val store : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> ti
 
-    val datarace : ThreadID.ti -> MemOrder.ti -> Loc.ti -> ti
-
     val cas :
       ThreadID.ti -> MemOrder.ti -> MemOrder.ti -> Loc.ti ->
       Value.ti -> Value.ti -> Value.ti -> ti
+
+    val datarace : ThreadID.ti -> MemOrder.ti -> Loc.ti -> ti
+
+    val assert_fail : unit -> ti 
   end
 
 val splito : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Reduction.splitting

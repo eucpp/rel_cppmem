@@ -430,14 +430,15 @@ module Label =
       struct
         @type ('thrdId, 'mo, 'reg, 'loc, 'value) t =
           | Empty
-          | Spawn     of 'thrdId
-          | Join      of 'thrdId
-          | RegRead   of 'thrdId * 'reg * 'value
-          | RegWrite  of 'thrdId * 'reg * 'value
-          | Load      of 'thrdId * 'mo * 'loc * 'reg
-          | Store     of 'thrdId * 'mo * 'loc * 'value
-          | Datarace  of 'thrdId * 'mo * 'loc
-          | CAS       of 'thrdId * 'mo * 'mo * 'loc * 'value * 'value * 'value
+          | Spawn           of 'thrdId
+          | Join            of 'thrdId
+          | RegRead         of 'thrdId * 'reg * 'value
+          | RegWrite        of 'thrdId * 'reg * 'value
+          | Load            of 'thrdId * 'mo * 'loc * 'reg
+          | Store           of 'thrdId * 'mo * 'loc * 'value
+          | CAS             of 'thrdId * 'mo * 'mo * 'loc * 'value * 'value * 'value
+          | Datarace        of 'thrdId * 'mo * 'loc
+          | AssertionFailed
         with gmap
 
         let fmap fa fb fc fd fe x = GT.gmap(t) (fa) (fb) (fc) (fd) (fe) x
@@ -459,8 +460,9 @@ module Label =
     let regwrite thrdId reg v         = inj @@ FT.distrib @@ T.RegWrite (thrdId, reg, v)
     let load  thrdId mo loc r         = inj @@ FT.distrib @@ T.Load  (thrdId, mo, loc, r)
     let store thrdId mo loc v         = inj @@ FT.distrib @@ T.Store (thrdId, mo, loc, v)
-    let datarace thrdId mo loc        = inj @@ FT.distrib @@ T.Datarace (thrdId, mo, loc)
     let cas thrdId mo1 mo2 loc e d v  = inj @@ FT.distrib @@ T.CAS (thrdId, mo1, mo2, loc, e, d, v)
+    let datarace thrdId mo loc        = inj @@ FT.distrib @@ T.Datarace (thrdId, mo, loc)
+    let assert_fail ()                = inj @@ FT.distrib @@ T.AssertionFailed
 
     let reify h = FT.reify ThreadID.reify MemOrder.reify Register.reify Loc.reify Value.reify h
 
@@ -480,12 +482,14 @@ module Label =
           Format.fprintf ff "@[<load %s %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Register.show r)
         | Store (thrdId, mo, loc, v) ->
           Format.fprintf ff "@[<store %s %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Value.show v)
-        | Datarace (thrdId, mo, loc) ->
-          Format.fprintf ff "@[<datarace %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc)
         | CAS (thrdId, mo1, mo2, loc, e, d, v) ->
           Format.fprintf ff "@[<CAS %s %s %s %s %s %s %s>@]"
             (ThreadID.show thrdId) (MemOrder.show mo1) (MemOrder.show mo2)
             (Loc.show loc) (Value.show e) (Value.show d) (Value.show v)
+        | Datarace (thrdId, mo, loc) ->
+          Format.fprintf ff "@[<datarace %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc)
+        | AssertionFailed ->
+          Format.fprintf ff "@[<assertion failed>@]"
     )
     in
     pprint_logic pp

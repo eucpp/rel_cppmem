@@ -57,23 +57,22 @@ let litmus_test ?pprint ~intrpo ~name ~prog ~initstate ~asserto ~tag =
   | Forall -> litmus_test_forall ?pprint ~intrpo ~name ~prog ~initstate ~asserto
 
 let litmus_test_RA ~name ~prog ~regs ~locs ~asserto ~tag =
-  let module Trace = Utils.Trace(ReleaseAcquire.Node) in
+  let module Trace = Utils.Trace(ReleaseAcquire.State) in
   let mem = List.map (fun l -> (l, 0)) locs in
+  let initstate = ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs ~mem in
   litmus_test
     ~pprint:Trace.trace
     ~intrpo:ReleaseAcquire.intrpo
-    ~initstate:(ReleaseAcquire.State.init ~regs ~mem)
-    ~name ~prog ~asserto ~tag
+    ~initstate ~name ~prog ~asserto ~tag
 
-let safeo_RA t =
-  fresh (p s)
-    (t === ReleaseAcquire.Node.cfg p s)
-    (p =/= stuck ())
+let safeo_RA s = ?~(
+  fresh (err m)
+    (s === ReleaseAcquire.State.error err m)
+  )
 
-let dataraceo_RA t =
-  fresh (p s)
-    (t === ReleaseAcquire.Node.cfg p s)
-    (p === stuck ())
+let dataraceo_RA s =
+  fresh (m)
+    (s === ReleaseAcquire.State.error !!Error.DataRace m)
 
 let prog_SW = <:cppmem<
   spw {{{
@@ -151,10 +150,10 @@ let test_SB_RA = litmus_test_RA
   ~locs:["x"; "y"; "a"; "b"]
   ~tag:Exists
   ~asserto:(fun t ->
-    fresh (p s)
-      (t === ReleaseAcquire.Node.cfg p s)
-      (ReleaseAcquire.State.checko s (loc "a") (integer 1))
-      (ReleaseAcquire.State.checko s (loc "b") (integer 1))
+    fresh (m)
+      (t === ReleaseAcquire.State.mem m)
+      (ReleaseAcquire.Memory.checko m (loc "a") (integer 1))
+      (ReleaseAcquire.Memory.checko m (loc "b") (integer 1))
   )
 
 let prog_LB_RA = <:cppmem<
@@ -176,10 +175,10 @@ let test_LB_RA = litmus_test_RA
   ~locs:["x"; "y"; "a"; "b"]
   ~tag:Forall
   ~asserto:(fun t ->
-    fresh (p s a b)
-      (t === ReleaseAcquire.Node.cfg p s)
-      (ReleaseAcquire.State.checko s (loc "a") a)
-      (ReleaseAcquire.State.checko s (loc "b") b)
+    fresh (m a b)
+      (t === ReleaseAcquire.State.mem m)
+      (ReleaseAcquire.Memory.checko m (loc "a") a)
+      (ReleaseAcquire.Memory.checko m (loc "b") b)
       ((a =/= integer 1) ||| (b =/= integer 1))
   )
 
@@ -202,10 +201,10 @@ let test_LB_RA_rlx = litmus_test_RA
   ~locs:["x"; "y"; "a"; "b"]
   ~tag:Forall
   ~asserto:(fun t ->
-    fresh (p s a b)
-      (t === ReleaseAcquire.Node.cfg p s)
-      (ReleaseAcquire.State.checko s (loc "a") a)
-      (ReleaseAcquire.State.checko s (loc "b") b)
+    fresh (m a b)
+      (t === ReleaseAcquire.State.mem m)
+      (ReleaseAcquire.Memory.checko m (loc "a") a)
+      (ReleaseAcquire.Memory.checko m (loc "b") b)
       ((a =/= integer 1) ||| (b =/= integer 1))
   )
 
@@ -227,9 +226,9 @@ let test_MP_RA = litmus_test_RA
   ~locs:["x"; "y"; "f"]
   ~tag:Forall
   ~asserto:(fun t ->
-    fresh (p s a b)
-      (t === ReleaseAcquire.Node.cfg p s)
-      (ReleaseAcquire.State.checko s (loc "y") (integer 1))
+    fresh (m)
+      (t === ReleaseAcquire.State.mem m)
+      (ReleaseAcquire.Memory.checko m (loc "y") (integer 1))
   )
 
 
@@ -251,9 +250,9 @@ let test_MP_RA_rlx1 = litmus_test_RA
   ~locs:["x"; "y"; "f"]
   ~tag:Exists
   ~asserto:(fun t ->
-    fresh (p s a b)
-      (t === ReleaseAcquire.Node.cfg p s)
-      (ReleaseAcquire.State.checko s (loc "y") (integer 0))
+    fresh (m)
+      (t === ReleaseAcquire.State.mem m)
+      (ReleaseAcquire.Memory.checko m (loc "y") (integer 0))
   )
 
 let prog_MP_rlx_2 = <:cppmem<
@@ -274,9 +273,9 @@ let test_MP_RA_rlx2 = litmus_test_RA
   ~locs:["x"; "y"; "f"]
   ~tag:Exists
   ~asserto:(fun t ->
-    fresh (p s)
-      (t === ReleaseAcquire.Node.cfg p s)
-      (ReleaseAcquire.State.checko s (loc "y") (integer 0))
+    fresh (m)
+      (t === ReleaseAcquire.State.mem m)
+      (ReleaseAcquire.Memory.checko m (loc "y") (integer 0))
   )
 
 (*)
