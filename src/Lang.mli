@@ -109,7 +109,6 @@ module Term :
     include Utils.Logic
 
     val skip      : unit -> ti
-    val stuck     : unit -> ti
     val assertion : Expr.ti -> ti
     val asgn      : Register.ti -> Expr.ti -> ti
     val if'       : Expr.ti -> ti -> ti -> ti
@@ -121,8 +120,6 @@ module Term :
     val seq       : ti -> ti -> ti
     val spw       : ti -> ti -> ti
     val par       : ti -> ti -> ti
-
-    val concato : ti -> ti -> ti -> MiniKanren.goal
 
     val show : tl -> string
 
@@ -171,7 +168,7 @@ module Label :
 
     val datarace : ThreadID.ti -> MemOrder.ti -> Loc.ti -> ti
 
-    val assert_fail : unit -> ti 
+    val assert_fail : unit -> ti
   end
 
 val splito : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Reduction.splitting

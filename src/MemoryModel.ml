@@ -87,20 +87,20 @@ module State (M : Memory) :
         (M.regso m thrdId rs)
 
     let transitiono label t t' =
-      fresh (m)
+      fresh (m m')
         (t === mem m)
         (conde [
-          (label === Label.assert_fail ()) &&& (t' === error !!Error.AssertionFailed m);
+          (t' === error !!Error.AssertionFailed m) &&& (label === Label.assert_fail ());
 
-          fresh (m' thrdId mo loc)
-            (conde [
-              (t' === error !!Error.DataRace m') &&&
-              (label === Label.datarace thrdId mo loc);
+          fresh (thrdId mo loc)
+            (t' === error !!Error.DataRace m')
+            (label === Label.datarace thrdId mo loc)
+            (M.transitiono label m m');
 
-              (t' === mem m') &&&
-            ?~(label === Label.datarace thrdId mo loc);
-            ])
-            (M.transitiono label m m')
+          (t' === mem m') &&& ?~(
+            fresh (thrdId mo loc)
+              (label === Label.datarace thrdId mo loc)
+          ) &&& (M.transitiono label m m')
         ])
   end
 
@@ -152,17 +152,14 @@ module Make (M : Memory) =
       (List.map lift_rule Rules.Basic.all)
 
     let rec thrd_local_evalo thrdId =
-      let irreducibleo = Node.lift_tpred @@ fun term -> conde [
-        (term === Lang.Term.stuck ());
-
+      let irreducibleo = Node.lift_tpred @@ fun term ->
         fresh (ctx rdx)
-          (term =/= Lang.Term.stuck ())
           (Lang.thrd_splito thrdId term ctx rdx)
           (conde [
             (Lang.Term.irreducibleo rdx);
             (Lang.Term.thrd_inter_termo rdx);
-          ]);
-      ] in
+          ])
+      in
       Semantics.Reduction.make_eval ~irreducibleo (thrd_local_stepo thrdId)
 
   let thrd_inter_stepo thrdId = Semantics.Reduction.make_step
@@ -191,7 +188,15 @@ module Make (M : Memory) =
     (lift_plug Lang.plugo)
     (List.map lift_rule (Rules.Basic.all @ Rules.Atomic.all @ Rules.ThreadSpawning.all))
 
-  let evalo = Semantics.Reduction.make_eval ~irreducibleo:(Node.lift_tpred Lang.Term.irreducibleo) stepo
+  let irreducibleo t =
+    fresh (prog state err m)
+      (t === Node.cfg prog state)
+      (conde [
+        (Lang.Term.irreducibleo prog);
+        (state === State.error err m);
+      ])
+
+  let evalo = Semantics.Reduction.make_eval ~irreducibleo stepo
 
   (* let evalo = Semantics.Reduction.make_path stepo *)
   (* let evalo = Semantics.Reduction.make_path (thrd_local_stepo @@ ThreadID.pathn ()) *)

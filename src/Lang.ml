@@ -271,7 +271,6 @@ module Term =
       struct
         @type ('reg, 'loc, 'mo, 'e, 't) t =
           | Skip
-          | Stuck
           | Assert   of 'e
           | Asgn     of 'reg * 'e
           | If       of 'e * 't * 't
@@ -299,7 +298,6 @@ module Term =
 
     let assertion e         = inj @@ FT.distrib @@ T.Assert e
     let skip ()             = inj @@ FT.distrib @@ T.Skip
-    let stuck ()            = inj @@ FT.distrib @@ T.Stuck
     let asgn r e            = inj @@ FT.distrib @@ T.Asgn (r, e)
     let if' e l r           = inj @@ FT.distrib @@ T.If (e, l, r)
     let while' e t          = inj @@ FT.distrib @@ T.While (e, t)
@@ -321,8 +319,6 @@ module Term =
       and s ff = function
         | Skip                    ->
           Format.fprintf ff "@[skip@]"
-        | Stuck                   ->
-          Format.fprintf ff "@[stuck@]"
         | Assert e                ->
           Format.fprintf ff "@[assert (%a)@;@]" Expr.pprint e
         | Asgn (r, e)             ->
@@ -348,17 +344,6 @@ module Term =
       in
       sl
     )
-
-    let rec concato t1 t2 t3 = conde [
-      fresh (a b c)
-        (t1 === seq a b)
-        (t3 === seq a c)
-        (concato b t2 c);
-
-      fresh (a b)
-      ?~(t1 === seq a b)
-        (t3 === seq t1 t2)
-    ]
 
     let thrd_local_termo t = conde [
       fresh (e)
@@ -391,8 +376,7 @@ module Term =
         (t === par t1 t2);
     ]
 
-    let rec irreducibleo t =
-      (t === skip ()) ||| (t === stuck ())
+    let rec irreducibleo t = (t === skip ())
   end
 
 module Context =
@@ -576,11 +560,6 @@ let thrd_splito thrdId term ctx rdx =
     (ctx === Context.context t h thrdId)
     (splito term ctx rdx)
 
-let plugo ctx rdx term = Term.(Context.(conde [
+let plugo ctx rdx term =
   fresh (thrdId)
-    (rdx  =/= stuck ())
-    (term =/= stuck ())
-    (ctx  === context term rdx thrdId);
-
-  (rdx === stuck ()) &&& (term === stuck ());
-]))
+    (ctx === Context.context term rdx thrdId)

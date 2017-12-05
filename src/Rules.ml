@@ -93,13 +93,13 @@ module Basic =
   struct
     let asserto label ctx t t' =
       fresh (e rs v)
-        (t === assertion e)
-        (label === Label.empty ())
+        (t  === assertion e)
+        (t' === skip ())
         (Context.regso ctx rs)
         (expr_evalo rs e v)
         (conde [
-          (Lang.Value.nullo v)     &&& (t' === stuck ());
-          (Lang.Value.not_nullo v) &&& (t' === skip  ());
+          (Lang.Value.nullo v)     &&& (label === Label.assert_fail ());
+          (Lang.Value.not_nullo v) &&& (label === Label.empty ());
         ])
 
     let asgno label ctx t t' =
@@ -153,12 +153,9 @@ module ThreadSpawning =
 
     let joino label ctx t t' =
       fresh (t1 t2 thrdId)
-        (t === par t1 t2)
-        (conde [
-          (t1 =/= stuck ()) &&& (t2 =/= stuck ()) &&& (t' === skip ())  &&& (label === Label.join thrdId);
-          (t1 =/= stuck ()) &&& (t2 === stuck ()) &&& (t' === stuck ()) &&& (label === Label.empty ());
-          (t1 === stuck ()) &&& (t' === stuck ()) &&& (label === Label.empty ());
-        ])
+        (t  === par t1 t2)
+        (t' === skip ())
+        (label === Label.join thrdId)
         (Context.thrdIdo ctx thrdId)
 
     let all = [spawno; joino]
@@ -184,8 +181,8 @@ module Atomic =
 
     let dataraceo label ctx t t' =
       fresh (mo l r e thrdId)
-        ((t  === load mo l r) ||| (t === store mo l e))
-        (t' === stuck ())
+        ((t === load mo l r) ||| (t === store mo l e))
+        (t' === skip ())
         (label === Label.datarace thrdId mo l)
         (Context.thrdIdo ctx thrdId)
 
