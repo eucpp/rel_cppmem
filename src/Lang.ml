@@ -1,5 +1,5 @@
 open MiniKanren
-open MiniKanrenStd
+(* open MiniKanrenStd *)
 open Utils
 
 module Register =
@@ -40,16 +40,16 @@ module Loc =
 
 module Value =
   struct
-    type tt = tt nat
+    type tt = tt Std.nat
 
     type tl = inner MiniKanren.logic
-      and inner = tl nat
+      and inner = tl Std.nat
 
     type ti = MiniKanrenStd.Nat.groundi
 
-    let integer = nat
+    let integer = Std.nat
 
-    let reify = Nat.reify
+    let reify = Std.Nat.reify
 
     let rec show n =
       let rec to_ground : tl -> int = function
@@ -71,19 +71,19 @@ module Value =
 
     let pprint ff v = Format.fprintf ff "%s" @@ show v
 
-    let nullo v = (v === Nat.zero)
+    let nullo v = (v === Std.Nat.zero)
 
-    let not_nullo v = fresh (x) (v === Nat.succ x)
+    let not_nullo v = fresh (x) (v === Std.Nat.succ x)
 
-    let addo = Nat.addo
-    let mulo = Nat.mulo
+    let addo = Std.Nat.addo
+    let mulo = Std.Nat.mulo
 
     let eqo = (===)
     let nqo = (=/=)
-    let lto = Nat.(<)
-    let leo = Nat.(<=)
-    let gto = Nat.(>)
-    let geo = Nat.(>=)
+    let lto = Std.Nat.(<)
+    let leo = Std.Nat.(<=)
+    let gto = Std.Nat.(>)
+    let geo = Std.Nat.(>=)
   end
 
 module MemOrder =
@@ -219,6 +219,25 @@ module ThreadID =
     let rec show x = GT.show(logic) (T.show show) x
 
     let pprint ff thrdId = Format.fprintf ff "%s" @@ show thrdId
+
+    let rec parento parentThrdId thrdId = conde [
+      (parentThrdId === pathn ()) &&&
+      (conde [
+        (thrdId === pathl @@ pathn ());
+        (thrdId === pathr @@ pathn ());
+      ]);
+
+      fresh (p p')
+        (thrdId === pathl p)
+        (parentThrdId === pathl p')
+        (parento p' p);
+
+      fresh (p p')
+        (thrdId === pathr p)
+        (parentThrdId === pathr p')
+        (parento p' p);
+    ]
+
   end
 
 module Expr =
@@ -269,7 +288,7 @@ module Term =
   struct
     module T =
       struct
-        @type ('reg, 'loc, 'mo, 'e, 't) t =
+        @type ('reg, 'regs, 'loc, 'mo, 'e, 't) t =
           | Skip
           | Assert   of 'e
           | Asgn     of 'reg * 'e
@@ -282,19 +301,20 @@ module Term =
           | Seq      of 't * 't
           | Spw      of 't * 't
           | Par      of 't * 't
+          | Return   of 'regs
         with gmap, show
 
-        let fmap fa fb fc fd fe x = GT.gmap(t) fa fb fc fd fe x
+        let fmap fa fb fc fd fe ff x = GT.gmap(t) fa fb fc fd fe ff x
       end
 
-    type tt = (Register.tt, Loc.tt, MemOrder.tt, Expr.tt, tt) T.t
+    type tt = (Register.tt, Register.tt Std.List.ground, Loc.tt, MemOrder.tt, Expr.tt, tt) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (Register.tl, Loc.tl, MemOrder.tl, Expr.tl, tl) T.t
+      and inner = (Register.tl, Register.tl Std.List.logic, Loc.tl, MemOrder.tl, Expr.tl, tl) T.t
 
     type ti = (tt, tl) Semantics.Term.ti
 
-    module FT = Fmap5(T)
+    module FT = Fmap6(T)
 
     let assertion e         = inj @@ FT.distrib @@ T.Assert e
     let skip ()             = inj @@ FT.distrib @@ T.Skip
@@ -308,11 +328,12 @@ module Term =
     let seq t1 t2           = inj @@ FT.distrib @@ T.Seq (t1, t2)
     let spw t1 t2           = inj @@ FT.distrib @@ T.Spw (t1, t2)
     let par t1 t2           = inj @@ FT.distrib @@ T.Par (t1, t2)
+    let return rs           = inj @@ FT.distrib @@ T.Return rs
 
-    let rec reify h = FT.reify Register.reify Loc.reify MemOrder.reify Expr.reify reify h
+    let rec reify h = FT.reify Register.reify (Std.List.reify Register.reify) Loc.reify MemOrder.reify Expr.reify reify h
 
     let rec show t =
-      GT.show(logic) (GT.show(T.t) (Register.show) (Loc.show) (MemOrder.show) (Expr.show) (show)) t
+      GT.show(logic) (GT.show(T.t) Register.show (GT.show(Std.List.logic) Register.show) Loc.show MemOrder.show Expr.show show) t
 
     let pprint = T.(
       let rec sl ff x = pprint_logic s ff x
@@ -341,6 +362,8 @@ module Term =
           Format.fprintf ff "@[<v>spw {{{@;<1 4>%a@;|||@;<1 4>%a@;}}}@]" sl t sl t'
         | Par (t, t')             ->
           Format.fprintf ff "@[<v>par {{{@;<1 4>%a@;<1 4>|||@;<1 4>%a@;}}}@]" sl t sl t'
+        | Return rs               ->
+          Format.fprintf ff "@[<v>return %s@]" (GT.show(Std.List.logic) Register.show rs)
       in
       sl
     )
@@ -412,11 +435,11 @@ module Label =
   struct
     module T =
       struct
-        @type ('thrdId, 'mo, 'reg, 'loc, 'value) t =
+        @type ('thrdId, 'mo, 'reg, 'regs, 'loc, 'value) t =
           | Empty
           | Spawn           of 'thrdId
           | Join            of 'thrdId
-          | RegRead         of 'thrdId * 'reg * 'value
+          | Return          of 'thrdId * 'regs
           | RegWrite        of 'thrdId * 'reg * 'value
           | Load            of 'thrdId * 'mo * 'loc * 'reg
           | Store           of 'thrdId * 'mo * 'loc * 'value
@@ -425,22 +448,22 @@ module Label =
           | AssertionFailed
         with gmap
 
-        let fmap fa fb fc fd fe x = GT.gmap(t) (fa) (fb) (fc) (fd) (fe) x
+        let fmap fa fb fc fd fe ff x = GT.gmap(t) fa fb fc fd fe ff x
       end
 
-    type tt = (ThreadID.tt, MemOrder.tt, Register.tt, Loc.tt, Value.tt) T.t
+    type tt = (ThreadID.tt, MemOrder.tt, Register.tt, Register.tt Std.List.ground, Loc.tt, Value.tt) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (ThreadID.tl, MemOrder.tl, Register.tl, Loc.tl, Value.tl) T.t
+      and inner = (ThreadID.tl, MemOrder.tl, Register.tl, Register.tl Std.List.logic, Loc.tl, Value.tl) T.t
 
     type ti = (tt, tl) MiniKanren.injected
 
-    module FT = Fmap5(T)
+    module FT = Fmap6(T)
 
     let empty ()                      = inj @@ FT.distrib @@ T.Empty
     let spawn thrdId                  = inj @@ FT.distrib @@ T.Spawn thrdId
     let join  thrdId                  = inj @@ FT.distrib @@ T.Join  thrdId
-    let regread  thrdId reg v         = inj @@ FT.distrib @@ T.RegRead  (thrdId, reg, v)
+    let return thrdId regs            = inj @@ FT.distrib @@ T.Return (thrdId, regs)
     let regwrite thrdId reg v         = inj @@ FT.distrib @@ T.RegWrite (thrdId, reg, v)
     let load  thrdId mo loc r         = inj @@ FT.distrib @@ T.Load  (thrdId, mo, loc, r)
     let store thrdId mo loc v         = inj @@ FT.distrib @@ T.Store (thrdId, mo, loc, v)
@@ -448,7 +471,7 @@ module Label =
     let datarace thrdId mo loc        = inj @@ FT.distrib @@ T.Datarace (thrdId, mo, loc)
     let assert_fail ()                = inj @@ FT.distrib @@ T.AssertionFailed
 
-    let reify h = FT.reify ThreadID.reify MemOrder.reify Register.reify Loc.reify Value.reify h
+    let reify h = FT.reify ThreadID.reify MemOrder.reify Register.reify (Std.List.reify Register.reify) Loc.reify Value.reify h
 
     let pprint =
       let pp ff = T.(function
@@ -458,8 +481,8 @@ module Label =
           Format.fprintf ff "@[<spawn %s>@]" (ThreadID.show thrdId)
         | Join thrdId ->
           Format.fprintf ff "@[<join %s>@]" (ThreadID.show thrdId)
-        | RegRead (thrdId, reg, v) ->
-          Format.fprintf ff "@[<regread %s %s %s>@]" (ThreadID.show thrdId) (Register.show reg) (Value.show v)
+        | Return (thrdId, regs) ->
+          Format.fprintf ff "@[<return %s %s>@]" (ThreadID.show thrdId) (GT.show(Std.List.logic) Register.show regs)
         | RegWrite (thrdId, reg, v) ->
           Format.fprintf ff "@[<regwrite %s %s %s>@]" (ThreadID.show thrdId) (Register.show reg) (Value.show v)
         | Load (thrdId, mo, loc, r) ->
@@ -526,6 +549,9 @@ let rec splito term ctx rdx = Term.(Context.(ThreadID.(conde [
         (term === par t1 t2)
         (irreducibleo t1)
         (irreducibleo t2);
+
+      fresh (rs)
+        (term === return rs);
     ]);
 
   (* second we handle complex terms *)

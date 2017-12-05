@@ -4,9 +4,9 @@
 open Pcaml
 open Printf
 (* open MiniKanren *)
-open Lang
-open Lang.Term
-open Lang.Expr
+open Relcppmem.Lang
+(* open Lang.Term *)
+(* open Lang.Expr *)
 
 (* let op s = <:expr<  >> *)
 
@@ -122,6 +122,19 @@ EXTEND
 
       | "repeat"; t = cppmem_stmt; "until"; e = cppmem_expr ->
         <:expr< repeat $t$ $e$ >>
+
+      | "return"; "("; regs = LIST0 LIDENT; ")" ->
+        let string_list loc lst =
+          List.fold_right
+          (fun head tail -> <:expr< [ $str:head$ :: $tail$ ] >>)
+          lst
+          <:expr< [] >>
+        in
+        let regs = string_list loc regs in
+        let regs =
+          <:expr< MiniKanren.Std.List.list (List.map (fun r -> Register.reg r) $regs$) >>
+        in
+        <:expr< return ($regs$) >>
 
       | "?"; q = cppmem_antiquot -> q
 

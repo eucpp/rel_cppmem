@@ -491,17 +491,41 @@ module MemoryRA : Memory =
         (t' === state tree' story na sc)
         (TLS.seto tree tree' thrdId thrd)
 
-    let regreado t t' thrdId var value =
-      fresh (thrd)
-        (t === t')
-        (get_thrdo t thrdId thrd)
-        (ThreadFront.reado thrd var value)
-
     let regwriteo t t' thrdId var value =
       fresh (thrd thrd')
         (get_thrdo t    thrdId thrd )
         (set_thrdo t t' thrdId thrd')
         (ThreadFront.writeo thrd thrd' var value)
+
+    let spawno t t' thrdId =
+      fresh (tree tree' story na sc)
+        (t  === state tree  story na sc)
+        (t' === state tree' story na sc)
+        (TLS.spawno tree tree' thrdId)
+
+    let joino t t' thrdId =
+      fresh (tree tree' story na sc)
+        (t  === state tree  story na sc)
+        (t' === state tree' story na sc)
+        (TLS.joino tree tree' thrdId)
+
+    let returno t t' thrdId rs =
+      let rec helper thrd pthrd pthrd'' regs = conde [
+        (regs === Std.nil ()) &&& (pthrd === pthrd'');
+
+        fresh (r rs pthrd' v)
+          (regs === Std.List.conso r rs)
+          (ThreadFront.reado  thrd r v)
+          (ThreadFront.writeo pthrd pthrd' r v)
+          (helper thrd pthrd' pthrd'' rs);
+      ] in
+      fresh (tree story na sc parentThrdId thrd pthrd pthrd')
+        (t  === state tree  story na sc)
+        (ThreadID.parento parentThrdId thrdId)
+        (get_thrdo t    thrdId       thrd  )
+        (get_thrdo t    parentThrdId pthrd )
+        (set_thrdo t t' parentThrdId pthrd')
+        (helper thrd pthrd pthrd' rs)
 
     let na_awareo na loc last_ts = Timestamp.(
       fresh (na_ts)
@@ -656,23 +680,6 @@ module MemoryRA : Memory =
 
     let cas_sco t t' thrdId loc expected desired value = success
 
-    let spawno t t' thrdId =
-      fresh (tree tree' story na sc)
-        (t  === state tree  story na sc)
-        (t' === state tree' story na sc)
-        (TLS.spawno tree tree' thrdId)
-
-    let joino t t' thrdId =
-      fresh (tree tree' story na sc)
-        (t  === state tree  story na sc)
-        (t' === state tree' story na sc)
-        (TLS.joino tree tree' thrdId)
-
-        let get_thrdo t thrdId thrd =
-          fresh (tree story na sc)
-            (t === state tree story na sc)
-            (TLS.geto tree thrdId thrd)
-
     let regso t thrdId rs =
       fresh (thrd)
         (get_thrdo t thrdId thrd)
@@ -701,9 +708,9 @@ module MemoryRA : Memory =
         (label === Label.join thrdId)
         (joino t t' thrdId);
 
-      fresh (thrdId reg v)
-        (label === Label.regread thrdId reg v)
-        (regreado t t' thrdId reg v);
+      fresh (thrdId rs)
+        (label === Label.return thrdId rs)
+        (returno t t' thrdId rs);
 
       fresh (thrdId reg v)
         (label === Label.regwrite thrdId reg v)

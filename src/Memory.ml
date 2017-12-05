@@ -106,11 +106,11 @@ module RegisterStorage =
     )
 
     let spawno regs regs1 regs2 =
-        (regs1 === regs2) &&&
-        (reseto regs regs1)
+      (regs1 === regs2) &&&
+      (reseto regs regs1)
 
     let joino regs regs' regs1 regs2 =
-        (regs === regs')
+      (regs === regs')
   end
 
 module ValueStorage =

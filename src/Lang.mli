@@ -90,6 +90,8 @@ module ThreadID :
     val pathn : unit -> ti
     val pathl : ti -> ti
     val pathr : ti -> ti
+
+    val parento : ti -> ti -> MiniKanren.goal
   end
 
 module Expr :
@@ -120,6 +122,7 @@ module Term :
     val seq       : ti -> ti -> ti
     val spw       : ti -> ti -> ti
     val par       : ti -> ti -> ti
+    val return    : (Register.tt, Register.tl) MiniKanren.Std.List.groundi -> ti
 
     val show : tl -> string
 
@@ -153,10 +156,10 @@ module Label :
 
     val empty : unit -> ti
 
-    val spawn : ThreadID.ti -> ti
-    val join  : ThreadID.ti -> ti
+    val spawn  : ThreadID.ti -> ti
+    val join   : ThreadID.ti -> ti
+    val return : ThreadID.ti -> (Register.tt, Register.tl) MiniKanren.Std.List.groundi -> ti
 
-    val regread  : ThreadID.ti -> Register.ti -> Value.ti -> ti
     val regwrite : ThreadID.ti -> Register.ti -> Value.ti -> ti
 
     val load  : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Register.ti -> ti

@@ -106,8 +106,6 @@ let prog_DR1 = <:cppmem<
   }}}
 >>
 
-
-
 let test_DR1_RA = litmus_test_RA
   ~name:"DR1_RA"
   ~prog:prog_DR1
@@ -137,63 +135,55 @@ let prog_SB = <:cppmem<
   spw {{{
       x_rel := 1;
       r1 := y_acq;
-      a_rlx := r1
+      return (r1)
   |||
       y_rel := 1;
       r2 := x_acq;
-      b_rlx := r2
-  }}}
+      return (r2)
+  }}};
+  assert (r1 = 1 && r2 = 1)
 >>
 
 let test_SB_RA = litmus_test_RA
   ~name:"SB_RA"
   ~prog:prog_SB
   ~regs:["r1"; "r2"]
-  ~locs:["x"; "y"; "a"; "b"]
+  ~locs:["x"; "y";]
   ~tag:Exists
-  ~asserto:(fun t ->
-    fresh (m)
-      (t === ReleaseAcquire.State.mem m)
-      (ReleaseAcquire.Memory.checko m (loc "a") (integer 1))
-      (ReleaseAcquire.Memory.checko m (loc "b") (integer 1))
-  )
+  ~asserto:safeo_RA
 
 let prog_LB_RA = <:cppmem<
     spw {{{
         r1 := x_acq;
         y_rel := 1;
-        a_rlx := r1
+        return (r1)
     |||
         r2 := y_acq;
         x_rel := 1;
-        b_rlx := r2
-    }}}
+        return (r2)
+    }}};
+    assert (r1 != 1 || r2 != 1)
 >>
 
 let test_LB_RA = litmus_test_RA
   ~name:"LB_RA"
   ~prog:prog_LB_RA
   ~regs:["r1"; "r2"]
-  ~locs:["x"; "y"; "a"; "b"]
+  ~locs:["x"; "y";]
   ~tag:Forall
-  ~asserto:(fun t ->
-    fresh (m a b)
-      (t === ReleaseAcquire.State.mem m)
-      (ReleaseAcquire.Memory.checko m (loc "a") a)
-      (ReleaseAcquire.Memory.checko m (loc "b") b)
-      ((a =/= integer 1) ||| (b =/= integer 1))
-  )
+  ~asserto:safeo_RA
 
 let prog_LB_rel_acq_rlx = <:cppmem<
     spw {{{
         r1 := x_acq;
         y_rlx := 1;
-        a_rlx := r1
+        return r1
     |||
         r2 := y_rlx;
         x_rel := 1;
-        b_rlx := r2
-    }}}
+        return r2
+    }}};
+    assert (r1 != 1 || r2 != 1)
 >>
 
 let test_LB_RA_rlx = litmus_test_RA
@@ -232,7 +222,6 @@ let test_MP_RA = litmus_test_RA
       (t === ReleaseAcquire.State.mem m)
       (ReleaseAcquire.Memory.checko m (loc "y") (integer 1))
   )
-
 
 let prog_MP_rlx1 = <:cppmem<
     spw {{{

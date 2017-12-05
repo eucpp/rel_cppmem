@@ -32,6 +32,7 @@ module ThreadSpawning :
   sig
     val spawno  : rule
     val joino   : rule
+    val returno : rule
 
     val all : rule list
   end
