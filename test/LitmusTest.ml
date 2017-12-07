@@ -254,24 +254,79 @@ let test_MP_RA_rlx2 = litmus_test_RA
   ~tag:Exists
   ~asserto:safeo_RA
 
-(*)
 let prog_MP_rel_seq = <:cppmem<
-  x_rlx := 0;
-  f_rlx := 0;
   spw {{{
       x_rlx := 1;
       f_rel := 1;
-      f_rlx := 2;
-      ret 1
+      f_rlx := 2
   |||
-      repeat f_acq = 2 end;
+      repeat r1 := f_acq until (r1 = 2);
       r2 := x_rlx;
-      ret r2
+      return (r2)
+  }}};
+  assert (r2 = 1)
+>>
+
+let test_MP_RA_rel_seq = litmus_test_RA
+  ~name:"MP_RA+rel_seq"
+  ~prog:prog_MP_rel_seq
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "f"]
+  ~tag:Forall
+  ~asserto:safeo_RA
+
+let prog_CoRR = <:cppmem<
+  spw {{{
+    spw {{{
+      x_rlx := 1
+    |||
+      x_rlx := 2
+    }}}
+  |||
+    spw {{{
+      r1 := x_rlx;
+      r2 := x_rlx;
+      return (r1, r2)
+    |||
+      r3 := x_rlx;
+      r4 := x_rlx;
+      return (r3, r4)
+    }}};
+    assert (
+      !(((r1 = 1) && (r2 = 2) && (r3 = 2) && (r4 = 1))
+        ||
+        ((r1 = 2) && (r2 = 1) && (r3 = 1) && (r4 = 2))
+      )
+    )
   }}}
 >>
 
-let test_MP_rel_seq step = test_prog step prog_MP_rel_seq ["(1, 1)"]
+let test_MP_CoRR = litmus_test_RA
+  ~name:"MP_CoRR"
+  ~prog:prog_CoRR
+  ~regs:["r1"; "r2"; "r3"; "r4"]
+  ~locs:["x";]
+  ~tag:Forall
+  ~asserto:safeo_RA
 
+open Printf
+
+let _ =
+  let regs = ["r1"; "r2"; "r3"; "r4"] in
+  let locs = ["x"] in
+  let mem = List.map (fun l -> (l, 0)) locs in
+  let stream =
+    Query.verify
+      ReleaseAcquire.intrpo
+      (fun i -> i === ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs ~mem)
+      (fun i o -> safeo_RA o)
+      prog_CoRR
+  in
+  if Stream.is_empty stream then printf "OK\n" else printf "ERROR\n"
+
+(* let test_CoRR_rlx step = test_prog step ~negative:true prog_CoRR_rlx ["((1, 2), (2, 1))"; "((2, 1), (1, 2))"] *)
+
+(*)
 let prog_SB_sc = <:cppmem<
   x_sc := 0;
   y_sc := 0;
@@ -287,29 +342,6 @@ let prog_SB_sc = <:cppmem<
 >>
 
 let test_SB_sc step = test_prog step prog_SB_sc ["(1, 0)"; "(0, 1)"; "(1, 1)"]
-
-let prog_CoRR_rlx = <:cppmem<
-  x_rlx := 0;
-  spw {{{
-    spw {{{
-      x_rlx := 1
-    |||
-      x_rlx := 2
-    }}}
-  |||
-    spw {{{
-      r1 := x_rlx;
-      r2 := x_rlx;
-      ret (r1, r2)
-    |||
-      r3 := x_rlx;
-      r4 := x_rlx;
-      ret (r3, r4)
-    }}}
-  }}}
->>
-
-let test_CoRR_rlx step = test_prog step ~negative:true prog_CoRR_rlx ["((1, 2), (2, 1))"; "((2, 1), (1, 2))"]
 
 let prog_LB = <:cppmem<
   spw {{{
@@ -357,7 +389,7 @@ let promisingStep =
 let tests =
   "Litmus">::: [
     "RelAcq">::: [
-      "SW">:: test_SW_RA;
+      (* "SW">:: test_SW_RA;
       "SB">:: test_SB_RA;
       "LB">:: test_LB_RA;
       "DR1">:: test_DR1_RA;
@@ -366,6 +398,8 @@ let tests =
       "test_MP_RA">:: test_MP_RA;
       "test_MP_RA+rlx1">:: test_MP_RA_rlx1;
       "test_MP_RA+rlx2">:: test_MP_RA_rlx2;
+      "test_MP_RA_rel_seq">:: test_MP_RA_rel_seq;
+      "test_MP_CoRR">: OUnitTest.TestCase (OUnitTest.Long, test_MP_CoRR); *)
     ]
 
     (* "DR_1">:: test_data_race_1 rlxStep;

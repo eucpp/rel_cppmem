@@ -54,15 +54,14 @@ let rec stmto ?(loco= fun x -> success) t = conde [
 
 let mp_sketch = fun h1 h2 -> <:cppmem<
     spw {{{
-        r1 := x_na;
-        m_na := r1;
+        (* r1 := x_na; *)
+        m_na := 1;
         (* f_rel := 1 *)
         ? h1
     |||
         (* repeat r1 := f_acq until r1; *)
         ? h2;
-        r2 := m_na;
-        y_na := r2
+        r2 := m_na
     }}}
 >>
 
@@ -81,15 +80,14 @@ let _ =
         (seq_stmto ~loco:((===) (loc "f")) h2)
         (q === t)
         (t === mp_sketch h1 h2)
-        (i === ReleaseAcquire.State.init ~regs:["r1"; "r2"] ~mem:[("x", 0); ("y", 0); ("f", 0); ("m", 0)])
-        (o === ReleaseAcquire.Node.cfg p s)
-        (ReleaseAcquire.State.shapeo s [loc "x"; loc "y"; loc "f"; loc "m"])
-        (ReleaseAcquire.State.checko s (loc "x") v)
-        (ReleaseAcquire.State.checko s (loc "y") v)
+        (i === ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs:["r1"; "r2"] ~mem:[("x", 0); ("y", 0); ("f", 0); ("m", 0)])
+        (o === ReleaseAcquire.State.mem s)
+        (* (ReleaseAcquire.Memory.shapeo s [loc "x"; loc "y"; loc "f"; loc "m"])
+        (ReleaseAcquire.Memory.checko s (loc "x") v)
+        (ReleaseAcquire.Memory.checko s (loc "y") v) *)
         (ReleaseAcquire.intrpo t i o)
-      ?~(fresh (p s o)
-          (o === ReleaseAcquire.Node.cfg p s)
-          (p === stuck ())
+      ?~(fresh (o e m)
+          (o === ReleaseAcquire.State.error e m)
           (ReleaseAcquire.intrpo t i o)
         )
     )

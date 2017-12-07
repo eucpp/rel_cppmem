@@ -61,6 +61,9 @@ EXTEND
       | x = LIDENT ->
         <:expr< var (Register.reg $str:x$) >>
 
+      | "!"; e = cppmem_expr ->
+        <:expr< unop (Uop.uop "!") $e$ >>
+
       (* | "CAS"; "("; mo1 = LIDENT; ","; mo2 = LIDENT; ","; x = LIDENT; ","; expected = INT; ","; desired = INT; ")" ->
         let mo1 = <:expr< MemOrder.mo $str:mo1$ >> in
         let mo2 = <:expr< MemOrder.mo $str:mo2$ >> in
@@ -123,7 +126,7 @@ EXTEND
       | "repeat"; t = cppmem_stmt; "until"; e = cppmem_expr ->
         <:expr< repeat $t$ $e$ >>
 
-      | "return"; "("; regs = LIST0 LIDENT; ")" ->
+      | "return"; "("; regs = LIST0 LIDENT SEP ","; ")" ->
         let string_list loc lst =
           List.fold_right
           (fun head tail -> <:expr< [ $str:head$ :: $tail$ ] >>)
