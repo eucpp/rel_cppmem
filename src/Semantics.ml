@@ -117,8 +117,8 @@ module Reduction =
     let make_step splito plugo rules t t' =
       fresh (ctx rdx rdx')
         (splito t ctx rdx)
-        (conde @@ List.map (fun rule -> rule ctx rdx rdx') rules)
         (plugo ctx rdx' t')
+        (conde @@ List.map (fun rule -> rule ctx rdx rdx') rules)
 
     let make_path stepo =
       let patho_norec patho t t'' = conde [

@@ -167,13 +167,33 @@ module Make (M : Memory) =
     (lift_plug Lang.plugo)
     (List.map lift_rule (Rules.ThreadSpawning.all @ Rules.Atomic.all))
 
-  let stepo t t'' = conde [
+  let thrd_local_rules = List.map lift_rule (Rules.Basic.all)
+  let thrd_inter_rules = List.map lift_rule (Rules.ThreadSpawning.all @ Rules.Atomic.all)
+
+  let stepo t t' =
+    fresh (ctx rdx rdx' p s thrdId)
+      ((lift_split splito) t ctx rdx)
+      (rdx === Node.cfg p s)
+      (conde [
+        fresh (rdx'' t'')
+          (Lang.Term.thrd_local_termo p)
+          (conde @@ List.map (fun rule -> rule ctx rdx rdx'') thrd_local_rules)
+          ((lift_plug plugo) ctx rdx'' t'')
+          (Rules.Context.thrdIdo ctx thrdId)
+          (thrd_local_evalo thrdId t'' t');
+
+        (Lang.Term.thrd_inter_termo p) &&&
+        ((lift_plug plugo) ctx rdx' t') &&&
+        (conde @@ List.map (fun rule -> rule ctx rdx rdx') thrd_inter_rules);
+      ])
+
+  (* let stepo t t' = conde [
     fresh (thrdId)
-      (thrd_inter_stepo thrdId t t'');
+      (thrd_inter_stepo thrdId t t');
 
     fresh (thrdId)
-      (thrd_local_evalo thrdId t t'');
-  ]
+      (thrd_local_evalo thrdId t t');
+  ] *)
 
     (* fresh (thrdId t') *)
       (* (thrd_local_evalo thrdId t t')
@@ -192,10 +212,10 @@ module Make (M : Memory) =
         ]); *)
       (* ]) *)
 
-  let stepo = Semantics.Reduction.make_step
+  (* let stepo = Semantics.Reduction.make_step
     (lift_split Lang.splito)
     (lift_plug Lang.plugo)
-    (List.map lift_rule (Rules.Basic.all @ Rules.Atomic.all @ Rules.ThreadSpawning.all))
+    (List.map lift_rule (Rules.Basic.all @ Rules.Atomic.all @ Rules.ThreadSpawning.all)) *)
 
   let irreducibleo t =
     fresh (prog state err m)
