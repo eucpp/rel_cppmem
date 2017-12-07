@@ -132,7 +132,7 @@ module Reduction =
 
     let make_eval ~irreducibleo stepo =
       let evalo_norec evalo t t'' = conde [
-        (irreducibleo t'') &&& (t === t'');
+        (t === t'') &&& (irreducibleo t);
 
         fresh (t')
           (stepo t t')

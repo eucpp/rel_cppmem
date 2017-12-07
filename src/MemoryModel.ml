@@ -167,21 +167,30 @@ module Make (M : Memory) =
     (lift_plug Lang.plugo)
     (List.map lift_rule (Rules.ThreadSpawning.all @ Rules.Atomic.all))
 
-  let stepo t t'' =
-    fresh (thrdId t')
-      (thrd_local_evalo thrdId t t')
+  let stepo t t'' = conde [
+    fresh (thrdId)
+      (thrd_inter_stepo thrdId t t'');
+
+    fresh (thrdId)
+      (thrd_local_evalo thrdId t t'');
+  ]
+
+    (* fresh (thrdId t') *)
+      (* (thrd_local_evalo thrdId t t')
       (conde [
+        (t =/= t') &&& (t' === t'');
         fresh (thrdId')
+        ((t === t') &&& (thrd_inter_stepo thrdId' t t'')); *)
+
+        (* fresh (thrdId')
           (t === t')
           (thrd_inter_stepo thrdId' t' t'');
 
         (t =/= t') &&& (conde [
           (t' === t'');
           (thrd_inter_stepo thrdId t' t'');
-        ]);
-      ])
-
-  let evalo = Semantics.Reduction.make_eval ~irreducibleo:(Node.lift_tpred Lang.Term.irreducibleo) stepo
+        ]); *)
+      (* ]) *)
 
   let stepo = Semantics.Reduction.make_step
     (lift_split Lang.splito)
@@ -197,6 +206,7 @@ module Make (M : Memory) =
       ])
 
   let evalo = Semantics.Reduction.make_eval ~irreducibleo stepo
+  (* let evalo = Semantics.Reduction.make_eval ~irreducibleo stepo *)
 
   (* let evalo = Semantics.Reduction.make_path stepo *)
   (* let evalo = Semantics.Reduction.make_path (thrd_local_stepo @@ ThreadID.pathn ()) *)
@@ -716,41 +726,24 @@ module MemoryRA : Memory =
         (label === Label.regwrite thrdId reg v)
         (regwriteo t t' thrdId reg v);
 
-      fresh (t'' thrdId loc reg v)
-        (label === Label.load thrdId !!MemOrder.SC loc reg)
-        (load_sco  t   t'' thrdId loc v)
-        (regwriteo t'' t'  thrdId reg v);
+      fresh (thrdId mo loc reg v t'')
+        (label === Label.load thrdId mo loc reg)
+        (regwriteo t t'' thrdId reg v)
+        (conde [
+          (mo === !!MemOrder.SC ) &&& (load_sco  t'' t' thrdId loc v);
+          (mo === !!MemOrder.ACQ) &&& (load_acqo t'' t' thrdId loc v);
+          (mo === !!MemOrder.RLX) &&& (load_rlxo t'' t' thrdId loc v);
+          (mo === !!MemOrder.NA ) &&& (load_nao  t'' t' thrdId loc v);
+        ]);
 
-      fresh (thrdId loc v)
-        (label === Label.store thrdId !!MemOrder.SC loc v)
-        (store_sco t t' thrdId loc v);
-
-      fresh (t'' thrdId loc reg v)
-        (label === Label.load thrdId !!MemOrder.ACQ loc reg)
-        (load_acqo t   t'' thrdId loc v)
-        (regwriteo t'' t'  thrdId reg v);
-
-      fresh (thrdId loc v)
-        (label === Label.store thrdId !!MemOrder.REL loc v)
-        (store_relo t t' thrdId loc v);
-
-      fresh (t'' thrdId loc reg v)
-        (label === Label.load thrdId !!MemOrder.RLX loc reg)
-        (load_rlxo t   t'' thrdId loc v)
-        (regwriteo t'' t'  thrdId reg v);
-
-      fresh (thrdId loc v)
-        (label === Label.store thrdId !!MemOrder.RLX loc v)
-        (store_rlxo t t' thrdId loc v);
-
-      fresh (t'' thrdId loc reg v)
-        (label === Label.load thrdId !!MemOrder.NA loc reg)
-        (load_nao  t   t'' thrdId loc v)
-        (regwriteo t'' t'  thrdId reg v);
-
-      fresh (thrdId loc v)
-        (label === Label.store thrdId !!MemOrder.NA loc v)
-        (store_nao t t' thrdId loc v);
+      fresh (thrdId mo loc v)
+        (label === Label.store thrdId mo loc v)
+        (conde [
+          (mo === !!MemOrder.SC ) &&& (store_sco  t t' thrdId loc v);
+          (mo === !!MemOrder.REL) &&& (store_relo t t' thrdId loc v);
+          (mo === !!MemOrder.RLX) &&& (store_rlxo t t' thrdId loc v);
+          (mo === !!MemOrder.NA ) &&& (store_nao  t t' thrdId loc v);
+        ]);
 
       fresh (thrdId loc mo v)
         (label === Label.datarace thrdId mo loc)

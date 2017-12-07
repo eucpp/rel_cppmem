@@ -397,6 +397,9 @@ module Term =
 
       fresh (t1 t2)
         (t === par t1 t2);
+
+      fresh (rs)
+        (t === return rs);
     ]
 
     let rec irreducibleo t = (t === skip ())

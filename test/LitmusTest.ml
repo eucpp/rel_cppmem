@@ -311,7 +311,7 @@ let test_MP_CoRR = litmus_test_RA
 
 open Printf
 
-let _ =
+(* let _ =
   let regs = ["r1"; "r2"; "r3"; "r4"] in
   let locs = ["x"] in
   let mem = List.map (fun l -> (l, 0)) locs in
@@ -322,7 +322,27 @@ let _ =
       (fun i o -> safeo_RA o)
       prog_CoRR
   in
-  if Stream.is_empty stream then printf "OK\n" else printf "ERROR\n"
+  if Stream.is_empty stream then printf "OK\n" else printf "ERROR\n";
+  report_counters () *)
+
+let _ =
+  let regs = ["r1"; "r2"; "r3"; "r4"] in
+  let locs = ["x"] in
+  let mem = List.map (fun l -> (l, 0)) locs in
+  let stream =
+    Query.exec
+      ReleaseAcquire.intrpo
+      prog_CoRR
+      (ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs ~mem)
+      (* (fun i o -> safeo_RA o) *)
+  in
+  (* if Stream.is_empty stream then printf "OK\n" else printf "ERROR\n"; *)
+  let module Trace = Utils.Trace(ReleaseAcquire.State) in
+  Stream.iter (Trace.trace Format.std_formatter) stream;
+  report_counters ()
+
+
+
 
 (* let test_CoRR_rlx step = test_prog step ~negative:true prog_CoRR_rlx ["((1, 2), (2, 1))"; "((2, 1), (1, 2))"] *)
 

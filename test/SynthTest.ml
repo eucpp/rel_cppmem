@@ -46,10 +46,11 @@ let rec stmto ?(loco= fun x -> success) t = conde [
 
     ] and seq_stmto ?(loco=fun x -> success) t = conde [
       (stmto ~loco t);
-      (* fresh (t1 t2)
+
+      fresh (t1 t2)
         (t === seq t1 t2)
         (stmto ~loco t1)
-        (seq_stmto ~loco t2) *)
+        (seq_stmto ~loco t2)
     ]
 
 let mp_sketch = fun h1 h2 -> <:cppmem<
@@ -61,8 +62,10 @@ let mp_sketch = fun h1 h2 -> <:cppmem<
     |||
         (* repeat r1 := f_acq until r1; *)
         ? h2;
-        r2 := m_na
-    }}}
+        r2 := m_na;
+        return (r2)
+    }}};
+    assert (r2 = 1)
 >>
 
 let mp_tplo t =
@@ -76,12 +79,12 @@ let _ =
   run q
     (fun q  ->
       fresh (t h1 h2 i o p s v)
-        (seq_stmto ~loco:((===) (loc "f")) h1)
-        (seq_stmto ~loco:((===) (loc "f")) h2)
         (q === t)
         (t === mp_sketch h1 h2)
         (i === ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs:["r1"; "r2"] ~mem:[("x", 0); ("y", 0); ("f", 0); ("m", 0)])
         (o === ReleaseAcquire.State.mem s)
+        (seq_stmto (*~loco:((===) (loc "f"))*) h1)
+        (seq_stmto (*~loco:((===) (loc "f"))*) h2)
         (* (ReleaseAcquire.Memory.shapeo s [loc "x"; loc "y"; loc "f"; loc "m"])
         (ReleaseAcquire.Memory.checko s (loc "x") v)
         (ReleaseAcquire.Memory.checko s (loc "y") v) *)

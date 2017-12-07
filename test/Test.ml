@@ -9,8 +9,8 @@ let tests =
     ParserTest.tests;
     PrettyPrinterTest.tests;
     RulesTest.tests; *)
-    (* LitmusTest.tests; *)
-    SynthTest.tests;
+    LitmusTest.tests;
+    (* SynthTest.tests; *)
     (* SynthesisTest.tests; *)
   ]
 

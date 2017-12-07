@@ -567,9 +567,9 @@ module LocStory =
     let loado t last_ts ts value vf =
       fresh (story tsnext visible msg)
         (t === loc_story tsnext story)
+        (msg === Cell.cell ts value vf)
         (MiniKanrenStd.List.filtero (visibleo last_ts) story visible)
         (MiniKanrenStd.List.membero visible msg)
-        (msg === Cell.cell ts value vf)
 
     let storeo t t' value vf =
       fresh (ts ts' story story')
