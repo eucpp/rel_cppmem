@@ -138,7 +138,7 @@ module Basic =
       (t === seq (skip ()) t') &&&
       (label === Label.empty ())
 
-    let all = [asserto; asgno; ifo; whileo; repeato; seqo]
+    let all = [seqo; asgno; ifo; whileo; repeato; asserto;]
 
   end
 

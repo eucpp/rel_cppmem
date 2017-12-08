@@ -151,8 +151,11 @@ module Make (M : Memory) =
       (lift_plug Lang.plugo)
       (List.map lift_rule Rules.Basic.all)
 
-    let rec thrd_local_evalo thrdId =
-      let irreducibleo = Node.lift_tpred @@ fun term ->
+    let thrd_local_rules = List.map lift_rule (Rules.Basic.all)
+    let thrd_inter_rules = List.map lift_rule (Rules.ThreadSpawning.all @ Rules.Atomic.all)
+
+    let thrd_local_evalo =
+      let irreducibleo thrdId = Node.lift_tpred @@ fun term ->
         fresh (ctx rdx)
           (Lang.thrd_splito thrdId term ctx rdx)
           (conde [
@@ -160,31 +163,52 @@ module Make (M : Memory) =
             (Lang.Term.thrd_inter_termo rdx);
           ])
       in
-      Semantics.Reduction.make_eval ~irreducibleo (thrd_local_stepo thrdId)
+      (* Semantics.Reduction.make_eval ~irreducibleo (thrd_local_stepo thrdId) *)
+      let evalo_norec evalo thrdId t t'' = conde [
+        fresh (ctx rdx)
+          ((lift_split @@ Lang.thrd_splito thrdId)  t ctx rdx)
+          (conde [
+            fresh (p s)
+              (rdx === Node.cfg p s)
+              (t'' === t)
+              ((Lang.Term.irreducibleo p) ||| (Lang.Term.thrd_inter_termo p));
+
+            fresh (rdx' t')
+              (conde @@ List.map (fun rule -> rule ctx rdx rdx') thrd_local_rules)
+              ((lift_plug Lang.plugo) ctx rdx' t')
+              (evalo thrdId t' t'');
+          ])
+
+
+        (* (t === t'') &&& (irreducibleo thrdId t);
+
+        fresh (t')
+          (thrd_local_stepo thrdId t t')
+          (evalo thrdId t' t''); *)
+      ] in
+      Tabling.(tabledrec three) evalo_norec
 
   let thrd_inter_stepo thrdId = Semantics.Reduction.make_step
     (lift_split @@ thrd_splito thrdId)
     (lift_plug Lang.plugo)
     (List.map lift_rule (Rules.ThreadSpawning.all @ Rules.Atomic.all))
 
-  let thrd_local_rules = List.map lift_rule (Rules.Basic.all)
-  let thrd_inter_rules = List.map lift_rule (Rules.ThreadSpawning.all @ Rules.Atomic.all)
-
   let stepo t t' =
-    fresh (ctx rdx rdx' p s thrdId)
+    fresh (ctx rdx rdx' thrdId t'')
       ((lift_split splito) t ctx rdx)
-      (rdx === Node.cfg p s)
+      ((lift_plug plugo) ctx rdx' t'')
+      (* (rdx === Node.cfg p s) *)
       (conde [
-        fresh (rdx'' t'')
-          (Lang.Term.thrd_local_termo p)
-          (conde @@ List.map (fun rule -> rule ctx rdx rdx'') thrd_local_rules)
-          ((lift_plug plugo) ctx rdx'' t'')
-          (Rules.Context.thrdIdo ctx thrdId)
+          (* (Lang.Term.thrd_local_termo p) *)
+          (conde @@ List.map (fun rule -> rule ctx rdx rdx') thrd_local_rules) &&&
+          (* ((lift_plug plugo) ctx rdx'' t'') *)
+          (Rules.Context.thrdIdo ctx thrdId) &&&
           (thrd_local_evalo thrdId t'' t');
 
-        (Lang.Term.thrd_inter_termo p) &&&
-        ((lift_plug plugo) ctx rdx' t') &&&
-        (conde @@ List.map (fun rule -> rule ctx rdx rdx') thrd_inter_rules);
+        (* (Lang.Term.thrd_inter_termo p) &&& *)
+        (* ((lift_plug plugo) ctx rdx' t') &&& *)
+        (conde @@ List.map (fun rule -> rule ctx rdx rdx') thrd_inter_rules) &&&
+        (t' === t'');
       ])
 
   (* let stepo t t' = conde [

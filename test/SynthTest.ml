@@ -38,11 +38,11 @@ let rec stmto ?(loco= fun x -> success) t = conde [
         (r === reg "r1")
         (t === repeat (load mo x r) (var r));
 
-      (* fresh (e t1 t2)
+      fresh (e t1 t2)
         (t === if' e t1 t2)
         (expr_tplo e)
         (seq_stmto ~loco t1)
-        (seq_stmto ~loco t2); *)
+        (seq_stmto ~loco t2);
 
     ] and seq_stmto ?(loco=fun x -> success) t = conde [
       (stmto ~loco t);
@@ -81,18 +81,18 @@ let _ =
       fresh (t h1 h2 i o p s v)
         (q === t)
         (t === mp_sketch h1 h2)
-        (i === ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs:["r1"; "r2"] ~mem:[("x", 0); ("y", 0); ("f", 0); ("m", 0)])
+        (i === ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs:["r1"; "r2"] ~mem:[("f", 0); ("m", 0)])
         (o === ReleaseAcquire.State.mem s)
-        (seq_stmto (*~loco:((===) (loc "f"))*) h1)
-        (seq_stmto (*~loco:((===) (loc "f"))*) h2)
+        (* (seq_stmto (*)~loco:((===) (loc "f"))*) h1) *)
+        (* (seq_stmto (*)~loco:((===) (loc "f"))*) h2) *)
         (* (ReleaseAcquire.Memory.shapeo s [loc "x"; loc "y"; loc "f"; loc "m"])
         (ReleaseAcquire.Memory.checko s (loc "x") v)
         (ReleaseAcquire.Memory.checko s (loc "y") v) *)
         (ReleaseAcquire.intrpo t i o)
-      ?~(fresh (o e m)
+      (* ?~(fresh (o e m)
           (o === ReleaseAcquire.State.error e m)
           (ReleaseAcquire.intrpo t i o)
-        )
+        ) *)
     )
     (fun qs -> qs)
     (* Query.synth
