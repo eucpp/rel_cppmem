@@ -10,44 +10,50 @@ open Lang.Register
 open Lang.Value
 open MemoryModel
 
-let litmus_test_exists ?pprint ~intrpo ~name ~prog ~initstate ~asserto : test_fun = fun test_ctx ->
-  let inputo s = (s === initstate) in
-  let stream = Query.angelic intrpo inputo asserto prog in
-  if not @@ Stream.is_empty stream then
-    ()
-  else begin
-    let ff = Format.std_formatter in
-    Format.fprintf ff "Litmus test %s fails!@;" name;
-    begin match pprint with
-      | Some pprint ->
-        let outs = Query.exec intrpo prog initstate in
-        Format.fprintf ff "List of outputs:@;";
-        (* input is irrelevant for litmus test, we show only final state *)
-        Stream.iter (fun out -> Format.fprintf ff "%a@;" pprint out) outs
-      | None -> ()
-    end;
-    assert_failure @@ ""
-  end
-
-let litmus_test_forall ?pprint ~intrpo ~name ~prog ~initstate ~asserto : test_fun = fun test_ctx ->
-  let inputo s = (s === initstate) in
-  let asserto _ output = asserto output in
-  let stream = Query.verify intrpo inputo asserto prog in
-  if Stream.is_empty stream then
-    ()
-  else begin
-    let ff = Format.std_formatter in
-    Format.fprintf ff "Litmus test %s fails!@;" name;
-    begin match pprint with
-      | Some pprint ->
-        let cexs = Stream.take stream in
-        Format.fprintf ff "List of counterexamples:@;";
-        (* input is irrelevant for litmus test, we show only final state *)
-        List.iter (fun (_, cex) -> Format.fprintf ff "%a@;" pprint cex) cexs
-      | None -> ()
-    end;
-    assert_failure @@ ""
+let litmus_test_exists ?pprint ~intrpo ~name ~prog ~initstate ~asserto =
+  let test () =
+    let inputo s = (s === initstate) in
+    let stream = Query.angelic intrpo inputo asserto prog in
+    if not @@ Stream.is_empty stream then
+      Test.Ok
+    else begin
+      let ff = Format.std_formatter in
+      Format.fprintf ff "Litmus test %s fails!@;" name;
+      begin match pprint with
+        | Some pprint ->
+          let outs = Query.exec intrpo prog initstate in
+          Format.fprintf ff "List of outputs:@;";
+          (* input is irrelevant for litmus test, we show only final state *)
+          Stream.iter (fun out -> Format.fprintf ff "%a@;" pprint out) outs
+        | None -> ()
+      end;
+      Test.Fail ""
     end
+  in
+  Test.({ name; test })
+
+let litmus_test_forall ?pprint ~intrpo ~name ~prog ~initstate ~asserto =
+  let test () =
+    let inputo s = (s === initstate) in
+    let asserto _ output = asserto output in
+    let stream = Query.verify intrpo inputo asserto prog in
+    if Stream.is_empty stream then
+      Test.Ok
+    else begin
+      let ff = Format.std_formatter in
+      Format.fprintf ff "Litmus test %s fails!@;" name;
+      begin match pprint with
+        | Some pprint ->
+          let cexs = Stream.take stream in
+          Format.fprintf ff "List of counterexamples:@;";
+          (* input is irrelevant for litmus test, we show only final state *)
+          List.iter (fun (_, cex) -> Format.fprintf ff "%a@;" pprint cex) cexs
+        | None -> ()
+      end;
+      Test.Fail ""
+    end
+  in
+  Test.({ name; test })
 
 type litmus_test_tag = Exists | Forall
 
@@ -309,8 +315,6 @@ let test_MP_CoRR = litmus_test_RA
   ~tag:Forall
   ~asserto:safeo_RA
 
-open Printf
-
 (* let _ =
   let regs = ["r1"; "r2"; "r3"; "r4"] in
   let locs = ["x"] in
@@ -325,7 +329,7 @@ open Printf
   if Stream.is_empty stream then printf "OK\n" else printf "ERROR\n";
   report_counters () *)
 
-let _ =
+(* let _ =
   let regs = ["r1"; "r2"; "r3"; "r4"] in
   let locs = ["x"] in
   let mem = List.map (fun l -> (l, 0)) locs in
@@ -339,9 +343,7 @@ let _ =
   (* if Stream.is_empty stream then printf "OK\n" else printf "ERROR\n"; *)
   let module Trace = Utils.Trace(ReleaseAcquire.State) in
   Stream.iter (Trace.trace Format.std_formatter) stream;
-  report_counters ()
-
-
+  report_counters () *)
 
 
 (* let test_CoRR_rlx step = test_prog step ~negative:true prog_CoRR_rlx ["((1, 2), (2, 1))"; "((2, 1), (1, 2))"] *)
@@ -408,18 +410,18 @@ let promisingStep =
 
 let tests =
   "Litmus">::: [
-    "RelAcq">::: [
-      (* "SW">:: test_SW_RA;
-      "SB">:: test_SB_RA;
-      "LB">:: test_LB_RA;
-      "DR1">:: test_DR1_RA;
-      "DR2">:: test_DR2_RA;
-      "LB+rlx">:: test_LB_RA_rlx;
-      "test_MP_RA">:: test_MP_RA;
-      "test_MP_RA+rlx1">:: test_MP_RA_rlx1;
-      "test_MP_RA+rlx2">:: test_MP_RA_rlx2;
-      "test_MP_RA_rel_seq">:: test_MP_RA_rel_seq;
-      "test_MP_CoRR">: OUnitTest.TestCase (OUnitTest.Long, test_MP_CoRR); *)
+    "RelAcq">::: List.map Test.ounit_test [
+      test_SW_RA;
+      test_SB_RA;
+      test_LB_RA;
+      test_DR1_RA;
+      test_DR2_RA;
+      test_LB_RA_rlx;
+      test_MP_RA;
+      test_MP_RA_rlx1;
+      test_MP_RA_rlx2;
+      test_MP_RA_rel_seq;
+      test_MP_CoRR;
     ]
 
     (* "DR_1">:: test_data_race_1 rlxStep;

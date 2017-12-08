@@ -1,18 +1,14 @@
 open OUnit2
-open Memory
 
-let tests =
-  "rel_cppmem">::: [
-    (* LangTest.tests;
-    VarListTest.tests;
-    MemoryTest.tests;
-    ParserTest.tests;
-    PrettyPrinterTest.tests;
-    RulesTest.tests; *)
-    (* LitmusTest.tests; *)
-    SynthTest.tests;
-    (* SynthesisTest.tests; *)
-  ]
+type result = Ok | Fail of string
 
-let () =
-  run_test_tt_main tests
+type testcase =
+  { name : string
+  ; test : unit -> result
+  }
+
+let ounit_test {name; test} =
+  name >:: fun test_ctx -> match test () with Ok -> () | Fail s -> assert_failure s
+
+let run {name; test} =
+  let res = test () in ()

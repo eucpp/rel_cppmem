@@ -168,10 +168,10 @@ module Make (M : Memory) =
         fresh (ctx rdx)
           ((lift_split @@ Lang.thrd_splito thrdId)  t ctx rdx)
           (conde [
-            fresh (p s)
+            fresh (p s err m)
               (rdx === Node.cfg p s)
               (t'' === t)
-              ((Lang.Term.irreducibleo p) ||| (Lang.Term.thrd_inter_termo p));
+              ((Lang.Term.irreducibleo p) ||| (Lang.Term.thrd_inter_termo p) ||| (s === State.error err m));
 
             fresh (rdx' t')
               (conde @@ List.map (fun rule -> rule ctx rdx rdx') thrd_local_rules)
@@ -236,10 +236,10 @@ module Make (M : Memory) =
         ]); *)
       (* ]) *)
 
-  (* let stepo = Semantics.Reduction.make_step
+  let stepo = Semantics.Reduction.make_step
     (lift_split Lang.splito)
     (lift_plug Lang.plugo)
-    (List.map lift_rule (Rules.Basic.all @ Rules.Atomic.all @ Rules.ThreadSpawning.all)) *)
+    (List.map lift_rule (Rules.Basic.all @ Rules.Atomic.all @ Rules.ThreadSpawning.all))
 
   let irreducibleo t =
     fresh (prog state err m)

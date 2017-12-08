@@ -105,9 +105,13 @@ module RegisterStorage =
       (k === k') &&& (v' === Lang.Value.integer 0)
     )
 
+    (* let copyo =  *)
+
     let spawno regs regs1 regs2 =
-      (regs1 === regs2) &&&
-      (reseto regs regs1)
+      (* (regs1 === regs2) &&&
+      (reseto regs regs1) *)
+      (regs === regs1) &&& (regs1 === regs2)
+      (* (reseto regs regs1) *)
 
     let joino regs regs' regs1 regs2 =
       (regs === regs')
