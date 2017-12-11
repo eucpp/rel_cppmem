@@ -515,7 +515,7 @@ let rec splito term ctx rdx = Term.(Context.(ThreadID.(conde [
     (rdx === term)
     (ctx === hole h)
     (conde [
-      (irreducibleo term);
+      (* (irreducibleo term); *)
 
       fresh (e)
         (term === assertion e);
@@ -563,20 +563,24 @@ let rec splito term ctx rdx = Term.(Context.(ThreadID.(conde [
     (ctx' === context t' h thrdId')
     (conde [
       fresh (t1 t2)
+        (t1 =/= skip ())
         (term === seq t1 t2)
         (t    === seq t' t2)
         (thrdId === thrdId')
-      ?~(irreducibleo t1)
+        (* (irreducibleo t1) *)
         (splito t1 ctx' rdx);
 
       fresh (t1 t2)
         (term === par t1 t2)
-      ?~((irreducibleo t1) &&& (irreducibleo t2))
+      (* ?~((irreducibleo t1) &&& (irreducibleo t2)) *)
         (conde [
+            (t1 =/= skip ()) &&&
             (t === par t' t2) &&&
             (thrdId === pathl thrdId') &&&
+            (* () *)
             (splito t1 ctx' rdx);
 
+            (t2 =/= skip ()) &&&
             (t === par t1 t') &&&
             (thrdId === pathr thrdId') &&&
             (splito t2 ctx' rdx);

@@ -131,14 +131,21 @@ module Reduction =
       Tabling.(tabledrec two) patho_norec
 
     let make_eval ~irreducibleo stepo =
-      let evalo_norec evalo t t'' = conde [
+      let evalo_norec evalo t t'' =
+        (* fresh (t')
+          (ifte ~cond:(stepo t t')
+            ~th:(evalo t' t'')
+            ~el:(t === t'')
+          ) *)
+      conde [
         (irreducibleo t) &&& (t === t'');
 
         fresh (t')
-        ?~(irreducibleo t)
+        (* ?~(irreducibleo t) *)
           (stepo t t')
           (evalo t' t'');
-      ] in
+      ]
+      in
       Tabling.(tabledrec two) evalo_norec
   end
 

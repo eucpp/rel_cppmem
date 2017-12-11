@@ -620,8 +620,8 @@ module MemoryRA : Memory =
 
     let not_last_tso story loc ts =
       fresh (last_ts)
-        (MemStory.last_tso story loc last_ts)
         (ts =/= last_ts)
+        (MemStory.last_tso story loc last_ts)
 
     let na_dataraceo t t' thrdId loc =
       fresh (tree story na sc thrd ts)
