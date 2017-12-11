@@ -30,7 +30,7 @@ let litmus_test_exists ?pprint ~intrpo ~name ~prog ~initstate ~asserto =
       Test.Fail ""
     end
   in
-  Test.({ name; test })
+  Test.make_testcase ~name ~test
 
 let litmus_test_forall ?pprint ~intrpo ~name ~prog ~initstate ~asserto =
   let test () =
@@ -53,7 +53,7 @@ let litmus_test_forall ?pprint ~intrpo ~name ~prog ~initstate ~asserto =
       Test.Fail ""
     end
   in
-  Test.({ name; test })
+  Test.make_testcase ~name ~test
 
 type litmus_test_tag = Exists | Forall
 
@@ -408,7 +408,25 @@ let promisingStep =
   end : Rules.CppMemStep)
 *)
 
-let tests =
+let tests = Test.(
+  make_testsuite ~name:"Litmus" ~tests: [
+    make_testsuite ~name:"RelAcq" ~tests: [
+      test_SW_RA;
+      test_SB_RA;
+      test_LB_RA;
+      test_DR1_RA;
+      test_DR2_RA;
+      test_LB_RA_rlx;
+      test_MP_RA;
+      test_MP_RA_rlx1;
+      test_MP_RA_rlx2;
+      test_MP_RA_rel_seq;
+      test_MP_CoRR;
+    ]
+  ]
+)
+
+(* let tests =
   "Litmus">::: [
     "RelAcq">::: List.map Test.ounit_test [
       test_SW_RA;
@@ -422,7 +440,7 @@ let tests =
       test_MP_RA_rlx2;
       test_MP_RA_rel_seq;
       test_MP_CoRR;
-    ]
+    ] *)
 
     (* "DR_1">:: test_data_race_1 rlxStep;
     "DR_2">:: test_data_race_2 rlxStep;
@@ -440,5 +458,5 @@ let tests =
     "SB_sc">:: test_SB_sc scStep;
 
     "LB">:: test_LB promisingStep;
-    "LBd">:: test_LBd promisingStep; *)
-  ]
+    "LBd">:: test_LBd promisingStep;
+  ]*)

@@ -1,17 +1,14 @@
 open OUnit2
 
-let tests =
-  "rel_cppmem">::: [
-    (* LangTest.tests;
-    VarListTest.tests;
-    MemoryTest.tests;
-    ParserTest.tests;
-    PrettyPrinterTest.tests;
-    RulesTest.tests; *)
-    (* LitmusTest.tests; *)
-    SynthTest.tests;
-    (* SynthesisTest.tests; *)
+let tests = Test.(
+  make_testsuite ~name:"relcppmem" ~tests: [
+    LitmusTest.tests;
+    (* SynthTest.tests; *)
   ]
+)
 
 let () =
-  run_test_tt_main tests
+  (* Test.ounit_run tests *)
+
+  Test.simple_run tests;
+  MiniKanren.report_counters ()
