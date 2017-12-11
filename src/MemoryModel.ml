@@ -139,14 +139,14 @@ module Make (M : Memory) =
         (ctx  === Rules.Context.context ctx' rs)
         (plugo ctx' rdx' term')
 
-    let lift_rule rule ctx t t' =
+    let lift_rule rule ctx ctx' t t' =
       fresh (label prog prog' state state')
         (t  === Node.cfg prog  state )
         (t' === Node.cfg prog' state')
-        (rule label ctx prog prog')
+        (rule label ctx ctx' prog prog')
         (State.transitiono label state state')
 
-    let thrd_local_stepo thrdId = Semantics.Reduction.make_step
+    (* let thrd_local_stepo thrdId = Semantics.Reduction.make_step
       (lift_split @@ thrd_splito thrdId)
       (lift_plug Lang.plugo)
       (List.map lift_rule Rules.Basic.all)
@@ -191,9 +191,9 @@ module Make (M : Memory) =
   let thrd_inter_stepo thrdId = Semantics.Reduction.make_step
     (lift_split @@ thrd_splito thrdId)
     (lift_plug Lang.plugo)
-    (List.map lift_rule (Rules.ThreadSpawning.all @ Rules.Atomic.all))
+    (List.map lift_rule (Rules.ThreadSpawning.all @ Rules.Atomic.all)) *)
 
-  let stepo t t' =
+  (* let stepo t t' =
     fresh (ctx rdx rdx' thrdId t'')
       ((lift_split splito) t ctx rdx)
       ((lift_plug plugo) ctx rdx' t'')
@@ -209,7 +209,7 @@ module Make (M : Memory) =
         (* ((lift_plug plugo) ctx rdx' t') &&& *)
         (conde @@ List.map (fun rule -> rule ctx rdx rdx') thrd_inter_rules) &&&
         (t' === t'');
-      ])
+      ]) *)
 
   (* let stepo t t' = conde [
     fresh (thrdId)
@@ -241,13 +241,18 @@ module Make (M : Memory) =
     (lift_plug Lang.plugo)
     (List.map lift_rule (Rules.Basic.all @ Rules.Atomic.all @ Rules.ThreadSpawning.all))
 
-  let irreducibleo t =
+  (* let irreducibleo t =
     fresh (prog state err m)
       (t === Node.cfg prog state)
       (conde [
         (Lang.Term.irreducibleo prog);
         (state === State.error err m);
-      ])
+      ]) *)
+
+  let irreducibleo t =
+    fresh (prog state)
+      (t === Node.cfg prog state)
+      (Lang.Term.irreducibleo prog)
 
   let evalo = Semantics.Reduction.make_eval ~irreducibleo stepo
   (* let evalo = Semantics.Reduction.make_eval ~irreducibleo stepo *)

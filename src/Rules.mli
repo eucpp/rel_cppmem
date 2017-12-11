@@ -12,7 +12,7 @@ module Context :
   end
 
 type rule =
-  Lang.Label.ti -> Context.ti -> Lang.Term.ti -> Lang.Term.ti -> MiniKanren.goal
+  Lang.Label.ti -> Context.ti -> Context.ti -> Lang.Term.ti -> Lang.Term.ti -> MiniKanren.goal
 
 module Basic :
   sig

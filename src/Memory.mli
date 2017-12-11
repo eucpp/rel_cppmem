@@ -50,6 +50,8 @@ module RegisterStorage :
   sig
     include Utils.Logic
 
+    val empty : unit -> ti
+
     val allocate : Lang.Register.ti list -> ti
 
     val from_assoc : (Lang.Register.ti * Lang.Value.ti) list -> ti

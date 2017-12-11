@@ -31,6 +31,9 @@ module Context =
     let context ctx tls =
       inj @@ distrib @@ T.({ctx; tls})
 
+    let hole h =
+      inj @@ distrib @@ T.({ ctx = Lang.Context.hole h; tls = RegisterStorage.empty () })
+
     let regso ctx tls =
       fresh (ctx')
         (ctx === context ctx' tls)
@@ -42,7 +45,7 @@ module Context =
   end
 
 type rule =
-  Lang.Label.ti -> Context.ti -> Lang.Term.ti -> Lang.Term.ti -> MiniKanren.goal
+  Lang.Label.ti -> Context.ti -> Context.ti -> Lang.Term.ti -> Lang.Term.ti -> MiniKanren.goal
 
 let rec expr_evalo rs e v = Value.(conde [
   (e === const v);
@@ -91,10 +94,11 @@ let rec expr_evalo rs e v = Value.(conde [
 
 module Basic =
   struct
-    let asserto label ctx t t' =
-      fresh (e rs v)
+    let asserto label ctx ctx' t t' =
+      fresh (e rs v h)
         (t  === assertion e)
         (t' === skip ())
+        (ctx' === Context.hole h)
         (Context.regso ctx rs)
         (expr_evalo rs e v)
         (conde [
@@ -102,18 +106,20 @@ module Basic =
           (Lang.Value.not_nullo v) &&& (label === Label.empty ());
         ])
 
-    let asgno label ctx t t' =
+    let asgno label ctx ctx' t t' =
       fresh (r e v rs thrdId)
         (t  === asgn r e)
         (t' === skip ())
+        (ctx === ctx')
         (label === Label.regwrite thrdId r v)
         (Context.regso ctx rs)
         (expr_evalo rs e v)
         (Context.thrdIdo ctx thrdId)
 
-    let ifo label ctx t t' =
+    let ifo label ctx ctx' t t' =
       fresh (e v rs t1 t2)
         (t === if' e t1 t2)
+        (ctx === ctx')
         (label === Label.empty ())
         (Context.regso ctx rs)
         (expr_evalo rs e v)
@@ -122,20 +128,23 @@ module Basic =
           (Lang.Value.nullo v)     &&& (t' === t2);
         ])
 
-    let whileo label ctx t t' =
+    let whileo label ctx ctx' t t' =
       fresh (e body u)
         (t  === while' e body)
         (t' === if' e (seq body t) (skip ()))
+        (ctx === ctx')
         (label === Label.empty ())
 
-    let repeato label ctx t t' =
+    let repeato label ctx ctx' t t' =
       fresh (e body)
         (t  === repeat body e)
         (t' === seq body (while' (unop !!Uop.NOT e) body))
+        (ctx === ctx')
         (label === Label.empty ())
 
-    let seqo label ctx t t' =
+    let seqo label ctx ctx' t t' =
       (t === seq (skip ()) t') &&&
+      (ctx === ctx') &&&
       (label === Label.empty ())
 
     let all = [seqo; asgno; ifo; whileo; repeato; asserto;]
@@ -144,24 +153,27 @@ module Basic =
 
 module ThreadSpawning =
   struct
-    let spawno label ctx t t' =
+    let spawno label ctx ctx' t t' =
       fresh (t1 t2 thrdId)
        (t  === spw t1 t2)
        (t' === par t1 t2)
+       (ctx === ctx')
        (label === Label.spawn thrdId)
        (Context.thrdIdo ctx thrdId)
 
-    let joino label ctx t t' =
+    let joino label ctx ctx' t t' =
       fresh (t1 t2 thrdId)
         (t  === par t1 t2)
         (t' === skip ())
+        (ctx === ctx')
         (label === Label.join thrdId)
         (Context.thrdIdo ctx thrdId)
 
-    let returno label ctx t t' =
+    let returno label ctx ctx' t t' =
       fresh (t1 t2 thrdId rs)
         (t  === return rs)
         (t' === skip ())
+        (ctx === ctx')
         (label === Label.return thrdId rs)
         (Context.thrdIdo ctx thrdId)
 
@@ -170,26 +182,29 @@ module ThreadSpawning =
 
 module Atomic =
   struct
-    let loado label ctx t t' =
+    let loado label ctx ctx' t t' =
       fresh (mo l r thrdId)
         (t  === load mo l r)
         (t' === skip ())
+        (ctx === ctx')
         (label === Label.load thrdId mo l r)
         (Context.thrdIdo ctx thrdId)
 
-    let storeo label ctx t t' =
+    let storeo label ctx ctx' t t' =
       fresh (mo l e v rs thrdId)
         (t  === store mo l e)
         (t' === skip ())
+        (ctx === ctx')
         (label === Label.store thrdId mo l v)
         (Context.regso ctx rs)
         (expr_evalo rs e v)
         (Context.thrdIdo ctx thrdId)
 
-    let dataraceo label ctx t t' =
-      fresh (mo l r e thrdId)
+    let dataraceo label ctx ctx' t t' =
+      fresh (mo l r e thrdId h)
         ((t === load mo l r) ||| (t === store mo l e))
         (t' === skip ())
+        (ctx' === Context.hole h)
         (label === Label.datarace thrdId mo l)
         (Context.thrdIdo ctx thrdId)
 

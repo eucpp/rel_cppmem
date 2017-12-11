@@ -68,7 +68,7 @@ module Reduction :
 
     (** [rule context term term'] - substitutes [term] with [term'] in a [context] *)
     type ('tt, 'ct, 'tl, 'cl) rule =
-      ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
+      ('ct, 'cl) Context.ti -> ('ct, 'cl) Context.ti -> ('tt, 'tl) Term.ti -> ('tt, 'tl) Term.ti -> MiniKanren.goal
 
     (** [step term term'] - performs a step that substitutes [term] with [term'] *)
     type ('tt, 'tl) step =

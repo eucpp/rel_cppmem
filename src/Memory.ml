@@ -89,6 +89,8 @@ module RegisterStorage =
 
     type ti = (Lang.Register.tt, Lang.Value.tt, Lang.Register.tl, Lang.Value.tl) Storage.ti
 
+    let empty = MiniKanren.Std.nil
+
     let allocate = Storage.allocate (Lang.Value.integer 0)
 
     let from_assoc = Storage.from_assoc

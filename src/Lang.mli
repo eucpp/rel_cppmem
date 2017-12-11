@@ -147,6 +147,8 @@ module Context :
     type tl = (Term.tl, ThreadID.tl) T.t MiniKanren.logic
     type ti = (tt, tl) MiniKanren.injected
 
+    val hole : Term.ti -> ti
+
     val thrdIdo : ti -> ThreadID.ti -> MiniKanren.goal
   end
 
