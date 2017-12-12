@@ -14,7 +14,7 @@ OCB = ocamlbuild $(OCB_FLAGS)
 BYTE_TARGETS = relcppmem.cma
 NATIVE_TARGETS = relcppmem.cmxa
 
-.PHONY: all test clean install uninstall
+.PHONY: all relcppmem plugin test clean install uninstall
 
 all: relcppmem plugin
 

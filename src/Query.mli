@@ -1,8 +1,6 @@
 type ('at, 'bt, 'al, 'bl) assertion =
   ('at, 'al) Semantics.Input.ti -> ('bt, 'bl) Semantics.Output.ti -> MiniKanren.goal
 
-
-
 val exec :
   ('at, 'bt, 'ct, 'al, 'bl, 'cl) Semantics.interpreter ->
   ('at, 'al) Semantics.Prog.ti -> ('bt, 'bl) Semantics.Input.ti ->

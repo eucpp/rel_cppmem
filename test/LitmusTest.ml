@@ -12,46 +12,60 @@ open MemoryModel
 
 let litmus_test_exists ?pprint ~intrpo ~name ~prog ~initstate ~asserto =
   let test () =
-    let inputo s = (s === initstate) in
-    let stream = Query.angelic intrpo inputo asserto prog in
-    if not @@ Stream.is_empty stream then
-      Test.Ok
-    else begin
-      let ff = Format.std_formatter in
-      Format.fprintf ff "Litmus test %s fails!@;" name;
-      begin match pprint with
-        | Some pprint ->
-          let outs = Query.exec intrpo prog initstate in
-          Format.fprintf ff "List of outputs:@;";
-          (* input is irrelevant for litmus test, we show only final state *)
-          Stream.iter (fun out -> Format.fprintf ff "%a@;" pprint out) outs
-        | None -> ()
-      end;
-      Test.Fail ""
-    end
+    let ff = Format.std_formatter in
+    (* if Stream.is_empty @@ Query.exec intrpo prog initstate then
+      begin
+        Format.fprintf ff "Litmus test %s is not runnable:@;" name;
+        Test.Fail ""
+      end
+    else *)
+      let inputo s = (s === initstate) in
+      let stream = Query.angelic intrpo inputo asserto prog in
+      if not @@ Stream.is_empty stream then
+        Test.Ok
+      else begin
+        let ff = Format.std_formatter in
+        Format.fprintf ff "Litmus test %s fails!@;" name;
+        begin match pprint with
+          | Some pprint ->
+            let outs = Query.exec intrpo prog initstate in
+            Format.fprintf ff "List of outputs:@;";
+            (* input is irrelevant for litmus test, we show only final state *)
+            Stream.iter (fun out -> Format.fprintf ff "%a@;" pprint out) outs
+          | None -> ()
+        end;
+        Test.Fail ""
+      end
   in
   Test.make_testcase ~name ~test
 
 let litmus_test_forall ?pprint ~intrpo ~name ~prog ~initstate ~asserto =
   let test () =
-    let inputo s = (s === initstate) in
-    let asserto _ output = asserto output in
-    let stream = Query.verify intrpo inputo asserto prog in
-    if Stream.is_empty stream then
-      Test.Ok
-    else begin
-      let ff = Format.std_formatter in
-      Format.fprintf ff "Litmus test %s fails!@;" name;
-      begin match pprint with
-        | Some pprint ->
-          let cexs = Stream.take stream in
-          Format.fprintf ff "List of counterexamples:@;";
-          (* input is irrelevant for litmus test, we show only final state *)
-          List.iter (fun (_, cex) -> Format.fprintf ff "%a@;" pprint cex) cexs
-        | None -> ()
-      end;
-      Test.Fail ""
-    end
+    let ff = Format.std_formatter in
+    (* check that test is runnable *)
+    if Stream.is_empty @@ Query.exec intrpo prog initstate then
+      begin
+        Format.fprintf ff "Litmus test is not runnable:@;";
+        Test.Fail ""
+      end
+    else
+      let inputo s = (s === initstate) in
+      let asserto _ output = asserto output in
+      let stream = Query.verify intrpo inputo asserto prog in
+      if Stream.is_empty stream then
+        Test.Ok
+      else begin
+        Format.fprintf ff "Litmus test %s fails!@;" name;
+        begin match pprint with
+          | Some pprint ->
+            let cexs = Stream.take stream in
+            Format.fprintf ff "List of counterexamples:@;";
+            (* input is irrelevant for litmus test, we show only final state *)
+            List.iter (fun (_, cex) -> Format.fprintf ff "%a@;" pprint cex) cexs
+          | None -> ()
+        end;
+        Test.Fail ""
+      end
   in
   Test.make_testcase ~name ~test
 
