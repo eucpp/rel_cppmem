@@ -13,27 +13,20 @@ open Utils
 
 let tests = Test.(
   make_testsuite ~name:"relcppmem" ~tests: [
-    (* LitmusTest.tests; *)
+    LitmusTest.tests;
     (* SynthTest.tests; *)
   ]
 )
 
-let test_prog = <:cppmem<
-  spw {{{
-      x_rlx := 1;
-      f_rel := 1
-  |||
-      r1 := f_acq;
-      r2 := x_rlx;
-      assert (
-        (r1 = 0 && r2 = 0) ||
-        (r1 = 0 && r2 = 1) ||
-        (r1 = 1 && r2 = 1)
-      )
-  }}}
->>
+(* let test_prog = <:cppmem<
+  assert (
+    (r1 = 0 && r2 = 0) ||
+    (r1 = 0 && r2 = 1) ||
+    (r1 = 1 && r2 = 1)
+  )
+>> *)
 
-let _ =
+(* let _ =
   let module Trace = Utils.Trace(ReleaseAcquire.State) in
   let regs = ["r1"; "r2"; "r3"; "r4"] in
   let mem = [("x", 0); ("f", 0)] in
@@ -45,7 +38,8 @@ let _ =
       (ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs ~mem)
   in
   Stream.iter (Trace.trace Format.std_formatter) s;
-  report_counters ()
+  report_counters () *)
+
 
 let () =
   Test.ounit_run tests

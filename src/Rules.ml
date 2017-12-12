@@ -102,8 +102,8 @@ module Basic =
         (expr_evalo rs e v)
         (conde [
           fresh (h)
-            (Lang.Value.nullo v) &&&
-            (ctx' === Context.hole h) &&&
+            (Lang.Value.nullo v)
+            (ctx' === Context.hole h)
             (label === Label.assert_fail ());
 
           (Lang.Value.not_nullo v) &&& (ctx === ctx') &&& (label === Label.empty ());
