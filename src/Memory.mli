@@ -72,6 +72,8 @@ module ValueStorage :
 
     val from_assoc : (Lang.Loc.ti * Lang.Value.ti) list -> ti
 
+    val shapeo : ti -> Lang.Loc.ti list -> MiniKanren.goal
+
     val reado  : ti ->       Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
     val writeo : ti -> ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
   end

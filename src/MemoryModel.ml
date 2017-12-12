@@ -216,8 +216,6 @@ module Make (M : Memory) =
     in
     Semantics.Reduction.make_eval ~irreducibleo stepo
 
-  (* let evalo = Semantics.Reduction.make_path stepo *)
-
   let intrpo p i o =
     fresh (s s' p')
       (s  === Node.cfg p  i)
@@ -226,207 +224,180 @@ module Make (M : Memory) =
 
   end
 
-(* module SequentialConsistent =
+module MemorySC =
   struct
-    module State =
-      struct
-        module T = struct
-          type ('a, 'b) t = {
-            thrds : 'a;
-            sc    : 'b;
-          }
+    module T = struct
+      type ('a, 'b) t = {
+        thrds : 'a;
+        sc    : 'b;
+      }
 
-          let fmap fa fb {thrds; sc} = {
-            thrds = fa thrds;
-            sc = fb sc;
-          }
-        end
+      let fmap fa fb {thrds; sc} = {
+        thrds = fa thrds;
+        sc = fb sc;
+      }
+    end
 
-        module TLS = ThreadLocalStorage(RegisterStorage)
+    module TLS = ThreadLocalStorage(RegisterStorage)
 
-        type tt = (
-          TLS.tt,
-          ValueStorage.tt
-        ) T.t
+    type tt = (
+      TLS.tt,
+      ValueStorage.tt
+    ) T.t
 
-        type tl = inner MiniKanren.logic
-          and inner = (
-            TLS.tl,
-            ValueStorage.tl
-          ) T.t
+    type tl = inner MiniKanren.logic
+      and inner = (
+        TLS.tl,
+        ValueStorage.tl
+      ) T.t
 
-        type ti = (tt, tl) MiniKanren.injected
+    type ti = (tt, tl) MiniKanren.injected
 
-        type lt = Lang.Label.tt
-        type ll = Lang.Label.tl
-          and linner = Lang.Label.inner
-        type li = Lang.Label.ti
+    type lt = Lang.Label.tt
+    type ll = Lang.Label.tl
+      and linner = Lang.Label.inner
+    type li = Lang.Label.ti
 
-        include Fmap2(T)
+    include Fmap2(T)
 
-        let state thrds sc = inj @@ distrib @@ T.({thrds; sc;})
+    let state thrds sc = inj @@ distrib @@ T.({thrds; sc;})
 
-        let reify = reify (TLS.reify) (ValueStorage.reify)
+    let reify = reify (TLS.reify) (ValueStorage.reify)
 
-        let inj x =
-          to_logic @@ T.fmap (TLS.inj) (ValueStorage.inj) x
+    let init ~regs ~mem =
+      let mem   = List.map (fun (l, v) -> (Loc.loc l, Value.integer v)) mem in
+      let regs  = List.map Register.reg regs in
+      let thrd  = RegisterStorage.allocate regs in
+      let thrds = TLS.leaf thrd in
+      let sc    = ValueStorage.from_assoc mem in
+      state thrds sc
 
-        let init ~regs ~locs =
-          let thrd  = RegisterStorage.allocate regs in
-          let thrds = TLS.leaf thrd in
-          let sc    = ValueStorage.allocate locs in
-          state thrds sc
+    let pprint =
+      let pp ff {T.thrds = thrds; T.sc = sc;} =
+        Format.fprintf ff "@[<v>%a@;@[<v>Memory :@;<1 4>%a@;@]@]"
+          TLS.pprint thrds
+          ValueStorage.pprint sc
+      in
+      pprint_logic pp
 
-        let pprint =
-          let pp ff {T.thrds = thrds; T.sc = sc;} =
-            Format.fprintf ff "@[<v>%a@;@[<v>Memory :@;<1 4>%a@;@]@]"
-              TLS.pprint thrds
-              ValueStorage.pprint sc
-          in
-          pprint_logic pp
+    let get_thrdo t thrdId thrd =
+      fresh (tree sc)
+        (t === state tree sc)
+        (TLS.geto tree thrdId thrd)
 
-        let get_thrdo t thrdId thrd =
-          fresh (tree sc)
-            (t === state tree sc)
-            (TLS.geto tree thrdId thrd)
+    let set_thrdo t t' thrdId thrd =
+      fresh (tree tree' sc)
+        (t  === state tree  sc)
+        (t' === state tree' sc)
+        (TLS.seto tree tree' thrdId thrd)
 
-        let set_thrdo t t' thrdId thrd =
-          fresh (tree tree' sc)
-            (t  === state tree  sc)
-            (t' === state tree' sc)
-            (TLS.seto tree tree' thrdId thrd)
+    let regwriteo t t' thrdId var value =
+      fresh (thrd thrd')
+        (get_thrdo t    thrdId thrd )
+        (set_thrdo t t' thrdId thrd')
+        (RegisterStorage.writeo thrd thrd' var value)
 
-        let regreado t t' thrdId var value =
-          fresh (thrd)
-            (t === t')
-            (get_thrdo t thrdId thrd)
-            (RegisterStorage.reado thrd var value)
+    let spawno t t' thrdId =
+      fresh (tree tree' sc)
+        (t  === state tree  sc)
+        (t' === state tree' sc)
+        (TLS.spawno tree tree' thrdId)
 
-        let regwriteo t t' thrdId var value =
-          fresh (thrd thrd')
-            (get_thrdo t    thrdId thrd )
-            (set_thrdo t t' thrdId thrd')
-            (RegisterStorage.writeo thrd thrd' var value)
+    let joino t t' thrdId =
+      fresh (tree tree' sc)
+        (t  === state tree  sc)
+        (t' === state tree' sc)
+        (TLS.joino tree tree' thrdId)
 
-        let load_sco t t' thrdId loc value =
-          fresh (tree sc)
-            (t === t')
-            (t === state tree sc)
-            (ValueStorage.reado sc loc value)
+    let returno t t' thrdId rs =
+      let rec helper thrd pthrd pthrd'' regs = conde [
+        (regs === Std.nil ()) &&& (pthrd === pthrd'');
 
-        let store_sco t t' thrdId loc value =
-          fresh (tree sc sc')
-            (t  === state tree sc )
-            (t' === state tree sc')
-            (ValueStorage.writeo sc sc' loc value)
+        fresh (r rs pthrd' v)
+          (regs === Std.List.conso r rs)
+          (RegisterStorage.reado  thrd r v)
+          (RegisterStorage.writeo pthrd pthrd' r v)
+          (helper thrd pthrd' pthrd'' rs);
+      ] in
+      fresh (tree sc parentThrdId thrd pthrd pthrd')
+        (t  === state tree sc)
+        (ThreadID.parento parentThrdId thrdId)
+        (get_thrdo t    thrdId       thrd  )
+        (get_thrdo t    parentThrdId pthrd )
+        (set_thrdo t t' parentThrdId pthrd')
+        (helper thrd pthrd pthrd' rs)
 
-        let cas_sco t t' thrdId loc expected desired value =
-        fresh (tree sc sc' b)
-          (t  === state tree sc )
-          (t' === state tree sc')
-          (ValueStorage.reado sc loc value)
-          (Lang.Value.eqo value expected b)
-          (conde [
-            (b === !!true)  &&& (ValueStorage.writeo sc sc' loc desired);
-            (b === !!false) &&& (sc === sc');
-          ])
+    let load_sco t t' thrdId loc value =
+      fresh (tree sc)
+        (t === t')
+        (t === state tree sc)
+        (ValueStorage.reado sc loc value)
 
-        let spawno t t' thrdId =
-          fresh (tree tree' sc)
-            (t  === state tree  sc)
-            (t' === state tree' sc)
-            (TLS.spawno tree tree' thrdId)
+    let store_sco t t' thrdId loc value =
+      fresh (tree sc sc')
+        (t  === state tree sc )
+        (t' === state tree sc')
+        (ValueStorage.writeo sc sc' loc value)
 
-        let joino t t' thrdId =
-          fresh (tree tree' sc)
-            (t  === state tree  sc)
-            (t' === state tree' sc)
-            (TLS.joino tree tree' thrdId)
+    let cas_sco t t' thrdId loc expected desired value =
+    fresh (tree sc sc' b)
+      (t  === state tree sc )
+      (t' === state tree sc')
+      (ValueStorage.reado sc loc value)
+      (conde [
+        (Lang.Value.eqo value expected) &&& (ValueStorage.writeo sc sc' loc desired);
+        (Lang.Value.nqo value expected) &&& (sc === sc');
+      ])
 
-        let transitiono label t t' = conde [
-          (label === Label.empty ()) &&& (t === t');
+    let regso t thrdId rs =
+      fresh (thrd)
+        (get_thrdo t thrdId rs)
 
-          fresh (thrdId)
-            (label === Label.spawn thrdId)
-            (spawno t t' thrdId);
+    let shapeo t locs =
+      fresh (tree story na sc)
+        (t === state tree sc)
+        (ValueStorage.shapeo sc locs)
 
-          fresh (thrdId)
-            (label === Label.join thrdId)
-            (joino t t' thrdId);
+    let checko t loc v =
+      fresh (tree sc)
+        (t === state tree sc)
+        (ValueStorage.reado sc loc v)
 
-          fresh (thrdId reg v)
-            (label === Label.regread thrdId reg v)
-            (regreado t t' thrdId reg v);
+    let transitiono label t t' = conde [
+      (label === Label.empty ()) &&& (t === t');
 
-          fresh (thrdId reg v)
-            (label === Label.regwrite thrdId reg v)
-            (regwriteo t t' thrdId reg v);
+      fresh (thrdId)
+        (label === Label.spawn thrdId)
+        (spawno t t' thrdId);
 
-          fresh (thrdId loc v)
-            (label === Label.load thrdId !!MemOrder.SC loc v)
-            (load_sco t t' thrdId loc v);
+      fresh (thrdId)
+        (label === Label.join thrdId)
+        (joino t t' thrdId);
 
-          fresh (thrdId loc v)
-            (label === Label.store thrdId !!MemOrder.SC loc v)
-            (store_sco t t' thrdId loc v);
+      fresh (thrdId rs)
+        (label === Label.return thrdId rs)
+        (returno t t' thrdId rs);
 
-          fresh (thrdId loc e d v)
-            (label === Label.cas thrdId !!MemOrder.SC !!MemOrder.SC loc e d v)
-            (cas_sco t t' thrdId loc e d v);
-        ]
-      end
+      fresh (thrdId reg v)
+        (label === Label.regwrite thrdId reg v)
+        (regwriteo t t' thrdId reg v);
 
-    module TLSNode = Semantics.TLSNode(Lang.Term)(State)
+      fresh (t'' thrdId loc reg v)
+        (label === Label.load thrdId !!MemOrder.SC loc reg)
+        (regwriteo t t'' thrdId reg v)
+        (load_sco t'' t' thrdId loc v);
 
-    let thrd_local_splito thrdId term result =
-      fresh (result')
-        (thrd_splito thrdId term result')
-        (conde [
-          fresh (ctx rdx)
-            (result' === Semantics.Split.split ctx rdx)
-            (conde [
-              (result === result') &&& (Lang.Term.thrd_local_termo rdx);
+      fresh (thrdId loc v)
+        (label === Label.store thrdId !!MemOrder.SC loc v)
+        (store_sco t t' thrdId loc v);
 
-              (result === Semantics.Split.undef ()) &&& (Lang.Term.thrd_inter_termo rdx);
-            ]);
+      fresh (thrdId loc e d v)
+        (label === Label.cas thrdId !!MemOrder.SC !!MemOrder.SC loc e d v)
+        (cas_sco t t' thrdId loc e d v);
+    ]
+  end
 
-          (result' === Semantics.Split.undef ());
-        ])
-
-    let thrd_local_stepo thrdId = Semantics.make_step
-      (TLSNode.lift_split @@ thrd_local_splito thrdId)
-      (TLSNode.lift_plug Lang.plugo)
-      (List.map (fun rule -> TLSNode.lift_rule rule) Rules.Basic.all)
-
-    let thrd_local_evalo thrdId = Semantics.make_eval @@ thrd_local_stepo thrdId
-
-    let thrd_inter_splito thrdId term result =
-      fresh (result')
-        (thrd_splito thrdId term result')
-        (conde [
-          fresh (ctx rdx)
-            (result' === Semantics.Split.split ctx rdx)
-            (conde [
-              (result === Semantics.Split.undef ()) &&& (Lang.Term.thrd_local_termo rdx);
-
-              (result === result') &&& (Lang.Term.thrd_inter_termo rdx);
-            ]);
-
-          (result' === Semantics.Split.undef ());
-        ])
-
-    let thrd_inter_stepo thrdId = Semantics.make_step
-      (TLSNode.lift_split @@ thrd_inter_splito thrdId)
-      (TLSNode.lift_plug Lang.plugo)
-      (List.map (fun rule -> TLSNode.lift_rule rule) (Rules.ThreadSpawning.all @ Rules.Atomic.all))
-
-    let stepo t result =
-      fresh (thrdId t')
-        (thrd_local_evalo thrdId t t')
-        (thrd_inter_stepo thrdId t' result)
-
-    let evalo = Semantics.make_eval stepo
-  end *)
+module SequentialConsistent = Make(MemorySC)
 
 module MemoryRA : Memory =
   struct

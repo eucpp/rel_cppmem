@@ -66,4 +66,6 @@ module type T =
     val evalo : (TLSNode.tt, TLSNode.tl) Semantics.eval
   end *)
 
+module SequentialConsistent : T
+
 module ReleaseAcquire : T

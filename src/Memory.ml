@@ -132,6 +132,8 @@ module ValueStorage =
 
     let from_assoc = Storage.from_assoc
 
+    let shapeo = Storage.shapeo
+
     let reify = Storage.reify (Lang.Loc.reify) (Lang.Value.reify)
 
     let pprint =
