@@ -98,12 +98,15 @@ module Basic =
       fresh (e rs v h)
         (t  === assertion e)
         (t' === skip ())
-        (ctx' === Context.hole h)
         (Context.regso ctx rs)
         (expr_evalo rs e v)
         (conde [
-          (Lang.Value.nullo v)     &&& (label === Label.assert_fail ());
-          (Lang.Value.not_nullo v) &&& (label === Label.empty ());
+          fresh (h)
+            (Lang.Value.nullo v) &&&
+            (ctx' === Context.hole h) &&&
+            (label === Label.assert_fail ());
+
+          (Lang.Value.not_nullo v) &&& (ctx === ctx') &&& (label === Label.empty ());
         ])
 
     let asgno label ctx ctx' t t' =
