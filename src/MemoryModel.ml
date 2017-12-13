@@ -382,18 +382,24 @@ module MemorySC =
         (label === Label.regwrite thrdId reg v)
         (regwriteo t t' thrdId reg v);
 
-      fresh (t'' thrdId loc reg v)
-        (label === Label.load thrdId !!MemOrder.SC loc reg)
+      fresh (t'' thrdId mo loc reg v)
+        (label === Label.load thrdId mo loc reg)
+        (mo =/= !!MemOrder.NA)
         (regwriteo t t'' thrdId reg v)
         (load_sco t'' t' thrdId loc v);
 
-      fresh (thrdId loc v)
-        (label === Label.store thrdId !!MemOrder.SC loc v)
+      fresh (thrdId mo loc v)
+        (label === Label.store thrdId mo loc v)
+        (mo =/= !!MemOrder.NA)
         (store_sco t t' thrdId loc v);
 
       fresh (thrdId loc e d v)
         (label === Label.cas thrdId !!MemOrder.SC !!MemOrder.SC loc e d v)
         (cas_sco t t' thrdId loc e d v);
+
+      fresh (thrdId loc)
+        (t === t')
+        (label === Label.datarace thrdId !!MemOrder.NA loc);
     ]
   end
 

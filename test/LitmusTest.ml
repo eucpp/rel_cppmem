@@ -13,6 +13,7 @@ open MemoryModel
 let litmus_test_exists ?pprint ~intrpo ~name ~prog ~initstate ~asserto =
   let test () =
     let ff = Format.std_formatter in
+    (* TODO: problem with tabling - we should not keep table between different runs *)
     (* if Stream.is_empty @@ Query.exec intrpo prog initstate then
       begin
         Format.fprintf ff "Litmus test %s is not runnable:@;" name;
@@ -76,6 +77,147 @@ let litmus_test ?pprint ~intrpo ~name ~prog ~initstate ~asserto ~tag =
   | Exists -> litmus_test_exists ?pprint ~intrpo ~name ~prog ~initstate ~asserto
   | Forall -> litmus_test_forall ?pprint ~intrpo ~name ~prog ~initstate ~asserto
 
+(* ************************************************************************** *)
+(* ******************* SequentialConsistent Tests *************************** *)
+(* ************************************************************************** *)
+
+let litmus_test_SC ~name ~prog ~regs ~locs ~asserto ~tag =
+  let module Trace = Utils.Trace(SequentialConsistent.State) in
+  let mem = List.map (fun l -> (l, 0)) locs in
+  let initstate = SequentialConsistent.State.mem @@ SequentialConsistent.Memory.init ~regs ~mem in
+  litmus_test
+    ~pprint:Trace.trace
+    ~intrpo:SequentialConsistent.intrpo
+    ~initstate ~name ~prog ~asserto ~tag
+
+let safeo_SC s = ?~(
+  fresh (err m)
+    (s === SequentialConsistent.State.error err m)
+  )
+
+let prog_SW = <:cppmem<
+  spw {{{
+      x_sc := 1;
+      f_sc := 1
+  |||
+      r1 := f_sc;
+      r2 := x_sc;
+      assert (
+        (r1 = 0 && r2 = 0) ||
+        (r1 = 0 && r2 = 1) ||
+        (r1 = 1 && r2 = 1)
+      )
+  }}}
+>>
+
+let test_SW_SC = litmus_test_SC
+  ~name:"SW_SC"
+  ~prog:prog_SW
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "f"]
+  ~tag:Forall
+  ~asserto:safeo_SC
+
+let prog_SB = <:cppmem<
+  spw {{{
+      x_sc := 1;
+      r1 := y_sc;
+      return (r1)
+  |||
+      y_sc := 1;
+      r2 := x_sc;
+      return (r2)
+  }}};
+  assert (r1 != 0 || r2 != 0)
+>>
+
+let test_SB_SC = litmus_test_SC
+  ~name:"SB_SC"
+  ~prog:prog_SB
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y";]
+  ~tag:Forall
+  ~asserto:safeo_SC
+
+let prog_LB = <:cppmem<
+    spw {{{
+        r1 := x_sc;
+        y_sc := 1;
+        return (r1)
+    |||
+        r2 := y_sc;
+        x_sc := 1;
+        return (r2)
+    }}};
+    assert (r1 != 1 || r2 != 1)
+>>
+
+let test_LB_SC = litmus_test_SC
+  ~name:"LB_SC"
+  ~prog:prog_LB
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y";]
+  ~tag:Forall
+  ~asserto:safeo_SC
+
+let prog_MP = <:cppmem<
+    spw {{{
+        x_sc := 1;
+        f_sc := 1
+    |||
+        repeat r1 := f_sc until r1;
+        r2 := x_sc;
+        return (r2)
+    }}};
+    assert (r2 = 1)
+>>
+
+let test_MP_SC = litmus_test_SC
+  ~name:"MP_SC"
+  ~prog:prog_MP
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "f"]
+  ~tag:Forall
+  ~asserto:safeo_SC
+
+let prog_CoRR = <:cppmem<
+  spw {{{
+    spw {{{
+      x_sc := 1
+    |||
+      x_sc := 2
+    }}}
+  |||
+    spw {{{
+      r1 := x_sc;
+      r2 := x_sc;
+      return (r1, r2)
+    |||
+      r3 := x_sc;
+      r4 := x_sc;
+      return (r3, r4)
+    }}};
+    assert (
+      !(((r1 = 1) && (r2 = 2) && (r3 = 2) && (r4 = 1))
+        ||
+        ((r1 = 2) && (r2 = 1) && (r3 = 1) && (r4 = 2))
+      )
+    )
+  }}}
+>>
+
+let test_CoRR_SC = litmus_test_SC
+  ~name:"CoRR_SC"
+  ~prog:prog_CoRR
+  ~regs:["r1"; "r2"; "r3"; "r4"]
+  ~locs:["x";]
+  ~tag:Forall
+  ~asserto:safeo_SC
+
+(* ************************************************************************** *)
+(* ********************** ReleaseAcquire Tests ****************************** *)
+(* ************************************************************************** *)
+
 let litmus_test_RA ~name ~prog ~regs ~locs ~asserto ~tag =
   let module Trace = Utils.Trace(ReleaseAcquire.State) in
   let mem = List.map (fun l -> (l, 0)) locs in
@@ -117,6 +259,184 @@ let test_SW_RA = litmus_test_RA
   ~tag:Forall
   ~asserto:safeo_RA
 
+let prog_SB = <:cppmem<
+  spw {{{
+      x_rel := 1;
+      r1 := y_acq;
+      return (r1)
+  |||
+      y_rel := 1;
+      r2 := x_acq;
+      return (r2)
+  }}};
+  assert (r1 = 0 && r2 = 0)
+>>
+
+let test_SB_RA = litmus_test_RA
+  ~name:"SB_RA"
+  ~prog:prog_SB
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y";]
+  ~tag:Exists
+  ~asserto:safeo_RA
+
+let prog_LB = <:cppmem<
+    spw {{{
+        r1 := x_acq;
+        y_rel := 1;
+        return (r1)
+    |||
+        r2 := y_acq;
+        x_rel := 1;
+        return (r2)
+    }}};
+    assert (r1 != 1 || r2 != 1)
+>>
+
+let test_LB_RA = litmus_test_RA
+  ~name:"LB+rel+acq_RA"
+  ~prog:prog_LB
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y";]
+  ~tag:Forall
+  ~asserto:safeo_RA
+
+let prog_LB_acq_rlx = <:cppmem<
+    spw {{{
+        r1 := x_acq;
+        y_rlx := 1;
+        return (r1)
+    |||
+        r2 := y_rlx;
+        x_rel := 1;
+        return (r2)
+    }}};
+    assert (r1 != 1 || r2 != 1)
+>>
+
+let test_LB_acq_rlx_RA = litmus_test_RA
+  ~name:"LB+acq+rlx_RA"
+  ~prog:prog_LB_acq_rlx
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y"]
+  ~tag:Forall
+  ~asserto:safeo_RA
+
+let prog_MP = <:cppmem<
+    spw {{{
+        x_rlx := 1;
+        f_rel := 1
+    |||
+        repeat r1 := f_acq until r1;
+        r2 := x_rlx;
+        return (r2)
+    }}};
+    assert (r2 = 1)
+>>
+
+let test_MP_RA = litmus_test_RA
+  ~name:"MP_RA"
+  ~prog:prog_MP
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "f"]
+  ~tag:Forall
+  ~asserto:safeo_RA
+
+let prog_MP_rlx_acq = <:cppmem<
+    spw {{{
+        x_rlx := 1;
+        f_rlx := 1
+    |||
+        repeat r1 := f_acq until r1;
+        r2 := x_rlx;
+        return (r2)
+    }}};
+    assert (r2 = 0)
+>>
+
+let test_MP_rlx_acq_RA = litmus_test_RA
+  ~name:"MP+rlx+acq_RA"
+  ~prog:prog_MP_rlx_acq
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "f"]
+  ~tag:Exists
+  ~asserto:safeo_RA
+
+let prog_MP_rel_rlx = <:cppmem<
+    spw {{{
+        x_rlx := 1;
+        f_rel := 1
+    |||
+        repeat r1 := f_rlx until r1;
+        r2 := x_rlx;
+        return (r2)
+    }}};
+    assert (r2 = 0)
+>>
+
+let test_MP_rel_rlx_RA = litmus_test_RA
+  ~name:"MP+rel+rlx_RA"
+  ~prog:prog_MP_rel_rlx
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y"; "f"]
+  ~tag:Exists
+  ~asserto:safeo_RA
+
+let prog_MP_relseq = <:cppmem<
+  spw {{{
+      x_rlx := 1;
+      f_rel := 1;
+      f_rlx := 2
+  |||
+      repeat r1 := f_acq until (r1 = 2);
+      r2 := x_rlx;
+      return (r2)
+  }}};
+  assert (r2 = 1)
+>>
+
+let test_MP_relseq_RA = litmus_test_RA
+  ~name:"MP+relseq_RA"
+  ~prog:prog_MP_relseq
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "f"]
+  ~tag:Forall
+  ~asserto:safeo_RA
+
+let prog_CoRR = <:cppmem<
+  spw {{{
+    spw {{{
+      x_rlx := 1
+    |||
+      x_rlx := 2
+    }}}
+  |||
+    spw {{{
+      r1 := x_rlx;
+      r2 := x_rlx;
+      return (r1, r2)
+    |||
+      r3 := x_rlx;
+      r4 := x_rlx;
+      return (r3, r4)
+    }}};
+    assert (
+      !(((r1 = 1) && (r2 = 2) && (r3 = 2) && (r4 = 1))
+        ||
+        ((r1 = 2) && (r2 = 1) && (r3 = 1) && (r4 = 2))
+      )
+    )
+  }}}
+>>
+
+let test_CoRR_RA = litmus_test_RA
+  ~name:"CoRR_RA"
+  ~prog:prog_CoRR
+  ~regs:["r1"; "r2"; "r3"; "r4"]
+  ~locs:["x";]
+  ~tag:Forall
+  ~asserto:safeo_RA
+
 let prog_DR1 = <:cppmem<
   spw {{{
       x_rlx := 1
@@ -150,184 +470,6 @@ let test_DR2_RA = litmus_test_RA
   ~locs:["x"]
   ~tag:Exists
   ~asserto:dataraceo_RA
-
-let prog_SB = <:cppmem<
-  spw {{{
-      x_rel := 1;
-      r1 := y_acq;
-      return (r1)
-  |||
-      y_rel := 1;
-      r2 := x_acq;
-      return (r2)
-  }}};
-  assert (r1 = 1 && r2 = 1)
->>
-
-let test_SB_RA = litmus_test_RA
-  ~name:"SB_RA"
-  ~prog:prog_SB
-  ~regs:["r1"; "r2"]
-  ~locs:["x"; "y";]
-  ~tag:Exists
-  ~asserto:safeo_RA
-
-let prog_LB_RA = <:cppmem<
-    spw {{{
-        r1 := x_acq;
-        y_rel := 1;
-        return (r1)
-    |||
-        r2 := y_acq;
-        x_rel := 1;
-        return (r2)
-    }}};
-    assert (r1 != 1 || r2 != 1)
->>
-
-let test_LB_RA = litmus_test_RA
-  ~name:"LB_RA"
-  ~prog:prog_LB_RA
-  ~regs:["r1"; "r2"]
-  ~locs:["x"; "y";]
-  ~tag:Forall
-  ~asserto:safeo_RA
-
-let prog_LB_rel_acq_rlx = <:cppmem<
-    spw {{{
-        r1 := x_acq;
-        y_rlx := 1;
-        return (r1)
-    |||
-        r2 := y_rlx;
-        x_rel := 1;
-        return (r2)
-    }}};
-    assert (r1 != 1 || r2 != 1)
->>
-
-let test_LB_RA_rlx = litmus_test_RA
-  ~name:"LB_RA+rlx"
-  ~prog:prog_LB_RA
-  ~regs:["r1"; "r2"]
-  ~locs:["x"; "y"]
-  ~tag:Forall
-  ~asserto:safeo_RA
-
-let prog_MP = <:cppmem<
-    spw {{{
-        x_rlx := 1;
-        f_rel := 1
-    |||
-        repeat r1 := f_acq until r1;
-        r2 := x_rlx;
-        return (r2)
-    }}};
-    assert (r2 = 1)
->>
-
-let test_MP_RA = litmus_test_RA
-  ~name:"MP_RA"
-  ~prog:prog_MP
-  ~regs:["r1"; "r2"]
-  ~locs:["x"; "f"]
-  ~tag:Forall
-  ~asserto:safeo_RA
-
-let prog_MP_rlx1 = <:cppmem<
-    spw {{{
-        x_rlx := 1;
-        f_rlx := 1
-    |||
-        repeat r1 := f_acq until r1;
-        r2 := x_rlx;
-        return (r2)
-    }}};
-    assert (r2 = 0)
->>
-
-let test_MP_RA_rlx1 = litmus_test_RA
-  ~name:"MP_RA+rlx1"
-  ~prog:prog_MP_rlx1
-  ~regs:["r1"; "r2"]
-  ~locs:["x"; "f"]
-  ~tag:Exists
-  ~asserto:safeo_RA
-
-let prog_MP_rlx_2 = <:cppmem<
-    spw {{{
-        x_rlx := 1;
-        f_rel := 1
-    |||
-        repeat r1 := f_rlx until r1;
-        r2 := x_rlx;
-        return (r2)
-    }}};
-    assert (r2 = 0)
->>
-
-let test_MP_RA_rlx2 = litmus_test_RA
-  ~name:"MP_RA+rlx2"
-  ~prog:prog_MP_rlx_2
-  ~regs:["r1"; "r2"]
-  ~locs:["x"; "y"; "f"]
-  ~tag:Exists
-  ~asserto:safeo_RA
-
-let prog_MP_rel_seq = <:cppmem<
-  spw {{{
-      x_rlx := 1;
-      f_rel := 1;
-      f_rlx := 2
-  |||
-      repeat r1 := f_acq until (r1 = 2);
-      r2 := x_rlx;
-      return (r2)
-  }}};
-  assert (r2 = 1)
->>
-
-let test_MP_RA_rel_seq = litmus_test_RA
-  ~name:"MP_RA+rel_seq"
-  ~prog:prog_MP_rel_seq
-  ~regs:["r1"; "r2"]
-  ~locs:["x"; "f"]
-  ~tag:Forall
-  ~asserto:safeo_RA
-
-let prog_CoRR = <:cppmem<
-  spw {{{
-    spw {{{
-      x_rlx := 1
-    |||
-      x_rlx := 2
-    }}}
-  |||
-    spw {{{
-      r1 := x_rlx;
-      r2 := x_rlx;
-      return (r1, r2)
-    |||
-      r3 := x_rlx;
-      r4 := x_rlx;
-      return (r3, r4)
-    }}};
-    assert (
-      !(((r1 = 1) && (r2 = 2) && (r3 = 2) && (r4 = 1))
-        ||
-        ((r1 = 2) && (r2 = 1) && (r3 = 1) && (r4 = 2))
-      )
-    )
-  }}}
->>
-
-let test_MP_CoRR = litmus_test_RA
-  ~name:"MP_CoRR"
-  ~prog:prog_CoRR
-  ~regs:["r1"; "r2"; "r3"; "r4"]
-  ~locs:["x";]
-  ~tag:Forall
-  ~asserto:safeo_RA
 
 (* let _ =
   let regs = ["r1"; "r2"; "r3"; "r4"] in
@@ -424,18 +566,26 @@ let promisingStep =
 
 let tests = Test.(
   make_testsuite ~name:"Litmus" ~tests: [
+    make_testsuite ~name:"SC" ~tests: [
+      test_SW_SC;
+      test_SB_SC;
+      test_LB_SC;
+      test_MP_SC;
+      test_CoRR_SC;
+    ];
+
     make_testsuite ~name:"RelAcq" ~tests: [
       test_SW_RA;
       test_SB_RA;
       test_LB_RA;
+      test_LB_acq_rlx_RA;
+      test_MP_RA;
+      test_MP_rlx_acq_RA;
+      test_MP_rel_rlx_RA;
+      test_MP_relseq_RA;
+      test_CoRR_RA;
       test_DR1_RA;
       test_DR2_RA;
-      test_LB_RA_rlx;
-      test_MP_RA;
-      test_MP_RA_rlx1;
-      test_MP_RA_rlx2;
-      test_MP_RA_rel_seq;
-      test_MP_CoRR;
     ]
   ]
 )

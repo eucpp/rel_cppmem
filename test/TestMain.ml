@@ -42,7 +42,7 @@ let tests = Test.(
 
 
 let () =
-  Test.ounit_run tests
+  (* Test.ounit_run tests *)
 
-  (* Test.simple_run tests;
-  MiniKanren.report_counters () *)
+  Test.simple_run tests;
+  MiniKanren.report_counters ()
