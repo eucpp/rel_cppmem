@@ -383,23 +383,23 @@ module MemorySC =
         (regwriteo t t' thrdId reg v);
 
       fresh (t'' thrdId mo loc reg v)
-        (label === Label.load thrdId mo loc reg)
-        (mo =/= !!MemOrder.NA)
+        (label === Label.load thrdId !!MemOrder.SC loc reg)
+        (* (mo =/= !!MemOrder.NA) *)
         (regwriteo t t'' thrdId reg v)
         (load_sco t'' t' thrdId loc v);
 
       fresh (thrdId mo loc v)
-        (label === Label.store thrdId mo loc v)
-        (mo =/= !!MemOrder.NA)
+        (label === Label.store thrdId !!MemOrder.SC loc v)
+        (* (mo =/= !!MemOrder.NA) *)
         (store_sco t t' thrdId loc v);
 
       fresh (thrdId loc e d v)
         (label === Label.cas thrdId !!MemOrder.SC !!MemOrder.SC loc e d v)
         (cas_sco t t' thrdId loc e d v);
 
-      fresh (thrdId loc)
+      (* fresh (thrdId loc)
         (t === t')
-        (label === Label.datarace thrdId !!MemOrder.NA loc);
+        (label === Label.datarace thrdId !!MemOrder.NA loc); *)
     ]
   end
 
@@ -714,7 +714,7 @@ module MemoryRA : Memory =
         (label === Label.load thrdId mo loc reg)
         (regwriteo t t'' thrdId reg v)
         (conde [
-          (mo === !!MemOrder.SC ) &&& (load_sco  t'' t' thrdId loc v);
+          (* (mo === !!MemOrder.SC ) &&& (load_sco  t'' t' thrdId loc v); *)
           (mo === !!MemOrder.ACQ) &&& (load_acqo t'' t' thrdId loc v);
           (mo === !!MemOrder.RLX) &&& (load_rlxo t'' t' thrdId loc v);
           (mo === !!MemOrder.NA ) &&& (load_nao  t'' t' thrdId loc v);
@@ -723,7 +723,7 @@ module MemoryRA : Memory =
       fresh (thrdId mo loc v)
         (label === Label.store thrdId mo loc v)
         (conde [
-          (mo === !!MemOrder.SC ) &&& (store_sco  t t' thrdId loc v);
+          (* (mo === !!MemOrder.SC ) &&& (store_sco  t t' thrdId loc v); *)
           (mo === !!MemOrder.REL) &&& (store_relo t t' thrdId loc v);
           (mo === !!MemOrder.RLX) &&& (store_rlxo t t' thrdId loc v);
           (mo === !!MemOrder.NA ) &&& (store_nao  t t' thrdId loc v);

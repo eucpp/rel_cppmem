@@ -10,7 +10,20 @@ open Lang.Register
 open Lang.Value
 open MemoryModel
 
-let rec expr_tplo e = conde [
+let synth_test ?positive ?negative ?(n=1) ~name ~tplo ~intrpo =
+  let progs = Stream.take ~n @@ Query.synth ?positive ?negative intrpo tplo in
+  let test () = if List.length progs < n then
+    Test.Fail ""
+  else
+    let module Trace = Utils.Trace(Lang.Term) in
+    let i = ref 0 in
+    Format.printf "Results@;";
+    List.iter (fun t -> i := !i + 1; Format.printf "Synth test %s answer #%d:@;%a@;" name !i Trace.trace t) progs;
+    Test.Ok
+  in
+  Test.make_testcase ~name ~test
+
+let rec expro e = conde [
   fresh (v)
     (e === const v);
 
@@ -19,51 +32,64 @@ let rec expr_tplo e = conde [
 
   fresh (op e1 e2)
     (e === binop op e1 e2)
-    (expr_tplo e1)
-    (expr_tplo e2);
+    (expro e1)
+    (expro e2);
 ]
 
-let rec stmto ?(loco= fun x -> success) t = conde [
-      fresh (x mo e v)
-        (loco x)
-        (t === store mo x e)
-        (e === const v)
-        (conde [
-          (v === integer 1);
-          (v === integer 0);
-        ]);
+let rec condo e = conde [
+  fresh (r)
+    (e === var r);
 
-      fresh (mo x r)
-        (loco x)
-        (r === reg "r1")
-        (t === repeat (load mo x r) (var r));
+  fresh (op e1 e2)
+    (e === binop op e1 e2)
+    (expro e1)
+    (expro e2);
+]
 
-      fresh (e t1 t2)
-        (t === if' e t1 t2)
-        (expr_tplo e)
-        (seq_stmto ~loco t1)
-        (seq_stmto ~loco t2);
+let rec stmto progo t = conde [
+  fresh (mo l e v)
+    (t === store mo l (const v));
 
-    ] and seq_stmto ?(loco=fun x -> success) t = conde [
-      (stmto ~loco t);
+  fresh (mo l r)
+    (t === load mo l r);
 
-      fresh (t1 t2)
-        (t === seq t1 t2)
-        (stmto ~loco t1)
-        (seq_stmto ~loco t2)
-    ]
+  fresh (mo x r)
+    (t === repeat (load mo x r) (var r));
+
+  fresh (e t1 t2)
+    (t === if' e t1 t2)
+    (condo e)
+    (progo t1)
+    (progo t2);
+
+  fresh (e t')
+    (t === while' e t')
+    (condo e)
+    (progo t');
+
+  fresh (e t')
+    (t === repeat t' e)
+    (condo e)
+    (progo t');
+]
+
+let rec progo t = conde [
+    (stmto progo t);
+
+    fresh (t1 t2)
+      (t === seq t1 t2)
+      (stmto progo t1)
+      (progo t2)
+  ]
 
 let mp_sketch = fun h1 h2 -> <:cppmem<
-    r1 := x_na;
+    r1 := x_sc;
     spw {{{
-        (* r1 := x_na; *)
-        m_na := r1;
-        (* f_rel := 1 *)
+        m_sc := r1;
         ? h1
     |||
-        (* repeat r1 := f_acq until r1; *)
         ? h2;
-        r2 := m_na;
+        r2 := m_sc;
         return (r2)
     }}};
     assert (r1 = r2)
@@ -72,44 +98,45 @@ let mp_sketch = fun h1 h2 -> <:cppmem<
 let mp_tplo t =
   fresh (h1 h2)
     (t === mp_sketch h1 h2)
-    (seq_stmto (*~loco:((===) (loc "f"))*) h1)
-    (seq_stmto (*~loco:((===) (loc "f"))*) h2)
+    (progo h1)
+    (progo h2)
 
-let _ =
-  let progs = Stream.take ~n:1 @@
-    Query.synth
-      ~positive:
+let test_MP_SC =
+  let open SequentialConsistent in
+  let regs = ["r1"; "r2"] in
+  synth_test ~name:"MP_SC" ~n:1 ~intrpo ~tplo:mp_tplo
+    ~positive:
+    [ (fun i o ->
+        fresh (m v)
+          (i === State.mem @@ Memory.init ~regs ~mem:[("x", 0); ("f", 0); ("m", 0)])
+          (o === State.mem m)
+      )
+    ; (fun i o ->
+        fresh (m)
+          (i === State.mem @@ Memory.init ~regs ~mem:[("x", 1); ("f", 0); ("m", 0)])
+          (o === State.mem m)
+      )
+    ]
+    ~negative:
       [ (fun i o ->
-          fresh (m v)
-            (i === ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs:["r1"; "r2"] ~mem:[("x", 0); ("f", 0); ("m", 0)])
-            (o === ReleaseAcquire.State.mem m)
+          fresh (err m)
+            (i === State.mem @@ Memory.init ~regs ~mem:[("x", 0); ("f", 0); ("m", 0)])
+            (o === State.error err m)
         )
       ; (fun i o ->
-          fresh (m)
-            (i === ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs:["r1"; "r2"] ~mem:[("x", 1); ("f", 0); ("m", 0)])
-            (o === ReleaseAcquire.State.mem m)
+          fresh (err m)
+            (i === State.mem @@ Memory.init ~regs ~mem:[("x", 1); ("f", 0); ("m", 0)])
+            (o === State.error err m)
         )
       ]
-      ~negative:
-        [ (fun i o ->
-            fresh (err m)
-              (i === ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs:["r1"; "r2";] ~mem:[("x", 0); ("f", 0); ("m", 0)])
-              (o === ReleaseAcquire.State.error err m)
-          )
-        ; (fun i o ->
-            fresh (err m)
-              (i === ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs:["r1"; "r2";] ~mem:[("x", 1); ("f", 0); ("m", 0)])
-              (o === ReleaseAcquire.State.error err m)
-          )
-      ]
-      ReleaseAcquire.intrpo mp_tplo
-  in
-  let module Trace = Utils.Trace(Lang.Term) in
-  Format.fprintf Format.std_formatter "Result@;";
-  List.iter (Trace.trace Format.std_formatter) progs
 
 let tests = Test.(
   make_testsuite ~name:"Synth" ~tests:[
+
+    make_testsuite ~name:"SeqCst" ~tests:[
+      test_MP_SC
+    ];
+
     make_testsuite ~name:"RelAcq" ~tests:[
     ]
   ]

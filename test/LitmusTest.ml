@@ -517,7 +517,8 @@ let promisingStep =
 
 let tests = Test.(
   make_testsuite ~name:"Litmus" ~tests: [
-    make_testsuite ~name:"SC" ~tests: [
+
+    make_testsuite ~name:"SeqCst" ~tests: [
       test_SW_SC;
       test_SB_SC;
       test_LB_SC;

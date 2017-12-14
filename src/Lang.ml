@@ -335,7 +335,7 @@ module Term =
     let rec show t =
       GT.show(logic) (GT.show(T.t) Register.show (GT.show(Std.List.logic) Register.show) Loc.show MemOrder.show Expr.show show) t
 
-    let pprint = T.(
+    let pprint ff x = T.(
       let rec sl ff x = pprint_logic s ff x
       and s ff = function
         | Skip                    ->
@@ -365,7 +365,7 @@ module Term =
         | Return rs               ->
           Format.fprintf ff "@[<v>return %s@]" (GT.show(Std.List.logic) Register.show rs)
       in
-      sl
+      Format.fprintf ff "%a@." sl x
     )
 
     let thrd_local_termo t = conde [
