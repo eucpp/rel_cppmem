@@ -471,56 +471,7 @@ let test_DR2_RA = litmus_test_RA
   ~tag:Exists
   ~asserto:dataraceo_RA
 
-(* let _ =
-  let regs = ["r1"; "r2"; "r3"; "r4"] in
-  let locs = ["x"] in
-  let mem = List.map (fun l -> (l, 0)) locs in
-  let stream =
-    Query.verify
-      ReleaseAcquire.intrpo
-      (fun i -> i === ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs ~mem)
-      (fun i o -> safeo_RA o)
-      prog_CoRR
-  in
-  if Stream.is_empty stream then printf "OK\n" else printf "ERROR\n";
-  report_counters () *)
-
-(* let _ =
-  let regs = ["r1"; "r2"; "r3"; "r4"] in
-  let locs = ["x"] in
-  let mem = List.map (fun l -> (l, 0)) locs in
-  let stream =
-    Query.exec
-      ReleaseAcquire.intrpo
-      prog_CoRR
-      (ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs ~mem)
-      (* (fun i o -> safeo_RA o) *)
-  in
-  (* if Stream.is_empty stream then printf "OK\n" else printf "ERROR\n"; *)
-  let module Trace = Utils.Trace(ReleaseAcquire.State) in
-  Stream.iter (Trace.trace Format.std_formatter) stream;
-  report_counters () *)
-
-
-(* let test_CoRR_rlx step = test_prog step ~negative:true prog_CoRR_rlx ["((1, 2), (2, 1))"; "((2, 1), (1, 2))"] *)
-
-(*)
-let prog_SB_sc = <:cppmem<
-  x_sc := 0;
-  y_sc := 0;
-  spw {{{
-      x_sc := 1;
-      r1 := y_sc;
-      ret r1
-  |||
-      y_sc := 1;
-      r2 := x_sc;
-      ret r2
-  }}}
->>
-
-let test_SB_sc step = test_prog step prog_SB_sc ["(1, 0)"; "(0, 1)"; "(1, 1)"]
-
+(*
 let prog_LB = <:cppmem<
   spw {{{
     r1 := x_rlx;

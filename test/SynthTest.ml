@@ -90,10 +90,17 @@ let _ =
             (o === ReleaseAcquire.State.mem m)
         )
       ]
-      ~negative: [ fun i o ->
-        fresh (err m)
-          (i === ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs:["r1"; "r2";] ~mem:[("x", 0); ("f", 0); ("m", 0)])
-          (o === ReleaseAcquire.State.error err m)
+      ~negative:
+        [ (fun i o ->
+            fresh (err m)
+              (i === ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs:["r1"; "r2";] ~mem:[("x", 0); ("f", 0); ("m", 0)])
+              (o === ReleaseAcquire.State.error err m)
+          )
+        ; (fun i o ->
+            fresh (err m)
+              (i === ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs:["r1"; "r2";] ~mem:[("x", 1); ("f", 0); ("m", 0)])
+              (o === ReleaseAcquire.State.error err m)
+          )
       ]
       ReleaseAcquire.intrpo mp_tplo
   in
@@ -101,7 +108,9 @@ let _ =
   Format.fprintf Format.std_formatter "Result@;";
   List.iter (Trace.trace Format.std_formatter) progs
 
-let tests =
-  "Synth">::: [
-    "RelAcq">::: []
+let tests = Test.(
+  make_testsuite ~name:"Synth" ~tests:[
+    make_testsuite ~name:"RelAcq" ~tests:[
+    ]
   ]
+)

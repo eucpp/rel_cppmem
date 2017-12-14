@@ -192,7 +192,9 @@ module LocStory :
   sig
     include Utils.Logic
 
-    val allocate : Lang.Loc.ti list -> ti
+    val allocate : unit -> ti
+
+    val init : Lang.Value.ti -> ti
 
     (** [last_tso story ts] gets timestamp [ts] of last message written to [story] *)
     val last_tso : ti -> Timestamp.ti -> MiniKanren.goal
@@ -218,6 +220,8 @@ module MemStory :
     include Utils.Logic
 
     val allocate : Lang.Loc.ti list -> ti
+
+    val init : (Lang.Loc.ti * Lang.Value.ti) list -> ti
 
     val shapeo : ti -> Lang.Loc.ti list -> MiniKanren.goal
 

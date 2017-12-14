@@ -459,7 +459,7 @@ module MemoryRA : Memory =
       let locs  = List.map fst mem in
       let thrd  = ThreadFront.allocate regs locs in
       let thrds = TLS.leaf thrd in
-      let story = MemStory.allocate locs in
+      let story = MemStory.init mem in
       let na    = ViewFront.allocate locs in
       let sc    = ViewFront.allocate locs in
       state thrds story na sc

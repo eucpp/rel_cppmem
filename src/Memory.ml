@@ -538,11 +538,18 @@ module LocStory =
 
     let loc_story tsnext story = inj @@ distrib @@ {T.tsnext = tsnext; T.story = story}
 
-    let allocate atomics =
+    let allocate () =
       let vf = ViewFront.bottom () in
       inj @@ distrib @@ {
         T.tsnext = Timestamp.ts 1;
         T.story = MiniKanren.Std.List.list [Cell.cell (Timestamp.ts 0) (Lang.Value.integer 0) vf];
+      }
+
+    let init v =
+      let vf = ViewFront.bottom () in
+      inj @@ distrib @@ {
+        T.tsnext = Timestamp.ts 1;
+        T.story = MiniKanren.Std.List.list [Cell.cell (Timestamp.ts 0) v vf];
       }
 
     let reify = reify Timestamp.reify (List.reify Cell.reify)
@@ -603,7 +610,9 @@ module MemStory =
 
     type ti = (Lang.Loc.tt, LocStory.tt, Lang.Loc.tl, LocStory.tl) Storage.ti
 
-    let allocate atomics = Storage.allocate (LocStory.allocate atomics) atomics
+    let allocate locs = Storage.allocate (LocStory.allocate ()) locs
+
+    let init lv = Storage.from_assoc @@ List.map (fun (l, v) -> (l, LocStory.init v)) lv
 
     let reify = Storage.reify (Lang.Loc.reify) (LocStory.reify)
 
