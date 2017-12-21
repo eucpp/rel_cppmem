@@ -164,7 +164,7 @@ module Label :
 
     val regwrite : ThreadID.ti -> Register.ti -> Value.ti -> ti
 
-    val load  : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Register.ti -> ti
+    val load  : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> ti
     val store : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> ti
 
     val cas :

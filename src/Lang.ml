@@ -444,7 +444,7 @@ module Label =
           | Join            of 'thrdId
           | Return          of 'thrdId * 'regs
           | RegWrite        of 'thrdId * 'reg * 'value
-          | Load            of 'thrdId * 'mo * 'loc * 'reg
+          | Load            of 'thrdId * 'mo * 'loc * 'value
           | Store           of 'thrdId * 'mo * 'loc * 'value
           | CAS             of 'thrdId * 'mo * 'mo * 'loc * 'value * 'value * 'value
           | Datarace        of 'thrdId * 'mo * 'loc
@@ -468,7 +468,7 @@ module Label =
     let join  thrdId                  = inj @@ FT.distrib @@ T.Join  thrdId
     let return thrdId regs            = inj @@ FT.distrib @@ T.Return (thrdId, regs)
     let regwrite thrdId reg v         = inj @@ FT.distrib @@ T.RegWrite (thrdId, reg, v)
-    let load  thrdId mo loc r         = inj @@ FT.distrib @@ T.Load  (thrdId, mo, loc, r)
+    let load  thrdId mo loc v         = inj @@ FT.distrib @@ T.Load  (thrdId, mo, loc, v)
     let store thrdId mo loc v         = inj @@ FT.distrib @@ T.Store (thrdId, mo, loc, v)
     let cas thrdId mo1 mo2 loc e d v  = inj @@ FT.distrib @@ T.CAS (thrdId, mo1, mo2, loc, e, d, v)
     let datarace thrdId mo loc        = inj @@ FT.distrib @@ T.Datarace (thrdId, mo, loc)
@@ -488,8 +488,8 @@ module Label =
           Format.fprintf ff "@[<return %s %s>@]" (ThreadID.show thrdId) (GT.show(Std.List.logic) Register.show regs)
         | RegWrite (thrdId, reg, v) ->
           Format.fprintf ff "@[<regwrite %s %s %s>@]" (ThreadID.show thrdId) (Register.show reg) (Value.show v)
-        | Load (thrdId, mo, loc, r) ->
-          Format.fprintf ff "@[<load %s %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Register.show r)
+        | Load (thrdId, mo, loc, v) ->
+          Format.fprintf ff "@[<load %s %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Value.show v)
         | Store (thrdId, mo, loc, v) ->
           Format.fprintf ff "@[<store %s %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Value.show v)
         | CAS (thrdId, mo1, mo2, loc, e, d, v) ->
@@ -532,8 +532,8 @@ let rec splito term ctx rdx = Term.(Context.(ThreadID.(conde [
       fresh (e body)
         (term === repeat body e);
 
-      fresh (mo l r)
-        (term === load mo l r);
+      fresh (mo loc v)
+        (term === load mo loc v);
 
       fresh (mo loc e)
         (term === store mo loc e);

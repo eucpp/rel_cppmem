@@ -7,8 +7,10 @@ module Context :
 
     val context : Lang.Context.ti -> Memory.RegisterStorage.ti -> ti
 
-    val regso   : ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
-    val thrdIdo : ti -> Lang.ThreadID.ti          -> MiniKanren.goal
+    val get_regso   : ti ->       Memory.RegisterStorage.ti -> MiniKanren.goal
+    val set_regso   : ti -> ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+
+    val thrdIdo : ti -> Lang.ThreadID.ti -> MiniKanren.goal
   end
 
 type rule =

@@ -28,7 +28,8 @@ module type Memory =
 
     val init : regs:string list -> mem:(string * int) list -> ti
 
-    val regso : ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+    val get_regso : ti ->       Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+    val set_regso : ti -> ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
 
     val shapeo : ti -> Lang.Loc.ti list -> MiniKanren.goal
 
@@ -44,7 +45,9 @@ module State (M : Memory) :
     val mem   : M.ti -> ti
     val error : Error.ti -> M.ti -> ti
 
-    val regso : ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+    val get_regso : ti ->       Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+    val set_regso : ti -> ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+
     val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
   end =
   struct
@@ -81,10 +84,22 @@ module State (M : Memory) :
       in
       pprint_logic pp
 
-    let regso t thrdId rs =
+    let get_regso t thrdId rs =
       fresh (m)
         (t === mem m)
-        (M.regso m thrdId rs)
+        (M.get_regso m thrdId rs)
+
+    let set_regso t t' thrdId rs = conde [
+      fresh (m m')
+        (t  === mem m )
+        (t' === mem m')
+        (M.set_regso m m' thrdId rs);
+
+      fresh (err m m')
+        (t  === error err m )
+        (t' === error err m')
+        (M.set_regso m m' thrdId rs);
+    ]
 
     let transitiono label t t' =
       fresh (m m')
@@ -130,14 +145,16 @@ module Make (M : Memory) =
         (ctx  === Rules.Context.context ctx' rs)
         (splito term' ctx' rdx')
         (Lang.Context.thrdIdo ctx' thrdId)
-        (State.regso state thrdId rs)
+        (State.get_regso state thrdId rs)
 
     let lift_plug plugo ctx rdx term =
-      fresh (term' ctx' rdx' state rs)
-        (term === Node.cfg term' state)
-        (rdx  === Node.cfg rdx'  state)
+      fresh (term' ctx' rdx' state state' thrdId rs)
+        (term === Node.cfg term' state')
+        (rdx  === Node.cfg rdx'  state )
         (ctx  === Rules.Context.context ctx' rs)
         (plugo ctx' rdx' term')
+        (Lang.Context.thrdIdo ctx' thrdId)
+        (State.set_regso state state' thrdId rs)
 
     let lift_rule rule ctx ctx' t t' =
       fresh (label prog prog' state state')
@@ -349,9 +366,9 @@ module MemorySC =
         (Lang.Value.nqo value expected) &&& (sc === sc');
       ])
 
-    let regso t thrdId rs =
-      fresh (thrd)
-        (get_thrdo t thrdId rs)
+    let get_regso = get_thrdo
+
+    let set_regso = set_thrdo
 
     let shapeo t locs =
       fresh (tree story na sc)
@@ -382,11 +399,10 @@ module MemorySC =
         (label === Label.regwrite thrdId reg v)
         (regwriteo t t' thrdId reg v);
 
-      fresh (t'' thrdId mo loc reg v)
-        (label === Label.load thrdId !!MemOrder.SC loc reg)
+      fresh (thrdId mo loc v)
+        (label === Label.load thrdId !!MemOrder.SC loc v)
         (* (mo =/= !!MemOrder.NA) *)
-        (regwriteo t t'' thrdId reg v)
-        (load_sco t'' t' thrdId loc v);
+        (load_sco t t' thrdId loc v);
 
       fresh (thrdId mo loc v)
         (label === Label.store thrdId !!MemOrder.SC loc v)
@@ -674,10 +690,16 @@ module MemoryRA : Memory =
 
     let cas_sco t t' thrdId loc expected desired value = success
 
-    let regso t thrdId rs =
+    let get_regso t thrdId rs =
       fresh (thrd)
         (get_thrdo t thrdId thrd)
-        (ThreadFront.regso thrd rs)
+        (ThreadFront.get_regso thrd rs)
+
+    let set_regso t t' thrdId rs =
+      fresh (thrd thrd')
+        (get_thrdo t    thrdId thrd )
+        (set_thrdo t t' thrdId thrd')
+        (ThreadFront.set_regso thrd thrd' rs)
 
     let shapeo t locs =
       fresh (tree story na sc)
@@ -710,14 +732,13 @@ module MemoryRA : Memory =
         (label === Label.regwrite thrdId reg v)
         (regwriteo t t' thrdId reg v);
 
-      fresh (thrdId mo loc reg v t'')
-        (label === Label.load thrdId mo loc reg)
-        (regwriteo t t'' thrdId reg v)
+      fresh (thrdId mo loc v)
+        (label === Label.load thrdId mo loc v)
         (conde [
           (* (mo === !!MemOrder.SC ) &&& (load_sco  t'' t' thrdId loc v); *)
-          (mo === !!MemOrder.ACQ) &&& (load_acqo t'' t' thrdId loc v);
-          (mo === !!MemOrder.RLX) &&& (load_rlxo t'' t' thrdId loc v);
-          (mo === !!MemOrder.NA ) &&& (load_nao  t'' t' thrdId loc v);
+          (mo === !!MemOrder.ACQ) &&& (load_acqo t t' thrdId loc v);
+          (mo === !!MemOrder.RLX) &&& (load_rlxo t t' thrdId loc v);
+          (mo === !!MemOrder.NA ) &&& (load_nao  t t' thrdId loc v);
         ]);
 
       fresh (thrdId mo loc v)

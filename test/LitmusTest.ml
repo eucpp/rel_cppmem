@@ -523,7 +523,7 @@ let tests = Test.(
       test_SB_SC;
       test_LB_SC;
       test_MP_SC;
-      test_CoRR_SC;
+      (* test_CoRR_SC; *)
     ];
 
     make_testsuite ~name:"RelAcq" ~tests: [
@@ -535,7 +535,7 @@ let tests = Test.(
       test_MP_rlx_acq_RA;
       test_MP_rel_rlx_RA;
       test_MP_relseq_RA;
-      test_CoRR_RA;
+      (* test_CoRR_RA; *)
       test_DR1_RA;
       test_DR2_RA;
     ]

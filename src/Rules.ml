@@ -34,9 +34,14 @@ module Context =
     let hole h =
       inj @@ distrib @@ T.({ ctx = Lang.Context.hole h; tls = RegisterStorage.empty () })
 
-    let regso ctx tls =
+    let get_regso ctx tls =
       fresh (ctx')
         (ctx === context ctx' tls)
+
+    let set_regso ctx ctx' tls' =
+      fresh (tls ctx'')
+        (ctx  === context ctx'' tls )
+        (ctx' === context ctx'' tls')
 
     let thrdIdo ctx thrdId =
       fresh (ctx' tls)
@@ -98,7 +103,7 @@ module Basic =
       fresh (e rs v h)
         (t  === assertion e)
         (t' === skip ())
-        (Context.regso ctx rs)
+        (Context.get_regso ctx rs)
         (expr_evalo rs e v)
         (conde [
           fresh (h)
@@ -115,7 +120,7 @@ module Basic =
         (t' === skip ())
         (ctx === ctx')
         (label === Label.regwrite thrdId r v)
-        (Context.regso ctx rs)
+        (Context.get_regso ctx rs)
         (expr_evalo rs e v)
         (Context.thrdIdo ctx thrdId)
 
@@ -124,7 +129,7 @@ module Basic =
         (t === if' e t1 t2)
         (ctx === ctx')
         (label === Label.empty ())
-        (Context.regso ctx rs)
+        (Context.get_regso ctx rs)
         (expr_evalo rs e v)
         (conde [
           (Lang.Value.not_nullo v) &&& (t' === t1);
@@ -186,12 +191,14 @@ module ThreadSpawning =
 module Atomic =
   struct
     let loado label ctx ctx' t t' =
-      fresh (mo l r thrdId)
+      fresh (mo l r v rs rs' thrdId)
         (t  === load mo l r)
         (t' === skip ())
-        (ctx === ctx')
-        (label === Label.load thrdId mo l r)
+        (label === Label.load thrdId mo l v)
         (Context.thrdIdo ctx thrdId)
+        (Context.get_regso ctx rs)
+        (Context.set_regso ctx ctx' rs')
+        (RegisterStorage.writeo rs rs' r v)
 
     let storeo label ctx ctx' t t' =
       fresh (mo l e v rs thrdId)
@@ -199,7 +206,7 @@ module Atomic =
         (t' === skip ())
         (ctx === ctx')
         (label === Label.store thrdId mo l v)
-        (Context.regso ctx rs)
+        (Context.get_regso ctx rs)
         (expr_evalo rs e v)
         (Context.thrdIdo ctx thrdId)
 

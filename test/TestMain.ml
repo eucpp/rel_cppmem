@@ -13,8 +13,8 @@ open Utils
 
 let tests = Test.(
   make_testsuite ~name:"relcppmem" ~tests: [
-    (* LitmusTest.tests; *)
-    SynthTest.tests;
+    LitmusTest.tests;
+    (* SynthTest.tests; *)
   ]
 )
 

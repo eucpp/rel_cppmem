@@ -19,7 +19,8 @@ module type Memory =
 
     val init : regs:string list -> mem:(string * int) list -> ti
 
-    val regso : ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+    val get_regso : ti ->       Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+    val set_regso : ti -> ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
 
     val shapeo : ti -> Lang.Loc.ti list -> MiniKanren.goal
 
@@ -35,7 +36,9 @@ module State (M : Memory) :
     val mem   : M.ti -> ti
     val error : Error.ti -> M.ti -> ti
 
-    val regso : ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+    val get_regso : ti ->       Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+    val set_regso : ti -> ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+
     val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
   end
 

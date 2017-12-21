@@ -118,7 +118,9 @@ module ThreadFront :
           and allocates a storage for [registers] and viewfronts of [atomics] *)
     val allocate : Lang.Register.ti list -> Lang.Loc.ti list -> ti
 
-    val regso : ti -> RegisterStorage.ti -> MiniKanren.goal
+    val get_regso : ti -> RegisterStorage.ti -> MiniKanren.goal
+
+    val set_regso : ti -> ti -> RegisterStorage.ti -> MiniKanren.goal
 
     (** [get_varo thrd var val] performs read of thread-local register *)
     val reado : ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal

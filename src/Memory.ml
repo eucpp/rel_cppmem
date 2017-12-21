@@ -276,9 +276,14 @@ module ThreadFront =
       in
       pprint_logic pp
 
-    let regso thrd regs =
+    let get_regso thrd regs =
       fresh (curr rel acq)
         (thrd === thrd_state regs curr rel acq)
+
+    let set_regso thrd thrd' regs' =
+      fresh (regs curr rel acq)
+        (thrd  === thrd_state regs  curr rel acq)
+        (thrd' === thrd_state regs' curr rel acq)
 
     let reado thrd var value =
       fresh (regs curr rel acq)
