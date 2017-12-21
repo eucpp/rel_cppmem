@@ -182,10 +182,11 @@ module ThreadSpawning =
         (t  === return rs)
         (t' === skip ())
         (ctx === ctx')
-        (label === Label.return thrdId rs)
-        (Context.thrdIdo ctx thrdId)
+        (label === Label.empty ())
+        (* (label === Label.return thrdId rs) *)
+        (* (Context.thrdIdo ctx thrdId) *)
 
-    let all = [spawno; joino; returno]
+    let all = [(*spawno; joino;*) returno]
   end
 
 module Atomic =
