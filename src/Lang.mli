@@ -174,6 +174,8 @@ module Label :
     val datarace : ThreadID.ti -> MemOrder.ti -> Loc.ti -> ti
 
     val assert_fail : unit -> ti
+
+    val tido : ti -> ThreadId.ti -> MiniKanren.goal
   end
 
 val splito : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Reduction.splitting
