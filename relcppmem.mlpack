@@ -3,5 +3,6 @@ src/Memory
 src/Rules
 src/Semantics
 src/MemoryModel
+src/Axiomatic
 src/Query
 src/Utils

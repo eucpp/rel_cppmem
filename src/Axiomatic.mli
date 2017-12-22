@@ -2,7 +2,7 @@ module EventID :
   sig
     include Utils.Logic
 
-    val eid : int -> ti
+    (* val eid : int -> ti *)
   end
 
 module Event :
@@ -16,11 +16,15 @@ module Order :
   sig
     include Utils.Logic
 
-    val extendo : Event.ti * Event.ti -> ti -> ti -> MiniKanren.goal
+    (* val extendo : Event.ti * Event.ti -> ti -> ti -> MiniKanren.goal *)
+  end
+
+module Graph :
+  sig
+    include Utils.Logic
   end
 
 module SequentialConsistent :
   sig
-    
-
+    (* val evalo : Lang.Term.ti -> Graph.ti -> MiniKanren.goal *)
   end
