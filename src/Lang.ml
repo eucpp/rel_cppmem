@@ -504,6 +504,29 @@ module Label =
     in
     pprint_logic pp
 
+    let tido label tid = conde [
+      (label === spawn tid);
+      (label === join tid);
+
+      fresh (rs)
+        (label === return tid rs);
+
+      fresh (reg v)
+        (label === regwrite tid reg v);
+
+      fresh (mo loc v)
+        (label === load tid mo loc v);
+
+      fresh (mo loc v)
+        (label === store mo loc v);
+
+      fresh (mo1 mo2 loc e d v)
+        (label === cas tid mo1 mo2 loc e d v);
+
+      fresh (mo loc)
+        (label === datarace tid mo loc);
+    ]
+
   end
 
 let rec splito term ctx rdx = Term.(Context.(ThreadID.(conde [
