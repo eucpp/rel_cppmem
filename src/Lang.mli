@@ -175,7 +175,7 @@ module Label :
 
     val assert_fail : unit -> ti
 
-    val tido : ti -> ThreadId.ti -> MiniKanren.goal
+    val tido : ti -> ThreadID.ti -> MiniKanren.goal
   end
 
 val splito : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Reduction.splitting

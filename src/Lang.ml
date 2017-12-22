@@ -518,7 +518,7 @@ module Label =
         (label === load tid mo loc v);
 
       fresh (mo loc v)
-        (label === store mo loc v);
+        (label === store tid mo loc v);
 
       fresh (mo1 mo2 loc e d v)
         (label === cas tid mo1 mo2 loc e d v);
