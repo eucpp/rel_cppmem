@@ -155,7 +155,7 @@ module Basic =
       (ctx === ctx') &&&
       (label === Label.empty ())
 
-    let all = [seqo; asgno; ifo; whileo; repeato; asserto;]
+    let all = [seqo; (*asgno;*) ifo; whileo; repeato; (*asserto;*)]
 
   end
 
@@ -219,5 +219,5 @@ module Atomic =
         (label === Label.datarace thrdId mo l)
         (Context.thrdIdo ctx thrdId)
 
-    let all = [loado; storeo; dataraceo]
+    let all = [loado; storeo; (*dataraceo*)]
   end

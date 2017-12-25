@@ -15,17 +15,41 @@ module EventID =
 
     let init () = Nat.zero
 
+    let eid = nat
+
     let next () =
       cnt := Nat.succ !cnt;
       !cnt
 
     let reify = Nat.reify
 
-    (* let show eid = string_of_int @@ Nat.to_int @@ from_logic eid *)
+    (* let rec show n =
+      let rec to_ground : tl -> int = function
+      | Value (S n) -> 1 + (to_ground n)
+      | Value (O)   -> 0
+      | Var (i, _)  -> invalid_arg "Free Var"
+      in
+      string_of_int @@ to_ground n *)
 
+    let rec show n =
+      let rec to_ground : tl -> int = function
+      | Value (S n) -> 1 + (to_ground n)
+      | Value (O)   -> 0
+      | Var (i, _)  -> invalid_arg "Free Var"
+      in
+      try
+        string_of_int @@ to_ground n
+      with Invalid_argument _ ->
+        match n with
+        | Value (S n) ->
+          Printf.sprintf "_.??{=/= 0}"
+        | Var (i, []) ->
+          Printf.sprintf "_.%d" i
+        | Var (i, cs) ->
+          let cs = String.concat "; " @@ List.map show cs in
+          Printf.sprintf "_.%d{=/= %s}" i cs
 
-    (* let pprint ff v = Format.fprintf ff "%s" @@ show v *)
-    let pprint = pprint_nat
+    let pprint ff v = Format.fprintf ff "%s" @@ show v
   end
 
 module Event =
@@ -83,6 +107,17 @@ module Order =
       (ord' === (pair eid eid')%ord)
 
     let mergeo = List.appendo
+
+    (* computes transitive closure *)
+    let trcl ord =
+      let r_norec r_rec eid eid'' = conde [
+        (List.membero ord @@ pair eid eid'');
+
+        fresh (eid')
+          (List.membero ord @@ pair eid eid')
+          (r_rec eid' eid'');
+      ] in
+      Tabling.(tabledrec two r_norec)
   end
 
 module EventSet =
@@ -127,7 +162,6 @@ module Graph =
         @type ('es, 'ord) t =
           { events  : 'es
           ; po      : 'ord
-          ; rf      : 'ord
           }
         with gmap
 
@@ -141,46 +175,54 @@ module Graph =
 
     include Fmap2(T)
 
-    let graph events po rf =
-      T.(inj @@ distrib @@ {events; po; rf})
+    let graph events po =
+      T.(inj @@ distrib @@ {events; po})
 
     let empty () =
       let events = EventSet.empty () in
       let po     = Order.empty () in
-      let rf     = Order.empty () in
-      graph events po rf
+      graph events po
 
     let reify h = reify EventSet.reify Order.reify h
 
     let pprint =
-      let pp ff { T.po = po; T.rf = rf } =
-        Format.fprintf ff "@[<v>po: %a @;rf: %a@]@."
+      let pp ff { T.po = po } =
+        Format.fprintf ff "@[<v>po: %a @;@]@."
           Order.pprint po
-          Order.pprint rf
       in
       pprint_logic pp
 
     let extendo label g g' =
       let open Event in
-      fresh (e eid tid es es' po po' rf)
-        (g  === graph es  po  rf)
-        (g' === graph es' po' rf)
-        (e  === event eid label)
-        (eid === EventID.next ())
-        (es' === e % es)
-        (conde [
-          fresh (eid' eid'' tl)
-            (po  === (pair eid'' eid') % tl)
-            (po' === (pair eid'  eid ) % po);
+      conde [
+        (label === Label.empty ()) &&& (g === g');
 
-          (po === nil ()) &&& (po' === (pair (EventID.init ()) eid)%po)
-        ])
+        fresh (e eid tid es es' po po')
+          (g  === graph es  po )
+          (g' === graph es' po')
+          (e  === event eid label)
+          (eid === EventID.next ())
+          (es' === e % es)
+          (conde [
+            fresh (eid' eid'' tl)
+              (po  === (pair eid'' eid') % tl)
+              (po' === (pair eid'  eid ) % po);
+
+            (* fresh ()  *)
+              (po === nil ())  &&&
+              (po' === (pair (EventID.init ()) eid) % po)
+              (* (conde [
+                ();
+                ();
+              ])  *)
+          ])
+      ]
 
     let mergeo g1 g2 g =
-      fresh (es es1 es2 po po1 po2 rf)
-        (g  === graph es  po  rf)
-        (g1 === graph es1 po1 rf)
-        (g2 === graph es2 po2 rf)
+      fresh (es es1 es2 po po1 po2)
+        (g  === graph es  po )
+        (g1 === graph es1 po1)
+        (g2 === graph es2 po2)
         (EventSet.mergeo es1 es2 es)
         (Order.mergeo po1 po2 po)
   end
@@ -198,11 +240,11 @@ module SequentialConsistent =
 
     let lift_plug plugo ctx rdx term =
       fresh (term' rdx' ctx' rs graph)
+
         (term === Node.cfg term' graph)
         (rdx  === Node.cfg rdx'  graph)
         (ctx  === Rules.Context.context ctx' rs)
         (plugo ctx' rdx' term')
-
     let lift_rule rule ctx ctx' t t' =
       fresh (label prog prog' graph graph')
         (t  === Node.cfg prog  graph )
@@ -223,7 +265,7 @@ module SequentialConsistent =
       in
       Semantics.Reduction.make_eval ~irreducibleo stepo
 
-    let pre_executiono t g =
+    let pre_execo t g =
       fresh (p1 p2 t1 t1' t2 t2' g1 g2)
         (t   === spw p1 p2)
         (t1  === Node.cfg p1 (Graph.empty ()))
@@ -236,15 +278,17 @@ module SequentialConsistent =
 
     let rf_wfo es rf =
       let open Event in
-      let rec helpero rs ws rf =
-        fresh (w r rs' rf' eid1 eid2 tid1 tid2 mo1 mo2 loc v)
-          (r === event eid1 @@ Label.load  tid1 mo1 loc v)
-          (w === event eid2 @@ Label.store tid2 mo2 loc v)
+      let rec helpero rs ws rf = conde [
+        (rs === nil ()) &&& (rf === nil ());
+
+        fresh (w r rs' rf' reid weid tid1 tid2 mo1 mo2 loc v)
+          (r  === event reid @@ Label.load  tid1 mo1 loc v)
+          (w  === event weid @@ Label.store tid2 mo2 loc v)
           (rs === r % rs')
-          (rf === (pair w r) % rf')
+          (rf === (pair weid reid) % rf')
           (List.membero ws w)
           (helpero rs' ws rf')
-      in
+      ] in
       let loado e =
         fresh (eid tid mo loc v)
           (e === event eid (Label.load tid mo loc v))
@@ -265,5 +309,39 @@ module SequentialConsistent =
         (List.filtero loado  es rs)
         (List.filtero storeo es ws)
         (helpero rs ws rf)
+
+    let totalo ord es =
+      let open Event in
+      fresh (e e' eid eid' label label')
+        (e === event eid  label )
+        (e === event eid' label')
+        (e =/= e')
+        (List.membero es e )
+        (List.membero es e')
+        ((ord eid eid') ||| (ord eid' eid))
+
+    let acyclico ord es =
+      let open Event in
+      fresh (e eid label)
+        (e === event eid label)
+        (List.membero es e)
+      ?~(ord eid eid)
+
+    let sc_execo t a b =
+      let open EventID in
+      fresh (g es po rf sc h h')
+        (let sc_trcl = Order.trcl sc in
+          (* (g === Graph.graph es po) &&&
+          (pre_execo t g) &&&
+          (rf_wfo es rf) &&&
+          (Order.mergeo po rf sc) &&& *)
+
+          (Order.extendo (eid 1, eid 2) h  h') &&&
+          (Order.extendo (eid 2, eid 1) h' sc) &&&
+
+          (* (totalo sc_trcl es) &&& (acyclico sc_trcl es) &&& *)
+
+          (sc_trcl a b)
+        )
 
   end

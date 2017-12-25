@@ -479,27 +479,27 @@ module Label =
     let pprint =
       let pp ff = T.(function
         | Empty ->
-          Format.fprintf ff "@[<>@]"
+          Format.fprintf ff "@[ @]"
         | Spawn thrdId ->
-          Format.fprintf ff "@[<spawn %s>@]" (ThreadID.show thrdId)
+          Format.fprintf ff "@[spawn %s@]" (ThreadID.show thrdId)
         | Join thrdId ->
-          Format.fprintf ff "@[<join %s>@]" (ThreadID.show thrdId)
+          Format.fprintf ff "@[join %s@]" (ThreadID.show thrdId)
         | Return (thrdId, regs) ->
-          Format.fprintf ff "@[<return %s %s>@]" (ThreadID.show thrdId) (GT.show(Std.List.logic) Register.show regs)
+          Format.fprintf ff "@[return %s %s@]" (ThreadID.show thrdId) (GT.show(Std.List.logic) Register.show regs)
         | RegWrite (thrdId, reg, v) ->
-          Format.fprintf ff "@[<regwrite %s %s %s>@]" (ThreadID.show thrdId) (Register.show reg) (Value.show v)
+          Format.fprintf ff "@[regwrite %s %s %s@]" (ThreadID.show thrdId) (Register.show reg) (Value.show v)
         | Load (thrdId, mo, loc, v) ->
-          Format.fprintf ff "@[<load %s %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Value.show v)
+          Format.fprintf ff "@[load %s %s %s %s@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Value.show v)
         | Store (thrdId, mo, loc, v) ->
-          Format.fprintf ff "@[<store %s %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Value.show v)
+          Format.fprintf ff "@[store %s %s %s %s@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Value.show v)
         | CAS (thrdId, mo1, mo2, loc, e, d, v) ->
-          Format.fprintf ff "@[<CAS %s %s %s %s %s %s %s>@]"
+          Format.fprintf ff "@[CAS %s %s %s %s %s %s %s@]"
             (ThreadID.show thrdId) (MemOrder.show mo1) (MemOrder.show mo2)
             (Loc.show loc) (Value.show e) (Value.show d) (Value.show v)
         | Datarace (thrdId, mo, loc) ->
-          Format.fprintf ff "@[<datarace %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc)
+          Format.fprintf ff "@[datarace %s %s %s@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc)
         | AssertionFailed ->
-          Format.fprintf ff "@[<assertion failed>@]"
+          Format.fprintf ff "@[assertion failed@]"
     )
     in
     pprint_logic pp

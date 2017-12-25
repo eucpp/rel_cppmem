@@ -12,11 +12,14 @@ module Event :
     val event : EventID.ti -> Lang.Label.ti -> ti
   end
 
+module EventSet :
+  sig
+    include Utils.Logic
+  end
+
 module Order :
   sig
     include Utils.Logic
-
-    (* val extendo : Event.ti * Event.ti -> ti -> ti -> MiniKanren.goal *)
   end
 
 module Graph :
@@ -27,4 +30,7 @@ module Graph :
 module SequentialConsistent :
   sig
     (* val evalo : Lang.Term.ti -> Graph.ti -> MiniKanren.goal *)
+
+    (* val sc_execo : Lang.Term.ti -> EventSet.ti -> Order.ti -> MiniKanren.goal *)
+    val sc_execo : Lang.Term.ti -> EventID.ti -> EventID.ti -> MiniKanren.goal
   end
