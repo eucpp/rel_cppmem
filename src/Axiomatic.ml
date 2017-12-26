@@ -110,14 +110,27 @@ module Order =
 
     (* computes transitive closure *)
     let trcl ord =
-      let r_norec r_rec eid eid'' = conde [
-        (List.membero ord @@ pair eid eid'');
+      let rel =
+        let rec helpero ord eid eid' =
+          fresh (hd tl)
+            (ord === hd % tl)
+            (conde [
+              (hd === pair eid eid');
+              (helpero tl eid eid');
+            ])
+        in
+        helpero ord
+      in
+      let rel_norec rel_rec eid eid'' = conde [
+        (rel eid eid'');
 
         fresh (eid')
-          (List.membero ord @@ pair eid eid')
-          (r_rec eid' eid'');
+          (rel eid eid')
+          (rel_rec eid' eid'');
       ] in
-      Tabling.(tabledrec two r_norec)
+      Tabling.(tabledrec two rel_norec)
+      (* rel *)
+
   end
 
 module EventSet =
@@ -197,12 +210,13 @@ module Graph =
       conde [
         (label === Label.empty ()) &&& (g === g');
 
-        fresh (e eid tid es es' po po')
+        fresh (e eid es es' po po' tid mo loc v)
           (g  === graph es  po )
           (g' === graph es' po')
           (e  === event eid label)
           (eid === EventID.next ())
           (es' === e % es)
+          ((label === Label.store tid mo loc v) ||| (label === Label.load tid mo loc v))
           (conde [
             fresh (eid' eid'' tl)
               (po  === (pair eid'' eid') % tl)
@@ -240,11 +254,11 @@ module SequentialConsistent =
 
     let lift_plug plugo ctx rdx term =
       fresh (term' rdx' ctx' rs graph)
-
         (term === Node.cfg term' graph)
         (rdx  === Node.cfg rdx'  graph)
         (ctx  === Rules.Context.context ctx' rs)
         (plugo ctx' rdx' term')
+
     let lift_rule rule ctx ctx' t t' =
       fresh (label prog prog' graph graph')
         (t  === Node.cfg prog  graph )
@@ -286,7 +300,7 @@ module SequentialConsistent =
           (w  === event weid @@ Label.store tid2 mo2 loc v)
           (rs === r % rs')
           (rf === (pair weid reid) % rf')
-          (List.membero ws w)
+          ((List.membero ws w) ||| ((weid === EventID.init ()) &&& (Value.nullo v)))
           (helpero rs' ws rf')
       ] in
       let loado e =
@@ -313,8 +327,8 @@ module SequentialConsistent =
     let totalo ord es =
       let open Event in
       fresh (e e' eid eid' label label')
-        (e === event eid  label )
-        (e === event eid' label')
+        (e  === event eid  label )
+        (e' === event eid' label')
         (e =/= e')
         (List.membero es e )
         (List.membero es e')
@@ -325,23 +339,34 @@ module SequentialConsistent =
       fresh (e eid label)
         (e === event eid label)
         (List.membero es e)
-      ?~(ord eid eid)
+        (ord eid eid)
 
-    let sc_execo t a b =
+    let sc_execo t es sc =
       let open EventID in
-      fresh (g es po rf sc h h')
+      let open Event in
+      fresh (g po rf h h' h'' tt l1 l2)
+        (g === Graph.graph es po)
+        (pre_execo t g)
+        (rf_wfo es rf)
+        (Order.mergeo po rf sc)
         (let sc_trcl = Order.trcl sc in
-          (* (g === Graph.graph es po) &&&
-          (pre_execo t g) &&&
-          (rf_wfo es rf) &&&
-          (Order.mergeo po rf sc) &&& *)
-
-          (Order.extendo (eid 1, eid 2) h  h') &&&
-          (Order.extendo (eid 2, eid 1) h' sc) &&&
-
-          (* (totalo sc_trcl es) &&& (acyclico sc_trcl es) &&& *)
-
-          (sc_trcl a b)
+          (* success *)
+          (* sc_trcl a b *)
+          (acyclico sc_trcl es) &&& (totalo sc_trcl es)
         )
+
+    let sc_execo = Tabling.(tabled three sc_execo)
+
+        (* (h === Order.empty ())
+        (Order.extendo (eid 1, eid 2) h  h' )
+        (Order.extendo (eid 2, eid 1) h' h'')
+        (tt === (event (eid 1) l1) % ((event (eid 2) l2) % (nil ())))
+        (let test = Order.trcl h'' in (acyclico test tt)) *)
+
+
+          (* (h === Order.empty ()) &&&
+          (Order.extendo (eid 1, eid 2) h  h') &&&
+          (Order.extendo (eid 2, eid 1) h' sc) &&& *)
+          (* (let sc_trcl = Order.trcl sc in sc_trcl a b) *)
 
   end

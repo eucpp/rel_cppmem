@@ -31,6 +31,6 @@ module SequentialConsistent :
   sig
     (* val evalo : Lang.Term.ti -> Graph.ti -> MiniKanren.goal *)
 
-    (* val sc_execo : Lang.Term.ti -> EventSet.ti -> Order.ti -> MiniKanren.goal *)
-    val sc_execo : Lang.Term.ti -> EventID.ti -> EventID.ti -> MiniKanren.goal
+    val sc_execo : Lang.Term.ti -> EventSet.ti -> Order.ti -> MiniKanren.goal
+    (* val sc_execo : Lang.Term.ti -> EventID.ti -> EventID.ti -> MiniKanren.goal *)
   end
