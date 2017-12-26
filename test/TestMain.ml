@@ -39,11 +39,11 @@ let prog_LB = <:cppmem<
 
 let () =
 
-  let stream =
-    run qr (fun q  r  -> SequentialConsistent.sc_execo prog_LB q r)
-           (fun qs rs -> Stream.zip qs rs)
+  let stream = SequentialConsistent.sc_exec prog_LB
+    (* run qr (fun q  r  -> SequentialConsistent.sc_execo prog_LB q r)
+           (fun qs rs -> Stream.zip qs rs) *)
   in
-  Stream.take ~n:1 stream |>
+  Stream.take ~n:10 stream |>
   List.iter (fun (q, r) ->
     let module TraceEs  = Trace(EventSet) in
     let module TraceOrd = Trace(Order) in

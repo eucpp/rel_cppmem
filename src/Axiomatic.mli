@@ -15,11 +15,15 @@ module Event :
 module EventSet :
   sig
     include Utils.Logic
+
+    type reified = (tt, tl) MiniKanren.reified
   end
 
 module Order :
   sig
     include Utils.Logic
+
+    type reified = (tt, tl) MiniKanren.reified
   end
 
 module Graph :
@@ -31,6 +35,7 @@ module SequentialConsistent :
   sig
     (* val evalo : Lang.Term.ti -> Graph.ti -> MiniKanren.goal *)
 
-    val sc_execo : Lang.Term.ti -> EventSet.ti -> Order.ti -> MiniKanren.goal
+    (* val sc_execo : Lang.Term.ti -> EventSet.ti -> Order.ti -> MiniKanren.goal *)
     (* val sc_execo : Lang.Term.ti -> EventID.ti -> EventID.ti -> MiniKanren.goal *)
+    val sc_exec : Lang.Term.ti -> (EventSet.reified * Order.reified) MiniKanren.Stream.t
   end

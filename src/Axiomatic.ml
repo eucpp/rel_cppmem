@@ -93,6 +93,8 @@ module Order =
       and inner = ((EventID.tl, EventID.tl) MiniKanren.Std.Pair.logic, tl) MiniKanren.Std.list
     type ti = (tt, tl) MiniKanren.injected
 
+    type reified = (tt, tl) MiniKanren.reified
+
     let empty = nil
 
     let reify = List.reify (Pair.reify EventID.reify EventID.reify)
@@ -110,8 +112,10 @@ module Order =
 
     (* computes transitive closure *)
     let trcl ord =
-      let rel =
-        let rec helpero ord eid eid' =
+      let rel eid eid' =
+        let ord = List.to_list (fun (x, y) -> Nat.to_int x, Nat.to_int y) ord in
+        conde @@ List.map (fun (x, y) -> (eid === EventID.eid x) &&& (eid' === EventID.eid y)) ord
+        (* let rec helpero ord eid eid' =
           fresh (hd tl)
             (ord === hd % tl)
             (conde [
@@ -119,7 +123,7 @@ module Order =
               (helpero tl eid eid');
             ])
         in
-        helpero ord
+        helpero ord *)
       in
       let rel_norec rel_rec eid eid'' = conde [
         (rel eid eid'');
@@ -139,6 +143,8 @@ module EventSet =
     type tl = inner MiniKanren.logic
       and inner = (Event.tl, tl) MiniKanren.Std.list
     type ti = (tt, tl) MiniKanren.injected
+
+    type reified = (tt, tl) MiniKanren.reified
 
     let empty = nil
 
@@ -339,23 +345,47 @@ module SequentialConsistent =
       fresh (e eid label)
         (e === event eid label)
         (List.membero es e)
-        (ord eid eid)
+      ?~(ord eid eid)
 
-    let sc_execo t es sc =
+    let execo t es sc =
       let open EventID in
       let open Event in
-      fresh (g po rf h h' h'' tt l1 l2)
+      fresh (g po rf)
         (g === Graph.graph es po)
         (pre_execo t g)
         (rf_wfo es rf)
         (Order.mergeo po rf sc)
+
+        (* (Order.mergeo po rf sc)
         (let sc_trcl = Order.trcl sc in
           (* success *)
           (* sc_trcl a b *)
           (acyclico sc_trcl es) &&& (totalo sc_trcl es)
-        )
+        ) *)
 
-    let sc_execo = Tabling.(tabled three sc_execo)
+    let execo = Tabling.(tabled three execo)
+
+    let (!!!) = Obj.magic
+
+    let sc_exec p =
+      run qr
+        (fun q  r  -> execo p q r)
+        (fun qs rs ->
+          (* let qs = Stream.map (fun q -> q#prj) qs in *)
+          (* let rs = Stream.map (fun q -> q#prj) rs in *)
+          Stream.zip qs rs
+        )
+      |>
+      Stream.filter (fun (es, sc) ->
+        let es, sc = es#prj, sc#prj in
+        let sc = Order.trcl sc in
+        let s = run q
+          (fun q   -> (acyclico sc !!!es) &&& (totalo sc !!!es))
+          (fun qs  -> qs)
+        in
+        not (Stream.is_empty s)
+      )
+
 
         (* (h === Order.empty ())
         (Order.extendo (eid 1, eid 2) h  h' )
