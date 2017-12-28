@@ -6,3 +6,8 @@ true: use_menhir, explain, rectypes
 
 <test/*.ml>: use_pa_cppmem
 <samples/*.ml>: use_pa_cppmem
+
+#<test005lang.*>: predicate(custom_ppx)
+#<test005lang.*>: ppx-driver(ocanren.ppx_logic)
+
+<test005lang.*>: pp(/home/evgeniy/.opam/4.05.0+flambda/lib/ocanren/pp_distrib.native --as-pp)

@@ -24,6 +24,9 @@ clean:
 relcppmem:
 	$(OCB) $(BYTE_TARGETS) $(NATIVE_TARGETS)
 
+xuy:
+	ocamlbuild -use-ocamlfind -classic-display -pkgs "ocanren" -plugin-tag "package(ppx_driver.ocamlbuild)" test005lang.native
+
 plugin: relcppmem
 	$(OCB) -I camlp5 camlp5/pa_cppmem.cmo
 

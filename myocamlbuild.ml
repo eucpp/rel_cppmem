@@ -1,7 +1,9 @@
 open Ocamlbuild_plugin;;
 module Pack = Ocamlbuild_pack
 
-let () = dispatch (function
+let () = dispatch (fun hook ->
+  Ppx_driver_ocamlbuild.dispatch hook;
+  match hook with
  | Before_rules ->
      ()
 
