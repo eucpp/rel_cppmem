@@ -1,4 +1,4 @@
-module Register :
+module Reg :
   sig
     include Utils.Logic
 
@@ -98,7 +98,7 @@ module Expr :
   sig
     include Utils.Logic
 
-    val var       : Register.ti -> ti
+    val var       : Reg.ti -> ti
     val const     : Value.ti -> ti
     val unop      : Uop.ti -> ti -> ti
     val binop     : Bop.ti -> ti -> ti -> ti
@@ -112,17 +112,17 @@ module Term :
 
     val skip      : unit -> ti
     val assertion : Expr.ti -> ti
-    val asgn      : Register.ti -> Expr.ti -> ti
+    val asgn      : Reg.ti -> Expr.ti -> ti
     val if'       : Expr.ti -> ti -> ti -> ti
     val while'    : Expr.ti -> ti -> ti
     val repeat    : ti -> Expr.ti -> ti
-    val load      : MemOrder.ti -> Loc.ti -> Register.ti -> ti
+    val load      : MemOrder.ti -> Loc.ti -> Reg.ti -> ti
     val store     : MemOrder.ti -> Loc.ti -> Expr.ti     -> ti
     val cas       : MemOrder.ti -> MemOrder.ti -> Loc.ti -> Expr.ti -> Expr.ti -> ti
     val seq       : ti -> ti -> ti
     val spw       : ti -> ti -> ti
     val par       : ti -> ti -> ti
-    val return    : (Register.tt, Register.tl) MiniKanren.Std.List.groundi -> ti
+    val return    : (Reg.tt, Reg.tl) MiniKanren.Std.List.groundi -> ti
 
     val show : tl -> string
 
@@ -160,9 +160,9 @@ module Label :
 
     val spawn  : ThreadID.ti -> ti
     val join   : ThreadID.ti -> ti
-    val return : ThreadID.ti -> (Register.tt, Register.tl) MiniKanren.Std.List.groundi -> ti
+    val return : ThreadID.ti -> (Reg.tt, Reg.tl) MiniKanren.Std.List.groundi -> ti
 
-    val regwrite : ThreadID.ti -> Register.ti -> Value.ti -> ti
+    val regwrite : ThreadID.ti -> Reg.ti -> Value.ti -> ti
 
     val load  : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> ti
     val store : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> ti
@@ -176,6 +176,34 @@ module Label :
     val assert_fail : unit -> ti
 
     val tido : ti -> ThreadID.ti -> MiniKanren.goal
+  end
+
+module RegStorage :
+  sig
+    include Utils.Logic
+
+    val empty : unit -> ti
+
+    val allocate : Register.ti list -> ti
+
+    val from_assoc : (Register.ti * Lang.Value.ti) list -> ti
+
+    val reado  : ti ->       Register.ti -> Value.ti -> MiniKanren.goal
+    val writeo : ti -> ti -> Register.ti -> Value.ti -> MiniKanren.goal
+
+    val spawno : ti -> ti -> ti -> MiniKanren.goal
+
+    val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal
+  end
+
+module ThreadSubSys :
+  sig
+    include Utils.Logic
+
+    val init :
+
+    val step : Label.ti -> ti -> ti -> MiniKanren.goal
+    val thrdstep : ThreadId.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
   end
 
 val splito : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Reduction.splitting

@@ -1,6 +1,7 @@
 src/Lang
 src/Memory
 src/Rules
+src/Storage
 src/Semantics
 src/MemoryModel
 src/Query

@@ -2,7 +2,7 @@ open MiniKanren
 (* open MiniKanrenStd *)
 open Utils
 
-module Register =
+module Reg =
   struct
     type tt = string
 
@@ -254,10 +254,10 @@ module Expr =
         let fmap fa fb fc fd fe x = GT.gmap(t) fa fb fc fd fe x
       end
 
-    type tt = (Register.tt, Value.tt, Uop.tt, Bop.tt, tt) T.t
+    type tt = (Reg.tt, Value.tt, Uop.tt, Bop.tt, tt) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (Register.tl, Value.tl, Uop.tl, Bop.tl, tl) T.t
+      and inner = (Reg.tl, Value.tl, Uop.tl, Bop.tl, tl) T.t
 
     type ti = (tt, tl) Semantics.Term.ti
 
@@ -268,14 +268,14 @@ module Expr =
     let unop op e     = inj @@ FT.distrib @@ T.Unop (op, e)
     let binop op l r  = inj @@ FT.distrib @@ T.Binop (op, l, r)
 
-    let rec reify h = FT.reify (Register.reify) (Value.reify) (Uop.reify) (Bop.reify) reify h
+    let rec reify h = FT.reify (Reg.reify) (Value.reify) (Uop.reify) (Bop.reify) reify h
 
     let rec show t =
-      GT.show(logic) (GT.show(T.t) Register.show Value.show Uop.show Bop.show show) t
+      GT.show(logic) (GT.show(T.t) Reg.show Value.show Uop.show Bop.show show) t
 
     let rec pprint ff x = T.(
       let s ff = function
-        | Var x            -> Format.fprintf ff "@[%a@]" Register.pprint x
+        | Var x            -> Format.fprintf ff "@[%a@]" Reg.pprint x
         | Const n          -> Format.fprintf ff "@[%a@]" Value.pprint n
         | Unop (op, e)     -> Format.fprintf ff "@[%a (%a)@]" Uop.pprint op pprint e
         | Binop (op, l, r) -> Format.fprintf ff "@[%a %a %a@]" pprint l Bop.pprint op pprint r
@@ -307,10 +307,10 @@ module Term =
         let fmap fa fb fc fd fe ff x = GT.gmap(t) fa fb fc fd fe ff x
       end
 
-    type tt = (Register.tt, Register.tt Std.List.ground, Loc.tt, MemOrder.tt, Expr.tt, tt) T.t
+    type tt = (Reg.tt, Reg.tt Std.List.ground, Loc.tt, MemOrder.tt, Expr.tt, tt) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (Register.tl, Register.tl Std.List.logic, Loc.tl, MemOrder.tl, Expr.tl, tl) T.t
+      and inner = (Reg.tl, Reg.tl Std.List.logic, Loc.tl, MemOrder.tl, Expr.tl, tl) T.t
 
     type ti = (tt, tl) Semantics.Term.ti
 
@@ -330,10 +330,10 @@ module Term =
     let par t1 t2           = inj @@ FT.distrib @@ T.Par (t1, t2)
     let return rs           = inj @@ FT.distrib @@ T.Return rs
 
-    let rec reify h = FT.reify Register.reify (Std.List.reify Register.reify) Loc.reify MemOrder.reify Expr.reify reify h
+    let rec reify h = FT.reify Reg.reify (Std.List.reify Reg.reify) Loc.reify MemOrder.reify Expr.reify reify h
 
     let rec show t =
-      GT.show(logic) (GT.show(T.t) Register.show (GT.show(Std.List.logic) Register.show) Loc.show MemOrder.show Expr.show show) t
+      GT.show(logic) (GT.show(T.t) Reg.show (GT.show(Std.List.logic) Reg.show) Loc.show MemOrder.show Expr.show show) t
 
     let pprint ff x = T.(
       let rec sl ff x = pprint_logic s ff x
@@ -343,7 +343,7 @@ module Term =
         | Assert e                ->
           Format.fprintf ff "@[assert (%a)@;@]" Expr.pprint e
         | Asgn (r, e)             ->
-          Format.fprintf ff "@[%a := %a@]" Register.pprint r Expr.pprint e
+          Format.fprintf ff "@[%a := %a@]" Reg.pprint r Expr.pprint e
         | If (e, t1, t2)          ->
           Format.fprintf ff "@[<v>if %a@;then %a@;else %a@]" Expr.pprint e sl t1 sl t2
         | While (e, t)            ->
@@ -351,7 +351,7 @@ module Term =
         | Repeat (t, e)           ->
           Format.fprintf ff "@[repeat @;<1 4>%a@; until (%a)@]" sl t Expr.pprint e
         | Load (m, l, r)          ->
-          Format.fprintf ff "@[%a := %a_%a@]" Register.pprint r Loc.pprint l MemOrder.pprint m
+          Format.fprintf ff "@[%a := %a_%a@]" Reg.pprint r Loc.pprint l MemOrder.pprint m
         | Store (m, l, e)         ->
           Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" Loc.pprint l MemOrder.pprint m Expr.pprint e
         | Cas (m1, m2, l, e, d)   ->
@@ -363,7 +363,7 @@ module Term =
         | Par (t, t')             ->
           Format.fprintf ff "@[<v>par {{{@;<1 4>%a@;<1 4>|||@;<1 4>%a@;}}}@]" sl t sl t'
         | Return rs               ->
-          Format.fprintf ff "@[<v>return %s@]" (GT.show(Std.List.logic) Register.show rs)
+          Format.fprintf ff "@[<v>return %s@]" (GT.show(Std.List.logic) Reg.show rs)
       in
       Format.fprintf ff "%a@." sl x
     )
@@ -454,10 +454,10 @@ module Label =
         let fmap fa fb fc fd fe ff x = GT.gmap(t) fa fb fc fd fe ff x
       end
 
-    type tt = (ThreadID.tt, MemOrder.tt, Register.tt, Register.tt Std.List.ground, Loc.tt, Value.tt) T.t
+    type tt = (ThreadID.tt, MemOrder.tt, Reg.tt, Reg.tt Std.List.ground, Loc.tt, Value.tt) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (ThreadID.tl, MemOrder.tl, Register.tl, Register.tl Std.List.logic, Loc.tl, Value.tl) T.t
+      and inner = (ThreadID.tl, MemOrder.tl, Reg.tl, Reg.tl Std.List.logic, Loc.tl, Value.tl) T.t
 
     type ti = (tt, tl) MiniKanren.injected
 
@@ -474,7 +474,7 @@ module Label =
     let datarace thrdId mo loc        = inj @@ FT.distrib @@ T.Datarace (thrdId, mo, loc)
     let assert_fail ()                = inj @@ FT.distrib @@ T.AssertionFailed
 
-    let reify h = FT.reify ThreadID.reify MemOrder.reify Register.reify (Std.List.reify Register.reify) Loc.reify Value.reify h
+    let reify h = FT.reify ThreadID.reify MemOrder.reify Reg.reify (Std.List.reify Reg.reify) Loc.reify Value.reify h
 
     let pprint =
       let pp ff = T.(function
@@ -485,9 +485,9 @@ module Label =
         | Join thrdId ->
           Format.fprintf ff "@[<join %s>@]" (ThreadID.show thrdId)
         | Return (thrdId, regs) ->
-          Format.fprintf ff "@[<return %s %s>@]" (ThreadID.show thrdId) (GT.show(Std.List.logic) Register.show regs)
+          Format.fprintf ff "@[<return %s %s>@]" (ThreadID.show thrdId) (GT.show(Std.List.logic) Reg.show regs)
         | RegWrite (thrdId, reg, v) ->
-          Format.fprintf ff "@[<regwrite %s %s %s>@]" (ThreadID.show thrdId) (Register.show reg) (Value.show v)
+          Format.fprintf ff "@[<regwrite %s %s %s>@]" (ThreadID.show thrdId) (Reg.show reg) (Value.show v)
         | Load (thrdId, mo, loc, v) ->
           Format.fprintf ff "@[<load %s %s %s %s>@]" (ThreadID.show thrdId) (MemOrder.show mo) (Loc.show loc) (Value.show v)
         | Store (thrdId, mo, loc, v) ->
@@ -526,6 +526,214 @@ module Label =
       fresh (mo loc)
         (label === datarace tid mo loc);
     ]
+
+  end
+
+module RegStorage =
+  struct
+    type tt = (Register.tt, Value.tt) Storage.tt
+
+    type tl = (Register.tl, Value.tl) Storage.tl
+      and inner = (Register.tl, Value.tl) Storage.inner
+
+    type ti = (Register.tt, Value.tt, Register.tl, Value.tl) Storage.ti
+
+    let empty = MiniKanren.Std.nil
+
+    let allocate = Storage.allocate (Value.integer 0)
+
+    let from_assoc = Storage.from_assoc
+
+    let reify = Storage.reify (Register.reify) (Value.reify)
+
+    let pprint =
+      Storage.pprint (fun ff (k, v) -> Format.fprintf ff "%s=%s" (Register.show k) (Value.show v))
+
+    let reado  = Storage.geto
+    let writeo = Storage.seto
+
+    let reseto = Storage.mapo (fun k v k' v' ->
+      (k === k') &&& (v' === Value.integer 0)
+    )
+
+    (* let copyo =  *)
+
+    let spawno regs regs1 regs2 =
+      (* (regs1 === regs2) &&&
+      (reseto regs regs1) *)
+      (regs === regs1) &&& (regs1 === regs2)
+      (* (reseto regs regs1) *)
+
+    let joino regs regs' regs1 regs2 =
+      (regs === regs')
+  end
+
+module Rules =
+  struct
+    let asserto label rs rs' t t' =
+      fresh (e v h)
+        (t  === assertion e)
+        (t' === skip ())
+        (rs === rs')
+        (expr_evalo rs e v)
+        (conde [
+          (Value.nullo v)     &&& (label === Label.assert_fail ());
+          (Value.not_nullo v) &&& (label === Label.empty ());
+        ])
+
+    let asgno label rs rs' t t' =
+      fresh (r e v)
+        (t  === asgn r e)
+        (t' === skip ())
+        (label === Label.empty ())
+        (expr_evalo rs e v)
+        (RegStorage.writeo rs rs' r v)
+
+    let ifo label rs rs' t t' =
+      fresh (e v rs t1 t2)
+        (t === if' e t1 t2)
+        (rs === rs')
+        (label === Label.empty ())
+        (expr_evalo rs e v)
+        (conde [
+          (Value.not_nullo v) &&& (t' === t1);
+          (Value.nullo v)     &&& (t' === t2);
+        ])
+
+    let whileo label rs rs' t t' =
+      fresh (e body u)
+        (t  === while' e body)
+        (t' === if' e (seq body t) (skip ()))
+        (rs === rs')
+        (label === Label.empty ())
+
+    let repeato label rs rs' t t' =
+      fresh (e body)
+        (t  === repeat body e)
+        (t' === seq body (while' (unop !!Uop.NOT e) body))
+        (rs === rs')
+        (label === Label.empty ())
+
+    let seqo label rs rs' t t' =
+      (t === seq (skip ()) t') &&&
+      (rs === rs') &&&
+      (label === Label.empty ())
+  end
+
+module Thread =
+  struct
+    module T =
+      struct
+        type ('tid, 'prog, 'regs, 'children) t =
+          { regs     : 'regs
+          ; prog     : 'prog
+          ; children : 'children
+          }
+
+
+      end
+
+    type tt = (ThreadID.tt, RegStorage.tt, tt MiniKanren.Std.List.ground) T.t
+
+    type tl = inner MiniKanren.logic
+      and inner = (ThreadID.tl, RegStorage.tl, tl MiniKanren.Std.List.logic) T.t
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    let thrd tid prog regs children = T.(inj @@ distrib {tid; prog; regs; children})
+
+    let step label t t' =
+      fresh (prog prog' rs rs' stmt stmt' stmts)
+        (t  === trhd prog  rs  (nil ()))
+        (t' === thrd prog' rs' (nil ()))
+        (prog === stmt  % stmts)
+        (prog === stmt' % stmts)
+        (conde @@ List.map (fun rule -> rule label rs rs' stmt stmt') Rules.all)
+
+    let spawn label t t' tids ts =
+      let rec helpero tids ps ts = conde [
+        fresh (tid p t tids' ps' ts')
+          (tids === tid % tids')
+          (ps === p % ps')
+          (ts === t % ts')
+          (t === thrd tid p (RegStorage.empty ()) (nil ()))
+          (helpero tids' ps' ts');
+
+        (tids === nil ()) &&& (ps === nil ()) &&& (ts === nil ());
+      ] in
+      fresh (pid prog prog' rs tids stmts)
+        (t  === trhd prog  rs (nil ()))
+        (t' === thrd prog' rs tids)
+        (prog  === (Stmt.spw ps) % stmts)
+        (prog' === (Stmt.join tids) % stmts)
+        (label === Label.spawn pid tids)
+        (ThreadID.spawn pid tids)
+        (helpero tids ps ts)
+
+    let join label t t' tids =
+      fresh (pid prog prog' rs tids stmts)
+        (t  === trhd prog  rs tids)
+        (t' === thrd prog' rs (nil ()))
+        (prog  === (Stmt.join tids) % stmts)
+        (prog' === (Stmt.skip ()) % stmts)
+        (label === Label.join pid tids)
+
+  end
+
+module ThreadSubSys =
+  struct
+    module T =
+      struct
+        type ('tid, 'thrds) t =
+          { cnt   : 'tid
+          ; thrds : 'thrds
+          }
+
+      end
+
+    type tt = (ThreadID.tt, Value.tt) T.t
+
+    type tl = inner MiniKanren.logic
+      and inner = (ThreadID.tl, Value.tt) T.t
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    let rec extendo t t' tids thrds = conde [
+      (tids === nil ()) &&& (thrds === nil ()) &&& (t === t');
+
+      fresh (tids' thrds' t'')
+        (tids === tid % tids')
+        (thrds === thrd % thrds')
+        (Storage.extendo t t'' tid thrd)
+        (extendo t'' t' tids' thrds')
+    ]
+
+    let rec removeo t t' tids = conde [
+      (tids === nil ()) &&& (t === t');
+
+      fresh (tids' t'')
+        (tids === tid % tids')
+        (* TODO: check that [tid] was terminated *)
+        (Storage.removeo t t'' tid)
+        (removeo t'' t' tids' thrds')
+    ]
+
+    let step tid label t t' =
+      fresh (thrd thrd')
+        (Storage.membero t tid thrd)
+        (conde [
+          (Thread.step label thrd thrd');
+
+          fresh (tids ts t'')
+            (Thread.spawn label thrd thrd' tids ts)
+            (Storage.seto t t'' tid thrd')
+            (extendo t'' t' tids ts);
+
+          fresh (tids t'')
+            (Thread.join label thrd thrd' tids)
+            (Storage.seto t t'' tid thrd')
+            (removeo t'' t' tids);
+        ])
 
   end
 

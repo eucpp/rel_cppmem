@@ -21,6 +21,15 @@ module type Logic =
     val pprint : Format.formatter -> tl -> unit
   end
 
+let rec list_conj xs g = conde [
+  (xs === nil ());
+
+  fresh (x xs')
+    (xs === x % xs')
+    (g x)
+    (list_conj g xs');
+]
+
 module Trace(T : Logic) =
   struct
     let trace fmt rr = T.pprint fmt @@ rr#reify T.reify
