@@ -708,12 +708,21 @@ module ThreadSubSys =
         (extendo t'' t' tids' thrds')
     ]
 
+    let removeo t t' tids =
+      let keyo =
+
+      let helpero tid thrd thrd' = conde [
+
+      ] in
+      Storage.updateo' helpero t t'
+
     let rec removeo t t' tids = conde [
       (tids === nil ()) &&& (t === t');
 
       fresh (tids' t'')
         (tids === tid % tids')
-        (* TODO: check that [tid] was terminated *)
+        (Storage.geto t tid thrd)
+        (Thread.terminatedo thrd)
         (Storage.removeo t t'' tid)
         (removeo t'' t' tids' thrds')
     ]
