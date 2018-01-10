@@ -624,23 +624,28 @@ module Thread =
   struct
     module T =
       struct
-        type ('tid, 'prog, 'regs, 'children) t =
+        @type ('tid, 'prog, 'regs, 'children) t =
           { regs     : 'regs
           ; prog     : 'prog
           ; children : 'children
           }
+        with gmap
 
-
+        let fmap fa fb fc x = GT.gmap(t) fa fb fc x
       end
 
-    type tt = (ThreadID.tt, RegStorage.tt, tt MiniKanren.Std.List.ground) T.t
+    type tt = (RegStorage.tt, Stmt.tt, ThreadID.tt MiniKanren.Std.List.ground) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (ThreadID.tl, RegStorage.tl, tl MiniKanren.Std.List.logic) T.t
+      and inner = (RegStorage.tl, Stmt.tl, ThreadID.tl MiniKanren.Std.List.logic) T.t
 
     type ti = (tt, tl) MiniKanren.injected
 
-    let thrd tid prog regs children = T.(inj @@ distrib {tid; prog; regs; children})
+    let module F = Fmap3(T)
+
+    let thrd prog regs children = T.(inj @@ F.distrib {prog; regs; children})
+
+    let reify h = F.reify RegStorage.reify Stmt.reify (List.reify ThreadID.reify) h
 
     let step label t t' =
       fresh (prog prog' rs rs' stmt stmt' stmts)
@@ -745,91 +750,3 @@ module ThreadSubSys =
         ])
 
   end
-
-let rec splito term ctx rdx = Term.(Context.(ThreadID.(conde [
-  (* first we handle cases when term is simple and context is `empty`;
-   * in this case the resulting split is equal to ({}, term),
-   * when {} denotes `hole`, i.e. free variable
-   *)
-  fresh (h)
-    (rdx === term)
-    (ctx === hole h)
-    (conde [
-      (irreducibleo term);
-
-      fresh (e)
-        (term === assertion e);
-
-      fresh (r e)
-        (term === asgn r e);
-
-      fresh (e t1 t2)
-        (term === if' e t1 t2);
-
-      fresh (e body)
-        (term === while' e body);
-
-      fresh (e body)
-        (term === repeat body e);
-
-      fresh (mo loc v)
-        (term === load mo loc v);
-
-      fresh (mo loc e)
-        (term === store mo loc e);
-
-      fresh (mo1 mo2 loc e d)
-        (term === cas mo1 mo2 loc e d);
-
-      fresh (t1 t2)
-        (term === seq t1 t2)
-        (irreducibleo t1);
-
-      fresh (t1 t2)
-        (term === spw t1 t2);
-
-      fresh (t1 t2)
-        (term === par t1 t2)
-        (irreducibleo t1)
-        (irreducibleo t2);
-
-      fresh (rs)
-        (term === return rs);
-    ]);
-
-  (* second we handle complex terms *)
-  fresh (h t t' ctx' thrdId thrdId')
-    (ctx  === context t  h thrdId )
-    (ctx' === context t' h thrdId')
-    (conde [
-      fresh (t1 t2)
-        (t1 =/= skip ())
-        (term === seq t1 t2)
-        (t    === seq t' t2)
-        (thrdId === thrdId')
-        (splito t1 ctx' rdx);
-
-      fresh (t1 t2)
-        (term === par t1 t2)
-        (conde [
-            (t1 =/= skip ()) &&&
-            (t === par t' t2) &&&
-            (thrdId === pathl thrdId') &&&
-            (splito t1 ctx' rdx);
-
-            (t2 =/= skip ()) &&&
-            (t === par t1 t') &&&
-            (thrdId === pathr thrdId') &&&
-            (splito t2 ctx' rdx);
-        ])
-    ]);
-])))
-
-let thrd_splito thrdId term ctx rdx =
-  fresh (t h)
-    (ctx === Context.context t h thrdId)
-    (splito term ctx rdx)
-
-let plugo ctx rdx term =
-  fresh (thrdId)
-    (ctx === Context.context term rdx thrdId)
