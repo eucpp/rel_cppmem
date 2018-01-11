@@ -132,26 +132,6 @@ module Term :
     val irreducibleo : ti -> MiniKanren.goal
   end
 
-module Context :
-  sig
-    module T :
-      sig
-        type ('t, 'thrdId) t = {
-          term : 't;
-          hole : 't;
-          thrdId : 'thrdId;
-        }
-      end
-
-    type tt = (Term.tt, ThreadID.tt) T.t
-    type tl = (Term.tl, ThreadID.tl) T.t MiniKanren.logic
-    type ti = (tt, tl) MiniKanren.injected
-
-    val hole : Term.ti -> ti
-
-    val thrdIdo : ti -> ThreadID.ti -> MiniKanren.goal
-  end
-
 module Label :
   sig
     include Utils.Logic

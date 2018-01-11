@@ -52,50 +52,7 @@ module Context =
 type rule =
   Lang.Label.ti -> Context.ti -> Context.ti -> Lang.Term.ti -> Lang.Term.ti -> MiniKanren.goal
 
-let rec expr_evalo rs e v = Value.(conde [
-  (e === const v);
-
-  fresh (x)
-    (e === var x)
-    (RegisterStorage.reado rs x v);
-
-  fresh (op e' v')
-    (e === unop !!Uop.NOT e')
-    (conde [
-      (Value.nullo v')     &&& (v === (integer 1));
-      (Value.not_nullo v') &&& (v === (integer 0));
-    ])
-    (expr_evalo rs e' v');
-
-  fresh (op l r x y)
-    (e  === binop op l r)
-    (expr_evalo rs l x)
-    (expr_evalo rs r y)
-    (conde [
-      (op === !!Bop.ADD) &&& (addo x y v);
-      (op === !!Bop.MUL) &&& (mulo x y v);
-      (op === !!Bop.EQ ) &&& (conde [(eqo x y) &&& (v === (integer 1)); (nqo x y) &&& (v === (integer 0))]);
-      (op === !!Bop.NEQ) &&& (conde [(nqo x y) &&& (v === (integer 1)); (eqo x y) &&& (v === (integer 0))]);
-      (op === !!Bop.LT ) &&& (conde [(lto x y) &&& (v === (integer 1)); (geo x y) &&& (v === (integer 0))]);
-      (op === !!Bop.LE ) &&& (conde [(leo x y) &&& (v === (integer 1)); (gto x y) &&& (v === (integer 0))]);
-      (op === !!Bop.GT ) &&& (conde [(gto x y) &&& (v === (integer 1)); (leo x y) &&& (v === (integer 0))]);
-      (op === !!Bop.GE ) &&& (conde [(geo x y) &&& (v === (integer 1)); (lto x y) &&& (v === (integer 0))]);
-
-      (op === !!Lang.Bop.OR ) &&& (conde [
-        (nullo x)     &&& (nullo y)     &&& (v === (integer 0));
-        (not_nullo x) &&& (nullo y)     &&& (v === (integer 1));
-        (nullo x)     &&& (not_nullo y) &&& (v === (integer 1));
-        (not_nullo x) &&& (not_nullo y) &&& (v === (integer 1));
-      ]);
-
-      (op === !!Lang.Bop.AND) &&& (conde [
-        (nullo x)     &&& (nullo y)     &&& (v === (integer 0));
-        (not_nullo x) &&& (nullo y)     &&& (v === (integer 0));
-        (nullo x)     &&& (not_nullo y) &&& (v === (integer 0));
-        (not_nullo x) &&& (not_nullo y) &&& (v === (integer 1));
-      ]);
-    ])
-])
+let rec expr_evalo rs e v = 
 
 module Basic =
   struct
