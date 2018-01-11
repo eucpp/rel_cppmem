@@ -158,7 +158,7 @@ module Label :
     val tido : ti -> ThreadID.ti -> MiniKanren.goal
   end
 
-module RegStorage :
+(* module RegStorage :
   sig
     include Utils.Logic
 
@@ -166,7 +166,7 @@ module RegStorage :
 
     val allocate : Register.ti list -> ti
 
-    val from_assoc : (Register.ti * Lang.Value.ti) list -> ti
+    val from_assoc : (Register.ti * Value.ti) list -> ti
 
     val reado  : ti ->       Register.ti -> Value.ti -> MiniKanren.goal
     val writeo : ti -> ti -> Register.ti -> Value.ti -> MiniKanren.goal
@@ -174,20 +174,12 @@ module RegStorage :
     val spawno : ti -> ti -> ti -> MiniKanren.goal
 
     val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal
-  end
-
+  end *)
+(*
 module ThreadSubSys :
   sig
     include Utils.Logic
 
-    val init :
-
     val step : Label.ti -> ti -> ti -> MiniKanren.goal
     val thrdstep : ThreadId.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
-  end
-
-val splito : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Reduction.splitting
-
-val thrd_splito : ThreadID.ti -> (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Reduction.splitting
-
-val plugo : (Term.tt, Context.tt, Term.tl, Context.tl) Semantics.Reduction.plugging
+  end *)

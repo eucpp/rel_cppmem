@@ -17,10 +17,7 @@ module type Memory =
   sig
     include Utils.Logic
 
-    val init : regs:string list -> mem:(string * int) list -> ti
-
-    val get_regso : ti ->       Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
-    val set_regso : ti -> ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
+    val init : (string * int) list -> ti
 
     val shapeo : ti -> Lang.Loc.ti list -> MiniKanren.goal
 
@@ -35,9 +32,6 @@ module State (M : Memory) :
 
     val mem   : M.ti -> ti
     val error : Error.ti -> M.ti -> ti
-
-    val get_regso : ti ->       Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
-    val set_regso : ti -> ti -> Lang.ThreadID.ti -> Memory.RegisterStorage.ti -> MiniKanren.goal
 
     val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
   end
@@ -54,20 +48,6 @@ module type T =
 
     (* val evalo : (Node.tt, Node.tt, Node.tl, Node.tl) Semantics.eval *)
   end
-
-(* module SequentialConsistent :
-  sig
-    module State :
-      sig
-        include Semantics.State
-
-        val init : regs:Lang.Register.ti list -> locs:Lang.Loc.ti list -> ti
-      end
-
-    module TLSNode : module type of Semantics.TLSNode(Lang.Term)(State)
-
-    val evalo : (TLSNode.tt, TLSNode.tl) Semantics.eval
-  end *)
 
 module SequentialConsistent : T
 

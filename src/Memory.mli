@@ -48,19 +48,7 @@ module ThreadFront :
   sig
     include Utils.Logic
 
-    (** [preallocate vars atomics] creates new thread front
-          and allocates a storage for [registers] and viewfronts of [atomics] *)
-    val allocate : Lang.Register.ti list -> Lang.Loc.ti list -> ti
-
-    val get_regso : ti -> RegisterStorage.ti -> MiniKanren.goal
-
-    val set_regso : ti -> ti -> RegisterStorage.ti -> MiniKanren.goal
-
-    (** [get_varo thrd var val] performs read of thread-local register *)
-    val reado : ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
-
-    (** [set_varo thrd thrd' var value] performs write of thread-local register *)
-    val writeo : ti -> ti -> Lang.Register.ti -> Lang.Value.ti -> MiniKanren.goal
+    val allocate : Lang.Loc.ti list -> ti
 
     (** [tso thrd loc ts] obtains last timestamp [ts] at [loc] that was seen by thread [thrd] *)
     val tso : ti -> Lang.Loc.ti -> Timestamp.ti -> MiniKanren.goal
