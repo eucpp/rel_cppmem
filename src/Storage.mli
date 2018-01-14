@@ -33,7 +33,7 @@ val membero :
 
 val extendo :
   ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti ->
-  ('at, 'al) MiniKanren.Std.List.groundi -> ('bt, 'bl) MiniKanren.Std.List.groundi -> MiniKanren.goal
+  ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal
 
 val updateo :
   (('bt, 'bl) value -> ('bt, 'bl) value -> MiniKanren.goal) ->

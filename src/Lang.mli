@@ -86,12 +86,6 @@ module Bop :
 module ThreadID :
   sig
     include Utils.Logic
-
-    val pathn : unit -> ti
-    val pathl : ti -> ti
-    val pathr : ti -> ti
-
-    val parento : ti -> ti -> MiniKanren.goal
   end
 
 module Expr :
@@ -106,30 +100,27 @@ module Expr :
     val show : tl -> string
   end
 
-module Term :
+module Stmt :
   sig
     include Utils.Logic
 
-    val skip      : unit -> ti
+    type progi = (tt, tl) MiniKanren.Std.List.groundi
+
+    (* val skip      : unit -> ti *)
     val assertion : Expr.ti -> ti
     val asgn      : Reg.ti -> Expr.ti -> ti
-    val if'       : Expr.ti -> ti -> ti -> ti
-    val while'    : Expr.ti -> ti -> ti
-    val repeat    : ti -> Expr.ti -> ti
+    val if'       : Expr.ti -> progi -> progi -> ti
+    val while'    : Expr.ti -> progi -> ti
+    val repeat    : progi -> Expr.ti -> ti
     val load      : MemOrder.ti -> Loc.ti -> Reg.ti -> ti
     val store     : MemOrder.ti -> Loc.ti -> Expr.ti     -> ti
     val cas       : MemOrder.ti -> MemOrder.ti -> Loc.ti -> Expr.ti -> Expr.ti -> ti
-    val seq       : ti -> ti -> ti
-    val spw       : ti -> ti -> ti
-    val par       : ti -> ti -> ti
+    (* val seq       : ti -> ti -> ti *)
+    val spw       : progi -> progi -> ti
+    (* val par       : ti -> ti -> ti *)
     val return    : (Reg.tt, Reg.tl) MiniKanren.Std.List.groundi -> ti
 
     val show : tl -> string
-
-    val thrd_local_termo : ti -> MiniKanren.goal
-    val thrd_inter_termo : ti -> MiniKanren.goal
-
-    val irreducibleo : ti -> MiniKanren.goal
   end
 
 module Label :
@@ -138,24 +129,20 @@ module Label :
 
     val empty : unit -> ti
 
-    val spawn  : ThreadID.ti -> ti
-    val join   : ThreadID.ti -> ti
-    val return : ThreadID.ti -> (Reg.tt, Reg.tl) MiniKanren.Std.List.groundi -> ti
+    (* val spawn  : ThreadID.ti -> ti
+    val join   : ThreadID.ti -> ti *)
 
-    val regwrite : ThreadID.ti -> Reg.ti -> Value.ti -> ti
+    val spawn  : (ThreadID.tt, ThreadID.tl) MiniKanren.Std.List.groundi -> ti
+    val join   : (ThreadID.tt, ThreadID.tl) MiniKanren.Std.List.groundi -> ti
 
-    val load  : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> ti
-    val store : ThreadID.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> ti
+    val load  : MemOrder.ti -> Loc.ti -> Value.ti -> ti
+    val store : MemOrder.ti -> Loc.ti -> Value.ti -> ti
 
-    val cas :
-      ThreadID.ti -> MemOrder.ti -> MemOrder.ti -> Loc.ti ->
-      Value.ti -> Value.ti -> Value.ti -> ti
+    val cas : MemOrder.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> Value.ti -> Value.ti -> ti
 
-    val datarace : ThreadID.ti -> MemOrder.ti -> Loc.ti -> ti
+    val datarace : MemOrder.ti -> Loc.ti -> ti
 
     val assert_fail : unit -> ti
-
-    val tido : ti -> ThreadID.ti -> MiniKanren.goal
   end
 
 (* module RegStorage :
