@@ -97,21 +97,6 @@ module type ThreadLocalData =
     val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal
   end
 
-module ThreadLocalStorage(T : ThreadLocalData) :
-  sig
-    include Utils.Logic
-
-    val nil   : unit -> ti
-    val leaf  : T.ti -> ti
-    val node  : ?left:ti -> ?right:ti -> T.ti -> ti
-
-    val geto : ti       -> Lang.ThreadID.ti -> T.ti -> MiniKanren.goal
-    val seto : ti -> ti -> Lang.ThreadID.ti -> T.ti -> MiniKanren.goal
-
-    val spawno : ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
-    val joino  : ti -> ti -> Lang.ThreadID.ti -> MiniKanren.goal
-  end
-
 module LocStory :
   sig
     include Utils.Logic

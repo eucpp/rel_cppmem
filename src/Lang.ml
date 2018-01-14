@@ -566,6 +566,15 @@ module Thread =
 
     let reify h = F.reify RegStorage.reify (Std.List.reify Stmt.reify) ThreadID.reify (Std.List.reify ThreadID.reify) h
 
+    let pprint =
+      let pp ff = let open T in fun { regs; prog; pid } ->
+        Format.fprintf ff "@[<v>pid: %a@;@[<v>Code :@;<1 4>%a@;@]@;@[<v>Regs :@;<1 4>%a@;@]@]"
+          ThreadID.pprint pid
+          Stmt.ppseql prog
+          RegStorage.pprint regs
+      in
+      pprint_logic pp
+
     open Std
 
     let setrego t t' r v =
@@ -655,7 +664,17 @@ module ThreadSubSys =
 
     module F = Fmap2(T)
 
+    let reify = F.reify ThreadID.reify (Storage.reify Thread.reify)
+
     let thrdsys cnt thrds = T.(inj @@ F.distrib {cnt; thrds})
+
+    let pprint =
+      let pp ff = let open T in fun {thrds} ->
+        Storage.pprint (fun (tid, thrd) ->
+          Format.fprintf ff "@[<v>Thread #%a:@;%a@]" ThreadID.pprint tid Thread.pprint thrd
+        )
+      in
+      pprint_logic pp
 
     open Std
 
@@ -690,7 +709,7 @@ module ThreadSubSys =
         (removeo thrds' thrds'' tids')
     ]
 
-    let step tid label t t' =
+    let stepo tid label t t' =
       fresh (cnt cnt' thrds thrds' thrds'' thrd thrd')
         (t  === thrdsys cnt  thrds  )
         (t' === thrdsys cnt' thrds'')

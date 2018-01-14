@@ -145,6 +145,13 @@ module Label :
     val assert_fail : unit -> ti
   end
 
+module ThreadSubSys :
+  sig
+    include Utils.Logic
+
+    val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
+  end
+
 (* module RegStorage :
   sig
     include Utils.Logic

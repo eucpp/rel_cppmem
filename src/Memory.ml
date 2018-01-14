@@ -74,7 +74,7 @@ module ViewFront =
 
     type ti = (Lang.Loc.tt, Timestamp.tt, Lang.Loc.tl, Timestamp.tl) Storage.ti
 
-    let bottom = MiniKanren.Std.nil
+    let bottom = Storage.empty
 
     let allocate = Storage.allocate (Timestamp.ts 0)
 
@@ -116,119 +116,89 @@ module ViewFront =
 module ThreadFront =
   struct
     module T = struct
-      type ('a, 'b, 'c, 'd) t = {
-        regs : 'a;
-        curr : 'b;
-        rel  : 'c;
-        acq  : 'd;
+      type ('curr, 'rel, 'acq) t = {
+        curr : 'curr;
+        rel  : 'rel;
+        acq  : 'acq;
       }
 
-      let fmap fa fb fc fd {regs = a; curr = b; rel = c; acq = d} =
-        {regs = fa a; curr = fb b; rel = fc c; acq = fd d}
+      let fmap f g h {curr; rel; acq} =
+        {curr = f curr; rel = g rel; acq = h acq}
     end
 
-    type tt = (RegisterStorage.tt, ViewFront.tt, ViewFront.tt, ViewFront.tt) T.t
+    type tt = (ViewFront.tt, ViewFront.tt, ViewFront.tt) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (RegisterStorage.tl, ViewFront.tl, ViewFront.tl, ViewFront.tl) T.t
+      and inner = (ViewFront.tl, ViewFront.tl, ViewFront.tl) T.t
 
     type ti = (tt, tl) MiniKanren.injected
 
-    include Fmap4(T)
+    include Fmap3(T)
 
-    let thrd_state regs curr rel acq =
-      inj @@ distrib @@ {T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; }
+    let thrd_state curr rel acq =
+      inj @@ distrib @@ {T.curr = curr; T.rel = rel; T.acq = acq; }
 
-    let reify = reify RegisterStorage.reify ViewFront.reify ViewFront.reify ViewFront.reify
+    let reify = reify ViewFront.reify ViewFront.reify ViewFront.reify
 
     let convert = (fun (var, value) -> (var, Nat.of_int value))
 
-    let allocate vars atomics = thrd_state
-      (RegisterStorage.allocate vars)
+    let allocate atomics = thrd_state
       (ViewFront.allocate atomics)
       (ViewFront.allocate atomics)
       (ViewFront.allocate atomics)
 
     let pprint =
-      let pp ff { T.regs = regs; T.curr = curr; T.rel = rel; T.acq = acq; } =
-        Format.fprintf ff "@[<v>reg: %a @;cur: %a @;acq: %a @;rel: %a @]"
-          RegisterStorage.pprint regs
+      let pp ff = let open T in fun { curr; rel; acq } ->
+        Format.fprintf ff "@[<v>cur: %a @;acq: %a @;rel: %a @]"
           ViewFront.pprint curr
           ViewFront.pprint acq
           ViewFront.pprint rel
       in
       pprint_logic pp
 
-    let get_regso thrd regs =
-      fresh (curr rel acq)
-        (thrd === thrd_state regs curr rel acq)
-
-    let set_regso thrd thrd' regs' =
-      fresh (regs curr rel acq)
-        (thrd  === thrd_state regs  curr rel acq)
-        (thrd' === thrd_state regs' curr rel acq)
-
-    let reado thrd var value =
-      fresh (regs curr rel acq)
-        (thrd === thrd_state regs curr rel acq)
-        (RegisterStorage.reado regs var value)
-
-    let writeo thrd thrd' var value =
-      fresh (regs regs' curr rel acq)
-        (thrd  === thrd_state regs  curr rel acq)
-        (thrd' === thrd_state regs' curr rel acq)
-        (RegisterStorage.writeo regs regs' var value)
-
     let tso thrd loc ts =
-      fresh (regs curr rel acq)
-        (thrd === thrd_state regs curr rel acq)
+      fresh (curr rel acq)
+        (thrd === thrd_state curr rel acq)
         (ViewFront.tso curr loc ts)
 
     let updateo thrd thrd' loc ts =
-      fresh (regs curr curr' rel acq acq')
-        (thrd  === thrd_state regs curr  rel  acq )
-        (thrd' === thrd_state regs curr' rel  acq')
+      fresh (curr curr' rel acq acq')
+        (thrd  === thrd_state curr  rel  acq )
+        (thrd' === thrd_state curr' rel  acq')
         (ViewFront.updateo curr curr' loc ts)
         (ViewFront.updateo acq  acq'  loc ts)
 
     let front_relo thrd loc rel =
-      fresh (regs curr acq)
-        (thrd === thrd_state regs curr rel acq)
+      fresh (curr acq)
+        (thrd === thrd_state curr rel acq)
 
     let update_acqo thrd thrd' vf =
-      fresh (regs curr rel acq acq')
-        (thrd  === thrd_state regs curr rel acq )
-        (thrd' === thrd_state regs curr rel acq')
+      fresh (curr rel acq acq')
+        (thrd  === thrd_state curr rel acq )
+        (thrd' === thrd_state curr rel acq')
         (ViewFront.mergeo vf acq acq')
 
     let fence_acqo thrd thrd' =
-      fresh (regs curr rel acq)
-        (thrd  === thrd_state regs curr rel acq)
-        (thrd' === thrd_state regs acq  rel acq)
+      fresh (curr rel acq)
+        (thrd  === thrd_state curr rel acq)
+        (thrd' === thrd_state acq  rel acq)
 
     let fence_relo ?loc thrd thrd' =
-      fresh (regs curr rel acq)
-        (thrd  === thrd_state regs curr rel  acq)
-        (thrd' === thrd_state regs curr curr acq)
+      fresh (curr rel acq)
+        (thrd  === thrd_state curr rel  acq)
+        (thrd' === thrd_state curr curr acq)
 
     let spawno thrd child1 child2 =
-      fresh (regs regs1 regs2 curr rel acq)
-        (thrd   === thrd_state regs  curr rel acq)
-        (child1 === thrd_state regs1 curr rel acq)
-        (child2 === thrd_state regs2 curr rel acq)
-        (RegisterStorage.spawno regs regs1 regs2)
+      (thrd === child1) &&& (thrd === child2)
 
     let joino thrd thrd' child1 child2 =
-      fresh (regs regs' regs1 regs2
-             curr curr' curr1 curr2
+      fresh (curr curr' curr1 curr2
              rel  rel' rel1 rel2
-             acq  acq' acq1 acq2
-             prm prm1 prm2)
-        (thrd   === thrd_state regs  curr  rel  acq )
-        (thrd'  === thrd_state regs' curr' rel' acq')
-        (child1 === thrd_state regs1 curr1 rel1 acq1)
-        (child2 === thrd_state regs2 curr2 rel2 acq2)
-        (RegisterStorage.joino regs regs' regs1 regs2)
+             acq  acq' acq1 acq2)
+        (thrd   === thrd_state curr  rel  acq )
+        (thrd'  === thrd_state curr' rel' acq')
+        (child1 === thrd_state curr1 rel1 acq1)
+        (child2 === thrd_state curr2 rel2 acq2)
         (ViewFront.mergeo curr1 curr2 curr')
         (ViewFront.mergeo rel1  rel2  rel' )
         (ViewFront.mergeo acq1  acq2  acq' )
@@ -241,130 +211,6 @@ module type ThreadLocalData =
 
     val spawno : ti -> ti -> ti -> MiniKanren.goal
     val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal
-  end
-
-module ThreadLocalStorage(T : ThreadLocalData) =
-  struct
-    module Tree =
-      struct
-        type ('a, 't) t =
-          | Nil
-          | Node of 'a * 't * 't
-
-        let fmap fa ft = function
-          | Nil            -> Nil
-          | Node (a, l, r) -> Node (fa a, ft l, ft r)
-      end
-
-    type tt = (T.tt, tt) Tree.t
-
-    type tl = inner MiniKanren.logic
-      and inner = (T.tl, tl) Tree.t
-
-    type ti = (tt, tl) MiniKanren.injected
-
-    include Fmap2(Tree)
-
-    let nil () = inj @@ distrib @@ Tree.Nil
-
-    let node ?(left=nil()) ?(right=nil()) x = inj @@ distrib @@ Tree.Node (x, left, right)
-
-    let leaf x = node x
-
-    let reify' = reify
-    let rec reify h = reify' T.reify reify h
-
-    let threads_list thrd_tree =
-      let q = Queue.create () in
-      let lst = ref [] in
-      Queue.push thrd_tree q;
-      while not @@ Queue.is_empty q do
-        match Queue.pop q with
-        | Value (Tree.Node (thrd, l, r)) ->
-          lst := thrd :: !lst;
-          Queue.push l q;
-          Queue.push r q
-        | Value Tree.Nil  -> ()
-        | Var (i, _) -> ()
-      done;
-      List.rev !lst
-
-    let pprint ff thrd_tree =
-      let cnt = ref 1 in
-      let pp ff thrd =
-        Format.fprintf ff "@[<v>Thread %d:@;<1 4>%a@;@]" !cnt T.pprint thrd;
-        cnt := !cnt + 1
-      in
-      List.iter (pp ff) @@ threads_list thrd_tree
-
-    let rec geto tree path thrd = Lang.(ThreadID.(
-      fresh (thrd' left right path')
-        (tree === node thrd' ~left ~right)
-        (conde [
-          (path === pathn ()) &&& (thrd === thrd');
-          (conde [
-            (path === pathl path') &&& (geto left  path' thrd);
-            (path === pathr path') &&& (geto right path' thrd);
-          ])
-        ])
-      ))
-
-    let rec seto tree tree' path thrd_new = Lang.(ThreadID.(
-      fresh (thrd thrd' path' l l' r r')
-        (tree  === node thrd  ~left:l  ~right:r )
-        (tree' === node thrd' ~left:l' ~right:r')
-        (conde [
-          (path === pathn ()) &&& (thrd' === thrd_new) &&&
-          (l === l') &&& (r === r');
-
-          (thrd' === thrd) &&&
-          (conde [
-            (path === pathl path') &&& (r === r') &&& (seto l l' path' thrd_new);
-            (path === pathr path') &&& (l === l') &&& (seto r r' path' thrd_new);
-          ])
-        ])
-      ))
-
-    let rec spawno tree tree' path = Lang.(ThreadID.(
-      fresh (thrd l l' r r' path')
-        (tree  === node thrd  ~left:l  ~right:r )
-        (tree' === node thrd  ~left:l' ~right:r')
-        (conde [
-          fresh (a b)
-            (path === pathn ())
-            (l  === nil ())
-            (r  === nil ())
-            (l' === leaf a)
-            (r' === leaf b)
-            (T.spawno thrd a b);
-
-          (conde [
-            (path === pathl path') &&& (spawno l l' path') &&& (r === r');
-            (path === pathr path') &&& (spawno r r' path') &&& (l === l');
-          ])
-        ])
-      ))
-
-    let rec joino tree tree' path = Lang.(ThreadID.(
-      fresh (thrd thrd' l l' r r' path')
-        (tree  === node thrd  ~left:l  ~right:r )
-        (tree' === node thrd' ~left:l' ~right:r')
-        (conde [
-          fresh (a b)
-            (path  === pathn ())
-            (l  === leaf a)
-            (r  === leaf b)
-            (l' === nil ())
-            (r' === nil ())
-            (T.joino thrd thrd' a b);
-
-          (thrd === thrd') &&&
-          (conde [
-            (path === pathl path') &&& (r === r') &&& (joino l l' path');
-            (path === pathr path') &&& (l === l') &&& (joino r r' path');
-          ]);
-        ])
-      ))
   end
 
 module LocStory =

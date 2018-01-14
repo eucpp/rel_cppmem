@@ -1,3 +1,6 @@
+open MiniKanren
+open MiniKanren.Std
+
 type ('at, 'bt) tt = (('at * 'bt), ('at, 'bt) tt) MiniKanren.Std.list
 
 type ('al, 'bl) tl = ('al, 'bl) inner MiniKanren.logic
@@ -8,7 +11,7 @@ type ('at, 'bt, 'al, 'bl) ti = (('at, 'bt) tt, ('al, 'bl) tl) MiniKanren.injecte
 type ('at, 'al) key = ('at, 'al) MiniKanren.injected
 type ('bt, 'bl) value = ('bt, 'bl) MiniKanren.injected
 
-let empty = MiniKanren.Std.nil
+let empty = nil
 
 let allocate default vars = MiniKanren.Std.List.list @@ List.map (fun var -> pair var default) vars
 
@@ -16,9 +19,9 @@ let from_assoc assoc = MiniKanren.Std.List.list @@ List.map (fun (k, v) -> pair 
 
 let reify reify_key reify_value = List.reify (Pair.reify reify_key reify_value)
 
-let pprint pp_kv = pprint_llist (pprint_logic pp_kv)
+let pprint pp_kv = Utils.pprint_llist (Utils.pprint_logic pp_kv)
 
-let rec of_listso ks vs t = conde [
+(* let rec of_listso ks vs t = conde [
   (ks === nil ()) &&& (vs === nil ()) &&& (t === nil ());
 
   fresh (k v ks' vs' t')
@@ -26,7 +29,7 @@ let rec of_listso ks vs t = conde [
     (vs === v % vs')
     (t  === (pair k v) % t')
     (of_listo ks' vs' t');
-]
+] *)
 
 let rec geto vars var value =
   fresh (hd tl)
@@ -55,7 +58,7 @@ let rec removeo t t' k = conde [
     ])
 ]
 
-let membero t k v = List.membero (pair k v) t
+let membero t k v = List.membero t (pair k v)
 
 let extendo t t' k v =
   (* TODO: check that [k] is absent in [t] *)
