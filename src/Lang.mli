@@ -169,6 +169,23 @@ module Label :
     val error : Error.ti -> ti
   end
 
+module type State :
+  sig
+    include Utils.Logic
+
+    val stepo : Label.ti -> ti -> ti -> MiniKanren.goal
+  end
+
+module StateE(S : State) :
+  sig
+    include Utils.Logic
+
+    val state : S.ti -> ti
+    val error : Error.ti -> S.ti -> ti
+
+    val stepo : Label.ti -> ti -> ti -> MiniKanren.goal
+  end
+
 module Thread :
   sig
     include Utils.Logic

@@ -510,21 +510,55 @@ module Label =
 
   end
 
-module Rules =
+module type State :
+  sig
+    include Utils.Logic
+
+    val stepo : Label.ti -> ti -> ti -> MiniKanren.goal
+  end
+
+module StateE(S : State) =
   struct
-    open Stmt
+    type tt = S.tt * Error.tt Std.Option.ground
 
+    type tl = inner MiniKanren.logic
+      and inner = S.tl * Error.tl Std.Option.logic
 
+    type ti = (tt, tl) MiniKanren.injected
 
+    let reify = Std.Pair.reify S.reify (Std.Oprion.reify Error.reify)
 
+    let pprint =
+      pprint_logic (fun ff (s, e) ->
+        match e with
+        | None   ->
+          Format.fprintf ff "@[<v>%a@]" S.pprint s
+        | Some e ->
+          Format.fprintf ff "@[<v>Error:@;<1 2>%a@;State:@;<1 2>%a@;@]"
+            Error.pprint e
+            S.pprint s
+      )
 
+    open Std
 
+    let state s   = pair s @@ none ()
+    let error e s = pair s @@ some e
 
+    let stepo label t t' =
+      fresh (s s' opt)
+        (t   === pair s  (none ()))
+        (t'  === pair s' opt)
+        (S.stepo label s s')
+        (conde [
+          fresh (err)
+            (label === Label.error err)
+            (opt === some err);
 
-
-
-
-    let all = [asserto; asgno; ifo; whileo; repeato; loado; storeo; dataraceo]
+          ?~(
+            fresh (err)
+              (label =/= Label.error err)
+          ) &&& (opt === none ())
+        ])
   end
 
 module Thread =
