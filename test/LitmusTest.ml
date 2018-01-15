@@ -1,4 +1,3 @@
-open OUnit2
 open MiniKanren
 open MiniKanrenStd
 
@@ -84,6 +83,7 @@ let litmus_test ?pprint ~intrpo ~name ~prog ~initstate ~asserto ~tag =
 let litmus_test_SC ~name ~prog ~regs ~locs ~asserto ~tag =
   let module Trace = Utils.Trace(SequentialConsistent.State) in
   let mem = List.map (fun l -> (l, 0)) locs in
+  let regs = RegStorage.allocate @@ List.map (fun r -> Reg.reg r) regs in
   let prog = Lang.ThreadSubSys.init ~prog ~regs in
   let initstate = SequentialConsistent.State.mem @@ SequentialConsistent.Memory.init ~mem in
   litmus_test
@@ -118,6 +118,23 @@ let test_SW_SC = litmus_test_SC
   ~locs:["x"; "f"]
   ~tag:Forall
   ~asserto:safeo_SC
+
+(* let () =
+  let module Trace = Utils.Trace(SequentialConsistent.Node) in
+
+  let locs = ["x"; "f"] in
+  let regs = ["r1"; "r2"]in
+  let prog = prog_SW in
+
+  let mem = List.map (fun l -> (l, 0)) locs in
+  let regs = RegStorage.allocate @@ List.map (fun r -> Reg.reg r) regs in
+  let prog = Lang.ThreadSubSys.init ~prog ~regs in
+  let initstate = SequentialConsistent.State.mem @@ SequentialConsistent.Memory.init ~mem in
+  let node = SequentialConsistent.Node.cfg prog initstate in
+  let stream = run q (fun q -> SequentialConsistent.patho node q) (fun qs -> qs) in
+  let ff = Format.std_formatter in
+  Format.fprintf ff "List of outputs:@;";
+  Stream.iter (fun out -> Format.fprintf ff "%a@;" Trace.trace out) stream *)
 
 let prog_SB = <:cppmem<
   spw {{{
@@ -222,6 +239,7 @@ let test_CoRR_SC = litmus_test_SC
 let litmus_test_RA ~name ~prog ~regs ~locs ~asserto ~tag =
   let module Trace = Utils.Trace(ReleaseAcquire.State) in
   let mem = List.map (fun l -> (l, 0)) locs in
+  let regs = RegStorage.allocate @@ List.map (fun r -> Reg.reg r) regs in
   let prog = Lang.ThreadSubSys.init ~prog ~regs in
   let initstate = ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~mem in
   litmus_test
@@ -528,7 +546,7 @@ let tests = Test.(
       (* test_CoRR_SC; *)
     ];
 
-    make_testsuite ~name:"RelAcq" ~tests: [
+    (* make_testsuite ~name:"RelAcq" ~tests: [
       test_SW_RA;
       test_SB_RA;
       test_LB_RA;
@@ -540,7 +558,7 @@ let tests = Test.(
       (* test_CoRR_RA; *)
       test_DR1_RA;
       test_DR2_RA;
-    ]
+    ] *)
   ]
 )
 

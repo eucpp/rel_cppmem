@@ -104,6 +104,8 @@ module type T =
 
     module Node : module type of Semantics.MakeConfig(Lang.ThreadSubSys)(State)
 
+    val patho : (Node.tt, Node.tl) Semantics.Reduction.path
+
     val intrpo : (Lang.ThreadSubSys.tt, State.tt, State.tt, Lang.ThreadSubSys.tl, State.tl, State.tl) Semantics.interpreter
   end
 
@@ -124,11 +126,13 @@ module Make (M : Memory) =
         (ThreadSubSys.stepo tid label tsys tsys')
         (State.stepo tid label s s')
 
+    let patho = Semantics.Reduction.make_path stepo
+
     let evalo =
       let irreducibleo t =
-        fresh (tsys s)
+        fresh (tsys s e m)
           (t === Node.cfg tsys s)
-          (ThreadSubSys.terminatedo tsys)
+          ((ThreadSubSys.terminatedo tsys) ||| (s === State.error e m))
       in
       Semantics.Reduction.make_eval ~irreducibleo stepo
 
@@ -157,9 +161,9 @@ module MemorySC =
 
     let pprint = ValueStorage.pprint
 
-    let spawno t t' tid1 tid2 = success
+    let spawno t t' tid1 tid2 = (t === t')
 
-    let joino t t' tid1 tid2 = success
+    let joino t t' tid1 tid2 = (t === t')
 
     let load_sco t t' tid loc value =
       (t === t') &&&

@@ -230,11 +230,12 @@ module RegStorage =
 
     type ti = (Reg.tt, Value.tt, Reg.tl, Value.tl) Storage.ti
 
-    let empty = MiniKanren.Std.nil
+    let empty = Storage.empty
 
     let allocate = Storage.allocate (Value.integer 0)
 
-    let from_assoc = Storage.from_assoc
+    let from_assoc xs =
+      Storage.from_assoc @@ List.map (fun (r, v) -> (Reg.reg r, Value.integer v)) xs
 
     let reify = Storage.reify (Reg.reify) (Value.reify)
 
@@ -577,18 +578,19 @@ module Thread =
 
     let thrd prog regs pid wait = T.(inj @@ F.distrib {prog; regs; pid; wait})
 
-    let init ~prog ~regs = thrd prog (RegStorage.allocate @@ List.map (fun r -> Reg.reg r) regs) (ThreadID.dummy) (Std.nil ())
+    let init ~prog ~regs = thrd prog regs (ThreadID.dummy) (Std.nil ())
 
     (* let _:int = init *)
 
     let reify h = F.reify RegStorage.reify (Std.List.reify Stmt.reify) ThreadID.reify (Std.List.reify ThreadID.reify) h
 
     let pprint =
-      let pp ff = let open T in fun { regs; prog; pid } ->
-        Format.fprintf ff "@[<v>pid: %a@;@[<v>Code :@;<1 4>%a@;@]@;@[<v>Regs :@;<1 4>%a@;@]@]"
+      let pp ff = let open T in fun { regs; prog; pid; wait } ->
+        Format.fprintf ff "@[<v>pid: %a@;@[<v>Code :@;<1 4>%a@;@]@;@[<v>Regs :@;<1 4>%a@;@]@;@[<v>Waiting :@;<1 4>%a@;@]@]"
           ThreadID.pprint pid
           Stmt.ppseql prog
           RegStorage.pprint regs
+          (pprint_llist ThreadID.pprint) wait
       in
       pprint_logic pp
 
@@ -650,12 +652,11 @@ module Thread =
         (helpero tid rs ps ts)
 
     let joino label t t' tids =
-      fresh (pid prog rs tids tid1 tid2)
+      fresh (pid prog rs tid1 tid2)
         (t  === thrd prog rs pid tids)
         (t' === thrd prog rs pid (nil ()))
         (label === Label.join tid1 tid2)
         (tids === tid1 %< tid2)
-
 
   end
 
@@ -718,10 +719,10 @@ module ThreadSubSys =
     let rec extendo cnt cnt' thrds thrds'' tids ts = conde [
       (tids === nil ()) &&& (ts === nil ()) &&& (cnt === cnt') &&& (thrds === thrds'');
 
-      fresh (tid t tids' ts' thrds')
+      fresh (t tids' ts' thrds')
         (ts === t % ts')
-        (tids === tid % tids')
-        (Storage.extendo thrds thrds' tid t)
+        (tids === cnt % tids')
+        (Storage.extendo thrds thrds' cnt t)
         (extendo (ThreadID.next cnt) cnt' thrds' thrds'' tids' ts')
     ]
 
@@ -740,8 +741,8 @@ module ThreadSubSys =
       fresh (cnt cnt' thrds thrds' thrds'' thrd thrd')
         (t  === thrdsys cnt  thrds  )
         (t' === thrdsys cnt' thrds'')
-        (Storage.seto thrds thrds' tid thrd')
         (Storage.membero thrds tid thrd)
+        (Storage.seto thrds thrds' tid thrd')
         (conde [
           (cnt === cnt') &&&
           (thrds' === thrds'') &&&
@@ -758,10 +759,16 @@ module ThreadSubSys =
             (Thread.spawno label thrd thrd' tid tids ts)
             (extendo cnt cnt' thrds' thrds'' tids ts);
 
-          fresh (tids thrds'')
+          fresh (tids)
             (cnt === cnt')
             (Thread.joino label thrd thrd' tids)
             (removeo thrds' thrds'' tids);
         ])
+
+    let intrpo prog rs rs' =
+      let t  = init prog rs in
+      let t' = init (Stmt.skip ()) rs' in
+      let evalo = Semantics.Reduction.make_eval ~irreducibleo:terminatedo (stepo (ThreadID.fst) (Label.empty ())) in
+      evalo t t'
 
   end

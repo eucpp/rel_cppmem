@@ -44,6 +44,8 @@ module type T =
 
     module Node : module type of Semantics.MakeConfig(Lang.ThreadSubSys)(State)
 
+    val patho : (Node.tt, Node.tl) Semantics.Reduction.path
+
     val intrpo : (Lang.ThreadSubSys.tt, State.tt, State.tt, Lang.ThreadSubSys.tl, State.tl, State.tl) Semantics.interpreter
   end
 

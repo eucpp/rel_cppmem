@@ -90,6 +90,20 @@ module ThreadID :
     val fst : ti
   end
 
+module RegStorage :
+  sig
+    include Utils.Logic
+
+    val empty : unit -> ti
+
+    val allocate : Reg.ti list -> ti
+
+    val from_assoc : (string * int) list -> ti
+
+    val reado  : ti ->       Reg.ti -> Value.ti -> MiniKanren.goal
+    val writeo : ti -> ti -> Reg.ti -> Value.ti -> MiniKanren.goal
+  end
+
 module Expr :
   sig
     include Utils.Logic
@@ -153,30 +167,14 @@ module ThreadSubSys :
   sig
     include Utils.Logic
 
-    val init : prog:Prog.ti -> regs:string list -> ti
+    val init : prog:Prog.ti -> regs:RegStorage.ti -> ti
 
     val terminatedo : ti -> MiniKanren.goal
 
     val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
+
+    val intrpo : (Prog.tt, RegStorage.tt, RegStorage.tt, Prog.tl, RegStorage.tl, RegStorage.tl) Semantics.interpreter
   end
-
-(* module RegStorage :
-  sig
-    include Utils.Logic
-
-    val empty : unit -> ti
-
-    val allocate : Register.ti list -> ti
-
-    val from_assoc : (Register.ti * Value.ti) list -> ti
-
-    val reado  : ti ->       Register.ti -> Value.ti -> MiniKanren.goal
-    val writeo : ti -> ti -> Register.ti -> Value.ti -> MiniKanren.goal
-
-    val spawno : ti -> ti -> ti -> MiniKanren.goal
-
-    val joino  : ti -> ti -> ti -> ti -> MiniKanren.goal
-  end *)
 (*
 module ThreadSubSys :
   sig
