@@ -586,11 +586,10 @@ module Thread =
 
     let pprint =
       let pp ff = let open T in fun { regs; prog; pid; wait } ->
-        Format.fprintf ff "@[<v>pid: %a@;@[<v>Code :@;<1 4>%a@;@]@;@[<v>Regs :@;<1 4>%a@;@]@;@[<v>Waiting :@;<1 4>%a@;@]@]"
+        Format.fprintf ff "@[<v>pid: %a@;@[<v>Code :@;<1 4>%a@;@]@;@[<v>Regs :@;<1 4>%a@;@]@;@]"
           ThreadID.pprint pid
           Stmt.ppseql prog
           RegStorage.pprint regs
-          (pprint_llist ThreadID.pprint) wait
       in
       pprint_logic pp
 
@@ -694,7 +693,7 @@ module ThreadSubSys =
     let pprint =
       let pp ff = let open T in fun {thrds} ->
         Storage.pprint (fun ff (tid, thrd) ->
-          Format.fprintf ff "@[<v>Thread #%a:@;%a@]" ThreadID.pprint tid Thread.pprint thrd
+          Format.fprintf ff "@[<v>Thread #%a:@;<1 4>%a@]" ThreadID.pprint tid Thread.pprint thrd
         ) ff thrds
       in
       pprint_logic pp

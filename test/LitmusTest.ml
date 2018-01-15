@@ -119,7 +119,7 @@ let test_SW_SC = litmus_test_SC
   ~tag:Forall
   ~asserto:safeo_SC
 
-(* let () =
+let () =
   let module Trace = Utils.Trace(SequentialConsistent.Node) in
 
   let locs = ["x"; "f"] in
@@ -134,7 +134,7 @@ let test_SW_SC = litmus_test_SC
   let stream = run q (fun q -> SequentialConsistent.patho node q) (fun qs -> qs) in
   let ff = Format.std_formatter in
   Format.fprintf ff "List of outputs:@;";
-  Stream.iter (fun out -> Format.fprintf ff "%a@;" Trace.trace out) stream *)
+  Stream.iter (fun out -> Format.fprintf ff "%a@;" Trace.trace out) stream
 
 let prog_SB = <:cppmem<
   spw {{{
@@ -546,7 +546,7 @@ let tests = Test.(
       (* test_CoRR_SC; *)
     ];
 
-    (* make_testsuite ~name:"RelAcq" ~tests: [
+    make_testsuite ~name:"RelAcq" ~tests: [
       test_SW_RA;
       test_SB_RA;
       test_LB_RA;
@@ -558,7 +558,7 @@ let tests = Test.(
       (* test_CoRR_RA; *)
       test_DR1_RA;
       test_DR2_RA;
-    ] *)
+    ]
   ]
 )
 
