@@ -435,28 +435,60 @@ module Prog =
 
 let prog p = Std.List.list p
 
+module Error =
+  struct
+    module T =
+      struct
+        @type ('expr, 'mo, 'loc) t =
+          | Assertion       of 'expr
+          | Datarace        of 'mo * 'loc
+        with gmap, show
+
+        let fmap fa fb fc x = GT.gmap(t) fa fb fc x
+      end
+
+    type tt = (Expr.tt, MemOrder.tt, Loc.tt) T.t
+
+    type tl = inner MiniKanren.logic
+      and inner = (Expr.tl, MemOrder.tl, Loc.tl) T.t
+
+    type ti = (tt, tl) Semantics.Term.ti
+
+    module F = Fmap3(T)
+
+    let rec reify h =
+      F.reify Expr.reify MemOrder.reify Loc.reify h
+
+    let rec show t =
+      GT.show(logic) (GT.show(T.t) Expr.show MemOrder.show Loc.show) t
+
+    let pprint ff x = Format.fprintf ff "@[%s@]" (show x)
+
+    let assertion e       = inj @@ F.distrib @@ T.Assertion e
+    let datarace mo loc   = inj @@ F.distrib @@ T.Datarace (mo, loc)
+  end
+
 module Label =
   struct
     module T =
       struct
-        @type ('tid, 'tids, 'mo, 'loc, 'value) t =
+        @type ('tid, 'mo, 'loc, 'value, 'err) t =
           | Empty
           | Spawn           of 'tid * 'tid
           | Join            of 'tid * 'tid
           | Load            of 'mo * 'loc * 'value
           | Store           of 'mo * 'loc * 'value
           | CAS             of 'mo * 'mo * 'loc * 'value * 'value * 'value
-          | Datarace        of 'mo * 'loc
-          | AssertionFailed
+          | Error           of 'err
         with gmap, show
 
         let fmap fa fb fc fd fe x = GT.gmap(t) fa fb fc fd fe x
       end
 
-    type tt = (ThreadID.tt, ThreadID.tt Std.List.ground, MemOrder.tt, Loc.tt, Value.tt) T.t
+    type tt = (ThreadID.tt, MemOrder.tt, Loc.tt, Value.tt, Error.tt) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (ThreadID.tl, ThreadID.tl Std.List.logic, MemOrder.tl, Loc.tl, Value.tl) T.t
+      and inner = (ThreadID.tl, MemOrder.tl, Loc.tl, Value.tl, Error.tl) T.t
 
     type ti = (tt, tl) MiniKanren.injected
 
@@ -468,12 +500,11 @@ module Label =
     let load  mo loc v         = inj @@ FT.distrib @@ T.Load  (mo, loc, v)
     let store mo loc v         = inj @@ FT.distrib @@ T.Store (mo, loc, v)
     let cas mo1 mo2 loc e d v  = inj @@ FT.distrib @@ T.CAS (mo1, mo2, loc, e, d, v)
-    let datarace mo loc        = inj @@ FT.distrib @@ T.Datarace (mo, loc)
-    let assert_fail ()         = inj @@ FT.distrib @@ T.AssertionFailed
+    let error e                = inj @@ FT.distrib @@ T.Error e
 
-    let reify h = FT.reify ThreadID.reify (Std.List.reify ThreadID.reify) MemOrder.reify Loc.reify Value.reify h
+    let reify h = FT.reify ThreadID.reify MemOrder.reify Loc.reify Value.reify Error.reify h
 
-    let show = GT.show(T.t) ThreadID.show (GT.show(Std.List.logic) ThreadID.show) MemOrder.show Loc.show Value.show
+    let show = GT.show(T.t) ThreadID.show MemOrder.show Loc.show Value.show Error.show
 
     let pprint = pprint_logic @@ (fun ff x -> Format.fprintf ff "@[%s@]" (show x))
 
@@ -490,7 +521,7 @@ module Rules =
         (rs === rs')
         (Expr.evalo rs e v)
         (conde [
-          (Value.nullo v)     &&& (label === Label.assert_fail ());
+          (Value.nullo v)     &&& (label === Label.error (Error.assertion e));
           (Value.not_nullo v) &&& (label === Label.empty ());
         ])
 
@@ -547,7 +578,7 @@ module Rules =
       fresh (mo l r e h)
         ((t === load mo l r) ||| (t === store mo l e))
         (ts === skip ())
-        (label === Label.datarace mo l)
+        (label === Label.error (Error.datarace mo l))
 
     let all = [asserto; asgno; ifo; whileo; repeato; loado; storeo; dataraceo]
   end
@@ -579,8 +610,6 @@ module Thread =
     let thrd prog regs pid wait = T.(inj @@ F.distrib {prog; regs; pid; wait})
 
     let init ~prog ~regs = thrd prog regs (ThreadID.dummy) (Std.nil ())
-
-    (* let _:int = init *)
 
     let reify h = F.reify RegStorage.reify (Std.List.reify Stmt.reify) ThreadID.reify (Std.List.reify ThreadID.reify) h
 

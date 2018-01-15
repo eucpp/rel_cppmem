@@ -1,18 +1,3 @@
-module Error :
-  sig
-    type tt =
-      | DataRace
-      | AssertionFailed
-
-    type tl = tt MiniKanren.logic
-
-    type ti = (tt, tl) MiniKanren.injected
-
-    val reify : MiniKanren.helper -> ti -> tl
-
-    val show : tl -> string
-  end
-
 module type Memory =
   sig
     include Utils.Logic
@@ -31,7 +16,7 @@ module State (M : Memory) :
     include Utils.Logic
 
     val mem   : M.ti -> ti
-    val error : Error.ti -> M.ti -> ti
+    val error : Lang.Error.ti -> M.ti -> ti
 
     val stepo : Lang.ThreadID.ti -> Lang.Label.ti -> ti -> ti -> MiniKanren.goal
   end

@@ -3,25 +3,6 @@ open Memory
 open Lang
 open Utils
 
-module Error =
-  struct
-    type tt =
-      | DataRace
-      | AssertionFailed
-
-    type tl = tt MiniKanren.logic
-
-    type ti = (tt, tl) MiniKanren.injected
-
-    let reify = MiniKanren.reify
-
-    let to_string = function
-      | DataRace        -> "datarace"
-      | AssertionFailed -> "assert failed"
-
-    let show = GT.show(logic) (to_string)
-  end
-
 module type Memory =
   sig
     include Utils.Logic
@@ -40,7 +21,7 @@ module State (M : Memory) :
     include Utils.Logic
 
     val mem   : M.ti -> ti
-    val error : Error.ti -> M.ti -> ti
+    val error : Lang.Error.ti -> M.ti -> ti
 
     val stepo : Lang.ThreadID.ti -> Lang.Label.ti -> ti -> ti -> MiniKanren.goal
   end =
@@ -73,7 +54,7 @@ module State (M : Memory) :
         | Mem m ->
           Format.fprintf ff "%a" M.pprint m
         | Error (e, m) ->
-          Format.fprintf ff "@[<v>Error:@;<1 2>%s@;Memory:@;<1 2>%a@;@]" (Error.show e) M.pprint m
+          Format.fprintf ff "@[<v>Error:@;<1 2>%a@;Memory:@;<1 2>%a@;@]" Error.pprint e M.pprint m
       )
       in
       pprint_logic pp
@@ -82,17 +63,23 @@ module State (M : Memory) :
       fresh (m m')
         (t === mem m)
         (conde [
-          (t' === error !!Error.AssertionFailed m) &&& (label === Label.assert_fail ());
+          fresh (err)
+            (t' === error err m')
+            (label === Label.error err)
+            (conde [
+              fresh (e)
+                (err === Error.assertion e)
+                (m === m');
 
-          fresh (mo loc)
-            (t' === error !!Error.DataRace m')
-            (label === Label.datarace mo loc)
-            (M.stepo tid label m m');
+              fresh (mo loc)
+                (err === Error.datarace mo loc)
+                (M.stepo tid label m m');
+            ]);
 
           (t' === mem m') &&& ?~(
-            fresh (mo loc)
-              (label === Label.datarace mo loc)
-          ) &&& (M.stepo tid label m m')
+            fresh (err)
+              (label === Label.error err)
+          ) &&& (M.stepo tid label m m');
         ])
   end
 
@@ -489,7 +476,7 @@ module MemoryRA : Memory =
         ]);
 
       fresh (loc mo v)
-        (label === Label.datarace mo loc)
+        (label === Label.error (Error.datarace mo loc))
         (conde [
           (conde [
             (mo === !!MemOrder.SC);

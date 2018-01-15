@@ -13,14 +13,14 @@ open Utils
 
 let tests = Test.(
   make_testsuite ~name:"relcppmem" ~tests: [
-    (* ProgTest.tests; *)
+    ProgTest.tests;
     LitmusTest.tests;
     (* SynthTest.tests; *)
   ]
 )
 
 let () =
-  (* Test.ounit_run tests *)
+  Test.ounit_run tests
 
-  Test.simple_run tests
+  (* Test.simple_run tests *)
   (* MiniKanren.report_counters () *)

@@ -144,6 +144,14 @@ module Stmt :
 
 val prog : Stmt.ti list -> Prog.ti
 
+module Error :
+  sig
+    include Utils.Logic
+
+    val assertion : Expr.ti -> ti
+    val datarace  : MemOrder.ti -> Loc.ti -> ti
+  end
+
 module Label :
   sig
     include Utils.Logic
@@ -158,9 +166,7 @@ module Label :
 
     val cas : MemOrder.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> Value.ti -> Value.ti -> ti
 
-    val datarace : MemOrder.ti -> Loc.ti -> ti
-
-    val assert_fail : unit -> ti
+    val error : Error.ti -> ti
   end
 
 module ThreadSubSys :
