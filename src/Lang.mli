@@ -169,11 +169,18 @@ module Label :
     val error : Error.ti -> ti
   end
 
-module ThreadSubSys :
+module Thread :
   sig
     include Utils.Logic
 
-    val init : prog:Prog.ti -> regs:RegStorage.ti -> ti
+    val init : prog:Prog.ti -> regs:RegStorage.ti -> pid:ThreadID.ti -> ti
+  end
+
+module ThreadManager :
+  sig
+    include Utils.Logic
+
+    val init : Thread.ti list -> ti
 
     val terminatedo : ti -> MiniKanren.goal
 
@@ -181,11 +188,3 @@ module ThreadSubSys :
 
     val intrpo : (Prog.tt, RegStorage.tt, RegStorage.tt, Prog.tl, RegStorage.tl, RegStorage.tl) Semantics.interpreter
   end
-(*
-module ThreadSubSys :
-  sig
-    include Utils.Logic
-
-    val step : Label.ti -> ti -> ti -> MiniKanren.goal
-    val thrdstep : ThreadId.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
-  end *)
