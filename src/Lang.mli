@@ -128,14 +128,13 @@ module Stmt :
     val show : tl -> string
   end
 
+val prog : Stmt.ti list -> Prog.ti
+
 module Label :
   sig
     include Utils.Logic
 
     val empty : unit -> ti
-
-    (* val spawn  : ThreadID.ti -> ti
-    val join   : ThreadID.ti -> ti *)
 
     val spawn  : ThreadID.ti -> ThreadID.ti -> ti
     val join   : ThreadID.ti -> ThreadID.ti -> ti
@@ -153,6 +152,8 @@ module Label :
 module ThreadSubSys :
   sig
     include Utils.Logic
+
+    val init : prog:Prog.ti -> regs:string list -> ti
 
     val terminatedo : ti -> MiniKanren.goal
 

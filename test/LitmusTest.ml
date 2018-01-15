@@ -3,10 +3,10 @@ open MiniKanren
 open MiniKanrenStd
 
 open Lang
-open Lang.Term
 open Lang.Expr
+open Lang.Stmt
 open Lang.Loc
-open Lang.Register
+open Lang.Reg
 open Lang.Value
 open MemoryModel
 
@@ -84,7 +84,8 @@ let litmus_test ?pprint ~intrpo ~name ~prog ~initstate ~asserto ~tag =
 let litmus_test_SC ~name ~prog ~regs ~locs ~asserto ~tag =
   let module Trace = Utils.Trace(SequentialConsistent.State) in
   let mem = List.map (fun l -> (l, 0)) locs in
-  let initstate = SequentialConsistent.State.mem @@ SequentialConsistent.Memory.init ~regs ~mem in
+  let prog = Lang.ThreadSubSys.init ~prog ~regs in
+  let initstate = SequentialConsistent.State.mem @@ SequentialConsistent.Memory.init ~mem in
   litmus_test
     ~pprint:Trace.trace
     ~intrpo:SequentialConsistent.intrpo
@@ -221,7 +222,8 @@ let test_CoRR_SC = litmus_test_SC
 let litmus_test_RA ~name ~prog ~regs ~locs ~asserto ~tag =
   let module Trace = Utils.Trace(ReleaseAcquire.State) in
   let mem = List.map (fun l -> (l, 0)) locs in
-  let initstate = ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~regs ~mem in
+  let prog = Lang.ThreadSubSys.init ~prog ~regs in
+  let initstate = ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~mem in
   litmus_test
     ~pprint:Trace.trace
     ~intrpo:ReleaseAcquire.intrpo

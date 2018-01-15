@@ -202,8 +202,9 @@ module ThreadID =
 
     let tid = Std.nat
 
-    let fst  = Std.Nat.zero
-    let next = Std.Nat.succ
+    let dummy = Std.Nat.zero
+    let fst   = Std.Nat.one
+    let next  = Std.Nat.succ
 
     let reify = Std.Nat.reify
 
@@ -429,8 +430,9 @@ module Prog =
     let reify = Std.List.reify Stmt.reify
 
     let pprint = Stmt.ppseql
-
   end
+
+let prog p = Std.List.list p
 
 module Label =
   struct
@@ -575,6 +577,10 @@ module Thread =
 
     let thrd prog regs pid wait = T.(inj @@ F.distrib {prog; regs; pid; wait})
 
+    let init ~prog ~regs = thrd prog (RegStorage.allocate @@ List.map (fun r -> Reg.reg r) regs) (ThreadID.dummy) (Std.nil ())
+
+    (* let _:int = init *)
+
     let reify h = F.reify RegStorage.reify (Std.List.reify Stmt.reify) ThreadID.reify (Std.List.reify ThreadID.reify) h
 
     let pprint =
@@ -625,15 +631,14 @@ module Thread =
         (helpero rs regs vs)
 
     let spawno label t t' tid tids ts =
-      let rec helpero pid ps ts = conde [
+      let rec helpero pid rs ps ts = conde [
         (ps === nil ()) &&& (ts === nil ());
 
-        fresh (p t ps' ts' a b c d)
+        fresh (p t ps' ts')
           (ps === p % ps')
           (ts === t % ts')
-          (* (t === thrd p (RegStorage.empty ()) pid (nil ())) *)
-          (t === thrd a b c d)
-          (helpero pid ps' ts');
+          (t === thrd p rs pid (nil ()))
+          (helpero pid rs ps' ts');
       ] in
       fresh (prog prog' rs pid ps p1 p2 tid1 tid2)
         (t  === thrd prog  rs pid (nil ()))
@@ -642,9 +647,7 @@ module Thread =
         (label === Label.spawn tid1 tid2)
         (ps === p1 %< p2)
         (tids === tid1 %< tid2)
-        (helpero tid ps ts)
-
-    (* let _:(Label.ti -> ti -> ti -> ThreadID.ti -> (ThreadID.tt, ThreadID.tl) Std.List.groundi -> (tt, tl) Std.List.groundi -> goal)  = spawno *)
+        (helpero tid rs ps ts)
 
     let joino label t t' tids =
       fresh (pid prog rs tids tid1 tid2)
@@ -681,6 +684,11 @@ module ThreadSubSys =
     let reify = F.reify ThreadID.reify (Storage.reify ThreadID.reify Thread.reify)
 
     let thrdsys cnt thrds = T.(inj @@ F.distrib {cnt; thrds})
+
+    let init ~prog ~regs =
+      let cnt = ThreadID.next ThreadID.fst in
+      let thrds = Storage.from_assoc [(ThreadID.fst, Thread.init ~prog ~regs)] in
+      thrdsys cnt thrds
 
     let pprint =
       let pp ff = let open T in fun {thrds} ->

@@ -3,10 +3,10 @@ open OUnit2
 open MiniKanren
 
 open Lang
-open Lang.Term
+open Lang.Stmt
 open Lang.Expr
 open Lang.Loc
-open Lang.Register
+open Lang.Reg
 open Lang.Value
 open MemoryModel
 open Utils

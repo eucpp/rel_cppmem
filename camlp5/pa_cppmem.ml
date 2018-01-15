@@ -15,10 +15,11 @@ let gram = Grammar.gcreate (Plexer.gmake ());;
 let cppmem_eoi      = Grammar.Entry.create gram "cppmem";;
 let cppmem_expr     = Grammar.Entry.create gram "cppmem";;
 let cppmem_stmt     = Grammar.Entry.create gram "cppmem";;
+let cppmem_prog     = Grammar.Entry.create gram "cppmem";;
 let cppmem_antiquot = Grammar.Entry.create gram "cppmem";;
 
 EXTEND
-  cppmem_eoi: [ [ x = cppmem_stmt; EOI -> x ] ];
+  cppmem_eoi: [ [ x = cppmem_prog; EOI -> x ] ];
 
   cppmem_expr:
     [ [ x = cppmem_expr; "&&"; y = cppmem_expr ->
@@ -59,7 +60,7 @@ EXTEND
         <:expr< const (Value.integer $int:n$) >>
 
       | x = LIDENT ->
-        <:expr< var (Register.reg $str:x$) >>
+        <:expr< var (Reg.reg $str:x$) >>
 
       | "!"; e = cppmem_expr ->
         <:expr< unop (Uop.uop "!") $e$ >>
@@ -77,33 +78,23 @@ EXTEND
 
   cppmem_stmt:
     [ RIGHTA
-      [ t1 = cppmem_stmt; ";"; t2 = cppmem_stmt ->
-        <:expr< seq $t1$ $t2$ >>
-
-      | "spw"; "{";"{";"{"; t1 = cppmem_stmt; "|||"; t2 = cppmem_stmt; "}";"}";"}" ->
+      [ "spw"; "{";"{";"{"; t1 = cppmem_prog; "|||"; t2 = cppmem_prog; "}";"}";"}" ->
         <:expr< spw $t1$ $t2$ >>
-
-      | "par"; "{";"{";"{"; t1 = cppmem_stmt; "|||"; t2 = cppmem_stmt; "}";"}";"}" ->
-        <:expr< par $t1$ $t2$ >>
-
       ]
 
     | [ "assert"; "("; e = cppmem_expr; ")" ->
         <:expr< assertion $e$ >>
-
-      | "skip" ->
-        <:expr< skip () >>
 
       | x = LIDENT; ":="; e = cppmem_expr ->
         if String.contains x '_' then
           let l::mo::[] = String.split_on_char '_' x in
           <:expr< store (MemOrder.mo $str:mo$) (Loc.loc $str:l$) $e$ >>
         else
-        <:expr< asgn (Register.reg $str:x$) $e$ >>
+        <:expr< asgn (Reg.reg $str:x$) $e$ >>
 
         (* | "load"; x = LIDENT; r = LIDENT ->
           let l::mo::[] = String.split_on_char '_' x in
-          <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:l$) (Register.reg $str:r$) >>
+          <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:l$) (Reg.reg $str:r$) >>
 
         | "store"; x = LIDENT; e = cppmem_expr ->
           let l::mo::[] = String.split_on_char '_' x in
@@ -112,18 +103,18 @@ EXTEND
       | x = LIDENT; ":="; y = LIDENT ->
         if String.contains y '_' then
           let l::mo::[] = String.split_on_char '_' y in
-          <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:l$) (Register.reg $str:x$) >>
+          <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:l$) (Reg.reg $str:x$) >>
         else
           if String.contains x '_' then
             let l::mo::[] = String.split_on_char '_' x in
-            <:expr< store (MemOrder.mo $str:mo$) (Loc.loc $str:l$) (var (Register.reg $str:y$)) >>
+            <:expr< store (MemOrder.mo $str:mo$) (Loc.loc $str:l$) (var (Reg.reg $str:y$)) >>
           else
             assert false
 
-      | "if"; e = cppmem_expr; "then"; t1 = cppmem_stmt; "else"; t2 = cppmem_stmt; "fi" ->
+      | "if"; e = cppmem_expr; "then"; t1 = cppmem_prog; "else"; t2 = cppmem_prog; "fi" ->
         <:expr< if' $e$ $t1$ $t2$ >>
 
-      | "repeat"; t = cppmem_stmt; "until"; e = cppmem_expr ->
+      | "repeat"; t = cppmem_prog; "until"; e = cppmem_expr ->
         <:expr< repeat $t$ $e$ >>
 
       | "return"; "("; regs = LIST0 LIDENT SEP ","; ")" ->
@@ -135,7 +126,7 @@ EXTEND
         in
         let regs = string_list loc regs in
         let regs =
-          <:expr< MiniKanren.Std.List.list (List.map (fun r -> Register.reg r) $regs$) >>
+          <:expr< MiniKanren.Std.List.list (List.map (fun r -> Reg.reg r) $regs$) >>
         in
         <:expr< return ($regs$) >>
 
@@ -145,11 +136,24 @@ EXTEND
 
     ];
 
+  cppmem_prog:
+    [ [ stmts = LIST0 cppmem_stmt SEP ";" ->
+        let stmt_list loc lst =
+          List.fold_right
+          (fun head tail -> <:expr< [ $head$ :: $tail$ ] >>)
+          lst
+          <:expr< [] >>
+        in
+        let stmts = stmt_list loc stmts in
+        <:expr< prog ($stmts$) >>
+      ]
+    ];
+
   cppmem_antiquot:
     [ [ x = LIDENT ->
         let ast =
-        let loc = Ploc.make_unlined (0, String.length x) in
-        <:expr< $lid:x$ >>
+          let loc = Ploc.make_unlined (0, String.length x) in
+          <:expr< $lid:x$ >>
         in
         <:expr< $anti:ast$ >>
       ]
