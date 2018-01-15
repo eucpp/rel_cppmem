@@ -361,8 +361,6 @@ module Stmt =
 
     type ti = (tt, tl) Semantics.Term.ti
 
-    type progi = (tt, tl) MiniKanren.Std.List.groundi
-
     module FT = Fmap6(T)
 
     let assertion e         = inj @@ FT.distrib @@ T.Assert e
@@ -387,37 +385,50 @@ module Stmt =
     let rec show t =
       GT.show(logic) (GT.show(T.t) Reg.show (GT.show(Std.List.logic) Reg.show) Loc.show MemOrder.show Expr.show (GT.show(Std.List.logic) show)) t
 
-    let pprint ff x = T.(
-      let rec pp ff = function
-        | Assert e                ->
-          Format.fprintf ff "@[assert (%a)@;@]" Expr.pprint e
-        | Asgn (r, e)             ->
-          Format.fprintf ff "@[%a := %a@]" Reg.pprint r Expr.pprint e
-        | If (e, t1, t2)          ->
-          Format.fprintf ff "@[<v>if %a@;then %a@;else %a@]" Expr.pprint e ppseql t1 ppseql t2
-        | While (e, t)            ->
-          Format.fprintf ff "@[while (%a) @;<1 4>%a@;@]" Expr.pprint e ppseql t
-        | Repeat (t, e)           ->
-          Format.fprintf ff "@[repeat @;<1 4>%a@; until (%a)@]" ppseql t Expr.pprint e
-        | Load (m, l, r)          ->
-          Format.fprintf ff "@[%a := %a_%a@]" Reg.pprint r Loc.pprint l MemOrder.pprint m
-        | Store (m, l, e)         ->
-          Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" Loc.pprint l MemOrder.pprint m Expr.pprint e
-        | Cas (m1, m2, l, e, d)   ->
-          Format.fprintf ff "@[cas_%a_%a(%a, %a, %a)@]" MemOrder.pprint m1 MemOrder.pprint m2 Loc.pprint l Expr.pprint e Expr.pprint d
-        | Spw (t1, t2)            ->
-          Format.fprintf ff "@[<v>spw {{{@;<1 4>%a@;|||@;<1 4>%a@;}}}@]" ppseql t1 ppseql t2
-        | Return rs               ->
-          Format.fprintf ff "@[<v>return %s@]" (GT.show(Std.List.logic) Reg.show rs)
-      and ppseq ff =
-        let open Std in function
-        | Cons (t, ts) -> Format.fprintf ff "@[<v>%a;@;%a@]" ppl t ppseql ts
-        | Nil          -> ()
-      and ppl ff x = pprint_logic pp ff x
-      and ppseql ff x = pprint_logic ppseq ff x
-      in
-      Format.fprintf ff "%a@." ppl x
+    let rec pprint ff x = Format.fprintf ff "%a@." ppl x
+    and ppl ff x = pprint_logic pp ff x
+    and ppseql ff x = pprint_logic ppseq ff x
+    and ppseq ff =
+      let open Std in function
+      | Cons (t, ts) -> Format.fprintf ff "@[<v>%a;@;%a@]" ppl t ppseql ts
+      | Nil          -> ()
+    and pp ff = T.(function
+      | Assert e                ->
+        Format.fprintf ff "@[assert (%a)@;@]" Expr.pprint e
+      | Asgn (r, e)             ->
+        Format.fprintf ff "@[%a := %a@]" Reg.pprint r Expr.pprint e
+      | If (e, t1, t2)          ->
+        Format.fprintf ff "@[<v>if %a@;then %a@;else %a@]" Expr.pprint e ppseql t1 ppseql t2
+      | While (e, t)            ->
+        Format.fprintf ff "@[while (%a) @;<1 4>%a@;@]" Expr.pprint e ppseql t
+      | Repeat (t, e)           ->
+        Format.fprintf ff "@[repeat @;<1 4>%a@; until (%a)@]" ppseql t Expr.pprint e
+      | Load (m, l, r)          ->
+        Format.fprintf ff "@[%a := %a_%a@]" Reg.pprint r Loc.pprint l MemOrder.pprint m
+      | Store (m, l, e)         ->
+        Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" Loc.pprint l MemOrder.pprint m Expr.pprint e
+      | Cas (m1, m2, l, e, d)   ->
+        Format.fprintf ff "@[cas_%a_%a(%a, %a, %a)@]" MemOrder.pprint m1 MemOrder.pprint m2 Loc.pprint l Expr.pprint e Expr.pprint d
+      | Spw (t1, t2)            ->
+        Format.fprintf ff "@[<v>spw {{{@;<1 4>%a@;|||@;<1 4>%a@;}}}@]" ppseql t1 ppseql t2
+      | Return rs               ->
+        Format.fprintf ff "@[<v>return %s@]" (GT.show(Std.List.logic) Reg.show rs)
     )
+
+  end
+
+module Prog =
+  struct
+    type tt = Stmt.tt Std.List.ground
+
+    type tl = inner MiniKanren.logic
+      and inner = (Stmt.tl, tl) Std.list
+
+    type ti = (Stmt.tt, Stmt.tl) Std.List.groundi
+
+    let reify = Std.List.reify Stmt.reify
+
+    let pprint = Stmt.ppseql
 
   end
 
@@ -427,8 +438,8 @@ module Label =
       struct
         @type ('tid, 'tids, 'mo, 'loc, 'value) t =
           | Empty
-          | Spawn           of 'tids
-          | Join            of 'tids
+          | Spawn           of 'tid * 'tid
+          | Join            of 'tid * 'tid
           | Load            of 'mo * 'loc * 'value
           | Store           of 'mo * 'loc * 'value
           | CAS             of 'mo * 'mo * 'loc * 'value * 'value * 'value
@@ -449,8 +460,8 @@ module Label =
     module FT = Fmap5(T)
 
     let empty ()               = inj @@ FT.distrib @@ T.Empty
-    let spawn tids             = inj @@ FT.distrib @@ T.Spawn tids
-    let join tids              = inj @@ FT.distrib @@ T.Join tids
+    let spawn tid1 tid2        = inj @@ FT.distrib @@ T.Spawn (tid1, tid2)
+    let join tid1 tid2         = inj @@ FT.distrib @@ T.Join (tid1, tid2)
     let load  mo loc v         = inj @@ FT.distrib @@ T.Load  (mo, loc, v)
     let store mo loc v         = inj @@ FT.distrib @@ T.Store (mo, loc, v)
     let cas mo1 mo2 loc e d v  = inj @@ FT.distrib @@ T.CAS (mo1, mo2, loc, e, d, v)
@@ -624,21 +635,24 @@ module Thread =
           (t === thrd a b c d)
           (helpero pid ps' ts');
       ] in
-      fresh (prog prog' rs pid ps p1 p2)
+      fresh (prog prog' rs pid ps p1 p2 tid1 tid2)
         (t  === thrd prog  rs pid (nil ()))
         (t' === thrd prog' rs pid tids)
         (prog  === (Stmt.spw p1 p2) % prog')
-        (label === Label.spawn tids)
+        (label === Label.spawn tid1 tid2)
         (ps === p1 %< p2)
+        (tids === tid1 %< tid2)
         (helpero tid ps ts)
 
     (* let _:(Label.ti -> ti -> ti -> ThreadID.ti -> (ThreadID.tt, ThreadID.tl) Std.List.groundi -> (tt, tl) Std.List.groundi -> goal)  = spawno *)
 
     let joino label t t' tids =
-      fresh (pid prog rs tids stmts)
+      fresh (pid prog rs tids tid1 tid2)
         (t  === thrd prog rs pid tids)
         (t' === thrd prog rs pid (nil ()))
-        (label === Label.join tids)
+        (label === Label.join tid1 tid2)
+        (tids === tid1 %< tid2)
+
 
   end
 
@@ -664,19 +678,24 @@ module ThreadSubSys =
 
     module F = Fmap2(T)
 
-    let reify = F.reify ThreadID.reify (Storage.reify Thread.reify)
+    let reify = F.reify ThreadID.reify (Storage.reify ThreadID.reify Thread.reify)
 
     let thrdsys cnt thrds = T.(inj @@ F.distrib {cnt; thrds})
 
     let pprint =
       let pp ff = let open T in fun {thrds} ->
-        Storage.pprint (fun (tid, thrd) ->
+        Storage.pprint (fun ff (tid, thrd) ->
           Format.fprintf ff "@[<v>Thread #%a:@;%a@]" ThreadID.pprint tid Thread.pprint thrd
-        )
+        ) ff thrds
       in
       pprint_logic pp
 
     open Std
+
+    let terminatedo t =
+      fresh (cnt thrds)
+        (t === thrdsys cnt thrds)
+        (Storage.forallo (fun _ thrd -> Thread.terminatedo thrd) thrds)
 
     let rec updateo thrd thrd'' rs vs = conde [
       (rs === nil ()) &&& (vs === nil ()) &&& (thrd === thrd'');

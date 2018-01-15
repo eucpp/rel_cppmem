@@ -25,6 +25,7 @@ val pprint : (Format.formatter -> 'al * 'bl -> unit) -> Format.formatter -> ('al
 val geto : ('at, 'bt, 'al, 'bl) ti ->                            ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal
 val seto : ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal
 
+
 val removeo :
   ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key -> MiniKanren.goal
 
@@ -46,6 +47,10 @@ val mapo :
 val map2o :
   (('at, 'al) key -> ('bt, 'bl) value -> ('at, 'al) key -> ('bt, 'bl) value -> ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal) ->
   ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> MiniKanren.goal
+
+val forallo :
+  (('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal) ->
+  ('at, 'bt, 'al, 'bl) ti -> MiniKanren.goal
 
 val shapeo : ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key list -> MiniKanren.goal
 

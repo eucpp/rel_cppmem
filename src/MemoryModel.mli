@@ -17,13 +17,13 @@ module type Memory =
   sig
     include Utils.Logic
 
-    val init : (string * int) list -> ti
+    val init : mem:(string * int) list -> ti
 
     val shapeo : ti -> Lang.Loc.ti list -> MiniKanren.goal
 
     val checko : ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
 
-    val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
+    val stepo : Lang.ThreadID.ti -> Lang.Label.ti -> ti -> ti -> MiniKanren.goal
   end
 
 module State (M : Memory) :
@@ -33,7 +33,7 @@ module State (M : Memory) :
     val mem   : M.ti -> ti
     val error : Error.ti -> M.ti -> ti
 
-    val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
+    val stepo : Lang.ThreadID.ti -> Lang.Label.ti -> ti -> ti -> MiniKanren.goal
   end
 
 module type T =
@@ -42,11 +42,9 @@ module type T =
 
     module State : module type of State(Memory)
 
-    module Node : module type of Semantics.MakeConfig(Lang.Stmt)(State)
+    module Node : module type of Semantics.MakeConfig(Lang.ThreadSubSys)(State)
 
-    val intrpo : (Lang.Stmt.tt, State.tt, State.tt, Lang.Stmt.tl, State.tl, State.tl) Semantics.interpreter
-
-    (* val evalo : (Node.tt, Node.tt, Node.tl, Node.tl) Semantics.eval *)
+    val intrpo : (Lang.ThreadSubSys.tt, State.tt, State.tt, Lang.ThreadSubSys.tl, State.tl, State.tl) Semantics.interpreter
   end
 
 module SequentialConsistent : T

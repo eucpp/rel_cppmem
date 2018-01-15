@@ -32,7 +32,7 @@ module type Memory =
 
     val checko : ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
 
-    val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
+    val stepo : Lang.ThreadID.ti -> Lang.Label.ti -> ti -> ti -> MiniKanren.goal
   end
 
 module State (M : Memory) :
@@ -42,7 +42,7 @@ module State (M : Memory) :
     val mem   : M.ti -> ti
     val error : Error.ti -> M.ti -> ti
 
-    val transitiono : Lang.Label.ti -> ti -> ti -> MiniKanren.goal
+    val stepo : Lang.ThreadID.ti -> Lang.Label.ti -> ti -> ti -> MiniKanren.goal
   end =
   struct
     module T = struct
@@ -78,21 +78,21 @@ module State (M : Memory) :
       in
       pprint_logic pp
 
-    let transitiono label t t' =
+    let stepo tid label t t' =
       fresh (m m')
         (t === mem m)
         (conde [
           (t' === error !!Error.AssertionFailed m) &&& (label === Label.assert_fail ());
 
-          fresh (tid mo loc)
+          fresh (mo loc)
             (t' === error !!Error.DataRace m')
-            (label === Label.datarace tid mo loc)
-            (M.transitiono label m m');
+            (label === Label.datarace mo loc)
+            (M.stepo tid label m m');
 
           (t' === mem m') &&& ?~(
-            fresh (tid mo loc)
-              (label === Label.datarace tid mo loc)
-          ) &&& (M.transitiono label m m')
+            fresh (mo loc)
+              (label === Label.datarace mo loc)
+          ) &&& (M.stepo tid label m m')
         ])
   end
 
@@ -102,9 +102,9 @@ module type T =
 
     module State : module type of State(Memory)
 
-    module Node : module type of Semantics.MakeConfig(Lang.Term)(State)
+    module Node : module type of Semantics.MakeConfig(Lang.ThreadSubSys)(State)
 
-    val intrpo : (Lang.Term.tt, State.tt, State.tt, Lang.Term.tl, State.tl, State.tl) Semantics.interpreter
+    val intrpo : (Lang.ThreadSubSys.tt, State.tt, State.tt, Lang.ThreadSubSys.tl, State.tl, State.tl) Semantics.interpreter
   end
 
 module Make (M : Memory) =
@@ -117,12 +117,12 @@ module Make (M : Memory) =
 
     open Lang
 
-    let stepo t t'' =
+    let stepo t t' =
       fresh (tsys tsys' s s' tid label)
         (t  === Node.cfg tsys  s )
         (t' === Node.cfg tsys' s')
         (ThreadSubSys.stepo tid label tsys tsys')
-        (State.transitiono label s s')
+        (State.stepo tid label s s')
 
     let evalo =
       let irreducibleo t =
@@ -144,22 +144,22 @@ module MemorySC =
   struct
     type tt = ValueStorage.tt
 
-    type tl = ValueStorage.logic
+    type tl = ValueStorage.tl
       and inner = ValueStorage.inner
 
     type ti = ValueStorage.ti
 
     let reify = ValueStorage.reify
 
-    let init ~regs ~mem =
-      let mem   = List.map (fun (l, v) -> (Loc.loc l, Value.integer v)) mem in
+    let init ~mem =
+      let mem = List.map (fun (l, v) -> (Loc.loc l, Value.integer v)) mem in
       ValueStorage.from_assoc mem
 
     let pprint = ValueStorage.pprint
 
-    let spawno t t' tid = success
+    let spawno t t' tid1 tid2 = success
 
-    let joino t t' tid = success
+    let joino t t' tid1 tid2 = success
 
     let load_sco t t' tid loc value =
       (t === t') &&&
@@ -181,34 +181,28 @@ module MemorySC =
     let checko t loc v =
       (ValueStorage.reado t loc v)
 
-    let transitiono label t t' = conde [
+    let stepo tid label t t' = conde [
       (label === Label.empty ()) &&& (t === t');
 
-      fresh (tid)
-        (label === Label.spawn tid)
-        (spawno t t' tid);
+      fresh (tid1 tid2)
+        (label === Label.spawn tid1 tid2)
+        (spawno t t' tid1 tid2);
 
-      fresh (tid)
-        (label === Label.join tid)
-        (joino t t' tid);
+      fresh (tid1 tid2)
+        (label === Label.join tid1 tid2)
+        (joino t t' tid1 tid2);
 
-      fresh (tid mo loc v)
-        (label === Label.load tid !!MemOrder.SC loc v)
-        (* (mo =/= !!MemOrder.NA) *)
+      fresh (mo loc v)
+        (label === Label.load !!MemOrder.SC loc v)
         (load_sco t t' tid loc v);
 
-      fresh (tid mo loc v)
-        (label === Label.store tid !!MemOrder.SC loc v)
-        (* (mo =/= !!MemOrder.NA) *)
+      fresh (mo loc v)
+        (label === Label.store !!MemOrder.SC loc v)
         (store_sco t t' tid loc v);
 
-      fresh (tid loc e d v)
-        (label === Label.cas tid !!MemOrder.SC !!MemOrder.SC loc e d v)
+      fresh (loc e d v)
+        (label === Label.cas !!MemOrder.SC !!MemOrder.SC loc e d v)
         (cas_sco t t' tid loc e d v);
-
-      (* fresh (tid loc)
-        (t === t')
-        (label === Label.datarace tid !!MemOrder.NA loc); *)
     ]
   end
 
@@ -255,7 +249,7 @@ module MemoryRA : Memory =
 
     let reify = reify (Storage.reify ThreadID.reify ThreadFront.reify) (MemStory.reify) (ViewFront.reify) (ViewFront.reify)
 
-    let init ~regs ~mem =
+    let init ~mem =
       let mem   = List.map (fun (l, v) -> (Loc.loc l, Value.integer v)) mem in
       let locs  = List.map fst mem in
       let thrd  = ThreadFront.allocate locs in
@@ -268,7 +262,9 @@ module MemoryRA : Memory =
     let pprint =
       let pp ff = let open T in fun {thrds; story; na; sc} ->
         Format.fprintf ff "@[<v>%a@;%a@;@[<v>NA-front :@;<1 4>%a@;@]@;@[<v>SC-front :@;<1 4>%a@;@]@]"
-          Storage.pprint (ThreadID.pprint) (ThreadFront.pprint) thrds
+          (Storage.pprint (fun ff (tid, thrd) ->
+            Format.fprintf ff "@[<v>Thread #%a:@;%a@]" ThreadID.pprint tid ThreadFront.pprint thrd
+          )) thrds
           MemStory.pprint story
           ViewFront.pprint na
           ViewFront.pprint sc
@@ -283,7 +279,6 @@ module MemoryRA : Memory =
         (ThreadFront.spawno pfront tfront1 tfront2)
         (Storage.extendo thrds  thrds'  tid1 tfront1)
         (Storage.extendo thrds' thrds'' tid2 tfront2)
-        (TLS.spawno tree tree' tid)
 
     let joino t t' pid tid1 tid2 =
       fresh (thrds thrds' story na sc pfront pfront' tfront1 tfront2)
@@ -311,7 +306,7 @@ module MemoryRA : Memory =
       fresh (thrds story na sc thrd ts vf)
         (t === t')
         (t === state thrds story na sc)
-        (TLS.geto thrds tid thrd)
+        (Storage.geto thrds tid thrd)
         (ThreadFront.tso thrd loc ts)
         (MemStory.last_tso story loc ts)
         (na_awareo na loc ts)
@@ -372,8 +367,8 @@ module MemoryRA : Memory =
       fresh (thrds thrds' story story' na sc thrd thrd' last_ts rel)
         (t  === state thrds  story  na sc)
         (t' === state thrds' story' na sc)
-        (TLS.geto thrds        tid thrd)
-        (TLS.seto thrds thrds' tid thrd')
+        (Storage.geto thrds        tid thrd)
+        (Storage.seto thrds thrds' tid thrd')
         (ThreadFront.tso thrd loc last_ts)
         (na_awareo na loc last_ts)
         (MemStory.next_tso story loc ts)
@@ -385,16 +380,16 @@ module MemoryRA : Memory =
       fresh (thrds thrds' story thrd thrd' na sc)
         (t  === state  thrds  story na sc)
         (t' === state  thrds' story na sc)
-        (TLS.geto thrds        tid thrd )
-        (TLS.seto thrds thrds' tid thrd')
+        (Storage.geto thrds        tid thrd )
+        (Storage.seto thrds thrds' tid thrd')
         (ThreadFront.fence_acqo  thrd thrd')
 
     let fence_relo ?loc t t' tid =
       fresh (thrds thrds' thrd thrd' story na sc)
         (t  === state  thrds  story na sc)
         (t' === state  thrds' story na sc)
-        (TLS.geto thrds       tid thrd )
-        (TLS.seto thrds thrds' tid thrd')
+        (Storage.geto thrds       tid thrd )
+        (Storage.seto thrds thrds' tid thrd')
         (ThreadFront.fence_relo  thrd thrd' ?loc)
 
     let load_acqo t t'' tid loc value ts =
@@ -460,27 +455,19 @@ module MemoryRA : Memory =
         (t === state tree story na sc)
         (MemStory.last_valueo story loc v)
 
-    let transitiono label t t' = conde [
+    let stepo tid label t t' = conde [
       (label === Label.empty ()) &&& (t === t');
 
-      fresh (pid tid1 tid2)
-        (label === Label.spawn pid tid1 tid2)
-        (spawno t t' pid tid1 tid2);
+      fresh (tid1 tid2)
+        (label === Label.spawn tid1 tid2)
+        (spawno t t' tid tid1 tid2);
 
-      fresh (pid tid1 tid2)
-        (label === Label.join pid tid1 tid2)
-        (joino t t' pid tid1 tid2);
+      fresh (tid1 tid2)
+        (label === Label.join tid1 tid2)
+        (joino t t' tid tid1 tid2);
 
-      fresh (tid rs)
-        (label === Label.return tid rs)
-        (returno t t' tid rs);
-
-      fresh (tid reg v)
-        (label === Label.regwrite tid reg v)
-        (regwriteo t t' tid reg v);
-
-      fresh (tid mo loc v)
-        (label === Label.load tid mo loc v)
+      fresh (mo loc v)
+        (label === Label.load mo loc v)
         (conde [
           (* (mo === !!MemOrder.SC ) &&& (load_sco  t'' t' tid loc v); *)
           (mo === !!MemOrder.ACQ) &&& (load_acqo t t' tid loc v);
@@ -488,8 +475,8 @@ module MemoryRA : Memory =
           (mo === !!MemOrder.NA ) &&& (load_nao  t t' tid loc v);
         ]);
 
-      fresh (tid mo loc v)
-        (label === Label.store tid mo loc v)
+      fresh (mo loc v)
+        (label === Label.store mo loc v)
         (conde [
           (* (mo === !!MemOrder.SC ) &&& (store_sco  t t' tid loc v); *)
           (mo === !!MemOrder.REL) &&& (store_relo t t' tid loc v);
@@ -497,8 +484,8 @@ module MemoryRA : Memory =
           (mo === !!MemOrder.NA ) &&& (store_nao  t t' tid loc v);
         ]);
 
-      fresh (tid loc mo v)
-        (label === Label.datarace tid mo loc)
+      fresh (loc mo v)
+        (label === Label.datarace mo loc)
         (conde [
           (conde [
             (mo === !!MemOrder.SC);

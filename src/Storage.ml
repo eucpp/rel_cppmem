@@ -101,3 +101,11 @@ let rec map2o relo vars1 vars2 vars' = conde [
     (relo k1 v1 k2 v2 k' v')
     (map2o relo tl1 tl2 tl'));
   ]
+
+let rec forallo relo t = conde [
+  (t === nil ());
+  fresh (k v t')
+    (t === (Pair.pair k v) % t')
+    (relo k v)
+    (forallo relo t')
+]

@@ -18,7 +18,7 @@ module type Logic =
     val pprint : Format.formatter -> tl -> unit
   end
 
-val list_conj : 'a MiniKanren.Std.List.logic -> ('a -> MiniKanren.goal) -> MiniKanren.goal
+(* val list_conj : 'a MiniKanren.Std.List.logic -> ('a -> MiniKanren.goal) -> MiniKanren.goal *)
 
 module Trace(T : Logic) :
   sig

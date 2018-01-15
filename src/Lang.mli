@@ -86,6 +86,8 @@ module Bop :
 module ThreadID :
   sig
     include Utils.Logic
+
+    val fst : ti
   end
 
 module Expr :
@@ -100,23 +102,26 @@ module Expr :
     val show : tl -> string
   end
 
+module Prog :
+  sig
+    include Utils.Logic
+  end
+
 module Stmt :
   sig
     include Utils.Logic
 
-    type progi = (tt, tl) MiniKanren.Std.List.groundi
-
     (* val skip      : unit -> ti *)
     val assertion : Expr.ti -> ti
     val asgn      : Reg.ti -> Expr.ti -> ti
-    val if'       : Expr.ti -> progi -> progi -> ti
-    val while'    : Expr.ti -> progi -> ti
-    val repeat    : progi -> Expr.ti -> ti
+    val if'       : Expr.ti -> Prog.ti -> Prog.ti -> ti
+    val while'    : Expr.ti -> Prog.ti -> ti
+    val repeat    : Prog.ti -> Expr.ti -> ti
     val load      : MemOrder.ti -> Loc.ti -> Reg.ti -> ti
     val store     : MemOrder.ti -> Loc.ti -> Expr.ti     -> ti
     val cas       : MemOrder.ti -> MemOrder.ti -> Loc.ti -> Expr.ti -> Expr.ti -> ti
     (* val seq       : ti -> ti -> ti *)
-    val spw       : progi -> progi -> ti
+    val spw       : Prog.ti -> Prog.ti -> ti
     (* val par       : ti -> ti -> ti *)
     val return    : (Reg.tt, Reg.tl) MiniKanren.Std.List.groundi -> ti
 
@@ -132,8 +137,8 @@ module Label :
     (* val spawn  : ThreadID.ti -> ti
     val join   : ThreadID.ti -> ti *)
 
-    val spawn  : (ThreadID.tt, ThreadID.tl) MiniKanren.Std.List.groundi -> ti
-    val join   : (ThreadID.tt, ThreadID.tl) MiniKanren.Std.List.groundi -> ti
+    val spawn  : ThreadID.ti -> ThreadID.ti -> ti
+    val join   : ThreadID.ti -> ThreadID.ti -> ti
 
     val load  : MemOrder.ti -> Loc.ti -> Value.ti -> ti
     val store : MemOrder.ti -> Loc.ti -> Value.ti -> ti
@@ -148,6 +153,8 @@ module Label :
 module ThreadSubSys :
   sig
     include Utils.Logic
+
+    val terminatedo : ti -> MiniKanren.goal
 
     val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
   end
