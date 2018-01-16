@@ -232,7 +232,7 @@ module RegStorage =
 
     let empty = Storage.empty
 
-    let allocate = Storage.allocate (Value.integer 0)
+    let init rs = Storage.allocate (Value.integer 0) @@ List.map Reg.reg rs
 
     let from_assoc xs =
       Storage.from_assoc @@ List.map (fun (r, v) -> (Reg.reg r, Value.integer v)) xs
@@ -244,6 +244,8 @@ module RegStorage =
 
     let reado  = Storage.geto
     let writeo = Storage.seto
+
+    let checko t rvs = Storage.checko t @@ List.map (fun (r, v) -> (Reg.reg r, Value.integer v)) rvs
   end
 
 module Expr =
@@ -504,6 +506,14 @@ module Label =
 
     let pprint = pprint_logic @@ (fun ff x -> Format.fprintf ff "@[%s@]" (show x))
 
+    let erroro label opterr = conde
+      [ fresh (err)
+          (label  === error err)
+          (opterr === Std.some err)
+
+      ; ?~(fresh (err) (label === error err)) &&& (opterr === Std.none ())
+      ]
+
   end
 
 module Thread =
@@ -576,15 +586,15 @@ module Thread =
         (RegStorage.writeo rs rs' r v)
 
     let ifo label t t' =
-      fresh (prog prog' rs pid e v t1 t2)
+      fresh (prog prog' rs pid e v t1 t2 stmts)
         (t  === thrd prog  rs pid)
         (t' === thrd prog' rs pid)
-        (prog === (if' e t1 t2) % prog')
+        (prog === (if' e t1 t2) % stmts)
         (label === Label.empty ())
         (Expr.evalo rs e v)
         (conde [
-          (Value.not_nullo v) &&& (prog' === t1);
-          (Value.nullo     v) &&& (prog' === t2);
+          (Value.not_nullo v) &&& (seqo t1 stmts prog');
+          (Value.nullo     v) &&& (seqo t2 stmts prog');
         ])
 
     let whileo label t t' =
@@ -659,12 +669,10 @@ module ThreadLocalStorage(T : Utils.Logic) =
       pprint_logic pp
 
     let of_list thrds =
-      let n = List.length thrds in
-      let cnt = ThreadID.tid (n + 1) in
-      let thrds = Storage.from_assoc @@ snd @@
-        ListLabels.fold_left thrds ~init:(ThreadID.init, [])
-          ~f:(fun (tid, acc) thrd -> (ThreadID.next tid, (tid, thrd)::acc))
+      let cnt, ts = ListLabels.fold_left thrds ~init:(ThreadID.init, [])
+        ~f:(fun (tid, acc) thrd -> (ThreadID.next tid, (tid, thrd)::acc))
       in
+      let thrds = Storage.from_assoc ts in
       Std.pair cnt thrds
 
     let init n thrd =
@@ -747,14 +755,14 @@ module State(Memory : MemoryModel) =
 
     let init thrdm mem = state thrdm mem (Std.none ())
 
-    let thrdo s tid thrd =
-      fresh (thrdm mem opterr)
-        (s === state thrdm mem opterr)
+    let thrdo ?err s tid thrd =
+      fresh (thrdm mem)
+        (s === state thrdm mem (Std.Option.option err))
         (ThreadManager.geto thrdm tid thrd)
 
-    let memo s mem =
+    let memo ?err s mem =
       fresh (thrdm opterr)
-        (s === state thrdm mem opterr)
+        (s === state thrdm mem (Std.Option.option err))
 
     let erroro s err =
       fresh (thrdm mem)
@@ -767,7 +775,7 @@ module State(Memory : MemoryModel) =
           fresh (err)
             (opterr === Std.some err);
 
-          ?~(fresh (err) (opterr =/= Std.some err)) &&& (ThreadManager.forallo Thread.terminatedo thrdm)
+            (opterr === Std.none ()) &&& (ThreadManager.forallo Thread.terminatedo thrdm);
         ])
 
     let stepo s s' =
@@ -779,14 +787,7 @@ module State(Memory : MemoryModel) =
           ?&[ (Thread.stepo label thrd thrd')
             ; (Memory.stepo tid label mem mem')
             ; (ThreadManager.seto thrdm thrdm' tid thrd')
-            ; (conde
-                [ fresh (err)
-                  (label  === Label.error err)
-                  (opterr === Std.some err)
-
-                ; ?~(fresh (err) (label =/= Label.error err)) &&& (opterr === Std.none ())
-                ]
-              )
+            ; (Label.erroro label opterr)
             ]
         ])
 
@@ -794,7 +795,7 @@ module State(Memory : MemoryModel) =
 
   end
 
-module SequentialInterpreter =
+module SeqInterpreter =
   struct
     module DummyMM =
       struct
@@ -809,10 +810,13 @@ module SequentialInterpreter =
 
         let init ~thrdn ~mem = !!()
 
-        let stepo tid label t t' = conde
-          [ (label === Label.empty ())
-          ; fresh (err) (label === Label.error @@ Error.assertion err)
-          ]
+        let stepo tid label t t' =
+          (t === t') &&&
+          (conde
+            [ (label === Label.empty ())
+            ; fresh (err) (label === Label.error @@ Error.assertion err)
+            ]
+          )
       end
 
     module State =
@@ -855,9 +859,8 @@ module SequentialInterpreter =
           in
           pprint_logic pp
 
-        let regso res rs =
-          fresh (opterr)
-            (res === Std.pair rs opterr)
+        let regso ?err res rs =
+          (res === Std.pair rs (Std.Option.option err))
 
         let erroro res err =
           fresh (rs)
@@ -865,9 +868,9 @@ module SequentialInterpreter =
       end
 
     let interpo prog rs res =
-      fresh (s s' rs' opterr)
+      fresh (prog' s s' rs' opterr)
         (s  === State.init prog rs)
-        (s' === State.state (Stmt.skip ()) rs' opterr)
+        (s' === State.state prog' rs' opterr)
         (res === Std.pair rs' opterr)
         (State.evalo s s')
 

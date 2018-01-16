@@ -15,11 +15,11 @@ let angelic intrpo inputo outputo prog =
   )
   (fun qs rs -> Stream.zip qs rs)
 
-let verify intrpo inputo asserto prog =
+let verify ~interpo ~asserto inputo prog =
   run qr (fun input output ->
       (inputo input) &&&
-    ?~(asserto input output) &&&
-      (intrpo prog input output)
+      (interpo prog input output) &&&
+    ?~(asserto input output)
   )
   (fun qs rs -> Stream.zip qs rs)
 

@@ -36,7 +36,7 @@ let rec geto vars var value =
     (vars === hd % tl)
     (conde [
       (hd === pair var value);
-      (hd =/= pair var value) &&& (geto tl var value);
+      (*(hd =/= pair var value) &&&*) (geto tl var value);
     ])
 
 let rec seto vars vars' var value =
@@ -109,3 +109,5 @@ let rec forallo relo t = conde [
     (relo k v)
     (forallo relo t')
 ]
+
+let checko t kvs = ?& (List.map (fun (k, v) -> geto t k v) kvs)

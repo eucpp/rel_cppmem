@@ -58,3 +58,5 @@ val constro :
   ('at, 'bt, 'al, 'bl) ti ->
   (('at, 'al) key * (('bt, 'bl) value -> MiniKanren.goal)) list ->
   MiniKanren.goal
+
+val checko : ('at, 'bt, 'al, 'bl) ti -> (('at, 'al) key * ('bt, 'bl) value) list -> MiniKanren.goal

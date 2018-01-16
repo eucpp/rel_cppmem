@@ -8,7 +8,7 @@ open Lang.Expr
 open Lang.Loc
 open Lang.Reg
 open Lang.Value
-open MemoryModel
+(* open MemoryModel *)
 open Utils
 
 let tests = Test.(

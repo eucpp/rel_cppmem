@@ -99,12 +99,14 @@ module RegStorage :
 
     val empty : unit -> ti
 
-    val allocate : Reg.ti list -> ti
+    val init : string list -> ti
 
     val from_assoc : (string * int) list -> ti
 
     val reado  : ti ->       Reg.ti -> Value.ti -> MiniKanren.goal
     val writeo : ti -> ti -> Reg.ti -> Value.ti -> MiniKanren.goal
+
+    val checko : ti -> (string * int) list -> MiniKanren.goal
   end
 
 module Expr :
@@ -167,6 +169,8 @@ module Label :
     val cas : MemOrder.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> Value.ti -> Value.ti -> ti
 
     val error : Error.ti -> ti
+
+    val erroro : ti -> (Error.tt, Error.tl) MiniKanren.Std.Option.groundi -> MiniKanren.goal
   end
 
 module Thread :
@@ -208,8 +212,9 @@ module State(Memory : MemoryModel) :
 
     val init : ThreadManager.ti -> Memory.ti -> ti
 
-    val memo    : ti -> Memory.ti -> MiniKanren.goal
-    val thrdo   : ti -> ThreadID.ti -> Thread.ti -> MiniKanren.goal
+    val memo    : ?err:Error.ti -> ti -> Memory.ti -> MiniKanren.goal
+    val thrdo   : ?err:Error.ti -> ti -> ThreadID.ti -> Thread.ti -> MiniKanren.goal
+
     val erroro  : ti -> Error.ti -> MiniKanren.goal
 
     val terminatedo : ti -> MiniKanren.goal
@@ -218,13 +223,14 @@ module State(Memory : MemoryModel) :
     val evalo : ti -> ti -> MiniKanren.goal
   end
 
-module SequentialInterpreter :
+module SeqInterpreter :
   sig
     module Result :
       sig
         include Utils.Logic
 
-        val regso  : ti -> RegStorage.ti -> MiniKanren.goal
+        val regso  : ?err:Error.ti -> ti -> RegStorage.ti -> MiniKanren.goal
+
         val erroro : ti -> Error.ti -> MiniKanren.goal
       end
 

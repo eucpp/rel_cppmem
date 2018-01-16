@@ -13,8 +13,9 @@ val angelic :
   (('bt, 'bl) Semantics.Input.reified * ('ct, 'cl) Semantics.Input.reified) MiniKanren.Stream.t
 
 val verify :
-  ('at, 'bt, 'ct, 'al, 'bl, 'cl) Semantics.interpreter ->
-  ('bt, 'bl) Semantics.tpred -> ('bt, 'ct, 'bl, 'cl) assertion ->
+  interpo:('at, 'bt, 'ct, 'al, 'bl, 'cl) Semantics.interpreter ->
+  asserto:('bt, 'ct, 'bl, 'cl) assertion ->
+  ('bt, 'bl) Semantics.tpred ->
   ('at, 'al) Semantics.Prog.ti ->
   (('bt, 'bl) Semantics.Input.reified * ('ct, 'cl) Semantics.Input.reified) MiniKanren.Stream.t
 
