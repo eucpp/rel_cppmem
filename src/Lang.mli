@@ -87,7 +87,10 @@ module ThreadID :
   sig
     include Utils.Logic
 
-    val fst : ti
+    val tid : int -> ti
+
+    val null : ti
+    val init : ti
   end
 
 module RegStorage :
@@ -158,9 +161,6 @@ module Label :
 
     val empty : unit -> ti
 
-    val spawn  : ThreadID.ti -> ThreadID.ti -> ti
-    val join   : ThreadID.ti -> ThreadID.ti -> ti
-
     val load  : MemOrder.ti -> Loc.ti -> Value.ti -> ti
     val store : MemOrder.ti -> Loc.ti -> Value.ti -> ti
 
@@ -169,39 +169,52 @@ module Label :
     val error : Error.ti -> ti
   end
 
-module type State :
-  sig
-    include Utils.Logic
-
-    val stepo : Label.ti -> ti -> ti -> MiniKanren.goal
-  end
-
-module StateE(S : State) :
-  sig
-    include Utils.Logic
-
-    val state : S.ti -> ti
-    val error : Error.ti -> S.ti -> ti
-
-    val stepo : Label.ti -> ti -> ti -> MiniKanren.goal
-  end
-
 module Thread :
   sig
     include Utils.Logic
 
     val init : prog:Prog.ti -> regs:RegStorage.ti -> pid:ThreadID.ti -> ti
+
+    val regso : ti -> RegStorage.ti -> MiniKanren.goal
   end
 
-module ThreadManager :
+module ThreadLocalStorage(T : Utils.Logic) :
   sig
     include Utils.Logic
 
-    val init : Thread.ti list -> ti
+    val init : int -> T.ti -> ti
+    val of_list : T.ti list -> ti
+
+    val geto : ti       -> ThreadID.ti -> T.ti -> MiniKanren.goal
+    val seto : ti -> ti -> ThreadID.ti -> T.ti -> MiniKanren.goal
+
+    val forallo : (T.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal
+  end
+
+module ThreadManager : module type of ThreadLocalStorage(Thread)
+
+module type MemoryModel =
+  sig
+    include Utils.Logic
+
+    val init : thrdn:int -> mem:(string * int) list -> ti
+
+    val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
+  end
+
+module State(Memory : MemoryModel) :
+  sig
+    include Utils.Logic
+
+
+
+    val init : ThreadManager.ti -> Memory.ti -> ti
+
+    val memo    : ti -> Memory.ti -> MiniKanren.goal
+    val thrdo   : ti -> ThreadID.ti -> Thread.ti -> MiniKanren.goal
+    val erroro  : ti -> Error.ti -> MiniKanren.goal
 
     val terminatedo : ti -> MiniKanren.goal
 
     val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
-
-    val intrpo : (Prog.tt, RegStorage.tt, RegStorage.tt, Prog.tl, RegStorage.tl, RegStorage.tl) Semantics.interpreter
   end

@@ -1,7 +1,6 @@
 src/Lang
-src/Memory
 src/Storage
 src/Semantics
-src/MemoryModel
+src/Operational
 src/Query
 src/Utils

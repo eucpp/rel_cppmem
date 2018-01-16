@@ -202,9 +202,9 @@ module ThreadID =
 
     let tid = Std.nat
 
-    let dummy = Std.Nat.zero
-    let fst   = Std.Nat.one
-    let next  = Std.Nat.succ
+    let null = Std.Nat.zero
+    let init = Std.Nat.one
+    let next = Std.Nat.succ
 
     let reify = Std.Nat.reify
 
@@ -474,8 +474,6 @@ module Label =
       struct
         @type ('tid, 'mo, 'loc, 'value, 'err) t =
           | Empty
-          | Spawn           of 'tid * 'tid
-          | Join            of 'tid * 'tid
           | Load            of 'mo * 'loc * 'value
           | Store           of 'mo * 'loc * 'value
           | CAS             of 'mo * 'mo * 'loc * 'value * 'value * 'value
@@ -495,8 +493,6 @@ module Label =
     module FT = Fmap5(T)
 
     let empty ()               = inj @@ FT.distrib @@ T.Empty
-    let spawn tid1 tid2        = inj @@ FT.distrib @@ T.Spawn (tid1, tid2)
-    let join tid1 tid2         = inj @@ FT.distrib @@ T.Join (tid1, tid2)
     let load  mo loc v         = inj @@ FT.distrib @@ T.Load  (mo, loc, v)
     let store mo loc v         = inj @@ FT.distrib @@ T.Store (mo, loc, v)
     let cas mo1 mo2 loc e d v  = inj @@ FT.distrib @@ T.CAS (mo1, mo2, loc, e, d, v)
@@ -508,57 +504,6 @@ module Label =
 
     let pprint = pprint_logic @@ (fun ff x -> Format.fprintf ff "@[%s@]" (show x))
 
-  end
-
-module type State :
-  sig
-    include Utils.Logic
-
-    val stepo : Label.ti -> ti -> ti -> MiniKanren.goal
-  end
-
-module StateE(S : State) =
-  struct
-    type tt = S.tt * Error.tt Std.Option.ground
-
-    type tl = inner MiniKanren.logic
-      and inner = S.tl * Error.tl Std.Option.logic
-
-    type ti = (tt, tl) MiniKanren.injected
-
-    let reify = Std.Pair.reify S.reify (Std.Oprion.reify Error.reify)
-
-    let pprint =
-      pprint_logic (fun ff (s, e) ->
-        match e with
-        | None   ->
-          Format.fprintf ff "@[<v>%a@]" S.pprint s
-        | Some e ->
-          Format.fprintf ff "@[<v>Error:@;<1 2>%a@;State:@;<1 2>%a@;@]"
-            Error.pprint e
-            S.pprint s
-      )
-
-    open Std
-
-    let state s   = pair s @@ none ()
-    let error e s = pair s @@ some e
-
-    let stepo label t t' =
-      fresh (s s' opt)
-        (t   === pair s  (none ()))
-        (t'  === pair s' opt)
-        (S.stepo label s s')
-        (conde [
-          fresh (err)
-            (label === Label.error err)
-            (opt === some err);
-
-          ?~(
-            fresh (err)
-              (label =/= Label.error err)
-          ) &&& (opt === none ())
-        ])
   end
 
 module Thread =
@@ -582,7 +527,7 @@ module Thread =
 
     type ti = (tt, tl) MiniKanren.injected
 
-    module F = Fmap4(T)
+    module F = Fmap3(T)
 
     let thrd prog regs pid = T.(inj @@ F.distrib {prog; regs; pid})
 
@@ -591,7 +536,7 @@ module Thread =
     let reify h = F.reify RegStorage.reify Prog.reify ThreadID.reify h
 
     let pprint =
-      let pp ff = let open T in fun { regs; prog; pid; wait } ->
+      let pp ff = let open T in fun { regs; prog; pid; } ->
         Format.fprintf ff "@[<v>pid: %a@;@[<v>Code :@;<1 4>%a@;@]@;@[<v>Regs :@;<1 4>%a@;@]@;@]"
           ThreadID.pprint pid
           Stmt.ppseql prog
@@ -600,13 +545,18 @@ module Thread =
       pprint_logic pp
 
     open Std
+    open Stmt
+
+    let regso t rs =
+      fresh (prog pid)
+        (t  === thrd prog rs pid)
 
     let terminatedo t =
       fresh (rs pid)
         (t  === thrd (Stmt.skip ()) rs pid)
 
     let asserto label t t' =
-      fresh (prog prog' rs pid e v)
+      fresh (prog prog' rs pid e v stmts)
         (t  === thrd prog  rs pid)
         (t' === thrd prog' rs pid)
         (prog === (assertion e) % stmts)
@@ -646,14 +596,16 @@ module Thread =
         (stmt  === (while' e body))
         (stmt' === if' e stmts' (skip ()))
         (label === Label.empty ())
-        (seqo body stmt stmts')
+        (seqo body (single stmt) stmts')
 
     let repeato label t t' =
-      fresh (e body)
-        (t  === repeat body e)
-        (rs === rs')
+      fresh (prog prog' rs pid e body body' stmts)
+        (t  === thrd prog  rs pid)
+        (t' === thrd prog' rs pid)
+        (prog  === (repeat body e) % stmts)
         (label === Label.empty ())
-        (seqo body (single @@ while' (Expr.unop !!Uop.NOT e) body) ts)
+        (seqo body (single @@ while' (Expr.unop !!Uop.NOT e) body) body')
+        (seqo body' stmts prog')
 
     let loado label t t' =
       fresh (prog prog' rs rs' pid mo l r v)
@@ -667,11 +619,11 @@ module Thread =
       fresh (prog prog' rs pid mo l e v)
         (t  === thrd prog  rs pid)
         (t' === thrd prog' rs pid)
-        (t  === (store mo l e) % prog')
+        (prog === (store mo l e) % prog')
         (label === Label.store mo l v)
         (Expr.evalo rs e v)
 
-    let dataraceo label rs rs' t ts =
+    let dataraceo label t t' =
       fresh (prog prog' rs pid stmt mo l r e)
         (t  === thrd prog  rs pid)
         (t' === thrd prog' rs pid)
@@ -687,115 +639,155 @@ module Thread =
 
   end
 
-module ThreadManager =
+module ThreadLocalStorage(T : Utils.Logic) =
   struct
-    module T =
-      struct
-        @type ('tid, 'thrds) t =
-          { cnt   : 'tid
-          ; thrds : 'thrds
-          }
-        with gmap
-
-        let fmap fa fb x = GT.gmap(t) fa fb x
-      end
-
-    type tt = (ThreadID.tt, (ThreadID.tt, Thread.tt) Storage.tt) T.t
+    type tt = ThreadID.tt * (ThreadID.tt, T.tt) Storage.tt
 
     type tl = inner MiniKanren.logic
-      and inner = (ThreadID.tl, (ThreadID.tl, Thread.tl) Storage.tl) T.t
+      and inner = ThreadID.tl * (ThreadID.tl, T.tl) Storage.tl
 
     type ti = (tt, tl) MiniKanren.injected
 
-    module F = Fmap2(T)
-
-    let reify = F.reify ThreadID.reify (Storage.reify ThreadID.reify Thread.reify)
-
-    let thrdsys cnt thrds = T.(inj @@ F.distrib {cnt; thrds})
-
-    let init ~prog ~regs =
-      let cnt = ThreadID.next ThreadID.fst in
-      let thrds = Storage.from_assoc [(ThreadID.fst, Thread.init ~prog ~regs)] in
-      thrdsys cnt thrds
+    let reify = Std.Pair.reify ThreadID.reify (Storage.reify ThreadID.reify T.reify)
 
     let pprint =
-      let pp ff = let open T in fun {thrds} ->
-        Storage.pprint (fun ff (tid, thrd) ->
-          Format.fprintf ff "@[<v>Thread #%a:@;<1 4>%a@]" ThreadID.pprint tid Thread.pprint thrd
+      let pp ff (_, thrds) = Storage.pprint (
+        fun ff (tid, thrd) ->
+          Format.fprintf ff "@[<v>Thread #%a:@;<1 2>%a@]" ThreadID.pprint tid T.pprint thrd
         ) ff thrds
       in
       pprint_logic pp
 
-    open Std
+    let of_list thrds =
+      let n = List.length thrds in
+      let cnt = ThreadID.tid (n + 1) in
+      let thrds = Storage.from_assoc @@ snd @@
+        ListLabels.fold_left thrds ~init:(ThreadID.init, [])
+          ~f:(fun (tid, acc) thrd -> (ThreadID.next tid, (tid, thrd)::acc))
+      in
+      Std.pair cnt thrds
 
-    let terminatedo t =
+    let init n thrd =
+      let rec helper i xs =
+        if i = n then xs else thrd::xs
+      in
+      of_list @@ helper 0 []
+
+    let geto tls tid thrd =
       fresh (cnt thrds)
-        (t === thrdsys cnt thrds)
-        (Storage.forallo (fun _ thrd -> Thread.terminatedo thrd) thrds)
-
-    let rec updateo thrd thrd'' rs vs = conde [
-      (rs === nil ()) &&& (vs === nil ()) &&& (thrd === thrd'');
-
-      fresh (r v rs' vs' thrd')
-        (rs === r % rs')
-        (vs === v % vs')
-        (Thread.setrego thrd thrd' r v)
-        (updateo thrd' thrd'' rs' vs')
-    ]
-
-    let rec extendo cnt cnt' thrds thrds'' tids ts = conde [
-      (tids === nil ()) &&& (ts === nil ()) &&& (cnt === cnt') &&& (thrds === thrds'');
-
-      fresh (t tids' ts' thrds')
-        (ts === t % ts')
-        (tids === cnt % tids')
-        (Storage.extendo thrds thrds' cnt t)
-        (extendo (ThreadID.next cnt) cnt' thrds' thrds'' tids' ts')
-    ]
-
-    let rec removeo thrds thrds'' tids = conde [
-      (tids === Std.nil ()) &&& (thrds === thrds'');
-
-      fresh (tid tids' thrds' thrd)
-        (tids === tid % tids')
-        (Storage.geto thrds tid thrd)
-        (Thread.terminatedo thrd)
-        (Storage.removeo thrds thrds' tid)
-        (removeo thrds' thrds'' tids')
-    ]
-
-    let stepo tid label t t' =
-      fresh (cnt cnt' thrds thrds' thrds'' thrd thrd')
-        (t  === thrdsys cnt  thrds  )
-        (t' === thrdsys cnt' thrds'')
+        (tls === Std.pair cnt thrds)
         (Storage.membero thrds tid thrd)
-        (Storage.seto thrds thrds' tid thrd')
+
+    let seto tls tls' tid thrd =
+      fresh (cnt thrds thrds')
+        (tls  === Std.pair cnt thrds )
+        (tls' === Std.pair cnt thrds')
+        (Storage.seto thrds thrds' tid thrd)
+
+    let forallo g tls =
+      fresh (cnt thrds)
+        (tls === Std.pair cnt thrds)
+        (Storage.forallo (fun _ thrd -> g thrd) thrds)
+
+  end
+
+module ThreadManager = ThreadLocalStorage(Thread)
+
+module type MemoryModel =
+  sig
+    include Utils.Logic
+
+    val init : thrdn:int -> mem:(string * int) list -> ti
+
+    val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
+  end
+
+module State(Memory : MemoryModel) =
+  struct
+    module T =
+      struct
+        @type ('thrdm, 'mem, 'opterr) t =
+          { thrdm  : 'thrdm
+          ; mem    : 'mem
+          ; opterr : 'opterr
+          }
+        with gmap
+
+        let fmap fa fb fc x = GT.gmap(t) fa fb fc x
+      end
+
+    type tt = (ThreadManager.tt, Memory.tt, Error.tt Std.Option.ground) T.t
+
+    type tl = inner MiniKanren.logic
+      and inner = (ThreadManager.tl, Memory.tl, Error.tl Std.Option.logic) T.t
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    module F = Fmap3(T)
+
+    let reify = F.reify
+      ThreadManager.reify
+      Memory.reify
+      (Std.Option.reify Error.reify)
+
+    let pprint =
+      let pp ff = let open T in fun {thrdm; mem; opterr} ->
+        pprint_logic (fun ff -> function
+          | None      -> ()
+          | Some err  ->
+            Format.fprintf ff "@[<v>Error:%a@]@;" Error.pprint err
+        ) ff opterr;
+        Format.fprintf ff "@[<v>Threads:@;<1 2>%a@]@;@[<v>Memory:@;<1 2>%a@]@."
+          ThreadManager.pprint thrdm
+          Memory.pprint mem
+      in
+      pprint_logic pp
+
+    let state thrdm mem opterr = T.(inj @@ F.distrib {thrdm; mem; opterr})
+
+    let init thrdm mem = state thrdm mem (Std.none ())
+
+    let thrdo s tid thrd =
+      fresh (thrdm mem opterr)
+        (s === state thrdm mem opterr)
+        (ThreadManager.geto thrdm tid thrd)
+
+    let memo s mem =
+      fresh (thrdm opterr)
+        (s === state thrdm mem opterr)
+
+    let erroro s err =
+      fresh (thrdm mem)
+        (s === state thrdm mem (Std.some err))
+
+    let terminatedo s =
+      fresh (thrdm mem opterr)
+        (s === state thrdm mem opterr)
         (conde [
-          (cnt === cnt') &&&
-          (thrds' === thrds'') &&&
-          (Thread.stepo label thrd thrd');
+          fresh (err)
+            (opterr === Std.some err);
 
-          fresh (pid rs vs pthrd pthrd')
-            (cnt === cnt')
-            (Thread.returno label thrd thrd' pid rs vs)
-            (Storage.geto thrds'         pid pthrd )
-            (Storage.seto thrds' thrds'' pid pthrd')
-            (updateo pthrd pthrd' rs vs);
-
-          fresh (tids ts)
-            (Thread.spawno label thrd thrd' tid tids ts)
-            (extendo cnt cnt' thrds' thrds'' tids ts);
-
-          fresh (tids)
-            (cnt === cnt')
-            (Thread.joino label thrd thrd' tids)
-            (removeo thrds' thrds'' tids);
+          ?~(fresh (err) (opterr =/= Std.some err)) &&& (ThreadManager.forallo Thread.terminatedo thrdm)
         ])
 
-    let intrpo prog rs rs' =
-      let t  = init prog rs in
-      let t' = init (Stmt.skip ()) rs' in
-      let evalo = Semantics.Reduction.make_eval ~irreducibleo:terminatedo (stepo (ThreadID.fst) (Label.empty ())) in
-      evalo t t'
+    let stepo tid label s s' =
+      fresh (thrdm thrdm' mem mem' opterr thrd thrd')
+        (s  === state thrdm  mem  (Std.none ()))
+        (s' === state thrdm' mem' opterr)
+        (ThreadManager.geto thrdm tid thrd)
+        (conde [
+          ?&[ (Thread.stepo label thrd thrd')
+            ; (Memory.stepo tid label mem mem')
+            ; (ThreadManager.seto thrdm thrdm' tid thrd')
+            ; (conde
+                [ fresh (err)
+                  (label  === Label.error err)
+                  (opterr === Std.some err)
+
+                ; ?~(fresh (err) (label =/= Label.error err)) &&& (opterr === Std.none ())
+                ]
+              )
+            ]
+        ])
 
   end
