@@ -669,7 +669,7 @@ module ThreadLocalStorage(T : Utils.Logic) =
 
     let init n thrd =
       let rec helper i xs =
-        if i = n then xs else thrd::xs
+        if i = n then xs else helper (i+1) (thrd::xs)
       in
       of_list @@ helper 0 []
 
@@ -770,8 +770,8 @@ module State(Memory : MemoryModel) =
           ?~(fresh (err) (opterr =/= Std.some err)) &&& (ThreadManager.forallo Thread.terminatedo thrdm)
         ])
 
-    let stepo tid label s s' =
-      fresh (thrdm thrdm' mem mem' opterr thrd thrd')
+    let stepo s s' =
+      fresh (thrdm thrdm' mem mem' opterr thrd thrd' tid label)
         (s  === state thrdm  mem  (Std.none ()))
         (s' === state thrdm' mem' opterr)
         (ThreadManager.geto thrdm tid thrd)
@@ -789,5 +789,86 @@ module State(Memory : MemoryModel) =
               )
             ]
         ])
+
+    let evalo = Semantics.Reduction.make_eval ~irreducibleo:terminatedo stepo
+
+  end
+
+module SequentialInterpreter =
+  struct
+    module DummyMM =
+      struct
+        type tt = unit
+        type tl = inner MiniKanren.logic
+          and inner = unit
+        type ti = (tt, tl) MiniKanren.injected
+
+        let reify = MiniKanren.reify
+
+        let pprint ff t = ()
+
+        let init ~thrdn ~mem = !!()
+
+        let stepo tid label t t' = conde
+          [ (label === Label.empty ())
+          ; fresh (err) (label === Label.error @@ Error.assertion err)
+          ]
+      end
+
+    module State =
+      struct
+        include State(DummyMM)
+
+        let state prog regs opterr =
+          let thrd  = Thread.init ~prog ~regs ~pid:ThreadID.null in
+          let thrdm = ThreadManager.init 1 thrd in
+          state thrdm !!() opterr
+
+        let init prog regs = state prog regs (Std.none ())
+
+        let regso s rs =
+          fresh (thrd)
+            (thrdo s ThreadID.init thrd)
+            (Thread.regso thrd rs)
+      end
+
+    module Result =
+      struct
+        type tt = RegStorage.tt * Error.tt Std.Option.ground
+
+        type tl = inner MiniKanren.logic
+          and inner = RegStorage.tl * Error.tl Std.Option.logic
+
+        type ti = (tt, tl) MiniKanren.injected
+
+        let reify = Std.Pair.reify RegStorage.reify (Std.Option.reify Error.reify)
+
+        let pprint =
+          let pp ff (regs, opterr) =
+            pprint_logic (fun ff -> function
+              | None      -> ()
+              | Some err  ->
+                Format.fprintf ff "@[<v>Error:%a@]@;" Error.pprint err
+            ) ff opterr;
+            Format.fprintf ff "@[<v>Regs:@;<1 2>%a@]@."
+              RegStorage.pprint regs
+          in
+          pprint_logic pp
+
+        let regso res rs =
+          fresh (opterr)
+            (res === Std.pair rs opterr)
+
+        let erroro res err =
+          fresh (rs)
+            (res === Std.pair rs (Std.some err))
+      end
+
+    let interpo prog rs res =
+      fresh (s s' rs' opterr)
+        (s  === State.init prog rs)
+        (s' === State.state (Stmt.skip ()) rs' opterr)
+        (res === Std.pair rs' opterr)
+        (State.evalo s s')
 
   end

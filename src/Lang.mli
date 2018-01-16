@@ -206,8 +206,6 @@ module State(Memory : MemoryModel) :
   sig
     include Utils.Logic
 
-
-
     val init : ThreadManager.ti -> Memory.ti -> ti
 
     val memo    : ti -> Memory.ti -> MiniKanren.goal
@@ -216,5 +214,19 @@ module State(Memory : MemoryModel) :
 
     val terminatedo : ti -> MiniKanren.goal
 
-    val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
+    val stepo : ti -> ti -> MiniKanren.goal
+    val evalo : ti -> ti -> MiniKanren.goal
+  end
+
+module SequentialInterpreter :
+  sig
+    module Result :
+      sig
+        include Utils.Logic
+
+        val regso  : ti -> RegStorage.ti -> MiniKanren.goal
+        val erroro : ti -> Error.ti -> MiniKanren.goal
+      end
+
+    val interpo : (Prog.tt, RegStorage.tt, Result.tt, Prog.tl, RegStorage.tl, Result.tl) Semantics.interpreter
   end
