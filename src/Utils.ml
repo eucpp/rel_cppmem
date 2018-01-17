@@ -27,7 +27,7 @@ let rec list_all g xs = conde [
   fresh (x xs')
     (xs === x % xs')
     (g x)
-    (list_conj g xs');
+    (list_all g xs');
 ]
 
 module Trace(T : Logic) =

@@ -48,7 +48,7 @@ val map2o :
   ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> MiniKanren.goal
 
 val foldo :
-  (('at, 'al) key -> ('bt, 'bl) value -> ('acct, 'accl) MiniKanren.injected -> ('acct, 'accl) MiniKanren.injected -> MiniKanren.goal) ->
+  (('at, 'al) key -> ('bt, 'bl) value -> ('acct, _ MiniKanren.logic as 'accl) MiniKanren.injected -> ('acct, 'accl) MiniKanren.injected -> MiniKanren.goal) ->
   ('at, 'bt, 'al, 'bl) ti -> ('acct, 'accl) MiniKanren.injected -> ('acct, 'accl) MiniKanren.injected -> MiniKanren.goal
 
 val forallo :

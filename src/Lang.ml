@@ -675,11 +675,15 @@ module ThreadLocalStorage(T : Utils.Logic) =
       let thrds = Storage.from_assoc ts in
       Std.pair cnt thrds
 
-    let init n thrd =
+    let initi n make_thrd =
       let rec helper i xs =
+        let thrd = make_thrd @@ ThreadID.tid i in
         if i = n then xs else helper (i+1) (thrd::xs)
       in
       of_list @@ helper 0 []
+
+    let init n thrd =
+      initi n (fun _ -> thrd)
 
     let geto tls tid thrd =
       fresh (cnt thrds)
@@ -691,6 +695,11 @@ module ThreadLocalStorage(T : Utils.Logic) =
         (tls  === Std.pair cnt thrds )
         (tls' === Std.pair cnt thrds')
         (Storage.seto thrds thrds' tid thrd)
+
+    let foldo g tls acc acc' =
+      fresh (cnt thrds)
+        (tls === Std.pair cnt thrds)
+        (Storage.foldo (fun _ -> g) thrds acc acc')
 
     let forallo g tls =
       fresh (cnt thrds)

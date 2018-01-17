@@ -187,14 +187,14 @@ module ThreadLocalStorage(T : Utils.Logic) :
     include Utils.Logic
 
     val init : int -> T.ti -> ti
-    val initi : int -> (int -> T.ti) -> ti
+    val initi : int -> (ThreadID.ti -> T.ti) -> ti
     val of_list : T.ti list -> ti
 
     val geto : ti       -> ThreadID.ti -> T.ti -> MiniKanren.goal
     val seto : ti -> ti -> ThreadID.ti -> T.ti -> MiniKanren.goal
 
-    val foldro :
-      (T.ti -> ('at, 'al) MiniKanren.injected -> ('at, 'al) MiniKanren.injected -> MiniKanren.goal) ->
+    val foldo :
+      (T.ti -> ('at, _ MiniKanren.logic as 'al) MiniKanren.injected -> ('at, 'al) MiniKanren.injected -> MiniKanren.goal) ->
       ti -> ('at, 'al) MiniKanren.injected -> ('at, 'al) MiniKanren.injected -> MiniKanren.goal
 
     val forallo : (T.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal

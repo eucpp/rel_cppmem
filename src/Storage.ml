@@ -102,6 +102,14 @@ let rec map2o relo vars1 vars2 vars' = conde [
     (map2o relo tl1 tl2 tl'));
   ]
 
+let foldo relo t acc acc' =
+  let helper kv acc acc' =
+    fresh (k v)
+      (kv === pair k v)
+      (relo k v acc acc')
+  in
+  List.foldro helper acc t acc'
+
 let rec forallo relo t = conde [
   (t === nil ());
   fresh (k v t')
