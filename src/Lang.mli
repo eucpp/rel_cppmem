@@ -147,7 +147,13 @@ module Stmt :
     val show : tl -> string
   end
 
-val prog : Stmt.ti list -> Prog.ti
+module CProg :
+  sig
+    include Utils.Logic
+  end
+
+val prog  : Stmt.ti list -> Prog.ti
+val cprog : Prog.ti list -> CProg.ti
 
 module Error :
   sig
@@ -177,7 +183,7 @@ module Thread :
   sig
     include Utils.Logic
 
-    val init : prog:Prog.ti -> regs:RegStorage.ti -> pid:ThreadID.ti -> ti
+    val init : ?pid:ThreadID.ti -> prog:Prog.ti -> regs:RegStorage.ti -> ti
 
     val regso : ti -> RegStorage.ti -> MiniKanren.goal
   end
@@ -186,8 +192,8 @@ module ThreadLocalStorage(T : Utils.Logic) :
   sig
     include Utils.Logic
 
-    val init : int -> T.ti -> ti
-    val initi : int -> (ThreadID.ti -> T.ti) -> ti
+    val alloc : int -> T.ti -> ti
+    val alloci : int -> (ThreadID.ti -> T.ti) -> ti
     val of_list : T.ti list -> ti
 
     val geto : ti       -> ThreadID.ti -> T.ti -> MiniKanren.goal
@@ -200,7 +206,12 @@ module ThreadLocalStorage(T : Utils.Logic) :
     val forallo : (T.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal
   end
 
-module ThreadManager : module type of ThreadLocalStorage(Thread)
+module ThreadManager :
+  sig
+    include ThreadLocalStorage(Thread)
+
+    val init : regs:string list -> CProg.ti ->  ti
+  end
 
 module type MemoryModel =
   sig
@@ -221,11 +232,6 @@ module State(Memory : MemoryModel) :
     val thrdo   : ?err:Error.ti -> ti -> ThreadID.ti -> Thread.ti -> MiniKanren.goal
 
     val erroro  : ti -> Error.ti -> MiniKanren.goal
-
-    val terminatedo : ti -> MiniKanren.goal
-
-    val stepo : ti -> ti -> MiniKanren.goal
-    val evalo : ti -> ti -> MiniKanren.goal
   end
 
 module SeqInterpreter :
@@ -240,4 +246,15 @@ module SeqInterpreter :
       end
 
     val interpo : (Prog.tt, RegStorage.tt, Result.tt, Prog.tl, RegStorage.tl, Result.tl) Semantics.interpreter
+  end
+
+module Interpreter(Memory : MemoryModel) :
+  sig
+    type tactic =
+      | Interleaving
+      | Sequential
+
+    module State : module type of State(Memory)
+
+    val interpo : tactic -> (CProg.tt, State.tt, State.tt, CProg.tl, State.tl, State.tl) Semantics.interpreter
   end

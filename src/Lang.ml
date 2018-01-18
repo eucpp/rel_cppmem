@@ -435,7 +435,34 @@ module Prog =
     let pprint = Stmt.ppseql
   end
 
+module CProg =
+  struct
+    type tt = Prog.tt Std.List.ground
+
+    type tl = inner MiniKanren.logic
+      and inner = (Prog.tl, tl) Std.list
+
+    type ti = (Prog.tt, Prog.tl) Std.List.groundi
+
+    let reify = Std.List.reify Prog.reify
+
+    let pprint ff x =
+      let rec pp ff =
+        let open Std in function
+        | Cons (t, ts) ->
+          Format.fprintf ff "@;<1 4>@[<v>%a]@;|||%a" Prog.pprint t ppl ts
+        | Cons (t, Value Nil) ->
+          Format.fprintf ff "@;<1 4>@[<v>%a]@;" Prog.pprint t
+        | Nil -> ()
+        | _   -> assert false
+      in
+      and ppl ff x = pprint_logic pp ff x in
+      ppl ff x
+  end
+
 let prog p = Std.List.list p
+
+let cprog ps = Std.List.list ps
 
 module Error =
   struct
@@ -541,7 +568,7 @@ module Thread =
 
     let thrd prog regs pid = T.(inj @@ F.distrib {prog; regs; pid})
 
-    let init ~prog ~regs ~pid = thrd prog regs pid
+    let init ?(pid=ThreadID.null) ~prog ~regs = thrd prog regs pid
 
     let reify h = F.reify RegStorage.reify Prog.reify ThreadID.reify h
 
@@ -675,14 +702,14 @@ module ThreadLocalStorage(T : Utils.Logic) =
       let thrds = Storage.from_assoc ts in
       Std.pair cnt thrds
 
-    let initi n make_thrd =
+    let alloci n make_thrd =
       let rec helper i xs =
         let thrd = make_thrd @@ ThreadID.tid i in
         if i = n then xs else helper (i+1) (thrd::xs)
       in
       of_list @@ helper 0 []
 
-    let init n thrd =
+    let alloc n thrd =
       initi n (fun _ -> thrd)
 
     let geto tls tid thrd =
@@ -708,7 +735,15 @@ module ThreadLocalStorage(T : Utils.Logic) =
 
   end
 
-module ThreadManager = ThreadLocalStorage(Thread)
+module ThreadManager =
+  struct
+    include ThreadLocalStorage(Thread)
+
+    let init ~regs ps =
+      let regs = RegStorage.init regs in
+      of_list @@ List.map (fun prog -> Thread.init ~prog ~regs) ps in
+
+  end
 
 module type MemoryModel =
   sig
@@ -780,15 +815,15 @@ module State(Memory : MemoryModel) =
     let terminatedo s =
       fresh (thrdm mem opterr)
         (s === state thrdm mem opterr)
-        (conde [
-          fresh (err)
-            (opterr === Std.some err);
+        (conde
+          [ (opterr === Std.none ()) &&& (ThreadManager.forallo Thread.terminatedo thrdm)
+          ; fresh (err)
+              (opterr === Std.some err);
+          ]
+        )
 
-            (opterr === Std.none ()) &&& (ThreadManager.forallo Thread.terminatedo thrdm);
-        ])
-
-    let stepo s s' =
-      fresh (thrdm thrdm' mem mem' opterr thrd thrd' tid label)
+    let thrd_stepo tid s s' =
+      fresh (thrdm thrdm' mem mem' opterr thrd thrd' label)
         (s  === state thrdm  mem  (Std.none ()))
         (s' === state thrdm' mem' opterr)
         (ThreadManager.geto thrdm tid thrd)
@@ -800,7 +835,38 @@ module State(Memory : MemoryModel) =
             ]
         ])
 
-    let evalo = Semantics.Reduction.make_eval ~irreducibleo:terminatedo stepo
+    let thrd_evalo tid s s' =
+      let irreducibleo s = conde
+        [ fresh (err)
+            (erroro s err)
+        ; fresh (thrd)
+            (thrdo s tid thrd)
+            (Thread.terminatedo thrd)
+        ]
+      in
+      Semantics.Reduction.make_eval ~irreducibleo @@ thrd_stepo tid
+
+    let seq_evalo s s' =
+      let rec helper tids s s'' = conde
+        [ (tids === nil ()) &&& (s === s'')
+        ; fresh (tid tids' s')
+            (tids === tid % tids')
+            (thrd_evalo tid s s')
+            (helper tids' s' s'')
+        ; fresh (err)
+            (erroro s err) &&& (s === s'')
+        ]
+      in
+      fresh (thrdm mem tids)
+        (s === state thrdm mem (Std.none ()))
+        (ThreadManager.tidso thrdm tids)
+        (helper tids s s')
+
+    let stepo s s' =
+      fresh (tid)
+        (thrd_stepo tid s s')
+
+    let interl_evalo = Semantics.Reduction.make_eval ~irreducibleo:terminatedo stepo
 
   end
 
@@ -883,4 +949,15 @@ module SeqInterpreter =
         (res === Std.pair rs' opterr)
         (State.evalo s s')
 
+  end
+
+module Interpreter(Memory : MemoryModel) =
+  struct
+    type tactic =
+      | Interleaving
+      | Sequential
+
+    module State : module type of State(Memory)
+
+    val interpo : tactic -> (CProg.tt, State.tt, State.tt, CProg.tl, State.tl, State.tl) Semantics.interpreter
   end
