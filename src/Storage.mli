@@ -25,6 +25,8 @@ val pprint : (Format.formatter -> 'al * 'bl -> unit) -> Format.formatter -> ('al
 val geto : ('at, 'bt, 'al, 'bl) ti ->                            ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal
 val seto : ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key -> ('bt, 'bl) value -> MiniKanren.goal
 
+val keyso : ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) MiniKanren.Std.List.groundi -> MiniKanren.goal
+
 val removeo :
   ('at, 'bt, 'al, 'bl) ti -> ('at, 'bt, 'al, 'bl) ti -> ('at, 'al) key -> MiniKanren.goal
 

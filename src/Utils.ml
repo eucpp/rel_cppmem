@@ -30,6 +30,16 @@ let rec list_all g xs = conde [
     (list_all g xs');
 ]
 
+let rec foldlo ~g ~init ~res xs =
+  conde [
+    (xs === nil ()) &&& (init === res);
+    Fresh.three (fun hd tl acc ->
+        (xs === hd % tl) &&&
+        (g hd init acc) &&&
+        (foldlo tl ~g ~res ~init:acc)
+    )
+  ]
+
 module Trace(T : Logic) =
   struct
     let trace fmt rr = T.pprint fmt @@ rr#reify T.reify
