@@ -99,9 +99,8 @@ module Regs :
 
     val empty : unit -> ti
 
-    val init : string list -> ti
-
-    val from_assoc : (string * int) list -> ti
+    val alloc : string list -> ti
+    val init : (string * int) list -> ti
 
     val reado  : ti ->       Reg.ti -> Value.ti -> MiniKanren.goal
     val writeo : ti -> ti -> Reg.ti -> Value.ti -> MiniKanren.goal
@@ -176,36 +175,36 @@ module Label :
 
     val error : Error.ti -> ti
 
-    val erroro : ti -> (Error.tt, Error.tl) MiniKanren.Std.Option.groundi -> MiniKanren.goal
-  end
-
-module Thread :
-  sig
-    include Utils.Logic
-
-    val init : ?pid:ThreadID.ti -> regs:Regs.ti -> Prog.ti -> ti
-
-    val regso : ti -> Regs.ti -> MiniKanren.goal
+    val erroro :
+      ?sg:(Error.ti -> MiniKanren.goal) ->
+      ?fg:MiniKanren.goal ->
+      ti -> MiniKanren.goal
   end
 
 module ThreadLocalStorage(T : Utils.Logic) :
   sig
     include Utils.Logic
 
-    val alloc : int -> T.ti -> ti
-    val alloci : int -> (ThreadID.ti -> T.ti) -> ti
+    val init : int -> T.ti -> ti
+    val initi : int -> (ThreadID.ti -> T.ti) -> ti
     val of_list : T.ti list -> ti
 
     val geto : ti       -> ThreadID.ti -> T.ti -> MiniKanren.goal
     val seto : ti -> ti -> ThreadID.ti -> T.ti -> MiniKanren.goal
 
     val tidso : ti -> (ThreadID.tt, ThreadID.tl) MiniKanren.Std.List.groundi -> MiniKanren.goal
+    val contento : ti -> (T.tt, T.tl) MiniKanren.Std.List.groundi -> MiniKanren.goal
 
     val foldo :
       (T.ti -> ('at, _ MiniKanren.logic as 'al) MiniKanren.injected -> ('at, 'al) MiniKanren.injected -> MiniKanren.goal) ->
       ti -> ('at, 'al) MiniKanren.injected -> ('at, 'al) MiniKanren.injected -> MiniKanren.goal
 
     val forallo : (T.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal
+  end
+
+module RegStorage :
+  sig
+    include module type of ThreadLocalStorage(Regs)
   end
 
 module type MemoryModel =
@@ -221,15 +220,33 @@ module State(Memory : MemoryModel) :
   sig
     include Utils.Logic
 
-    val init : ThreadManager.ti -> Memory.ti -> ti
+    val init : RegStorage.ti -> Memory.ti -> ti
 
-    val memo    : ?err:Error.ti -> ti -> Memory.ti -> MiniKanren.goal
-    val thrdo   : ?err:Error.ti -> ti -> ThreadID.ti -> Thread.ti -> MiniKanren.goal
+    val memo  : ?err:Error.ti -> ti -> Memory.ti -> MiniKanren.goal
+    val regso : ?err:Error.ti -> ti -> ThreadID.ti -> Regs.ti -> MiniKanren.goal
+    val regstorageo : ?err:Error.ti -> ti -> RegStorage.ti -> MiniKanren.goal
 
-    val erroro  : ti -> Error.ti -> MiniKanren.goal
+    val erroro  :
+      ?sg:(Error.ti -> MiniKanren.goal) ->
+      ?fg:MiniKanren.goal ->
+      ti -> MiniKanren.goal
   end
 
-module SeqInterpreter :
+module Interpreter(Memory : MemoryModel) :
+  sig
+    type tactic =
+      | SingleThread of ThreadID.ti
+      | Interleaving
+      | Sequential
+
+    module State : module type of State(Memory)
+
+    val evalo : tactic -> (State.tt, State.tt, State.tl, State.tl) Semantics.eval
+
+    val interpo : tactic -> (Prog.ti list, State.tt, State.tt, State.tl, State.tl) Semantics.interpreter
+  end
+
+(* module SeqInterpreter :
   sig
     module Result :
       sig
@@ -241,15 +258,4 @@ module SeqInterpreter :
       end
 
     val interpo : (Prog.tt, Regs.tt, Result.tt, Prog.tl, Regs.tl, Result.tl) Semantics.interpreter
-  end
-
-module Interpreter(Memory : MemoryModel) :
-  sig
-    type tactic =
-      | Interleaving
-      | Sequential
-
-    module State : module type of State(Memory)
-
-    val interpo : tactic -> (CProg.tt, State.tt, State.tt, CProg.tl, State.tl, State.tl) Semantics.interpreter
-  end
+  end *)

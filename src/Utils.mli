@@ -21,9 +21,9 @@ module type Logic =
 val list_all : (('a, 'b) MiniKanren.injected -> MiniKanren.goal) -> ('a, 'b) MiniKanren.Std.List.groundi -> MiniKanren.goal
 
 val foldlo :
-  g:(('a, 'b) injected -> ('acct, 'accl) injected -> ('acct, 'accl) injected -> MiniKanren.goal) ->
-  init:('acct, 'accl) injected ->
-  res:('acc, 'acc2) injected ->
+  g:(('a, 'b) MiniKanren.injected -> ('acct, 'accl) MiniKanren.injected -> ('acct, 'accl) MiniKanren.injected -> MiniKanren.goal) ->
+  init:('acct, 'accl) MiniKanren.injected ->
+  res:('acc, 'acc2) MiniKanren.injected ->
   ('a, 'b) MiniKanren.Std.List.groundi -> MiniKanren.goal
 
 module Trace(T : Logic) :

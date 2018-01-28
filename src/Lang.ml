@@ -232,7 +232,9 @@ module Regs =
 
     let empty = Storage.empty
 
-    let init rs = Storage.allocate (Value.integer 0) @@ List.map Reg.reg rs
+    let alloc rs = Storage.allocate (Value.integer 0) @@ List.map Reg.reg rs
+    let init pairs =
+      Storage.from_assoc @@ List.map (fun (r, v) -> (Reg.reg r, Value.integer v)) pairs
 
     let from_assoc xs =
       Storage.from_assoc @@ List.map (fun (r, v) -> (Reg.reg r, Value.integer v)) xs
@@ -570,15 +572,15 @@ module ThreadLocalStorage(T : Utils.Logic) =
       let thrds = Storage.from_assoc ts in
       Std.pair cnt thrds
 
-    let alloci n make_thrd =
+    let initi n make_thrd =
       let rec helper i xs =
         let thrd = make_thrd @@ ThreadID.tid i in
         if i = n then xs else helper (i+1) (thrd::xs)
       in
       of_list @@ helper 0 []
 
-    let alloc n thrd =
-      alloci n (fun _ -> thrd)
+    let init n thrd =
+      initi n (fun _ -> thrd)
 
     let geto tls tid thrd =
       fresh (cnt thrds)
@@ -758,6 +760,11 @@ module ThreadManager =
 
   end
 
+module RegStorage =
+  struct
+    include ThreadLocalStorage(Regs)
+  end
+
 module type MemoryModel =
   sig
     include Utils.Logic
@@ -771,9 +778,8 @@ module State(Memory : MemoryModel) =
   struct
     module T =
       struct
-        @type ('thrdm, 'regs, 'mem, 'opterr) t =
-          { thrdm  : 'thrdm
-          ; regs   : 'regs
+        @type ('regs, 'mem, 'opterr) t =
+          { regs   : 'regs
           ; mem    : 'mem
           ; opterr : 'opterr
           }
@@ -782,52 +788,56 @@ module State(Memory : MemoryModel) =
         let fmap fa fb fc x = GT.gmap(t) fa fb fc x
       end
 
-    type tt = (ThreadManager.tt, Memory.tt, Error.tt Std.Option.ground) T.t
+    type tt = (RegStorage.tt, Memory.tt, Error.tt Std.Option.ground) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (ThreadManager.tl, Memory.tl, Error.tl Std.Option.logic) T.t
+      and inner = (RegStorage.tl, Memory.tl, Error.tl Std.Option.logic) T.t
 
     type ti = (tt, tl) MiniKanren.injected
 
     module F = Fmap3(T)
 
     let reify = F.reify
-      ThreadManager.reify
+      RegStorage.reify
       Memory.reify
       (Std.Option.reify Error.reify)
 
     let pprint =
-      let pp ff = let open T in fun {thrdm; mem; opterr} ->
+      let pp ff = let open T in fun {regs; mem; opterr} ->
         pprint_logic (fun ff -> function
           | None      -> ()
           | Some err  ->
             Format.fprintf ff "@[<v>Error:%a@]@;" Error.pprint err
         ) ff opterr;
-        Format.fprintf ff "@[<v>Threads:@;<1 2>%a@]@;@[<v>Memory:@;<1 2>%a@]@."
-          ThreadManager.pprint thrdm
+        Format.fprintf ff "@[<v>Registers:@;<1 2>%a@]@;@[<v>Memory:@;<1 2>%a@]@."
+          RegStorage.pprint regs
           Memory.pprint mem
       in
       pprint_logic pp
 
-    let state thrdm mem opterr = T.(inj @@ F.distrib {thrdm; mem; opterr})
+    let state regs mem opterr = T.(inj @@ F.distrib {regs; mem; opterr})
 
-    let init thrdm mem = state thrdm mem (Std.none ())
-
-    let thrdo ?err s tid thrd =
-      fresh (thrdm mem)
-        (s === state thrdm mem (Std.Option.option err))
-        (ThreadManager.geto thrdm tid thrd)
+    let init regs mem = state regs mem (Std.none ())
 
     let memo ?err s mem =
-      fresh (thrdm opterr)
-        (s === state thrdm mem (Std.Option.option err))
+      fresh (regs)
+        (s === state regs mem (Std.Option.option err))
 
-    let erroro ?(sg=success) ?(fg=failure) s =
+    let regso ?err s tid rs =
+      fresh (regs mem)
+        (s === state regs mem (Std.Option.option err))
+        (ThreadManager.geto regs tid rs)
+
+    let regstorageo ?err s regs =
+      fresh (mem)
+        (s === state regs mem (Std.Option.option err))
+
+    let erroro ?(sg=fun _ -> success) ?(fg=failure) s =
       fresh (regs mem opterr err)
         (s === state regs mem opterr)
         (conde
-          [ (opterr === some err) &&& (sg err)
-          ; (opterr === none () ) &&& fg
+          [ (opterr === Std.some err) &&& (sg err)
+          ; (opterr === Std.none () ) &&& fg
           ])
 
   end
@@ -857,7 +867,7 @@ module Interpreter(Memory : MemoryModel) =
         (State.erroro s ~fg:(fk tm))
 
     let stepo tid t t' =
-      fresh (tm tm' s s' regs regs' mem mem' opterr label)
+      fresh (tm tm' s s' regs regs' rs rs' mem mem' opterr label)
         (t  === pair tm  s )
         (t' === pair tm' s')
         (s  === state regs  mem  (none ()))
@@ -872,7 +882,7 @@ module Interpreter(Memory : MemoryModel) =
         )
 
     let rec evalo = let open Semantics.Reduction in function
-    | Thread tid ->
+    | SingleThread tid ->
       make_eval ~irreducibleo:(terminatedo ~tid) @@ stepo tid
     | Sequential ->
       fun t t' ->
@@ -882,7 +892,9 @@ module Interpreter(Memory : MemoryModel) =
           (Utils.foldlo tids ~init:t ~res:t'
             ~g:(fun tid t t' -> conde
               [ (evalo (SingleThread tid) t t')
-              ; (State.erroro t ~sg:(t === t'))
+              ; fresh (tm s)
+                  (t === pair tm s)
+                  (State.erroro s ~sg:(fun _ -> t === t'))
               ])
           )
     | Interleaving ->
@@ -891,9 +903,17 @@ module Interpreter(Memory : MemoryModel) =
           (stepo tid t t')
       in
       make_eval ~irreducibleo:terminatedo stepo
+
+    let interpo tactic prog s s' =
+      let tm = ThreadManager.init prog in
+      fresh (t t' tm')
+        (t  === pair tm  s )
+        (t' === pair tm' s')
+        (evalo tactic t t')
+
   end
 
-module SeqInterpreter =
+(* module SeqInterpreter =
   struct
     module DummyMM =
       struct
@@ -972,4 +992,4 @@ module SeqInterpreter =
         (res === Std.pair rs' opterr)
         (State.seq_evalo s s')
 
-  end
+  end *)
