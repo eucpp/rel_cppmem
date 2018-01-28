@@ -848,6 +848,13 @@ module State(Memory : MemoryModel) =
           ; (opterr === Std.none () ) &&& fg
           ])
 
+    let safeo s =
+      fresh (regs mem)
+        (s === state regs mem (Std.none ()))
+
+    let dataraceo s =
+      erroro s ~sg:(fun err -> fresh (mo loc) (err === Error.datarace mo loc))
+
   end
 
 module ProgramState(Memory : MemoryModel) =
