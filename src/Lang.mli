@@ -249,7 +249,7 @@ module SequentialInterpreter :
       sig
         include Utils.Logic
 
-        val progstate : Prog.ti -> State.ti -> ti
+        val make : Prog.ti -> State.ti -> ti
       end
 
     val evalo : (ProgramState.tt, ProgramState.tt, ProgramState.tl, ProgramState.tl) Semantics.eval
@@ -284,7 +284,7 @@ module ConcurrentInterpreter(Memory : MemoryModel) :
       sig
         include Utils.Logic
 
-        val progstate : CProg.ti -> State.ti -> ti
+        val make : CProg.ti -> State.ti -> ti
       end
 
     val evalo : tactic -> (ProgramState.tt, ProgramState.tt, ProgramState.tl, ProgramState.tl) Semantics.eval

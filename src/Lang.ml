@@ -751,8 +751,10 @@ module ThreadManager =
      * probably we need `project` function here,
      * then we can project injected list of programs into regular one
      *)
-    let make ps =
-      of_list @@ List.map (fun prog -> Thread.init prog) (Obj.magic ps)
+    let make : CProg.ti -> ti = fun ps ->
+      let ps : Prog.ti list = Std.List.to_list (fun x -> x) @@ Obj.magic ps in
+      of_list @@ List.map (fun prog -> Thread.init prog) ps
+      (* of_list [] *)
 
     let terminatedo = forallo Thread.terminatedo
 
@@ -813,7 +815,8 @@ module State(Memory : MemoryModel) =
           | Some err  ->
             Format.fprintf ff "@[<v>Error:%a@]@;" Error.pprint err
         ) ff opterr;
-        Format.fprintf ff "@[<v>Registers:@;<1 2>%a@]@;@[<v>Memory:@;<1 2>%a@]"
+        (* Format.fprintf ff "@[<v>Registers:@;<1 2>%a@]@;@[<v>Memory:@;<1 2>%a@]" *)
+        Format.fprintf ff "@[<v>Registers:@;<1 2>%a@;Memory:@;<1 2>%a@]"
           RegStorage.pprint regs
           Memory.pprint mem
       in
@@ -861,13 +864,15 @@ module ProgramState(Memory : MemoryModel) =
 
     let pprint =
       let pp ff (tm, s) =
-        Format.fprintf ff "@[<v>Threads:@;<1 2>%a@]@;@[<v>State:@;<1 2>%a@]@."
+        Format.fprintf ff "@[<v>Threads:@;<1 2>%a@;State:@;<1 2>%a@]@."
           ThreadManager.pprint tm
           State.pprint s
       in
       pprint_logic pp
 
-    let progstate prog s = Std.pair (ThreadManager.make prog) s
+    let progstate = Std.pair
+
+    let make p = progstate @@ ThreadManager.make p
   end
 
 type tactic =
@@ -935,9 +940,9 @@ module ConcurrentInterpreter(Memory : MemoryModel) =
       make_eval ~irreducibleo:terminatedo stepo
 
     let interpo tactic prog s s' =
-      fresh (t t' prog')
-        (t  === progstate prog  s )
-        (t' === progstate prog' s')
+      fresh (t t' tm')
+        (t  === ProgramState.make prog s)
+        (t' === progstate tm' s')
         (evalo tactic t t')
 
   end
@@ -981,12 +986,16 @@ module SequentialInterpreter =
       struct
         include ProgramState(DummyMM)
 
-        let progstate p = progstate (ThreadManager.make @@ cprog [p])
+        let make p = progstate @@ ThreadManager.make (cprog [p])
       end
 
     module Helper = ConcurrentInterpreter(DummyMM)
 
     let evalo = Helper.evalo (SingleThread ThreadID.init)
 
-    let interpo = Helper.interpo (SingleThread ThreadID.init)
+    let interpo prog s s' =
+      fresh (t t' tm')
+        (t  === ProgramState.make prog s)
+        (t' === ProgramState.progstate tm' s')
+        (evalo t t')
   end
