@@ -747,8 +747,12 @@ module ThreadManager =
   struct
     include ThreadLocalStorage(Thread)
 
-    let init ps =
-      of_list @@ List.map (fun prog -> Thread.init prog) ps
+    (* unsafe cast here, because of OCanren's weird typesystem;
+     * probably we need `project` function here,
+     * then we can project injected list of programs into regular one
+     *)
+    let make ps =
+      of_list @@ List.map (fun prog -> Thread.init prog) (Obj.magic ps)
 
     let terminatedo = forallo Thread.terminatedo
 
@@ -863,16 +867,16 @@ module ProgramState(Memory : MemoryModel) =
       in
       pprint_logic pp
 
-    let progstate = Std.pair
+    let progstate prog s = Std.pair (ThreadManager.make prog) s
   end
 
-module Interpreter(Memory : MemoryModel) =
-  struct
-    type tactic =
-      | SingleThread of ThreadID.ti
-      | Sequential
-      | Interleaving
+type tactic =
+  | SingleThread of ThreadID.ti
+  | Sequential
+  | Interleaving
 
+module ConcurrentInterpreter(Memory : MemoryModel) =
+  struct
     module State = State(Memory)
     module ProgramState = ProgramState(Memory)
 
@@ -931,19 +935,14 @@ module Interpreter(Memory : MemoryModel) =
       make_eval ~irreducibleo:terminatedo stepo
 
     let interpo tactic prog s s' =
-      (* unsafe cast here, because of OCanren's weird typesystem;
-       * probably we need `project` function here,
-       * then we can project injected list of programs into regular one
-       *)
-      let tm = ThreadManager.init (Obj.magic prog) in
-      fresh (t t' tm')
-        (t  === progstate tm  s )
-        (t' === progstate tm' s')
+      fresh (t t' prog')
+        (t  === progstate prog  s )
+        (t' === progstate prog' s')
         (evalo tactic t t')
 
   end
 
-(* module SeqInterpreter =
+module SequentialInterpreter =
   struct
     module DummyMM =
       struct
@@ -956,7 +955,9 @@ module Interpreter(Memory : MemoryModel) =
 
         let pprint ff t = ()
 
-        let init ~thrdn ~mem = !!()
+        let instance () = !!()
+
+        let init ~thrdn ~mem = instance ()
 
         let stepo tid label t t' =
           (t === t') &&&
@@ -971,55 +972,21 @@ module Interpreter(Memory : MemoryModel) =
       struct
         include State(DummyMM)
 
-        let state prog regs opterr =
-          let thrd  = Thread.init ~regs prog in
-          let thrdm = ThreadManager.alloc 1 thrd in
-          state thrdm !!() opterr
+        let init rs = init (RegStorage.of_list [rs]) (DummyMM.instance ())
 
-        let init prog regs = state prog regs (Std.none ())
-
-        let regso s rs =
-          fresh (thrd)
-            (thrdo s ThreadID.init thrd)
-            (Thread.regso thrd rs)
+        let regso ?err t rs = regso ?err t ThreadID.init rs
       end
 
-    module Result =
+    module ProgramState =
       struct
-        type tt = Regs.tt * Error.tt Std.Option.ground
+        include ProgramState(DummyMM)
 
-        type tl = inner MiniKanren.logic
-          and inner = Regs.tl * Error.tl Std.Option.logic
-
-        type ti = (tt, tl) MiniKanren.injected
-
-        let reify = Std.Pair.reify Regs.reify (Std.Option.reify Error.reify)
-
-        let pprint =
-          let pp ff (regs, opterr) =
-            pprint_logic (fun ff -> function
-              | None      -> ()
-              | Some err  ->
-                Format.fprintf ff "@[<v>Error:%a@]@;" Error.pprint err
-            ) ff opterr;
-            Format.fprintf ff "@[<v>Regs:@;<1 2>%a@]@."
-              Regs.pprint regs
-          in
-          pprint_logic pp
-
-        let regso ?err res rs =
-          (res === Std.pair rs (Std.Option.option err))
-
-        let erroro res err =
-          fresh (rs)
-            (res === Std.pair rs (Std.some err))
+        let progstate p = progstate (ThreadManager.make @@ cprog [p])
       end
 
-    let interpo prog rs res =
-      fresh (prog' s s' rs' opterr)
-        (s  === State.init prog rs)
-        (s' === State.state prog' rs' opterr)
-        (res === Std.pair rs' opterr)
-        (State.seq_evalo s s')
+    module Helper = ConcurrentInterpreter(DummyMM)
 
-  end *)
+    let evalo = Helper.evalo (SingleThread ThreadID.init)
+
+    let interpo = Helper.interpo (SingleThread ThreadID.init)
+  end

@@ -217,7 +217,7 @@ module ThreadManager :
   sig
     include module type of ThreadLocalStorage(Thread)
 
-    val init : Prog.ti list -> ti
+    val make : CProg.ti -> ti
   end
 
 module type MemoryModel =
@@ -229,54 +229,65 @@ module type MemoryModel =
     val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
   end
 
-module State(Memory : MemoryModel) :
+module SequentialInterpreter :
   sig
-    include Utils.Logic
+    module State :
+      sig
+        include Utils.Logic
 
-    val init : RegStorage.ti -> Memory.ti -> ti
+        val init : Regs.ti -> ti
 
-    val memo  : ?err:Error.ti -> ti -> Memory.ti -> MiniKanren.goal
-    val regso : ?err:Error.ti -> ti -> ThreadID.ti -> Regs.ti -> MiniKanren.goal
-    val regstorageo : ?err:Error.ti -> ti -> RegStorage.ti -> MiniKanren.goal
+        val regso : ?err:Error.ti -> ti -> Regs.ti -> MiniKanren.goal
 
-    val erroro  :
-      ?sg:(Error.ti -> MiniKanren.goal) ->
-      ?fg:MiniKanren.goal ->
-      ti -> MiniKanren.goal
+        val erroro  :
+          ?sg:(Error.ti -> MiniKanren.goal) ->
+          ?fg:MiniKanren.goal ->
+          ti -> MiniKanren.goal
+      end
+
+    module ProgramState :
+      sig
+        include Utils.Logic
+
+        val progstate : Prog.ti -> State.ti -> ti
+      end
+
+    val evalo : (ProgramState.tt, ProgramState.tt, ProgramState.tl, ProgramState.tl) Semantics.eval
+
+    val interpo : (Prog.tt, State.tt, State.tt, Prog.tl, State.tl, State.tl) Semantics.interpreter
   end
 
-module ProgramState(Memory : MemoryModel) :
+type tactic =
+  | SingleThread of ThreadID.ti
+  | Sequential
+  | Interleaving
+
+module ConcurrentInterpreter(Memory : MemoryModel) :
   sig
-    include Utils.Logic
+    module State :
+      sig
+        include Utils.Logic
 
-    val progstate : ThreadManager.ti -> State(Memory).ti -> ti
-  end
+        val init : RegStorage.ti -> Memory.ti -> ti
 
-module Interpreter(Memory : MemoryModel) :
-  sig
-    type tactic =
-      | SingleThread of ThreadID.ti
-      | Sequential
-      | Interleaving
+        val memo  : ?err:Error.ti -> ti -> Memory.ti -> MiniKanren.goal
+        val regso : ?err:Error.ti -> ti -> ThreadID.ti -> Regs.ti -> MiniKanren.goal
+        val regstorageo : ?err:Error.ti -> ti -> RegStorage.ti -> MiniKanren.goal
 
-    module State : module type of State(Memory)
-    module ProgramState : module type of ProgramState(Memory)
+        val erroro  :
+          ?sg:(Error.ti -> MiniKanren.goal) ->
+          ?fg:MiniKanren.goal ->
+          ti -> MiniKanren.goal
+      end
+
+    module ProgramState :
+      sig
+        include Utils.Logic
+
+        val progstate : CProg.ti -> State.ti -> ti
+      end
 
     val evalo : tactic -> (ProgramState.tt, ProgramState.tt, ProgramState.tl, ProgramState.tl) Semantics.eval
 
     val interpo : tactic -> (CProg.tt, State.tt, State.tt, CProg.tl, State.tl, State.tl) Semantics.interpreter
   end
-
-(* module SeqInterpreter :
-  sig
-    module Result :
-      sig
-        include Utils.Logic
-
-        val regso  : ?err:Error.ti -> ti -> Regs.ti -> MiniKanren.goal
-
-        val erroro : ti -> Error.ti -> MiniKanren.goal
-      end
-
-    val interpo : (Prog.tt, Regs.tt, Result.tt, Prog.tl, Regs.tl, Result.tl) Semantics.interpreter
-  end *)
