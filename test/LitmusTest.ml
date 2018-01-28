@@ -16,7 +16,7 @@ type assertion = Safe | Datarace
 
 type litmus_test_desc =
   { name      : string
-  ; prog      : Prog.ti list
+  ; prog      : CProg.ti
   ; regs      : string list
   ; locs      : string list
   ; quant     : quantifier
@@ -69,15 +69,16 @@ let test_forall ~name ~prog ~interpo ~initstate ~asserto ~pprint =
       Test.Fail ""
     end
 
-let make_litmus (module Memory: MemoryModel) {name; prog; regs; locs; quant; assrt} =
+let make_litmus ~tactic (module Memory: MemoryModel) {name; prog; regs; locs; quant; assrt} =
   let module Interpreter = ConcurrentInterpreter(Memory) in
   let module Trace = Utils.Trace(Interpreter.State) in
 
-  let mem = Memory.alloc ~thrdn:(thrdnum prog) locs in
+  let thrdn = thrdnum prog in
+  let mem = Memory.alloc ~thrdn locs in
   let regs = RegStorage.init thrdn @@ Regs.alloc regs in
   let initstate = Interpreter.State.init regs mem in
 
-  let interpo = Interpreter.interpo Interleaving in
+  let interpo = Interpreter.interpo tactic in
   let asserto = match assrt with
   | Safe      -> Interpreter.State.safeo
   | Datarace  -> Interpreter.State.dataraceo
@@ -123,6 +124,7 @@ let test_SW_SC = litmus_test
   ~quant:Forall
   ~assrt:Safe
 
+(*
 let prog_SB = <:cppmem_par<
   spw {{{
       x_sc := 1;
@@ -218,16 +220,17 @@ let test_CoRR_SC = litmus_test
   ~locs:["x";]
   ~quant:Forall
   ~assrt:Safe
+*)
 
 let tests_sc_op =
   let mem_model = (module Operational.SequentialConsistent: MemoryModel) in
   let make_tests = List.map (make_litmus ~tactic:Interleaving mem_model) in
-  make_testsuite ~name:"SeqCst" ~tests: (make_tests [
+  Test.make_testsuite ~name:"SeqCst" ~tests: (make_tests [
     test_SW_SC;
-    test_SB_SC;
+    (* test_SB_SC;
     test_LB_SC;
     test_MP_SC;
-    test_CoRR_SC;
+    test_CoRR_SC; *)
   ])
 
 (* ************************************************************************** *)
@@ -257,6 +260,7 @@ let test_SW_RA = litmus_test
   ~quant:Forall
   ~assrt:Safe
 
+(*
 let prog_SB = <:cppmem_par<
   spw {{{
       x_rel := 1;
@@ -319,6 +323,7 @@ let test_LB_acq_rlx_RA = litmus_test
   ~locs:["x"; "y"]
   ~quant:Forall
   ~assrt:Safe
+*)
 
 let prog_MP = <:cppmem_par<
     spw {{{
@@ -327,9 +332,8 @@ let prog_MP = <:cppmem_par<
     |||
         repeat r1 := f_acq until r1;
         r2 := x_rlx;
-        return (r2)
-    }}};
-    assert (r2 = 1)
+        assert (r2 = 1)
+    }}}
 >>
 
 let test_MP_RA = litmus_test
@@ -347,9 +351,8 @@ let prog_MP_rlx_acq = <:cppmem_par<
     |||
         repeat r1 := f_acq until r1;
         r2 := x_rlx;
-        return (r2)
-    }}};
-    assert (r2 = 0)
+        assert (r2 = 0)
+    }}}
 >>
 
 let test_MP_rlx_acq_RA = litmus_test
@@ -367,12 +370,11 @@ let prog_MP_rel_rlx = <:cppmem_par<
     |||
         repeat r1 := f_rlx until r1;
         r2 := x_rlx;
-        return (r2)
-    }}};
-    assert (r2 = 0)
+        assert (r2 = 0)
+    }}}
 >>
 
-let test_MP_rel_rlx_RA = litmus_test_RA
+let test_MP_rel_rlx_RA = litmus_test
   ~name:"MP+rel+rlx_RA"
   ~prog:prog_MP_rel_rlx
   ~regs:["r1"; "r2"]
@@ -388,12 +390,11 @@ let prog_MP_relseq = <:cppmem_par<
   |||
       repeat r1 := f_acq until (r1 = 2);
       r2 := x_rlx;
-      return (r2)
-  }}};
-  assert (r2 = 1)
+      assert (r2 = 1)
+  }}}
 >>
 
-let test_MP_relseq_RA = litmus_test_RA
+let test_MP_relseq_RA = litmus_test
   ~name:"MP+relseq_RA"
   ~prog:prog_MP_relseq
   ~regs:["r1"; "r2"]
@@ -401,6 +402,7 @@ let test_MP_relseq_RA = litmus_test_RA
   ~quant:Forall
   ~assrt:Safe
 
+(*
 let prog_CoRR = <:cppmem_par<
   spw {{{
     spw {{{
@@ -427,13 +429,15 @@ let prog_CoRR = <:cppmem_par<
   }}}
 >>
 
-let test_CoRR_RA = litmus_test_RA
+
+let test_CoRR_RA = litmus_test
   ~name:"CoRR_RA"
   ~prog:prog_CoRR
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";]
   ~quant:Forall
   ~assrt:Safe
+*)
 
 let prog_DR1 = <:cppmem_par<
   spw {{{
@@ -444,7 +448,7 @@ let prog_DR1 = <:cppmem_par<
   }}}
 >>
 
-let test_DR1_RA = litmus_test_RA
+let test_DR1_RA = litmus_test
   ~name:"DR1_RA"
   ~prog:prog_DR1
   ~regs:["r1"]
@@ -461,7 +465,7 @@ let prog_DR2 = <:cppmem_par<
   }}}
 >>
 
-let test_DR2_RA = litmus_test_RA
+let test_DR2_RA = litmus_test
   ~name:"DR2_RA"
   ~prog:prog_DR2
   ~regs:["r1"]
@@ -469,73 +473,28 @@ let test_DR2_RA = litmus_test_RA
   ~quant:Exists
   ~assrt:Datarace
 
-(*
-let prog_LB = <:cppmem<
-  spw {{{
-    r1 := x_rlx;
-    y_rlx := 1;
-    ret r1
-  |||
-    r2 := y_rlx;
-    x_rlx := r2
-  }}}
->>
-
-let test_LB step = test_prog step prog_LB ["0"; "1"]
-
-let prog_LBd = <:cppmem<
-  spw {{{
-    r1 := x_rlx;
-    y_rlx := r1;
-    ret r1
-  |||
-    r2 := y_rlx;
-    x_rlx := r2
-  }}}
->>
-
-let test_LBd step = test_prog step prog_LBd ["0";]
-
-let rlx_rules = Rules.Basic.all @ Rules.ThreadSpawning.all @ Rules.NonAtomic.all @ Rules.Rlx.all
-let rlx_relAcq_rules = rlx_rules @ Rules.RelAcq.all
-let sc_rules = rlx_rules @ Rules.SC.all
-
-let rlxStep = Rules.make_reduction_relation (rlx_rules)
-
-let relAcqStep = Rules.make_reduction_relation (rlx_relAcq_rules)
-
-let scStep = Rules.make_reduction_relation (sc_rules)
-
-let promisingStep =
-  let module CertStep = (val Rules.Promising.make_certified_step (Rules.Basic.all @ Rules.Rlx.all)) in
-  (module struct
-    include Semantics.UnionRelation(Rules.ThreadSpawning.Step)(CertStep)
-  end : Rules.CppMemStep)
-*)
+let tests_ra_op =
+  let mem_model = (module Operational.ReleaseAcquire: MemoryModel) in
+  let make_tests = List.map (make_litmus ~tactic:Interleaving mem_model) in
+  Test.make_testsuite ~name:"RelAcq" ~tests: (make_tests [
+    test_SW_RA;
+    (* test_SB_RA;
+    test_LB_RA;
+    test_LB_acq_rlx_RA; *)
+    test_MP_RA;
+    test_MP_rlx_acq_RA;
+    test_MP_rel_rlx_RA;
+    test_MP_relseq_RA;
+    (* test_CoRR_RA; *)
+    test_DR1_RA;
+    test_DR2_RA;
+  ])
 
 let tests = Test.(
   make_testsuite ~name:"Litmus" ~tests: [
-
-    make_testsuite ~name:"SeqCst" ~tests: [
-      test_SW_SC;
-      test_SB_SC;
-      test_LB_SC;
-      test_MP_SC;
-      (* test_CoRR_SC; *)
-    ];
-
-    make_testsuite ~name:"RelAcq" ~tests: [
-      test_SW_RA;
-      test_SB_RA;
-      test_LB_RA;
-      test_LB_acq_rlx_RA;
-      test_MP_RA;
-      test_MP_rlx_acq_RA;
-      test_MP_rel_rlx_RA;
-      test_MP_relseq_RA;
-      (* test_CoRR_RA; *)
-      test_DR1_RA;
-      test_DR2_RA;
+    make_testsuite ~name:"Operational" ~tests: [
+      tests_sc_op;
+      tests_ra_op;
     ]
   ]
 )
