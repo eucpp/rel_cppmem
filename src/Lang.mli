@@ -245,6 +245,8 @@ module SequentialInterpreter :
           ?sg:(Error.ti -> MiniKanren.goal) ->
           ?fg:MiniKanren.goal ->
           ti -> MiniKanren.goal
+
+        val safeo : ti -> MiniKanren.goal
       end
 
     module ProgramState :
@@ -276,10 +278,14 @@ module ConcurrentInterpreter(Memory : MemoryModel) :
         val regso : ?err:Error.ti -> ti -> ThreadID.ti -> Regs.ti -> MiniKanren.goal
         val regstorageo : ?err:Error.ti -> ti -> RegStorage.ti -> MiniKanren.goal
 
-        val erroro  :
+        val erroro :
           ?sg:(Error.ti -> MiniKanren.goal) ->
           ?fg:MiniKanren.goal ->
           ti -> MiniKanren.goal
+
+        val safeo : ti -> MiniKanren.goal
+
+        val dataraceo : ti -> MiniKanren.goal
       end
 
     module ProgramState :

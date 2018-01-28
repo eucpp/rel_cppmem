@@ -8,90 +8,108 @@ open Lang.Loc
 open Lang.Reg
 open Lang.Value
 
-let litmus_test_exists ?pprint ~interpo ~name ~prog ~initstate ~asserto =
-  let test () =
-    (* TODO: problem with tabling - we should not keep table between different runs *)
-    (* if Stream.is_empty @@ Query.exec intrpo prog initstate then
-      begin
-        Format.fprintf ff "Litmus test %s is not runnable:@;" name;
-        Test.Fail ""
-      end
-    else *)
-      let inputo s = (s === initstate) in
-      let stream = Query.angelic interpo inputo asserto prog in
-      if not @@ Stream.is_empty stream then
-        Test.Ok
-      else begin
-        Format.printf "Litmus test %s fails!@;" name;
-        begin match pprint with
-          | Some pprint ->
-            let outs = Query.exec interpo prog initstate in
-            Format.printf "List of outputs:@;";
-            (* input is irrelevant for litmus test, we show only final state *)
-            Stream.iter (fun out -> Format.printf "%a@;" pprint out) outs
-          | None -> ()
-        end;
-        Test.Fail ""
-      end
-  in
-  Test.make_testcase ~name ~test
+type quantifier = Exists | Forall
 
-let litmus_test_forall ?pprint ~interpo ~name ~prog ~initstate ~asserto =
-  let test () =
-    (* check that test is runnable *)
-    if Stream.is_empty @@ Query.exec interpo prog initstate then
-      begin
-        Format.printf "Litmus test is not runnable:@;";
-        Test.Fail ""
-      end
-    else
-      let inputo s = (s === initstate) in
-      let asserto _ output = asserto output in
-      let stream = Query.verify ~interpo ~asserto inputo prog in
-      if Stream.is_empty stream then
-        Test.Ok
-      else begin
-        Format.printf "Litmus test %s fails!@;" name;
-        begin match pprint with
-          | Some pprint ->
-            let cexs = Stream.take stream in
-            Format.printf "List of counterexamples:@;";
-            (* input is irrelevant for litmus test, we show only final state *)
-            List.iter (fun (_, cex) -> Format.printf "%a@;" pprint cex) cexs
-          | None -> ()
-        end;
-        Test.Fail ""
-      end
-  in
-  Test.make_testcase ~name ~test
+type assertion = Safe | Datarace
 
-type litmus_test_tag = Exists | Forall
+type litmus_test =
+  { name  : string
+  ; prog  : Prog.ti list
+  ; mem   : module MemoryModel
+  ; regs  : string list
+  ; locs  : string list
+  ; quant : quantifier
+  ; assrt : assertion
+  }
 
-let litmus_test ?pprint ~interpo ~name ~prog ~initstate ~asserto ~tag =
-  match tag with
-  | Exists -> litmus_test_exists ?pprint ~interpo ~name ~prog ~initstate ~asserto
-  | Forall -> litmus_test_forall ?pprint ~interpo ~name ~prog ~initstate ~asserto
+module Tester =
+  struct
+    let test_exists ~name ~prog ~interpo ~inputo ~asserto ~pprint =
+      (* TODO: problem with tabling - we should not keep table between different runs *)
+      (* if Stream.is_empty @@ Query.exec intrpo prog initstate then
+        begin
+          Format.fprintf ff "Litmus test %s is not runnable:@;" name;
+          Test.Fail ""
+        end
+      else *)
+        let stream = Query.angelic interpo inputo asserto prog in
+        if not @@ Stream.is_empty stream then
+          Test.Ok
+        else begin
+          Format.printf "Litmus test %s fails!@;" name;
+          begin match pprint with
+            | Some pprint ->
+              let outs = Query.exec interpo prog initstate in
+              Format.printf "List of outputs:@;";
+              (* input is irrelevant for litmus test, we show only final state *)
+              Stream.iter (fun out -> Format.printf "%a@;" pprint out) outs
+            | None -> ()
+          end;
+          Test.Fail ""
+        end
+
+    let test_forall ~name ~prog ~interpo ~inputo ~asserto ~pprint =
+      (* check that test is runnable *)
+      if Stream.is_empty @@ Query.exec interpo prog initstate then
+        begin
+          Format.printf "Litmus test is not runnable:@;";
+          Test.Fail ""
+        end
+      else
+        let asserto _ output = asserto output in
+        let stream = Query.verify ~interpo ~asserto inputo prog in
+        if Stream.is_empty stream then
+          Test.Ok
+        else begin
+          Format.printf "Litmus test %s fails!@;" name;
+          begin match pprint with
+            | Some pprint ->
+              let cexs = Stream.take stream in
+              Format.printf "List of counterexamples:@;";
+              (* input is irrelevant for litmus test, we show only final state *)
+              List.iter (fun (_, cex) -> Format.printf "%a@;" pprint cex) cexs
+            | None -> ()
+          end;
+          Test.Fail ""
+        end
+
+    let make_op_test {name; prog; mem_model; regs; locs; quant; assrt} =
+      let module Interpreter = ConcurrentInterpreter(mem_model) in
+      let module Trace = Trace(Interpreter.State) in
+
+      let thrdn = List.length prog in
+      let mem = Memory.alloc ~thrdn locs in
+      let regs = RegStorage.init thrdn @@ Regs.alloc regs in
+      let initstate = Interpreter.State.init regs mem in
+
+      let prog = cprog prog in
+      let interpo = Interpreter.interpo Interleaving in
+      let inputo s = (s === initstate)
+      let asserto _ = match assrt with
+      | Safe      -> Interpreter.State.safeo
+      | Datarace  -> Interpreter.State.dataraceo
+      in
+      let pprint = Trace.trace in
+
+      let test_fun = match quant with
+      | Exists -> test_exists
+      | Forall -> test_forall
+      in
+      let test () = test_fun ~prog ~interpo ~inputo ~asserto ~pprint in
+
+      Test.make_testcase ~name ~test
+
+  end
 
 (* ************************************************************************** *)
 (* ******************* SequentialConsistent Tests *************************** *)
 (* ************************************************************************** *)
 
-let litmus_test_SC ~name ~prog ~regs ~locs ~asserto ~tag =
-  let module Interpreter = ConcurrentInterpreter(Operational.SequentialConsistent) in
-  let module Trace = Utils.Trace(Interpreter.State) in
-  let thrdn = List.length prog in
-  let mem = Operational.SequentialConsistent.alloc ~thrdn locs in
-  let regs = RegStorage.init thrdn @@ Regs.alloc regs in
-  let initstate = Interpreter.State.init regs mem in
-  litmus_test
-    ~pprint:Trace.trace
-    ~interpo:(Interpreter.interpo Interleaving)
-    ~prog:(cprog prog)
-    ~initstate ~name ~asserto ~tag
+module Litmus = MakeLitmus(Operational.SequentialConsistent)
 
-let safeo_SC s =
+(* let safeo_SC s =
   let module Interpreter = ConcurrentInterpreter(Operational.SequentialConsistent) in
-  Interpreter.State.erroro s ~sg:(fun _ -> failure) ~fg:(success)
+  Interpreter.State.erroro s ~sg:(fun _ -> failure) ~fg:(success) *)
 
 let prog_SW = <:cppmem<
   spw {{{
@@ -108,13 +126,12 @@ let prog_SW = <:cppmem<
   }}}
 >>
 
-let test_SW_SC = litmus_test_SC
+let test_SW_SC = Litmus.test_forall
   ~name:"SW_SC"
   ~prog:prog_SW
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
-  ~tag:Forall
-  ~asserto:safeo_SC
+  ~asserto:State.safeo
 
 let prog_SB = <:cppmem<
   spw {{{
@@ -129,13 +146,12 @@ let prog_SB = <:cppmem<
   assert (r1 != 0 || r2 != 0)
 >>
 
-let test_SB_SC = litmus_test_SC
+let test_SB_SC = Litmus.test_forall
   ~name:"SB_SC"
   ~prog:prog_SB
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
-  ~tag:Forall
-  ~asserto:safeo_SC
+  ~asserto:State.safeo
 
 let prog_LB = <:cppmem<
     spw {{{
@@ -150,13 +166,12 @@ let prog_LB = <:cppmem<
     assert (r1 != 1 || r2 != 1)
 >>
 
-let test_LB_SC = litmus_test_SC
+let test_LB_SC = Litmus.test_forall
   ~name:"LB_SC"
   ~prog:prog_LB
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
-  ~tag:Forall
-  ~asserto:safeo_SC
+  ~asserto:State.safeo
 
 let prog_MP = <:cppmem<
     spw {{{
@@ -170,13 +185,12 @@ let prog_MP = <:cppmem<
     assert (r2 = 1)
 >>
 
-let test_MP_SC = litmus_test_SC
+let test_MP_SC = Litmus.test_forall
   ~name:"MP_SC"
   ~prog:prog_MP
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
-  ~tag:Forall
-  ~asserto:safeo_SC
+  ~asserto:State.safeo
 
 let prog_CoRR = <:cppmem<
   spw {{{
@@ -204,13 +218,12 @@ let prog_CoRR = <:cppmem<
   }}}
 >>
 
-let test_CoRR_SC = litmus_test_SC
+let test_CoRR_SC = litmus.test_forall
   ~name:"CoRR_SC"
   ~prog:prog_CoRR
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";]
-  ~tag:Forall
-  ~asserto:safeo_SC
+  ~asserto:State.safeo
 
 (* ************************************************************************** *)
 (* ********************** ReleaseAcquire Tests ****************************** *)
