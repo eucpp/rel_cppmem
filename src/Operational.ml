@@ -43,7 +43,11 @@ module SequentialConsistent =
 
     let reify = ValueStorage.reify
 
-    let init ~thrdn ~mem =
+    let alloc ~thrdn locs =
+      let locs = List.map (fun l -> Loc.loc l) locs in
+      ValueStorage.allocate locs
+
+    let init ~thrdn mem =
       let mem = List.map (fun (l, v) -> (Loc.loc l, Value.integer v)) mem in
       ValueStorage.from_assoc mem
 
@@ -482,7 +486,7 @@ module ReleaseAcquire =
 
     let reify = reify TLS.reify MemStory.reify ViewFront.reify ViewFront.reify
 
-    let init ~thrdn ~mem =
+    let init ~thrdn mem =
       let mem   = List.map (fun (l, v) -> (Loc.loc l, Value.integer v)) mem in
       let locs  = List.map fst mem in
       let thrd  = ThreadFront.allocate locs in
@@ -491,6 +495,9 @@ module ReleaseAcquire =
       let na    = ViewFront.allocate locs in
       let sc    = ViewFront.allocate locs in
       state thrds story na sc
+
+    let alloc ~thrdn locs =
+      init ~thrdn @@ List.map (fun l -> (l, 0)) locs
 
     let pprint =
       let pp ff = let open T in fun {thrds; story; na; sc} ->

@@ -317,12 +317,15 @@ module PreExecution =
       let pp ff (_, thrds) = TLS.pprint ff thrds in
       pprint_logic pp
 
-    let init ~thrdn ~mem =
+    let init ~thrdn mem =
       let ies = EventSet.init mem in
       let prexecs =
         TLS.initi thrdn (fun tid -> ThreadPreExecution.init ~tid ())
       in
       pair ies prexecs
+
+    let alloc ~thrdn locs =
+      init ~thrdn @@ List.map (fun l -> (l, 0)) locs
 
     let stepo tid label t t' =
       fresh (ies pes pes' prexec prexec')

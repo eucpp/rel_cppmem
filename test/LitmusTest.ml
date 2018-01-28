@@ -1,5 +1,5 @@
 open MiniKanren
-open MiniKanrenStd
+open MiniKanren.Std
 
 open Lang
 open Lang.Expr
@@ -7,11 +7,9 @@ open Lang.Stmt
 open Lang.Loc
 open Lang.Reg
 open Lang.Value
-open MemoryModel
 
-let litmus_test_exists ?pprint ~intrpo ~name ~prog ~initstate ~asserto =
+let litmus_test_exists ?pprint ~interpo ~name ~prog ~initstate ~asserto =
   let test () =
-    let ff = Format.std_formatter in
     (* TODO: problem with tabling - we should not keep table between different runs *)
     (* if Stream.is_empty @@ Query.exec intrpo prog initstate then
       begin
@@ -20,18 +18,17 @@ let litmus_test_exists ?pprint ~intrpo ~name ~prog ~initstate ~asserto =
       end
     else *)
       let inputo s = (s === initstate) in
-      let stream = Query.angelic intrpo inputo asserto prog in
+      let stream = Query.angelic interpo inputo asserto prog in
       if not @@ Stream.is_empty stream then
         Test.Ok
       else begin
-        let ff = Format.std_formatter in
-        Format.fprintf ff "Litmus test %s fails!@;" name;
+        Format.printf "Litmus test %s fails!@;" name;
         begin match pprint with
           | Some pprint ->
-            let outs = Query.exec intrpo prog initstate in
-            Format.fprintf ff "List of outputs:@;";
+            let outs = Query.exec interpo prog initstate in
+            Format.printf "List of outputs:@;";
             (* input is irrelevant for litmus test, we show only final state *)
-            Stream.iter (fun out -> Format.fprintf ff "%a@;" pprint out) outs
+            Stream.iter (fun out -> Format.printf "%a@;" pprint out) outs
           | None -> ()
         end;
         Test.Fail ""
@@ -39,29 +36,28 @@ let litmus_test_exists ?pprint ~intrpo ~name ~prog ~initstate ~asserto =
   in
   Test.make_testcase ~name ~test
 
-let litmus_test_forall ?pprint ~intrpo ~name ~prog ~initstate ~asserto =
+let litmus_test_forall ?pprint ~interpo ~name ~prog ~initstate ~asserto =
   let test () =
-    let ff = Format.std_formatter in
     (* check that test is runnable *)
-    if Stream.is_empty @@ Query.exec intrpo prog initstate then
+    if Stream.is_empty @@ Query.exec interpo prog initstate then
       begin
-        Format.fprintf ff "Litmus test is not runnable:@;";
+        Format.printf "Litmus test is not runnable:@;";
         Test.Fail ""
       end
     else
       let inputo s = (s === initstate) in
       let asserto _ output = asserto output in
-      let stream = Query.verify intrpo inputo asserto prog in
+      let stream = Query.verify ~interpo ~asserto inputo prog in
       if Stream.is_empty stream then
         Test.Ok
       else begin
-        Format.fprintf ff "Litmus test %s fails!@;" name;
+        Format.printf "Litmus test %s fails!@;" name;
         begin match pprint with
           | Some pprint ->
             let cexs = Stream.take stream in
-            Format.fprintf ff "List of counterexamples:@;";
+            Format.printf "List of counterexamples:@;";
             (* input is irrelevant for litmus test, we show only final state *)
-            List.iter (fun (_, cex) -> Format.fprintf ff "%a@;" pprint cex) cexs
+            List.iter (fun (_, cex) -> Format.printf "%a@;" pprint cex) cexs
           | None -> ()
         end;
         Test.Fail ""
@@ -71,30 +67,31 @@ let litmus_test_forall ?pprint ~intrpo ~name ~prog ~initstate ~asserto =
 
 type litmus_test_tag = Exists | Forall
 
-let litmus_test ?pprint ~intrpo ~name ~prog ~initstate ~asserto ~tag =
+let litmus_test ?pprint ~interpo ~name ~prog ~initstate ~asserto ~tag =
   match tag with
-  | Exists -> litmus_test_exists ?pprint ~intrpo ~name ~prog ~initstate ~asserto
-  | Forall -> litmus_test_forall ?pprint ~intrpo ~name ~prog ~initstate ~asserto
+  | Exists -> litmus_test_exists ?pprint ~interpo ~name ~prog ~initstate ~asserto
+  | Forall -> litmus_test_forall ?pprint ~interpo ~name ~prog ~initstate ~asserto
 
 (* ************************************************************************** *)
 (* ******************* SequentialConsistent Tests *************************** *)
 (* ************************************************************************** *)
 
 let litmus_test_SC ~name ~prog ~regs ~locs ~asserto ~tag =
-  let module Trace = Utils.Trace(SequentialConsistent.State) in
-  let mem = List.map (fun l -> (l, 0)) locs in
-  let regs = RegStorage.allocate @@ List.map (fun r -> Reg.reg r) regs in
-  let prog = Lang.ThreadSubSys.init ~prog ~regs in
-  let initstate = SequentialConsistent.State.mem @@ SequentialConsistent.Memory.init ~mem in
+  let module Interpreter = ConcurrentInterpreter(Operational.SequentialConsistent) in
+  let module Trace = Utils.Trace(Interpreter.State) in
+  let thrdn = List.length prog in
+  let mem = Operational.SequentialConsistent.alloc ~thrdn locs in
+  let regs = RegStorage.init thrdn @@ Regs.alloc regs in
+  let initstate = Interpreter.State.init regs mem in
   litmus_test
     ~pprint:Trace.trace
-    ~intrpo:SequentialConsistent.intrpo
-    ~initstate ~name ~prog ~asserto ~tag
+    ~interpo:(Interpreter.interpo Interleaving)
+    ~prog:(cprog prog)
+    ~initstate ~name ~asserto ~tag
 
-let safeo_SC s = ?~(
-  fresh (err m)
-    (s === SequentialConsistent.State.error err m)
-  )
+let safeo_SC s =
+  let module Interpreter = ConcurrentInterpreter(Operational.SequentialConsistent) in
+  Interpreter.State.erroro s ~sg:(fun _ -> failure) ~fg:(success)
 
 let prog_SW = <:cppmem<
   spw {{{
@@ -118,23 +115,6 @@ let test_SW_SC = litmus_test_SC
   ~locs:["x"; "f"]
   ~tag:Forall
   ~asserto:safeo_SC
-
-(* let () =
-  let module Trace = Utils.Trace(SequentialConsistent.Node) in
-
-  let locs = ["x"; "f"] in
-  let regs = ["r1"; "r2"]in
-  let prog = prog_SW in
-
-  let mem = List.map (fun l -> (l, 0)) locs in
-  let regs = RegStorage.allocate @@ List.map (fun r -> Reg.reg r) regs in
-  let prog = Lang.ThreadSubSys.init ~prog ~regs in
-  let initstate = SequentialConsistent.State.mem @@ SequentialConsistent.Memory.init ~mem in
-  let node = SequentialConsistent.Node.cfg prog initstate in
-  let stream = run q (fun q -> SequentialConsistent.patho node q) (fun qs -> qs) in
-  let ff = Format.std_formatter in
-  Format.fprintf ff "List of outputs:@;";
-  Stream.iter (fun out -> Format.fprintf ff "%a@;" Trace.trace out) stream *)
 
 let prog_SB = <:cppmem<
   spw {{{
@@ -237,24 +217,22 @@ let test_CoRR_SC = litmus_test_SC
 (* ************************************************************************** *)
 
 let litmus_test_RA ~name ~prog ~regs ~locs ~asserto ~tag =
-  let module Trace = Utils.Trace(ReleaseAcquire.State) in
-  let mem = List.map (fun l -> (l, 0)) locs in
-  let regs = RegStorage.allocate @@ List.map (fun r -> Reg.reg r) regs in
-  let prog = Lang.ThreadSubSys.init ~prog ~regs in
-  let initstate = ReleaseAcquire.State.mem @@ ReleaseAcquire.Memory.init ~mem in
+  let module Interpreter = ConcurrentInterpreter(Operational.SequentialConsistent) in
+  let module Trace = Utils.Trace(Interpreter.State) in
+  let mem = Operational.ReleaseAcquire.alloc ~thrdn locs in
+  let regs = RegStorage.init thrdn @@ Regs.alloc regs in
+  let initstate = Interpreter.State.init regs mem in
   litmus_test
     ~pprint:Trace.trace
-    ~intrpo:ReleaseAcquire.intrpo
-    ~initstate ~name ~prog ~asserto ~tag
+    ~interpo ~initstate ~name ~prog ~asserto ~tag
 
-let safeo_RA s = ?~(
-  fresh (err m)
-    (s === ReleaseAcquire.State.error err m)
-  )
+let safeo_RA s =
+  let module Interpreter = ConcurrentInterpreter(Operational.SequentialConsistent) in
+  Interpreter.State.erroro s ~sg:(fun _ -> failure) ~fg:(success)
 
 let dataraceo_RA s =
-  fresh (m mo loc)
-    (s === ReleaseAcquire.State.error (Error.datarace mo loc) m)
+  let module Interpreter = ConcurrentInterpreter(Operational.SequentialConsistent) in
+  Interpreter.State.erroro s ~sg:(fun err -> fresh (mo loc) (err === Error.datarace mo loc))
 
 let prog_SW = <:cppmem<
   spw {{{

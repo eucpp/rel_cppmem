@@ -123,6 +123,35 @@ module MemOrder =
     let pprint ff mo = Format.fprintf ff "%s" @@ show mo
   end
 
+module Regs =
+  struct
+    type tt = (Reg.tt, Value.tt) Storage.tt
+
+    type tl = (Reg.tl, Value.tl) Storage.tl
+      and inner = (Reg.tl, Value.tl) Storage.inner
+
+    type ti = (Reg.tt, Value.tt, Reg.tl, Value.tl) Storage.ti
+
+    let empty = Storage.empty
+
+    let alloc rs = Storage.allocate (Value.integer 0) @@ List.map Reg.reg rs
+    let init pairs =
+      Storage.from_assoc @@ List.map (fun (r, v) -> (Reg.reg r, Value.integer v)) pairs
+
+    let from_assoc xs =
+      Storage.from_assoc @@ List.map (fun (r, v) -> (Reg.reg r, Value.integer v)) xs
+
+    let reify = Storage.reify (Reg.reify) (Value.reify)
+
+    let pprint =
+      Storage.pprint (fun ff (k, v) -> Format.fprintf ff "%s=%s" (Reg.show k) (Value.show v))
+
+    let reado  = Storage.geto
+    let writeo = Storage.seto
+
+    let checko t rvs = Storage.checko t @@ List.map (fun (r, v) -> (Reg.reg r, Value.integer v)) rvs
+  end
+
 module Uop =
   struct
     type tt = NOT
@@ -219,35 +248,6 @@ module ThreadID =
       with Invalid_argument _ -> Printf.sprintf "_.??"
 
     let pprint ff v = Format.fprintf ff "%s" @@ show v
-  end
-
-module Regs =
-  struct
-    type tt = (Reg.tt, Value.tt) Storage.tt
-
-    type tl = (Reg.tl, Value.tl) Storage.tl
-      and inner = (Reg.tl, Value.tl) Storage.inner
-
-    type ti = (Reg.tt, Value.tt, Reg.tl, Value.tl) Storage.ti
-
-    let empty = Storage.empty
-
-    let alloc rs = Storage.allocate (Value.integer 0) @@ List.map Reg.reg rs
-    let init pairs =
-      Storage.from_assoc @@ List.map (fun (r, v) -> (Reg.reg r, Value.integer v)) pairs
-
-    let from_assoc xs =
-      Storage.from_assoc @@ List.map (fun (r, v) -> (Reg.reg r, Value.integer v)) xs
-
-    let reify = Storage.reify (Reg.reify) (Value.reify)
-
-    let pprint =
-      Storage.pprint (fun ff (k, v) -> Format.fprintf ff "%s=%s" (Reg.show k) (Value.show v))
-
-    let reado  = Storage.geto
-    let writeo = Storage.seto
-
-    let checko t rvs = Storage.checko t @@ List.map (fun (r, v) -> (Reg.reg r, Value.integer v)) rvs
   end
 
 module Expr =
@@ -775,7 +775,8 @@ module type MemoryModel =
   sig
     include Utils.Logic
 
-    val init : thrdn:int -> mem:(string * int) list -> ti
+    val alloc : thrdn:int -> string list -> ti
+    val init  : thrdn:int -> (string * int) list -> ti
 
     val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
   end
@@ -962,7 +963,8 @@ module SequentialInterpreter =
 
         let instance () = !!()
 
-        let init ~thrdn ~mem = instance ()
+        let alloc ~thrdn locs = instance ()
+        let init  ~thrdn mem  = instance ()
 
         let stepo tid label t t' =
           (t === t') &&&

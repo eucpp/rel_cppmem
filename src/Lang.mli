@@ -53,6 +53,22 @@ module MemOrder :
     val show : tl -> string
   end
 
+module Regs :
+  sig
+    include Utils.Logic
+
+    val empty : unit -> ti
+
+    val alloc : string list -> ti
+    val init : (string * int) list -> ti
+
+    val reado  : ti ->       Reg.ti -> Value.ti -> MiniKanren.goal
+    val writeo : ti -> ti -> Reg.ti -> Value.ti -> MiniKanren.goal
+
+    val checko : ti -> (string * int) list -> MiniKanren.goal
+  end
+
+
 module Uop :
   sig
     type tt = NOT
@@ -91,21 +107,6 @@ module ThreadID :
 
     val null : ti
     val init : ti
-  end
-
-module Regs :
-  sig
-    include Utils.Logic
-
-    val empty : unit -> ti
-
-    val alloc : string list -> ti
-    val init : (string * int) list -> ti
-
-    val reado  : ti ->       Reg.ti -> Value.ti -> MiniKanren.goal
-    val writeo : ti -> ti -> Reg.ti -> Value.ti -> MiniKanren.goal
-
-    val checko : ti -> (string * int) list -> MiniKanren.goal
   end
 
 module Expr :
@@ -224,7 +225,8 @@ module type MemoryModel =
   sig
     include Utils.Logic
 
-    val init : thrdn:int -> mem:(string * int) list -> ti
+    val alloc : thrdn:int -> string list -> ti
+    val init  : thrdn:int -> (string * int) list -> ti
 
     val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
   end
@@ -239,7 +241,7 @@ module SequentialInterpreter :
 
         val regso : ?err:Error.ti -> ti -> Regs.ti -> MiniKanren.goal
 
-        val erroro  :
+        val erroro :
           ?sg:(Error.ti -> MiniKanren.goal) ->
           ?fg:MiniKanren.goal ->
           ti -> MiniKanren.goal
