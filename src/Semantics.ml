@@ -159,5 +159,5 @@ module Input = Utils.Injected
 (** Out *)
 module Output = Utils.Injected
 
-type ('p, 'at, 'bt, 'al, 'bl) interpreter =
-  'p -> ('at, 'al) Input.ti -> ('bt, 'bl) Output.ti -> MiniKanren.goal
+type ('at, 'bt, 'ct, 'al, 'bl, 'cl) interpreter =
+  ('at, 'al) Prog.ti -> ('bt, 'bl) Input.ti -> ('ct, 'cl) Output.ti -> MiniKanren.goal

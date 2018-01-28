@@ -809,7 +809,7 @@ module State(Memory : MemoryModel) =
           | Some err  ->
             Format.fprintf ff "@[<v>Error:%a@]@;" Error.pprint err
         ) ff opterr;
-        Format.fprintf ff "@[<v>Registers:@;<1 2>%a@]@;@[<v>Memory:@;<1 2>%a@]@."
+        Format.fprintf ff "@[<v>Registers:@;<1 2>%a@]@;@[<v>Memory:@;<1 2>%a@]"
           RegStorage.pprint regs
           Memory.pprint mem
       in
@@ -842,6 +842,30 @@ module State(Memory : MemoryModel) =
 
   end
 
+module ProgramState(Memory : MemoryModel) =
+  struct
+    module State = State(Memory)
+
+    type tt = ThreadManager.tt * State.tt
+
+    type tl = inner MiniKanren.logic
+      and inner = ThreadManager.tl * State.tl
+
+    type ti = (tt, tl) MiniKanren.injected
+
+    let reify = Std.Pair.reify ThreadManager.reify State.reify
+
+    let pprint =
+      let pp ff (tm, s) =
+        Format.fprintf ff "@[<v>Threads:@;<1 2>%a@]@;@[<v>State:@;<1 2>%a@]@."
+          ThreadManager.pprint tm
+          State.pprint s
+      in
+      pprint_logic pp
+
+    let progstate = Std.pair
+  end
+
 module Interpreter(Memory : MemoryModel) =
   struct
     type tactic =
@@ -850,9 +874,11 @@ module Interpreter(Memory : MemoryModel) =
       | Interleaving
 
     module State = State(Memory)
+    module ProgramState = ProgramState(Memory)
 
     open Std
     open State
+    open ProgramState
 
     let terminatedo ?tid t =
       let fk tm = match tid with
@@ -863,13 +889,13 @@ module Interpreter(Memory : MemoryModel) =
           (Thread.terminatedo thrd)
       in
       fresh (tm s)
-        (t === pair tm s)
+        (t === progstate tm s)
         (State.erroro s ~fg:(fk tm))
 
     let stepo tid t t' =
       fresh (tm tm' s s' regs regs' rs rs' mem mem' opterr label)
-        (t  === pair tm  s )
-        (t' === pair tm' s')
+        (t  === progstate tm  s )
+        (t' === progstate tm' s')
         (s  === state regs  mem  (none ()))
         (s' === state regs' mem' opterr)
         (RegStorage.geto regs       tid rs )
@@ -887,13 +913,13 @@ module Interpreter(Memory : MemoryModel) =
     | Sequential ->
       fun t t' ->
         fresh (tm s tids)
-          (t === pair tm s)
+          (t === progstate tm s)
           (ThreadManager.tidso tm tids)
           (Utils.foldlo tids ~init:t ~res:t'
             ~g:(fun tid t t' -> conde
               [ (evalo (SingleThread tid) t t')
               ; fresh (tm s)
-                  (t === pair tm s)
+                  (t === progstate tm s)
                   (State.erroro s ~sg:(fun _ -> t === t'))
               ])
           )
@@ -905,10 +931,14 @@ module Interpreter(Memory : MemoryModel) =
       make_eval ~irreducibleo:terminatedo stepo
 
     let interpo tactic prog s s' =
-      let tm = ThreadManager.init prog in
+      (* unsafe cast here, because of OCanren's weird typesystem;
+       * probably we need `project` function here,
+       * then we can project injected list of programs into regular one
+       *)
+      let tm = ThreadManager.init (Obj.magic prog) in
       fresh (t t' tm')
-        (t  === pair tm  s )
-        (t' === pair tm' s')
+        (t  === progstate tm  s )
+        (t' === progstate tm' s')
         (evalo tactic t t')
 
   end

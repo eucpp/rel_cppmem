@@ -193,7 +193,6 @@ module ThreadLocalStorage(T : Utils.Logic) :
     val seto : ti -> ti -> ThreadID.ti -> T.ti -> MiniKanren.goal
 
     val tidso : ti -> (ThreadID.tt, ThreadID.tl) MiniKanren.Std.List.groundi -> MiniKanren.goal
-    val contento : ti -> (T.tt, T.tl) MiniKanren.Std.List.groundi -> MiniKanren.goal
 
     val foldo :
       (T.ti -> ('at, _ MiniKanren.logic as 'al) MiniKanren.injected -> ('at, 'al) MiniKanren.injected -> MiniKanren.goal) ->
@@ -205,6 +204,20 @@ module ThreadLocalStorage(T : Utils.Logic) :
 module RegStorage :
   sig
     include module type of ThreadLocalStorage(Regs)
+  end
+
+module Thread :
+  sig
+    include Utils.Logic
+
+    val init : ?pid:ThreadID.ti -> Prog.ti -> ti
+  end
+
+module ThreadManager :
+  sig
+    include module type of ThreadLocalStorage(Thread)
+
+    val init : Prog.ti list -> ti
   end
 
 module type MemoryModel =
@@ -232,18 +245,26 @@ module State(Memory : MemoryModel) :
       ti -> MiniKanren.goal
   end
 
+module ProgramState(Memory : MemoryModel) :
+  sig
+    include Utils.Logic
+
+    val progstate : ThreadManager.ti -> State(Memory).ti -> ti
+  end
+
 module Interpreter(Memory : MemoryModel) :
   sig
     type tactic =
       | SingleThread of ThreadID.ti
-      | Interleaving
       | Sequential
+      | Interleaving
 
     module State : module type of State(Memory)
+    module ProgramState : module type of ProgramState(Memory)
 
-    val evalo : tactic -> (State.tt, State.tt, State.tl, State.tl) Semantics.eval
+    val evalo : tactic -> (ProgramState.tt, ProgramState.tt, ProgramState.tl, ProgramState.tl) Semantics.eval
 
-    val interpo : tactic -> (Prog.ti list, State.tt, State.tt, State.tl, State.tl) Semantics.interpreter
+    val interpo : tactic -> (CProg.tt, State.tt, State.tt, CProg.tl, State.tl, State.tl) Semantics.interpreter
   end
 
 (* module SeqInterpreter :

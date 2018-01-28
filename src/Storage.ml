@@ -48,7 +48,7 @@ let rec seto vars vars' var value =
       (k =/= var) &&& (vars' === hd % tl') &&& (seto tl tl' var value);
     ])
 
-let keyso = mapo (fun kv k -> fresh (v) (kv === pair k v))
+let keyso t keys = List.mapo (fun kv k -> fresh (v) (kv === pair k v)) t keys
 
 let rec removeo t t' k = conde [
   fresh (hd tl tl' k' v)
