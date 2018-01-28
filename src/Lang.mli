@@ -155,6 +155,8 @@ module CProg :
 val prog  : Stmt.ti list -> Prog.ti
 val cprog : Prog.ti list -> CProg.ti
 
+val thrdnum : CProg.ti -> int
+
 module Error :
   sig
     include Utils.Logic

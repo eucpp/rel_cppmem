@@ -73,12 +73,10 @@ let make_litmus (module Memory: MemoryModel) {name; prog; regs; locs; quant; ass
   let module Interpreter = ConcurrentInterpreter(Memory) in
   let module Trace = Utils.Trace(Interpreter.State) in
 
-  let thrdn = List.length prog in
-  let mem = Memory.alloc ~thrdn locs in
+  let mem = Memory.alloc ~thrdn:(thrdnum prog) locs in
   let regs = RegStorage.init thrdn @@ Regs.alloc regs in
   let initstate = Interpreter.State.init regs mem in
 
-  let prog = cprog prog in
   let interpo = Interpreter.interpo Interleaving in
   let asserto = match assrt with
   | Safe      -> Interpreter.State.safeo
@@ -102,7 +100,7 @@ let make_litmus (module Memory: MemoryModel) {name; prog; regs; locs; quant; ass
   let module Interpreter = ConcurrentInterpreter(Operational.SequentialConsistent) in
   Interpreter.State.erroro s ~sg:(fun _ -> failure) ~fg:(success) *)
 
-let prog_SW = <:cppmem<
+let prog_SW = <:cppmem_par<
   spw {{{
       x_sc := 1;
       f_sc := 1
@@ -125,7 +123,7 @@ let test_SW_SC = litmus_test
   ~quant:Forall
   ~assrt:Safe
 
-let prog_SB = <:cppmem<
+let prog_SB = <:cppmem_par<
   spw {{{
       x_sc := 1;
       r1 := y_sc;
@@ -146,7 +144,7 @@ let test_SB_SC = litmus_test
   ~quant:Forall
   ~assrt:Safe
 
-let prog_LB = <:cppmem<
+let prog_LB = <:cppmem_par<
     spw {{{
         r1 := x_sc;
         y_sc := 1;
@@ -167,7 +165,7 @@ let test_LB_SC = litmus_test
   ~quant:Forall
   ~assrt:Safe
 
-let prog_MP = <:cppmem<
+let prog_MP = <:cppmem_par<
     spw {{{
         x_sc := 1;
         f_sc := 1
@@ -187,7 +185,7 @@ let test_MP_SC = litmus_test
   ~quant:Forall
   ~assrt:Safe
 
-let prog_CoRR = <:cppmem<
+let prog_CoRR = <:cppmem_par<
   spw {{{
     spw {{{
       x_sc := 1
@@ -236,7 +234,7 @@ let tests_sc_op =
 (* ********************** ReleaseAcquire Tests ****************************** *)
 (* ************************************************************************** *)
 
-let prog_SW = <:cppmem<
+let prog_SW = <:cppmem_par<
   spw {{{
       x_rlx := 1;
       f_rel := 1
@@ -259,7 +257,7 @@ let test_SW_RA = litmus_test
   ~quant:Forall
   ~assrt:Safe
 
-let prog_SB = <:cppmem<
+let prog_SB = <:cppmem_par<
   spw {{{
       x_rel := 1;
       r1 := y_acq;
@@ -280,7 +278,7 @@ let test_SB_RA = litmus_test
   ~quant:Exists
   ~assrt:Safe
 
-let prog_LB = <:cppmem<
+let prog_LB = <:cppmem_par<
     spw {{{
         r1 := x_acq;
         y_rel := 1;
@@ -301,7 +299,7 @@ let test_LB_RA = litmus_test
   ~quant:Forall
   ~assrt:Safe
 
-let prog_LB_acq_rlx = <:cppmem<
+let prog_LB_acq_rlx = <:cppmem_par<
     spw {{{
         r1 := x_acq;
         y_rlx := 1;
@@ -322,7 +320,7 @@ let test_LB_acq_rlx_RA = litmus_test
   ~quant:Forall
   ~assrt:Safe
 
-let prog_MP = <:cppmem<
+let prog_MP = <:cppmem_par<
     spw {{{
         x_rlx := 1;
         f_rel := 1
@@ -342,7 +340,7 @@ let test_MP_RA = litmus_test
   ~quant:Forall
   ~assrt:Safe
 
-let prog_MP_rlx_acq = <:cppmem<
+let prog_MP_rlx_acq = <:cppmem_par<
     spw {{{
         x_rlx := 1;
         f_rlx := 1
@@ -362,7 +360,7 @@ let test_MP_rlx_acq_RA = litmus_test
   ~quant:Exists
   ~assrt:Safe
 
-let prog_MP_rel_rlx = <:cppmem<
+let prog_MP_rel_rlx = <:cppmem_par<
     spw {{{
         x_rlx := 1;
         f_rel := 1
@@ -382,7 +380,7 @@ let test_MP_rel_rlx_RA = litmus_test_RA
   ~quant:Exists
   ~assrt:Safe
 
-let prog_MP_relseq = <:cppmem<
+let prog_MP_relseq = <:cppmem_par<
   spw {{{
       x_rlx := 1;
       f_rel := 1;
@@ -403,7 +401,7 @@ let test_MP_relseq_RA = litmus_test_RA
   ~quant:Forall
   ~assrt:Safe
 
-let prog_CoRR = <:cppmem<
+let prog_CoRR = <:cppmem_par<
   spw {{{
     spw {{{
       x_rlx := 1
@@ -437,7 +435,7 @@ let test_CoRR_RA = litmus_test_RA
   ~quant:Forall
   ~assrt:Safe
 
-let prog_DR1 = <:cppmem<
+let prog_DR1 = <:cppmem_par<
   spw {{{
       x_rlx := 1
   |||
@@ -454,7 +452,7 @@ let test_DR1_RA = litmus_test_RA
   ~quant:Exists
   ~assrt:Datarace
 
-let prog_DR2 = <:cppmem<
+let prog_DR2 = <:cppmem_par<
   spw {{{
       x_na := 1
   |||

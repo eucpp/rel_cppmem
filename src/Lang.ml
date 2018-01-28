@@ -466,6 +466,9 @@ let prog p = Std.List.list p
 
 let cprog ps = Std.List.list ps
 
+let thrdnum : CProg.ti -> int =
+  fun p -> List.length @@ Std.List.to_list (fun x -> x) @@ Obj.magic p
+
 module Error =
   struct
     module T =

@@ -16,6 +16,7 @@ let cppmem_eoi      = Grammar.Entry.create gram "cppmem";;
 let cppmem_expr     = Grammar.Entry.create gram "cppmem";;
 let cppmem_stmt     = Grammar.Entry.create gram "cppmem";;
 let cppmem_prog     = Grammar.Entry.create gram "cppmem";;
+let cppmem_cprog    = Grammar.Entry.create gram "cppmem";;
 let cppmem_antiquot = Grammar.Entry.create gram "cppmem";;
 
 EXTEND
@@ -78,11 +79,7 @@ EXTEND
 
   cppmem_stmt:
     [ RIGHTA
-      [ "spw"; "{";"{";"{"; t1 = cppmem_prog; "|||"; t2 = cppmem_prog; "}";"}";"}" ->
-        <:expr< spw $t1$ $t2$ >>
-      ]
-
-    | [ "assert"; "("; e = cppmem_expr; ")" ->
+      [ "assert"; "("; e = cppmem_expr; ")" ->
         <:expr< assertion $e$ >>
 
       | x = LIDENT; ":="; e = cppmem_expr ->
@@ -149,6 +146,25 @@ EXTEND
       ]
     ];
 
+    (* [ "spw"; "{";"{";"{"; t1 = cppmem_prog; "|||"; t2 = cppmem_prog; "}";"}";"}" ->
+      <:expr< spw $t1$ $t2$ >>
+    ]
+
+  |  *)
+
+  cppmem_cprog:
+    [ [ "spw"; "{";"{";"{"; progs = LIST1 cppmem_prog SEP "|||"; "}";"}";"}"; EOI ->
+        let progs_list loc lst =
+          List.fold_right
+          (fun head tail -> <:expr< [ $head$ :: $tail$ ] >>)
+          lst
+          <:expr< [] >>
+        in
+        let progs = progs_list loc progs in
+        <:expr< cprog ($progs$) >>
+      ]
+    ];
+
   cppmem_antiquot:
     [ [ x = LIDENT ->
         let ast =
@@ -164,3 +180,7 @@ END;;
 let cppmem_exp s = Grammar.Entry.parse cppmem_eoi (Stream.of_string s);;
 let cppmem_pat s = failwith "not implemented cppmem_pat";;
 Quotation.add "cppmem" (Quotation.ExAst (cppmem_exp, cppmem_pat));;
+
+let cppmem_par_exp s = Grammar.Entry.parse cppmem_cprog (Stream.of_string s);;
+let cppmem_par_pat s = failwith "not implemented cppmem_par_pat";;
+Quotation.add "cppmem_par" (Quotation.ExAst (cppmem_par_exp, cppmem_par_pat));;
