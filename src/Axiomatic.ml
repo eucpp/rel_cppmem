@@ -164,8 +164,8 @@ module Ord =
       let ord = trcl ord in
       let antisymm e e' =
         fresh (eid eid' label label')
-          (e  === Event.event eid  label)
-          (e' === Event.event eid' label)
+          (e  === Event.event eid  label )
+          (e' === Event.event eid' label')
           (conde
             [   (ord eid eid') &&& ?~(ord eid' eid)
             ; ?~(ord eid eid') &&&   (ord eid' eid)
@@ -181,6 +181,7 @@ module Ord =
         ]
       in
       helper
+      (* fun es -> success *)
 
   end
 
@@ -220,7 +221,7 @@ module RF =
           (helpero rs' ws rf')
       ] in
       let loado e =
-        fresh (eid tid mo loc v)
+        fresh (eid mo loc v)
           (e === event eid (Label.load mo loc v))
       in
       let loado e b = conde [
@@ -228,7 +229,7 @@ module RF =
         (b === Bool.falso) &&& ?~(loado e);
       ] in
       let storeo e =
-        fresh (eid tid mo loc v)
+        fresh (eid mo loc v)
           (e === event eid (Label.store mo loc v))
       in
       let storeo e b = conde [
@@ -274,7 +275,7 @@ module ThreadPreExecution =
 
     let pprint =
       let pp ff = let open T in fun {es; po} ->
-        Format.fprintf ff "@[<v>Events: %a@;@]@[<v>po: %a@;@]@."
+        Format.fprintf ff "@[<v>Events: %a@;po: %a@;@]"
           EventSet.pprint es
           Ord.pprint po
       in
@@ -296,6 +297,8 @@ module ThreadPreExecution =
           (t'  === prexec eid' es' po')
           (e   === Event.event eid label)
           (es' === e % es)
+          (label =/= Label.empty ())
+        ?~(fresh (mo loc) (label === Label.error (Error.datarace mo loc)))
           (EventID.nexto eid eid' tid)
           (PO.extendo po po' e)
       ]

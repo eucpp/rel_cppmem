@@ -51,7 +51,7 @@ let test_forall ~name ~prog ~interpo ~initstate ~asserto ~pprint =
   (* check that test is runnable *)
   if Stream.is_empty @@ Query.exec interpo prog initstate then
     begin
-      Format.printf "Litmus test is not runnable:@;";
+      Format.printf "Litmus test is not runnable@;";
       Test.Fail ""
     end
   else
@@ -104,8 +104,16 @@ let make_litmus_testcase
 
   Test.make_testcase ~name ~test
 
-let make_litmus_testsuite ?consistento ~name ~tactic (module Memory: MemoryModel) descs =
-  let tests = List.map (make_litmus_testcase ~tactic (module Memory)) descs in
+let make_litmus_testsuite
+  (type a)
+  (type b)
+  ?(consistento: ((a, b logic) injected -> goal) option)
+  ~name
+  ~tactic
+  (module Memory: MemoryModel with type tt = a and type inner = b)
+  descs
+  =
+  let tests = List.map (make_litmus_testcase ?consistento ~tactic (module Memory)) descs in
   Test.make_testsuite ~name ~tests
 
 (* ************************************************************************** *)
@@ -242,6 +250,19 @@ let tests_sc_op = make_litmus_testsuite
   ~name:"SeqCst"
   ~tactic:Tactic.Interleaving
   (module Operational.SequentialConsistent)
+  [
+    test_SW_SC;
+    test_SB_SC;
+    test_LB_SC;
+    test_MP_SC;
+    test_CoRR_SC;
+  ]
+
+let tests_sc_axiom = make_litmus_testsuite
+  ~name:"SeqCst"
+  ~tactic:Tactic.Sequential
+  ~consistento:Axiomatic.SequentialConsistent.consistento
+  (module Axiomatic.PreExecution)
   [
     test_SW_SC;
     test_SB_SC;
@@ -527,6 +548,10 @@ let tests = Test.(
     make_testsuite ~name:"Operational" ~tests: [
       tests_sc_op;
       tests_ra_op;
+    ];
+
+    make_testsuite ~name:"Axiomatic" ~tests: [
+      (* tests_sc_axiom; *)
     ]
   ]
 )

@@ -581,9 +581,9 @@ module ThreadLocalStorage(T : Utils.Logic) =
     let initi n make_thrd =
       let rec helper i xs =
         let thrd = make_thrd @@ ThreadID.tid i in
-        if i = n then xs else helper (i+1) (thrd::xs)
+        if i > n then xs else helper (i+1) (thrd::xs)
       in
-      of_list @@ helper 0 []
+      of_list @@ List.rev @@ helper 1 []
 
     let init n thrd =
       initi n (fun _ -> thrd)
@@ -949,9 +949,9 @@ module ConcurrentInterpreter(Memory : MemoryModel) =
           (Utils.foldlo tids ~init:t ~res:t'
             ~g:(fun tid t t' -> conde
               [ (evalo (SingleThread tid) t t')
-              ; fresh (tm s)
+              (* ; fresh (tm s)
                   (t === progstate tm s)
-                  (State.erroro s ~sg:(fun _ -> t === t'))
+                  (State.erroro s ~sg:(fun _ -> t === t')) *)
               ])
           )
     | Interleaving ->

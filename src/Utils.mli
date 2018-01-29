@@ -26,6 +26,8 @@ val foldlo :
   res:('acct, 'accl) MiniKanren.injected ->
   ('a, 'b) MiniKanren.Std.List.groundi -> MiniKanren.goal
 
+val membero : ('a, 'b) MiniKanren.Std.List.groundi -> ('a, 'b) MiniKanren.injected -> MiniKanren.goal
+
 module Trace(T : Logic) :
   sig
     val trace : Format.formatter -> (T.tt, T.tl) MiniKanren.reified -> unit

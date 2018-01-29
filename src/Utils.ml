@@ -40,6 +40,16 @@ let rec foldlo ~g ~init ~res xs =
     )
   ]
 
+let rec membero l a =
+  Fresh.one (fun xs ->
+    (l === a % xs) &&&
+    (conde
+      [ (xs === nil ())
+      ; (xs =/= nil ()) &&& (membero xs a)
+      ]
+    )
+  )
+
 module Trace(T : Logic) =
   struct
     let trace fmt rr = T.pprint fmt @@ rr#reify T.reify
