@@ -12,7 +12,7 @@ type memory_model = SC | RelAcq
 
 type quantifier = Exists | Forall
 
-type assertion = Safe | Datarace
+type assertion = Safe | Datarace | RegsAssert of (RegStorage.ti -> MiniKanren.goal)
 
 type litmus_test_desc =
   { name      : string
@@ -80,8 +80,12 @@ let make_litmus ~tactic (module Memory: MemoryModel) {name; prog; regs; locs; qu
 
   let interpo = Interpreter.interpo tactic in
   let asserto = match assrt with
-  | Safe      -> Interpreter.State.safeo
-  | Datarace  -> Interpreter.State.dataraceo
+  | Safe          -> Interpreter.State.safeo
+  | Datarace      -> Interpreter.State.dataraceo
+  | RegsAssert g  -> fun s ->
+    fresh (r)
+      (Interpreter.State.regstorageo s r)
+      (g r)
   in
   let pprint = Trace.trace in
 
@@ -97,22 +101,13 @@ let make_litmus ~tactic (module Memory: MemoryModel) {name; prog; regs; locs; qu
 (* ******************* SequentialConsistent Tests *************************** *)
 (* ************************************************************************** *)
 
-(* let safeo_SC s =
-  let module Interpreter = ConcurrentInterpreter(Operational.SequentialConsistent) in
-  Interpreter.State.erroro s ~sg:(fun _ -> failure) ~fg:(success) *)
-
 let prog_SW = <:cppmem_par<
   spw {{{
       x_sc := 1;
       f_sc := 1
   |||
       r1 := f_sc;
-      r2 := x_sc;
-      assert (
-        (r1 = 0 && r2 = 0) ||
-        (r1 = 0 && r2 = 1) ||
-        (r1 = 1 && r2 = 1)
-      )
+      r2 := x_sc
   }}}
 >>
 
@@ -122,20 +117,25 @@ let test_SW_SC = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~quant:Forall
-  ~assrt:Safe
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs)
+      (RegStorage.geto regs (ThreadID.tid 2) rs)
+      (conde
+        [ Regs.checko rs [("r1", 0); ("r2", 0)]
+        ; Regs.checko rs [("r1", 0); ("r2", 1)]
+        ; Regs.checko rs [("r1", 1); ("r2", 1)]
+        ]
+      )
+  ))
 
-(*
 let prog_SB = <:cppmem_par<
   spw {{{
       x_sc := 1;
-      r1 := y_sc;
-      return (r1)
+      r1 := y_sc
   |||
       y_sc := 1;
-      r2 := x_sc;
-      return (r2)
-  }}};
-  assert (r1 != 0 || r2 != 0)
+      r2 := x_sc
+  }}}
 >>
 
 let test_SB_SC = litmus_test
@@ -144,19 +144,21 @@ let test_SB_SC = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
   ~quant:Forall
-  ~assrt:Safe
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs1 rs2)
+      (RegStorage.geto regs (ThreadID.tid 1) rs1)
+      (RegStorage.geto regs (ThreadID.tid 2) rs2)
+    ?~((Regs.checko rs1 [("r1", 0)]) &&& (Regs.checko rs2 [("r2", 0)]))
+  ))
 
 let prog_LB = <:cppmem_par<
     spw {{{
         r1 := x_sc;
-        y_sc := 1;
-        return (r1)
+        y_sc := 1
     |||
         r2 := y_sc;
-        x_sc := 1;
-        return (r2)
-    }}};
-    assert (r1 != 1 || r2 != 1)
+        x_sc := 1
+    }}}
 >>
 
 let test_LB_SC = litmus_test
@@ -165,7 +167,12 @@ let test_LB_SC = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
   ~quant:Forall
-  ~assrt:Safe
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs1 rs2)
+      (RegStorage.geto regs (ThreadID.tid 1) rs1)
+      (RegStorage.geto regs (ThreadID.tid 2) rs2)
+    ?~((Regs.checko rs1 [("r1", 1)]) &&& (Regs.checko rs2 [("r2", 1)]))
+  ))
 
 let prog_MP = <:cppmem_par<
     spw {{{
@@ -173,10 +180,8 @@ let prog_MP = <:cppmem_par<
         f_sc := 1
     |||
         repeat r1 := f_sc until r1;
-        r2 := x_sc;
-        return (r2)
-    }}};
-    assert (r2 = 1)
+        r2 := x_sc
+    }}}
 >>
 
 let test_MP_SC = litmus_test
@@ -185,31 +190,23 @@ let test_MP_SC = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~quant:Forall
-  ~assrt:Safe
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs)
+      (RegStorage.geto regs (ThreadID.tid 2) rs)
+      (Regs.checko rs [("r2", 1)])
+  ))
 
 let prog_CoRR = <:cppmem_par<
   spw {{{
-    spw {{{
-      x_sc := 1
-    |||
-      x_sc := 2
-    }}}
+    x_sc := 1
   |||
-    spw {{{
-      r1 := x_sc;
-      r2 := x_sc;
-      return (r1, r2)
-    |||
-      r3 := x_sc;
-      r4 := x_sc;
-      return (r3, r4)
-    }}};
-    assert (
-      !(((r1 = 1) && (r2 = 2) && (r3 = 2) && (r4 = 1))
-        ||
-        ((r1 = 2) && (r2 = 1) && (r3 = 1) && (r4 = 2))
-      )
-    )
+    x_sc := 2
+  |||
+    r1 := x_sc;
+    r2 := x_sc
+  |||
+    r3 := x_sc;
+    r4 := x_sc
   }}}
 >>
 
@@ -219,18 +216,26 @@ let test_CoRR_SC = litmus_test
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";]
   ~quant:Forall
-  ~assrt:Safe
-*)
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs3 rs4)
+      (RegStorage.geto regs (ThreadID.tid 3) rs3)
+      (RegStorage.geto regs (ThreadID.tid 4) rs4)
+    ?~(conde
+        [ (Regs.checko rs3 [("r1", 1); ("r2", 2)]) &&& (Regs.checko rs4 [("r3", 2); ("r4", 1)])
+        ; (Regs.checko rs3 [("r1", 2); ("r2", 1)]) &&& (Regs.checko rs4 [("r3", 1); ("r4", 2)])
+        ]
+      )
+  ))
 
 let tests_sc_op =
   let mem_model = (module Operational.SequentialConsistent: MemoryModel) in
   let make_tests = List.map (make_litmus ~tactic:Interleaving mem_model) in
   Test.make_testsuite ~name:"SeqCst" ~tests: (make_tests [
     test_SW_SC;
-    (* test_SB_SC;
+    test_SB_SC;
     test_LB_SC;
     test_MP_SC;
-    test_CoRR_SC; *)
+    test_CoRR_SC;
   ])
 
 (* ************************************************************************** *)
@@ -243,12 +248,7 @@ let prog_SW = <:cppmem_par<
       f_rel := 1
   |||
       r1 := f_acq;
-      r2 := x_rlx;
-      assert (
-        (r1 = 0 && r2 = 0) ||
-        (r1 = 0 && r2 = 1) ||
-        (r1 = 1 && r2 = 1)
-      )
+      r2 := x_rlx
   }}}
 >>
 
@@ -258,20 +258,25 @@ let test_SW_RA = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~quant:Forall
-  ~assrt:Safe
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs)
+      (RegStorage.geto regs (ThreadID.tid 2) rs)
+      (conde
+        [ Regs.checko rs [("r1", 0); ("r2", 0)]
+        ; Regs.checko rs [("r1", 0); ("r2", 1)]
+        ; Regs.checko rs [("r1", 1); ("r2", 1)]
+        ]
+      )
+  ))
 
-(*
 let prog_SB = <:cppmem_par<
   spw {{{
       x_rel := 1;
-      r1 := y_acq;
-      return (r1)
+      r1 := y_acq
   |||
       y_rel := 1;
-      r2 := x_acq;
-      return (r2)
-  }}};
-  assert (r1 = 0 && r2 = 0)
+      r2 := x_acq
+  }}}
 >>
 
 let test_SB_RA = litmus_test
@@ -280,19 +285,22 @@ let test_SB_RA = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
   ~quant:Exists
-  ~assrt:Safe
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs1 rs2)
+      (RegStorage.geto regs (ThreadID.tid 1) rs1)
+      (RegStorage.geto regs (ThreadID.tid 2) rs2)
+      (Regs.checko rs1 [("r1", 0)])
+      (Regs.checko rs2 [("r2", 0)])
+  ))
 
 let prog_LB = <:cppmem_par<
     spw {{{
         r1 := x_acq;
-        y_rel := 1;
-        return (r1)
+        y_rel := 1
     |||
         r2 := y_acq;
-        x_rel := 1;
-        return (r2)
-    }}};
-    assert (r1 != 1 || r2 != 1)
+        x_rel := 1
+    }}}
 >>
 
 let test_LB_RA = litmus_test
@@ -301,19 +309,21 @@ let test_LB_RA = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
   ~quant:Forall
-  ~assrt:Safe
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs1 rs2)
+      (RegStorage.geto regs (ThreadID.tid 1) rs1)
+      (RegStorage.geto regs (ThreadID.tid 2) rs2)
+    ?~((Regs.checko rs1 [("r1", 1)]) &&& (Regs.checko rs2 [("r2", 1)]))
+  ))
 
 let prog_LB_acq_rlx = <:cppmem_par<
     spw {{{
         r1 := x_acq;
-        y_rlx := 1;
-        return (r1)
+        y_rlx := 1
     |||
         r2 := y_rlx;
-        x_rel := 1;
-        return (r2)
-    }}};
-    assert (r1 != 1 || r2 != 1)
+        x_rel := 1
+    }}}
 >>
 
 let test_LB_acq_rlx_RA = litmus_test
@@ -322,8 +332,12 @@ let test_LB_acq_rlx_RA = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y"]
   ~quant:Forall
-  ~assrt:Safe
-*)
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs1 rs2)
+      (RegStorage.geto regs (ThreadID.tid 1) rs1)
+      (RegStorage.geto regs (ThreadID.tid 2) rs2)
+    ?~((Regs.checko rs1 [("r1", 1)]) &&& (Regs.checko rs2 [("r2", 1)]))
+  ))
 
 let prog_MP = <:cppmem_par<
     spw {{{
@@ -331,8 +345,7 @@ let prog_MP = <:cppmem_par<
         f_rel := 1
     |||
         repeat r1 := f_acq until r1;
-        r2 := x_rlx;
-        assert (r2 = 1)
+        r2 := x_rlx
     }}}
 >>
 
@@ -342,7 +355,11 @@ let test_MP_RA = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~quant:Forall
-  ~assrt:Safe
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs)
+      (RegStorage.geto regs (ThreadID.tid 2) rs)
+      (Regs.checko rs [("r2", 1)])
+  ))
 
 let prog_MP_rlx_acq = <:cppmem_par<
     spw {{{
@@ -350,8 +367,7 @@ let prog_MP_rlx_acq = <:cppmem_par<
         f_rlx := 1
     |||
         repeat r1 := f_acq until r1;
-        r2 := x_rlx;
-        assert (r2 = 0)
+        r2 := x_rlx
     }}}
 >>
 
@@ -361,7 +377,11 @@ let test_MP_rlx_acq_RA = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~quant:Exists
-  ~assrt:Safe
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs)
+      (RegStorage.geto regs (ThreadID.tid 2) rs)
+      (Regs.checko rs [("r2", 0)])
+  ))
 
 let prog_MP_rel_rlx = <:cppmem_par<
     spw {{{
@@ -369,8 +389,7 @@ let prog_MP_rel_rlx = <:cppmem_par<
         f_rel := 1
     |||
         repeat r1 := f_rlx until r1;
-        r2 := x_rlx;
-        assert (r2 = 0)
+        r2 := x_rlx
     }}}
 >>
 
@@ -380,7 +399,11 @@ let test_MP_rel_rlx_RA = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y"; "f"]
   ~quant:Exists
-  ~assrt:Safe
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs)
+      (RegStorage.geto regs (ThreadID.tid 2) rs)
+      (Regs.checko rs [("r2", 0)])
+  ))
 
 let prog_MP_relseq = <:cppmem_par<
   spw {{{
@@ -389,8 +412,7 @@ let prog_MP_relseq = <:cppmem_par<
       f_rlx := 2
   |||
       repeat r1 := f_acq until (r1 = 2);
-      r2 := x_rlx;
-      assert (r2 = 1)
+      r2 := x_rlx
   }}}
 >>
 
@@ -400,32 +422,23 @@ let test_MP_relseq_RA = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~quant:Forall
-  ~assrt:Safe
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs)
+      (RegStorage.geto regs (ThreadID.tid 2) rs)
+      (Regs.checko rs [("r2", 1)])
+  ))
 
-(*
 let prog_CoRR = <:cppmem_par<
   spw {{{
-    spw {{{
-      x_rlx := 1
-    |||
-      x_rlx := 2
-    }}}
+    x_rel := 1
   |||
-    spw {{{
-      r1 := x_rlx;
-      r2 := x_rlx;
-      return (r1, r2)
-    |||
-      r3 := x_rlx;
-      r4 := x_rlx;
-      return (r3, r4)
-    }}};
-    assert (
-      !(((r1 = 1) && (r2 = 2) && (r3 = 2) && (r4 = 1))
-        ||
-        ((r1 = 2) && (r2 = 1) && (r3 = 1) && (r4 = 2))
-      )
-    )
+    x_rel := 2
+  |||
+    r1 := x_acq;
+    r2 := x_acq
+  |||
+    r3 := x_acq;
+    r4 := x_acq
   }}}
 >>
 
@@ -436,15 +449,22 @@ let test_CoRR_RA = litmus_test
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";]
   ~quant:Forall
-  ~assrt:Safe
-*)
+  ~assrt:(RegsAssert (fun regs ->
+    fresh (rs3 rs4)
+      (RegStorage.geto regs (ThreadID.tid 3) rs3)
+      (RegStorage.geto regs (ThreadID.tid 4) rs4)
+    ?~(conde
+        [ (Regs.checko rs3 [("r1", 1); ("r2", 2)]) &&& (Regs.checko rs4 [("r3", 2); ("r4", 1)])
+        ; (Regs.checko rs3 [("r1", 2); ("r2", 1)]) &&& (Regs.checko rs4 [("r3", 1); ("r4", 2)])
+        ]
+      )
+  ))
 
 let prog_DR1 = <:cppmem_par<
   spw {{{
       x_rlx := 1
   |||
-      r1 := x_na;
-      assert (r1 = 0)
+      r1 := x_na
   }}}
 >>
 
@@ -460,8 +480,7 @@ let prog_DR2 = <:cppmem_par<
   spw {{{
       x_na := 1
   |||
-      r1 := x_rlx;
-      assert (r1 = 0)
+      r1 := x_rlx
   }}}
 >>
 
@@ -478,14 +497,14 @@ let tests_ra_op =
   let make_tests = List.map (make_litmus ~tactic:Interleaving mem_model) in
   Test.make_testsuite ~name:"RelAcq" ~tests: (make_tests [
     test_SW_RA;
-    (* test_SB_RA;
+    test_SB_RA;
     test_LB_RA;
-    test_LB_acq_rlx_RA; *)
+    test_LB_acq_rlx_RA;
     test_MP_RA;
     test_MP_rlx_acq_RA;
     test_MP_rel_rlx_RA;
     test_MP_relseq_RA;
-    (* test_CoRR_RA; *)
+    test_CoRR_RA;
     test_DR1_RA;
     test_DR2_RA;
   ])
@@ -498,38 +517,3 @@ let tests = Test.(
     ]
   ]
 )
-
-(* let tests =
-  "Litmus">::: [
-    "RelAcq">::: List.map Test.ounit_test [
-      test_SW_RA;
-      test_SB_RA;
-      test_LB_RA;
-      test_DR1_RA;
-      test_DR2_RA;
-      test_LB_RA_rlx;
-      test_MP_RA;
-      test_MP_RA_rlx1;
-      test_MP_RA_rlx2;
-      test_MP_RA_rel_seq;
-      test_MP_CoRR;
-    ] *)
-
-    (* "DR_1">:: test_data_race_1 rlxStep;
-    "DR_2">:: test_data_race_2 rlxStep;
-
-    "rel_acq">:: test_rel_acq relAcqStep;
-    "SB">:: test_SB relAcqStep;
-    "LB_rel_acq">:: test_LB_rel_acq relAcqStep;
-    "LB_rel_acq_rlx">:: test_LB_rel_acq_rlx relAcqStep;
-    "MP">:: test_MP relAcqStep;
-    "MP_rlx_1">:: test_MP_rlx_1 relAcqStep;
-    "MP_rlx_2">:: test_MP_rlx_2 relAcqStep;
-    "MP_rel_seq">:: test_MP_rel_seq relAcqStep;
-    (* "CoRR_rlx">: OUnitTest.TestCase (OUnitTest.Long, test_CoRR_rlx relAcqStep); *)
-
-    "SB_sc">:: test_SB_sc scStep;
-
-    "LB">:: test_LB promisingStep;
-    "LBd">:: test_LBd promisingStep;
-  ]*)
