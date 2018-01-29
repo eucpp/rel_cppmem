@@ -303,7 +303,7 @@ module ConcurrentInterpreter(Memory : MemoryModel) :
     val evalo : Tactic.t -> (ProgramState.tt, ProgramState.tt, ProgramState.tl, ProgramState.tl) Semantics.eval
 
     val interpo :
-      ?consistento:(State.ti -> MiniKanren.goal) ->
+      ?consistento:(Memory.ti -> MiniKanren.goal) ->
       Tactic.t ->
       (CProg.tt, State.tt, State.tt, CProg.tl, State.tl, State.tl) Semantics.interpreter
   end

@@ -962,11 +962,12 @@ module ConcurrentInterpreter(Memory : MemoryModel) =
       make_eval ~irreducibleo:terminatedo stepo
 
     let interpo ?(consistento=fun _ -> success) tactic prog s s' =
-      fresh (t t' tm')
+      fresh (t t' tm' regs' mem' opterr')
         (t  === ProgramState.make prog s)
         (t' === progstate tm' s')
+        (s' === state regs' mem' opterr')
         (evalo tactic t t')
-        (consistento s')
+        (consistento mem')
 
   end
 

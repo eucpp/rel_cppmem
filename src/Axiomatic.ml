@@ -356,14 +356,10 @@ module PreExecution =
         (* build [rf] *)
         (RF.well_formedo es rf)
 
-    let consistento t = success
-
   end
 
 module SequentialConsistent =
   struct
-    include PreExecution
-
     let consistento t =
       fresh (es po rf sc)
         (execo t es po rf)

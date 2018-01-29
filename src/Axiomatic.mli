@@ -23,5 +23,5 @@ module PreExecution :
 
 module SequentialConsistent :
   sig
-    include Lang.MemoryModel
+    val consistento : PreExecution.ti -> MiniKanren.goal
   end
