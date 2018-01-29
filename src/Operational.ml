@@ -68,7 +68,11 @@ module SequentialConsistent =
       ])
 
     let stepo tid label t t' = conde [
-      (label === Label.empty ()) &&& (t === t');
+      (conde
+        [ (label === Label.empty ())
+        ; fresh (e) (label === Label.error (Error.assertion e))
+        ]
+      ) &&& (t === t');
 
       fresh (mo loc v)
         (label === Label.load !!MemOrder.SC loc v)
@@ -211,7 +215,7 @@ module ThreadFront =
 
     let pprint =
       let pp ff = let open T in fun { curr; rel; acq } ->
-        Format.fprintf ff "@[<v>cur: %a @;acq: %a @;rel: %a @]"
+        Format.fprintf ff "@[<v>cur: %a@;acq: %a@;rel: %a@]"
           ViewFront.pprint curr
           ViewFront.pprint acq
           ViewFront.pprint rel
@@ -406,7 +410,7 @@ module MemStory =
 
     let pprint ff story =
       let pp ff (loc, story) = Format.fprintf ff "%s: %a" (Lang.Loc.show loc) LocStory.pprint story in
-      Format.fprintf ff "@[<v>Memory :@;%a@;@]" (Storage.pprint pp) story
+      Format.fprintf ff "@[<v>Memory Story :@;%a@;@]" (Storage.pprint pp) story
 
     let shapeo = Storage.shapeo
 
@@ -694,7 +698,11 @@ module ReleaseAcquire =
         (MemStory.last_valueo story loc v)
 
     let stepo tid label t t' = conde [
-      (label === Label.empty ()) &&& (t === t');
+      (conde
+        [ (label === Label.empty ())
+        ; fresh (e) (label === Label.error (Error.assertion e))
+        ]
+      ) &&& (t === t');
 
       fresh (mo loc v)
         (label === Label.load mo loc v)

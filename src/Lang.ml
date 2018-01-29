@@ -561,10 +561,13 @@ module ThreadLocalStorage(T : Utils.Logic) =
     let reify = Std.Pair.reify ThreadID.reify (Storage.reify ThreadID.reify T.reify)
 
     let pprint =
-      let pp ff (_, thrds) = Storage.pprint (
+      let pp ff (_, thrds) =
+      Format.fprintf ff "@[<v>";
+      Storage.pprint (
         fun ff (tid, thrd) ->
-          Format.fprintf ff "@[<v>Thread #%a:@;<1 2>%a@]" ThreadID.pprint tid T.pprint thrd
-        ) ff thrds
+          Format.fprintf ff "Thread #%a:@;<1 2>%a" ThreadID.pprint tid T.pprint thrd
+        ) ff thrds;
+      Format.fprintf ff "@]";
       in
       pprint_logic pp
 
@@ -814,15 +817,17 @@ module State(Memory : MemoryModel) =
 
     let pprint =
       let pp ff = let open T in fun {regs; mem; opterr} ->
+        Format.fprintf ff "@[<v>";
         pprint_logic (fun ff -> function
           | None      -> ()
           | Some err  ->
-            Format.fprintf ff "@[<v>Error:%a@]@;" Error.pprint err
+            Format.fprintf ff "Error: %a@;" Error.pprint err
         ) ff opterr;
         (* Format.fprintf ff "@[<v>Registers:@;<1 2>%a@]@;@[<v>Memory:@;<1 2>%a@]" *)
-        Format.fprintf ff "@[<v>Registers:@;<1 2>%a@;Memory:@;<1 2>%a@]"
+        Format.fprintf ff "Registers:@;<1 2>%a@;Memory:@;<1 2>%a"
           RegStorage.pprint regs
-          Memory.pprint mem
+          Memory.pprint mem;
+        Format.fprintf ff "@]"
       in
       pprint_logic pp
 
