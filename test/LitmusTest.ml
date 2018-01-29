@@ -229,7 +229,7 @@ let test_CoRR_SC = litmus_test
 
 let tests_sc_op =
   let mem_model = (module Operational.SequentialConsistent: MemoryModel) in
-  let make_tests = List.map (make_litmus ~tactic:Interleaving mem_model) in
+  let make_tests = List.map (make_litmus ~tactic:Tactic.Interleaving mem_model) in
   Test.make_testsuite ~name:"SeqCst" ~tests: (make_tests [
     test_SW_SC;
     test_SB_SC;
@@ -494,7 +494,7 @@ let test_DR2_RA = litmus_test
 
 let tests_ra_op =
   let mem_model = (module Operational.ReleaseAcquire: MemoryModel) in
-  let make_tests = List.map (make_litmus ~tactic:Interleaving mem_model) in
+  let make_tests = List.map (make_litmus ~tactic:Tactic.Interleaving mem_model) in
   Test.make_testsuite ~name:"RelAcq" ~tests: (make_tests [
     test_SW_RA;
     test_SB_RA;

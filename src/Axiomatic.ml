@@ -344,7 +344,7 @@ module PreExecution =
         (PO.mergeo po1 po2 po')
 
     let execo t es po rf =
-      fresh (ies pes pe es' po rf)
+      fresh (ies pes pe es')
         (t === pair ies pes)
         (* merge [es] and [po] of parallel threads *)
         (TLS.foldo parallelo pes (ThreadPreExecution.init ()) pe)

@@ -891,10 +891,13 @@ module ProgramState(Memory : MemoryModel) =
     let make p = progstate @@ ThreadManager.make p
   end
 
-type tactic =
-  | SingleThread of ThreadID.ti
-  | Sequential
-  | Interleaving
+module Tactic =
+  struct
+    type t =
+      | SingleThread of ThreadID.ti
+      | Sequential
+      | Interleaving
+  end
 
 module ConcurrentInterpreter(Memory : MemoryModel) =
   struct
@@ -932,7 +935,10 @@ module ConcurrentInterpreter(Memory : MemoryModel) =
           ~fg:(opterr === none ())
         )
 
-    let rec evalo = let open Semantics.Reduction in function
+    let rec evalo =
+    let open Semantics.Reduction in
+    let open Tactic in
+    function
     | SingleThread tid ->
       make_eval ~irreducibleo:(terminatedo ~tid) @@ stepo tid
     | Sequential ->
@@ -955,11 +961,12 @@ module ConcurrentInterpreter(Memory : MemoryModel) =
       in
       make_eval ~irreducibleo:terminatedo stepo
 
-    let interpo tactic prog s s' =
+    let interpo ?(consistento=fun _ -> success) tactic prog s s' =
       fresh (t t' tm')
         (t  === ProgramState.make prog s)
         (t' === progstate tm' s')
         (evalo tactic t t')
+        (consistento s')
 
   end
 
@@ -1008,7 +1015,7 @@ module SequentialInterpreter =
 
     module Helper = ConcurrentInterpreter(DummyMM)
 
-    let evalo = Helper.evalo (SingleThread ThreadID.init)
+    let evalo = Helper.evalo (Tactic.SingleThread ThreadID.init)
 
     let interpo prog s s' =
       fresh (t t' tm')

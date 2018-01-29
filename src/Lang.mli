@@ -263,10 +263,13 @@ module SequentialInterpreter :
     val interpo : (Prog.tt, State.tt, State.tt, Prog.tl, State.tl, State.tl) Semantics.interpreter
   end
 
-type tactic =
-  | SingleThread of ThreadID.ti
-  | Sequential
-  | Interleaving
+module Tactic :
+  sig
+    type t =
+      | SingleThread of ThreadID.ti
+      | Sequential
+      | Interleaving
+  end
 
 module ConcurrentInterpreter(Memory : MemoryModel) :
   sig
@@ -297,7 +300,10 @@ module ConcurrentInterpreter(Memory : MemoryModel) :
         val make : CProg.ti -> State.ti -> ti
       end
 
-    val evalo : tactic -> (ProgramState.tt, ProgramState.tt, ProgramState.tl, ProgramState.tl) Semantics.eval
+    val evalo : Tactic.t -> (ProgramState.tt, ProgramState.tt, ProgramState.tl, ProgramState.tl) Semantics.eval
 
-    val interpo : tactic -> (CProg.tt, State.tt, State.tt, CProg.tl, State.tl, State.tl) Semantics.interpreter
+    val interpo :
+      ?consistento:(State.ti -> MiniKanren.goal) ->
+      Tactic.t ->
+      (CProg.tt, State.tt, State.tt, CProg.tl, State.tl, State.tl) Semantics.interpreter
   end
