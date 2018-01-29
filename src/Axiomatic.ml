@@ -362,7 +362,7 @@ module SequentialConsistent =
   struct
     let consistento t =
       fresh (es po rf sc)
-        (execo t es po rf)
+        (PreExecution.execo t es po rf)
         (* build and check [sc] *)
         (Ord.mergeo po rf sc)
         (Ord.totalo sc es)

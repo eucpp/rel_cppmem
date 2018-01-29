@@ -69,7 +69,14 @@ let test_forall ~name ~prog ~interpo ~initstate ~asserto ~pprint =
       Test.Fail ""
     end
 
-let make_litmus ~tactic (module Memory: MemoryModel) {name; prog; regs; locs; quant; assrt} =
+let make_litmus_testcase
+  (type a)
+  (type b)
+  ?(consistento: ((a, b logic) injected -> goal) option)
+  ~tactic
+  (module Memory: MemoryModel with type tt = a and type inner = b)
+  {name; prog; regs; locs; quant; assrt}
+  =
   let module Interpreter = ConcurrentInterpreter(Memory) in
   let module Trace = Utils.Trace(Interpreter.State) in
 
@@ -78,7 +85,7 @@ let make_litmus ~tactic (module Memory: MemoryModel) {name; prog; regs; locs; qu
   let regs = RegStorage.init thrdn @@ Regs.alloc regs in
   let initstate = Interpreter.State.init regs mem in
 
-  let interpo = Interpreter.interpo tactic in
+  let interpo = Interpreter.interpo ?consistento tactic in
   let asserto = match assrt with
   | Safe          -> Interpreter.State.safeo
   | Datarace      -> Interpreter.State.dataraceo
@@ -96,6 +103,10 @@ let make_litmus ~tactic (module Memory: MemoryModel) {name; prog; regs; locs; qu
   let test () = test_fun ~name ~prog ~interpo ~initstate ~asserto ~pprint in
 
   Test.make_testcase ~name ~test
+
+let make_litmus_testsuite ?consistento ~name ~tactic (module Memory: MemoryModel) descs =
+  let tests = List.map (make_litmus_testcase ~tactic (module Memory)) descs in
+  Test.make_testsuite ~name ~tests
 
 (* ************************************************************************** *)
 (* ******************* SequentialConsistent Tests *************************** *)
@@ -227,16 +238,17 @@ let test_CoRR_SC = litmus_test
       )
   ))
 
-let tests_sc_op =
-  let mem_model = (module Operational.SequentialConsistent: MemoryModel) in
-  let make_tests = List.map (make_litmus ~tactic:Tactic.Interleaving mem_model) in
-  Test.make_testsuite ~name:"SeqCst" ~tests: (make_tests [
+let tests_sc_op = make_litmus_testsuite
+  ~name:"SeqCst"
+  ~tactic:Tactic.Interleaving
+  (module Operational.SequentialConsistent)
+  [
     test_SW_SC;
     test_SB_SC;
     test_LB_SC;
     test_MP_SC;
     test_CoRR_SC;
-  ])
+  ]
 
 (* ************************************************************************** *)
 (* ********************** ReleaseAcquire Tests ****************************** *)
@@ -492,10 +504,11 @@ let test_DR2_RA = litmus_test
   ~quant:Exists
   ~assrt:Datarace
 
-let tests_ra_op =
-  let mem_model = (module Operational.ReleaseAcquire: MemoryModel) in
-  let make_tests = List.map (make_litmus ~tactic:Tactic.Interleaving mem_model) in
-  Test.make_testsuite ~name:"RelAcq" ~tests: (make_tests [
+let tests_ra_op = make_litmus_testsuite
+  ~name:"RelAcq"
+  ~tactic:Tactic.Interleaving
+  (module Operational.ReleaseAcquire)
+  [
     test_SW_RA;
     test_SB_RA;
     test_LB_RA;
@@ -507,7 +520,7 @@ let tests_ra_op =
     test_CoRR_RA;
     test_DR1_RA;
     test_DR2_RA;
-  ])
+  ]
 
 let tests = Test.(
   make_testsuite ~name:"Litmus" ~tests: [
