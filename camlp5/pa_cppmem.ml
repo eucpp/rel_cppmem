@@ -128,6 +128,9 @@ EXTEND
       | "if"; e = cppmem_expr; "then"; t1 = cppmem_prog; "else"; t2 = cppmem_prog; "fi" ->
         <:expr< if' $e$ $t1$ $t2$ >>
 
+      | "while"; e = cppmem_expr; "do"; t = cppmem_prog; "od" ->
+        <:expr< while' $e$ $t$ >>
+
       | "repeat"; t = cppmem_prog; "until"; e = cppmem_expr ->
         <:expr< repeat $t$ $e$ >>
 
@@ -160,6 +163,10 @@ EXTEND
         in
         let stmts = stmt_list loc stmts in
         <:expr< prog ($stmts$) >>
+
+      | "skip" ->
+        <:expr< prog [] >>
+
       ]
     ];
 

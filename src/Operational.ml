@@ -724,7 +724,7 @@ module ReleaseAcquire =
       fresh (mo loc v)
         (label === Label.load mo loc v)
         (conde [
-          (* (mo === !!MemOrder.SC ) &&& (load_sco  t'' t' tid loc v); *)
+          (mo === !!MemOrder.SC ) &&& (load_acqo t t' tid loc v);
           (mo === !!MemOrder.ACQ) &&& (load_acqo t t' tid loc v);
           (mo === !!MemOrder.RLX) &&& (load_rlxo t t' tid loc v);
           (mo === !!MemOrder.NA ) &&& (load_nao  t t' tid loc v);
@@ -733,7 +733,7 @@ module ReleaseAcquire =
       fresh (mo loc v)
         (label === Label.store mo loc v)
         (conde [
-          (* (mo === !!MemOrder.SC ) &&& (store_sco  t t' tid loc v); *)
+          (mo === !!MemOrder.SC ) &&& (store_relo t t' tid loc v);
           (mo === !!MemOrder.REL) &&& (store_relo t t' tid loc v);
           (mo === !!MemOrder.RLX) &&& (store_rlxo t t' tid loc v);
           (mo === !!MemOrder.NA ) &&& (store_nao  t t' tid loc v);

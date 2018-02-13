@@ -844,7 +844,7 @@ module State(Memory : MemoryModel) =
         Format.fprintf ff "Registers:@;<1 2>%a@;Memory:@;<1 2>%a"
           RegStorage.pprint regs
           Memory.pprint mem;
-        Format.fprintf ff "@]"
+        Format.fprintf ff "@]@;"
       in
       pprint_logic pp
 
