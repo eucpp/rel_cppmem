@@ -260,12 +260,12 @@ module SequentialInterpreter :
 
         val regso : ?err:Error.ti -> ti -> Regs.ti -> MiniKanren.goal
 
+        val safeo : ti -> MiniKanren.goal
+
         val erroro :
           ?sg:(Error.ti -> MiniKanren.goal) ->
           ?fg:MiniKanren.goal ->
           ti -> MiniKanren.goal
-
-        val safeo : ti -> MiniKanren.goal
       end
 
     module ProgramState :
@@ -273,11 +273,15 @@ module SequentialInterpreter :
         include Utils.Logic
 
         val make : Prog.ti -> State.ti -> ti
+
+        val terminatedo : ti -> MiniKanren.goal
       end
 
-    val evalo : (ProgramState.tt, ProgramState.tt, ProgramState.tl, ProgramState.tl) Semantics.eval
+    val stepo : ProgramState.ti -> ProgramState.ti -> MiniKanren.goal
 
-    val interpo : (Prog.tt, State.tt, State.tt, Prog.tl, State.tl, State.tl) Semantics.interpreter
+    val evalo :
+      po:(ProgramState.ti -> MiniKanren.goal) ->
+      ProgramState.ti -> ProgramState.ti -> MiniKanren.goal
   end
 
 module Tactic :
@@ -300,12 +304,12 @@ module ConcurrentInterpreter(Memory : MemoryModel) :
         val regso : ?err:Error.ti -> ti -> ThreadID.ti -> Regs.ti -> MiniKanren.goal
         val regstorageo : ?err:Error.ti -> ti -> RegStorage.ti -> MiniKanren.goal
 
+        val safeo : ti -> MiniKanren.goal
+
         val erroro :
           ?sg:(Error.ti -> MiniKanren.goal) ->
           ?fg:MiniKanren.goal ->
           ti -> MiniKanren.goal
-
-        val safeo : ti -> MiniKanren.goal
 
         val dataraceo : ti -> MiniKanren.goal
       end
@@ -315,12 +319,14 @@ module ConcurrentInterpreter(Memory : MemoryModel) :
         include Utils.Logic
 
         val make : CProg.ti -> State.ti -> ti
+
+        (* val terminatedo : ?tid:ThreadID.ti -> ti -> MiniKanren.goal *)
       end
 
-    val evalo : Tactic.t -> (ProgramState.tt, ProgramState.tt, ProgramState.tl, ProgramState.tl) Semantics.eval
+    val stepo : ?tid:ThreadID.ti -> ProgramState.ti -> ProgramState.ti -> MiniKanren.goal
 
-    val interpo :
-      ?consistento:(Memory.ti -> MiniKanren.goal) ->
-      Tactic.t ->
-      (CProg.tt, State.tt, State.tt, CProg.tl, State.tl, State.tl) Semantics.interpreter
+    val evalo :
+      tactic:Tactic.t ->
+      po:(ProgramState.ti -> MiniKanren.goal) ->
+      ProgramState.ti -> ProgramState.ti -> MiniKanren.goal
   end

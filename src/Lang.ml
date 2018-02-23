@@ -906,6 +906,18 @@ module ProgramState(Memory : MemoryModel) =
     let progstate = Std.pair
 
     let make p = progstate @@ ThreadManager.make p
+
+    let terminatedo ?tid t =
+      let fk tm = match tid with
+      | None      -> ThreadManager.terminatedo tm
+      | Some tid  ->
+        fresh (thrd)
+          (ThreadManager.geto tm tid thrd)
+          (Thread.terminatedo thrd)
+      in
+      fresh (tm s)
+        (t === progstate tm s)
+        (State.erroro s ~fg:(fk tm))
   end
 
 module Tactic =
@@ -925,18 +937,6 @@ module ConcurrentInterpreter(Memory : MemoryModel) =
     open State
     open ProgramState
 
-    let terminatedo ?tid t =
-      let fk tm = match tid with
-      | None      -> ThreadManager.terminatedo tm
-      | Some tid  ->
-        fresh (thrd)
-          (ThreadManager.geto tm tid thrd)
-          (Thread.terminatedo thrd)
-      in
-      fresh (tm s)
-        (t === progstate tm s)
-        (State.erroro s ~fg:(fk tm))
-
     let stepo tid t t' =
       fresh (tm tm' s s' regs regs' rs rs' mem mem' opterr label)
         (t  === progstate tm  s )
@@ -952,39 +952,47 @@ module ConcurrentInterpreter(Memory : MemoryModel) =
           ~fg:(opterr === none ())
         )
 
-    let rec evalo =
-    let open Semantics.Reduction in
-    let open Tactic in
-    function
-    | SingleThread tid ->
-      make_eval ~irreducibleo:(terminatedo ~tid) @@ stepo tid
-    | Sequential ->
-      fun t t' ->
-        fresh (tm s tids)
-          (t === progstate tm s)
-          (ThreadManager.tidso tm tids)
-          (Utils.foldlo tids ~init:t ~res:t'
-            ~g:(fun tid t t' -> conde
-              [ (evalo (SingleThread tid) t t')
-              (* ; fresh (tm s)
-                  (t === progstate tm s)
-                  (State.erroro s ~sg:(fun _ -> t === t')) *)
-              ])
-          )
-    | Interleaving ->
-      let stepo t t' =
+    let rec make_evalo po stepo =
+      let evalo_norec evalo t t'' = conde
+        [ (po t) &&& (t === t'')
+        ; fresh (t')
+            (stepo t t')
+            (evalo t' t'')
+        ]
+      in
+      Tabling.(tabledrec two) evalo_norec
+
+    let rec evalo ~tactic ~po =
+      let open Tactic in
+      match tactic with
+      | SingleThread tid ->
+        make_evalo po @@ stepo tid
+      | Sequential ->
+        fun t t' ->
+          fresh (tm s tids)
+            (t === progstate tm s)
+            (ThreadManager.tidso tm tids)
+            (Utils.foldlo tids ~init:t ~res:t'
+              ~g:(fun tid t t' -> conde
+                [ (evalo ~tactic:(SingleThread tid) ~po t t')
+                ; fresh (tm s)
+                    (t === progstate tm s)
+                    (State.erroro s ~sg:(fun _ -> t === t'))
+                ])
+            )
+      | Interleaving ->
+        let stepo t t' =
+          fresh (tid)
+            (stepo tid t t')
+        in
+        make_evalo po stepo
+
+    let stepo ?tid t t' =
+      match tid with
+      | Some tid  -> stepo tid t t'
+      | None      ->
         fresh (tid)
           (stepo tid t t')
-      in
-      make_eval ~irreducibleo:terminatedo stepo
-
-    let interpo ?(consistento=fun _ -> success) tactic prog s s' =
-      fresh (t t' tm' regs' mem' opterr')
-        (t  === ProgramState.make prog s)
-        (t' === progstate tm' s')
-        (s' === state regs' mem' opterr')
-        (evalo tactic t t')
-        (consistento mem')
 
   end
 
@@ -1029,15 +1037,15 @@ module SequentialInterpreter =
         include ProgramState(DummyMM)
 
         let make p = progstate @@ ThreadManager.make (cprog [p])
+
+        let terminatedo = terminatedo ~tid:ThreadID.init
       end
 
-    module Helper = ConcurrentInterpreter(DummyMM)
+    module Interpreter = ConcurrentInterpreter(DummyMM)
 
-    let evalo = Helper.evalo (Tactic.SingleThread ThreadID.init)
+    let stepo t t' = Interpreter.stepo ~tid:ThreadID.init t t'
 
-    let interpo prog s s' =
-      fresh (t t' tm')
-        (t  === ProgramState.make prog s)
-        (t' === ProgramState.progstate tm' s')
-        (evalo t t')
+    let evalo ~po t t' =
+      Interpreter.evalo ~tactic:(Tactic.SingleThread ThreadID.init) ~po t t'
+
   end
