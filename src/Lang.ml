@@ -411,10 +411,18 @@ module Stmt =
     let rec pprint ff x = Format.fprintf ff "%a@." ppl x
     and ppl ff x = pprint_logic pp ff x
     and ppseql ff x = pprint_logic ppseq ff x
-    and ppseq ff =
-      let open Std in function
-      | Cons (t, ts) -> Format.fprintf ff "@[<v>%a;@;%a@]" ppl t ppseql ts
-      | Nil          -> ()
+    and ppseq ff xs =
+      let open Std in
+      Format.fprintf ff "@[<v>";
+      begin match xs with
+      | Cons (t, ts) ->
+        Format.fprintf ff "%a;@;%a" ppl t ppseql ts
+      | Cons (t, Value Nil) ->
+        Format.fprintf ff "%a@;" ppl t
+      | Nil -> ()
+      | _   -> assert false
+      end;
+      Format.fprintf ff "@]@."
     and pp ff = T.(function
       | Assert e                ->
         Format.fprintf ff "@[assert (%a)@;@]" Expr.pprint e
@@ -582,7 +590,7 @@ module ThreadLocalStorage(T : Utils.Logic) =
       Format.fprintf ff "@[<v>";
       Storage.pprint (
         fun ff (tid, thrd) ->
-          Format.fprintf ff "Thread #%a:@;<1 2>%a" ThreadID.pprint tid T.pprint thrd
+          Format.fprintf ff "Thread #%a:@;<1 4>%a@;" ThreadID.pprint tid T.pprint thrd
         ) ff thrds;
       Format.fprintf ff "@]";
       in
@@ -663,7 +671,7 @@ module Thread =
 
     let pprint =
       let pp ff = let open T in fun { prog; pid; } ->
-        Format.fprintf ff "@[<v>pid: %a@;@[<v>Code:@;<1 4>%a@;@]@;@]"
+        Format.fprintf ff "@[<v>pid: %a@;@]@[<v>Code:@;<1 4>%a@]@."
           ThreadID.pprint pid
           Prog.pprint prog
       in
@@ -853,17 +861,17 @@ module State(Memory : MemoryModel) =
     let init regs mem = state regs mem (Std.none ())
 
     let memo ?err s mem =
-      fresh (regs)
-        (s === state regs mem (Std.Option.option err))
+      fresh (regs opterr)
+        (s === state regs mem opterr)
 
     let regso ?err s tid rs =
-      fresh (regs mem)
-        (s === state regs mem (Std.Option.option err))
+      fresh (regs mem opterr)
+        (s === state regs mem opterr)
         (ThreadManager.geto regs tid rs)
 
     let regstorageo ?err s regs =
-      fresh (mem)
-        (s === state regs mem (Std.Option.option err))
+      fresh (mem opterr)
+        (s === state regs mem opterr)
 
     let erroro ?(sg=fun _ -> success) ?(fg=failure) s =
       fresh (regs mem opterr err)
@@ -897,7 +905,7 @@ module ProgramState(Memory : MemoryModel) =
 
     let pprint =
       let pp ff (tm, s) =
-        Format.fprintf ff "@[<v>Threads:@;<1 2>%a@;State:@;<1 2>%a@]@."
+        Format.fprintf ff "@[<v>Threads:@;<1 2>%a@]@;@[State:@;<1 2>%a@]@."
           ThreadManager.pprint tm
           State.pprint s
       in
@@ -906,6 +914,10 @@ module ProgramState(Memory : MemoryModel) =
     let progstate = Std.pair
 
     let make p = progstate @@ ThreadManager.make p
+
+    let stateo t s =
+      fresh (tm)
+        (t === progstate tm s)
 
     let terminatedo ?tid t =
       let fk tm = match tid with

@@ -43,7 +43,7 @@ type litmus_test_desc =
 let litmus_test ~name ~prog ~regs ~locs ~quant ~assrt =
   {name; prog; regs; locs; quant; assrt }
 
-let test_exists ~name ~prog ~interpo ~initstate ~asserto ~pprint =
+let test_exists ~name ~prog ~evalo ~terminatedo ~asserto ~initstate ~pprint =
   (* TODO: problem with tabling - we should not keep table between different runs *)
   (* if Stream.is_empty @@ Query.exec intrpo prog initstate then
     begin
@@ -51,30 +51,28 @@ let test_exists ~name ~prog ~interpo ~initstate ~asserto ~pprint =
       Test.Fail ""
     end
   else *)
-    let inputo s = (s === initstate) in
-    let stream = Query.angelic interpo inputo asserto prog in
+    let po t = (terminatedo t) &&& (asserto t) in
+    let stream = Query.eval (evalo ~po) initstate in
     if not @@ Stream.is_empty stream then
       Test.Ok
     else begin
       Format.printf "Litmus test %s fails!@;" name;
-      let outs = Query.exec interpo prog initstate in
+      let outs = Query.eval (evalo ~po:terminatedo) initstate in
       Format.printf "List of outputs:@;";
-      (* input is irrelevant for litmus test, we show only final state *)
       Stream.iter (fun out -> Format.printf "%a@;" pprint out) outs;
       Test.Fail ""
     end
 
-let test_forall ~name ~prog ~interpo ~initstate ~asserto ~pprint =
+let test_forall ~name ~prog ~evalo ~terminatedo ~asserto ~initstate ~pprint =
   (* check that test is runnable *)
-  if Stream.is_empty @@ Query.exec interpo prog initstate then
+  (* if Stream.is_empty @@ Query.exec interpo prog initstate then
     begin
       Format.printf "Litmus test is not runnable@;";
       Test.Fail ""
     end
-  else
-    let inputo s = (s === initstate) in
-    let asserto _ = asserto in
-    let stream = Query.verify ~interpo ~asserto inputo prog in
+  else *)
+    let po t = (terminatedo t) &&& (asserto t) in
+    let stream = Query.eval (evalo ~po) initstate in
     if Stream.is_empty stream then
       Test.Ok
     else begin
@@ -82,28 +80,32 @@ let test_forall ~name ~prog ~interpo ~initstate ~asserto ~pprint =
       let cexs = Stream.take stream in
       Format.printf "List of counterexamples:@;";
       (* input is irrelevant for litmus test, we show only final state *)
-      List.iter (fun (_, cex) -> Format.printf "%a@;" pprint cex) cexs;
+      List.iter (fun cex -> Format.printf "%a@;" pprint cex) cexs;
       Test.Fail ""
     end
 
 let make_litmus_testcase
   (type a)
   (type b)
-  ?(consistento: ((a, b logic) injected -> goal) option)
+  ?(consistento: ((a, b logic) injected -> goal) = fun _ -> success)
   ~tactic
   (module Memory: MemoryModel with type tt = a and type inner = b)
   {name; prog; regs; locs; quant; assrt}
   =
   let module Interpreter = ConcurrentInterpreter(Memory) in
-  let module Trace = Utils.Trace(Interpreter.State) in
-
+  let module Trace = Utils.Trace(Interpreter.ProgramState) in
   let thrdn = thrdnum prog in
   let mem = Memory.alloc ~thrdn locs in
   let regs = RegStorage.init thrdn @@ Regs.alloc regs in
-  let initstate = Interpreter.State.init regs mem in
-
-  let interpo = Interpreter.interpo ?consistento tactic in
-  let asserto = match assrt with
+  let initstate = Interpreter.(ProgramState.make prog @@ State.init regs mem) in
+  let terminatedo t =
+    fresh (s m)
+      (Interpreter.ProgramState.terminatedo t)
+      (Interpreter.ProgramState.stateo t s)
+      (Interpreter.State.memo s m)
+      (consistento m)
+  in
+  let state_asserto = match assrt with
   | Safe          -> Interpreter.State.safeo
   | Datarace      -> Interpreter.State.dataraceo
   | RegsAssert g  -> fun s ->
@@ -111,14 +113,21 @@ let make_litmus_testcase
       (Interpreter.State.regstorageo s r)
       (g r)
   in
-  let pprint = Trace.trace in
-
+  let asserto t =
+    fresh (s)
+      (Interpreter.ProgramState.stateo t s)
+      (match quant with
+        | Exists ->    state_asserto s
+        | Forall -> ?~(state_asserto s)
+      )
+  in
+  let evalo = Interpreter.evalo ~tactic in
   let test_fun = match quant with
   | Exists -> test_exists
   | Forall -> test_forall
   in
-  let test () = test_fun ~name ~prog ~interpo ~initstate ~asserto ~pprint in
-
+  let pprint = Trace.trace in
+  let test () = test_fun ~name ~prog ~evalo ~terminatedo ~asserto ~initstate ~pprint in
   Test.make_testcase ~name ~test
 
 let make_litmus_testsuite

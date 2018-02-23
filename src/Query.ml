@@ -17,7 +17,12 @@
 
 open MiniKanren
 
-type ('at, 'bt, 'al, 'bl) assertion =
+let eval evalo t =
+  run q
+    (fun q  -> evalo t q)
+    (fun qs -> qs)
+
+(* type ('at, 'bt, 'al, 'bl) assertion =
   ('at, 'al) Semantics.Input.ti -> ('bt, 'bl) Semantics.Output.ti -> MiniKanren.goal
 
 let exec intrpo prog input =
@@ -65,4 +70,4 @@ let synth ?positive ?negative interpo tplo =
     (* ensure that program doesn't evalute on negative examples *)
     (nexso prog)
   )
-  (fun qs -> qs)
+  (fun qs -> qs) *)

@@ -274,6 +274,8 @@ module SequentialInterpreter :
 
         val make : Prog.ti -> State.ti -> ti
 
+        val stateo : ti -> State.ti -> MiniKanren.goal
+
         val terminatedo : ti -> MiniKanren.goal
       end
 
@@ -320,7 +322,9 @@ module ConcurrentInterpreter(Memory : MemoryModel) :
 
         val make : CProg.ti -> State.ti -> ti
 
-        (* val terminatedo : ?tid:ThreadID.ti -> ti -> MiniKanren.goal *)
+        val stateo : ti -> State.ti -> MiniKanren.goal
+
+        val terminatedo : ?tid:ThreadID.ti -> ti -> MiniKanren.goal
       end
 
     val stepo : ?tid:ThreadID.ti -> ProgramState.ti -> ProgramState.ti -> MiniKanren.goal
