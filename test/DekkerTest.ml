@@ -69,6 +69,92 @@ let prog_Dekker = <:cppmem_par<
   }}}
 >>
 
+let thrdn = 2
+let locs = ["x"; "y"; "turn"; "v"]
+let regs = ["r1"; "r2"; "r3"]
+
+let test_SC =
+  let module Memory = Operational.SequentialConsistent in
+  let module Interpreter = ConcurrentInterpreter(Memory) in
+  let module Trace = Utils.Trace(Interpreter.ProgramState) in
+
+  let name = "SC" in
+
+  let mem = Memory.alloc ~thrdn locs in
+  let regs = RegStorage.init thrdn @@ Regs.alloc regs in
+  let initstate = Interpreter.(ProgramState.make prog_Dekker @@ State.init regs mem) in
+  let asserto t =
+    fresh (s m)
+      (Interpreter.ProgramState.terminatedo t)
+      (Interpreter.ProgramState.stateo t s)
+      (conde
+        [ (Interpreter.State.memo s m) &&& (Memory.checko m [("v", 1)])
+        ; (Interpreter.State.erroro s)
+        ]
+      )
+  in
+  let evalo = Interpreter.evalo ~tactic:Tactic.Interleaving ~po:asserto in
+
+  let pprint = Trace.trace in
+
+  let test () =
+    let stream = Query.eval evalo initstate in
+    if Stream.is_empty stream then
+      Test.Ok
+    else begin
+      Format.printf "Dekker test (%s) fails!@;" name;
+      let cexs = Stream.take stream in
+      Format.printf "List of counterexamples:@;";
+      List.iter (fun cex -> Format.printf "%a@;" pprint cex) cexs;
+      Test.Fail ""
+    end
+  in
+
+  Test.make_testcase ~name ~test
+
+
+let test_RA =
+  let module Memory = Operational.ReleaseAcquire in
+  let module Interpreter = ConcurrentInterpreter(Memory) in
+  let module Trace = Utils.Trace(Interpreter.ProgramState) in
+
+  let name = "RA" in
+
+  let mem = Memory.alloc ~thrdn locs in
+  let regs = RegStorage.init thrdn @@ Regs.alloc regs in
+  let initstate = Interpreter.(ProgramState.make prog_Dekker @@ State.init regs mem) in
+  let asserto t =
+    fresh (s m)
+      (Interpreter.ProgramState.terminatedo t)
+      (Interpreter.ProgramState.stateo t s)
+      (Interpreter.State.memo s m)
+      (Memory.checko m [("v", 1)])
+  in
+  let evalo = Interpreter.evalo ~tactic:Tactic.Interleaving in
+
+  let pprint = Trace.trace in
+
+  let test () =
+    let stream = Query.eval (evalo ~po:asserto) initstate in
+    if not @@ Stream.is_empty stream then
+      Test.Ok
+    else begin
+      Format.printf "Dekker test (%s) fails!@;" name;
+      let outs = Query.eval (evalo ~po:Interpreter.ProgramState.terminatedo) initstate in
+      Format.printf "List of outputs:@;";
+      Stream.iter (fun out -> Format.printf "%a@;" pprint out) outs;
+      Test.Fail ""
+    end
+  in
+
+  Test.make_testcase ~name ~test
+
+let tests = Test.make_testsuite ~name:"Dekker" ~tests:
+  [
+    test_SC;
+    test_RA;
+  ]
+
 (* let () =
   let module Memory = Operational.SequentialConsistent in
   let module Interpreter = ConcurrentInterpreter(Memory) in
@@ -87,24 +173,3 @@ let prog_Dekker = <:cppmem_par<
   Stream.iter (fun s ->
     Format.printf "%a" Trace.trace s
   ) stream *)
-
-let () =
-  let module Memory = Operational.ReleaseAcquire in
-  let module Interpreter = ConcurrentInterpreter(Memory) in
-  let module Trace = Utils.Trace(Interpreter.State) in
-
-  let thrdn = 2 in
-  let locs = ["x"; "y"; "turn"; "v"] in
-  let regs = ["r1"; "r2"; "r3"] in
-
-  let mem = Memory.alloc ~thrdn locs in
-  let regs = RegStorage.init thrdn @@ Regs.alloc regs in
-  let initstate = Interpreter.State.init regs mem in
-
-  let stream = Query.exec (Interpreter.interpo Tactic.Interleaving) prog_Dekker initstate in
-
-  Stream.iter (fun s ->
-    Format.printf "%a" Trace.trace s
-  ) stream
-
-let tests = Test.make_testsuite ~name:"Dekker" ~tests: []

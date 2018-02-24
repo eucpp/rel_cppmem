@@ -29,7 +29,10 @@ type memory_model = SC | RelAcq
 
 type quantifier = Exists | Forall
 
-type assertion = Safe | Datarace | RegsAssert of (RegStorage.ti -> MiniKanren.goal)
+type assertion =
+  | Safe
+  | Datarace
+  | RegsAssert of (RegStorage.ti -> MiniKanren.goal)
 
 type litmus_test_desc =
   { name      : string

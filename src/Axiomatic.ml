@@ -347,6 +347,8 @@ module PreExecution =
     let alloc ~thrdn locs =
       init ~thrdn @@ List.map (fun l -> (l, 0)) locs
 
+    let checko t lvs = success
+
     let stepo tid label t t' =
       fresh (ies pes pes' prexec prexec')
         (t  === pair ies pes )

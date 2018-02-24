@@ -70,6 +70,9 @@ module SequentialConsistent =
 
     let pprint = ValueStorage.pprint
 
+    let checko t lvs =
+      Storage.checko t @@ List.map (fun (l, v) -> (Loc.loc l, Value.integer v)) lvs
+
     let load_sco t t' tid loc value =
       (t === t') &&&
       (ValueStorage.reado t loc value)
@@ -530,6 +533,13 @@ module ReleaseAcquire =
       in
       pprint_logic pp
 
+    let checko t lvs =
+      fresh (thrds story na sc)
+        (t === state thrds story na sc)
+        (?& (ListLabels.map lvs ~f:(fun (l, v) ->
+          MemStory.last_valueo story (Loc.loc l) (Value.integer v)
+        )))
+
     let spawno t t' pid tid1 tid2 =
       fresh (thrds thrds' thrds'' pfront tfront1 tfront2 story na sc)
         (t  === state thrds   story na sc)
@@ -708,11 +718,6 @@ module ReleaseAcquire =
         (MemStory.shapeo story locs)
         (ViewFront.shapeo na locs)
         (ViewFront.shapeo sc locs)
-
-    let checko t loc v =
-      fresh (tree story na sc)
-        (t === state tree story na sc)
-        (MemStory.last_valueo story loc v)
 
     let stepo tid label t t' = conde [
       (conde

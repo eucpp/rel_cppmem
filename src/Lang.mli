@@ -247,6 +247,8 @@ module type MemoryModel =
     val alloc : thrdn:int -> string list -> ti
     val init  : thrdn:int -> (string * int) list -> ti
 
+    val checko : ti -> (string * int) list -> MiniKanren.goal
+
     val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
   end
 
