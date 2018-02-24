@@ -25,52 +25,36 @@ open Lang.Loc
 open Lang.Reg
 open Lang.Value
 
-let prog_Dekker = <:cppmem_par<
+let prog_CohenLock = <:cppmem_par<
   spw {{{
-      x_sc := 1;
-      r1 := y_sc;
-      while (r1) do
-        r2 := turn_sc;
-        if (r2 != 0) then
-          x_sc := 0;
-          repeat r2 := turn_sc until (r2 = 0);
-          x_sc := 1
-        else
-          skip
-        fi;
-        r1 := y_sc
-      od;
-      (* start of critical section *)
-      r3 := v_sc;
-      v_sc := (r3 + 1);
-      (* end of critical section *)
-      turn_sc := 1;
-      x_sc := 0
+      r1 := choice(1, 2);
+      x_rel := r1;
+      repeat r2 := y_acq until (r2);
+      if (r1 = r2) then
+        (* start of critical section *)
+        r3 := d_na;
+        d_na := (r3 + 1)
+        (* end of critical section *)
+      else
+        skip
+      fi
   |||
-      y_sc := 1;
-      r1 := x_sc;
-      while (r1) do
-        r2 := turn_sc;
-        if (r2 != 1) then
-          y_sc := 0;
-          repeat r2 := turn_sc until (r2 = 1);
-          y_sc := 1
-        else
-          skip
-        fi;
-        r1 := x_sc
-      od;
+    r1 := choice(1, 2);
+    y_rel := r1;
+    repeat r2 := x_acq until (r2);
+    if (r1 != r2) then
       (* start of critical section *)
-      r3 := v_sc;
-      v_sc := (r3 + 1);
+      r3 := d_na;
+      d_na := (r3 + 1)
       (* end of critical section *)
-      turn_sc := 0;
-      y_sc := 0
+    else
+      skip
+    fi
   }}}
 >>
 
 let thrdn = 2
-let locs = ["x"; "y"; "turn"; "v"]
+let locs = ["x"; "y"; "d"]
 let regs = ["r1"; "r2"; "r3"]
 
 let test_SC =
@@ -82,13 +66,13 @@ let test_SC =
 
   let mem = Memory.alloc ~thrdn locs in
   let regs = RegStorage.init thrdn @@ Regs.alloc regs in
-  let initstate = Interpreter.(ProgramState.make prog_Dekker @@ State.init regs mem) in
+  let initstate = Interpreter.(ProgramState.make prog_CohenLock @@ State.init regs mem) in
   let asserto t =
     fresh (s m)
       (Interpreter.ProgramState.terminatedo t)
       (Interpreter.ProgramState.stateo t s)
       (conde
-        [ (Interpreter.State.memo s m) &&& (Memory.checko m [("v", 1)])
+        [ (Interpreter.State.memo s m) &&& (Memory.checko m [("d", 2)])
         ; (Interpreter.State.erroro s)
         ]
       )
@@ -102,7 +86,7 @@ let test_SC =
     if Stream.is_empty stream then
       Test.Ok
     else begin
-      Format.printf "Dekker test (%s) fails!@;" name;
+      Format.printf "Cohen Lock test (%s) fails!@;" name;
       let cexs = Stream.take stream in
       Format.printf "List of counterexamples:@;";
       List.iter (fun cex -> Format.printf "%a@;" pprint cex) cexs;
@@ -122,13 +106,16 @@ let test_RA =
 
   let mem = Memory.alloc ~thrdn locs in
   let regs = RegStorage.init thrdn @@ Regs.alloc regs in
-  let initstate = Interpreter.(ProgramState.make prog_Dekker @@ State.init regs mem) in
+  let initstate = Interpreter.(ProgramState.make prog_CohenLock @@ State.init regs mem) in
   let asserto t =
     fresh (s m)
       (Interpreter.ProgramState.terminatedo t)
       (Interpreter.ProgramState.stateo t s)
-      (Interpreter.State.memo s m)
-      (Memory.checko m [("v", 1)])
+      (conde
+        [ (Interpreter.State.memo s m) &&& (Memory.checko m [("d", 2)])
+        ; (Interpreter.State.erroro s)
+        ]
+      )
   in
   let evalo = Interpreter.evalo ~tactic:Tactic.Interleaving in
 
@@ -136,40 +123,21 @@ let test_RA =
 
   let test () =
     let stream = Query.eval (evalo ~po:asserto) initstate in
-    if not @@ Stream.is_empty stream then
+    if Stream.is_empty stream then
       Test.Ok
     else begin
-      Format.printf "Dekker test (%s) fails!@;" name;
-      let outs = Query.eval (evalo ~po:Interpreter.ProgramState.terminatedo) initstate in
-      Format.printf "List of outputs:@;";
-      Stream.iter (fun out -> Format.printf "%a@;" pprint out) outs;
+      Format.printf "Cohen Lock test (%s) fails!@;" name;
+      let cexs = Stream.take stream in
+      Format.printf "List of counterexamples:@;";
+      List.iter (fun cex -> Format.printf "%a@;" pprint cex) cexs;
       Test.Fail ""
     end
   in
 
   Test.make_testcase ~name ~test
 
-let tests = Test.make_testsuite ~name:"Dekker" ~tests:
+let tests = Test.make_testsuite ~name:"CohenLock" ~tests:
   [
     test_SC;
     test_RA;
   ]
-
-(* let () =
-  let module Memory = Operational.SequentialConsistent in
-  let module Interpreter = ConcurrentInterpreter(Memory) in
-  let module Trace = Utils.Trace(Interpreter.State) in
-
-  let thrdn = 2 in
-  let locs = ["x"; "y"; "turn"; "v"] in
-  let regs = ["r1"; "r2"; "r3"] in
-
-  let mem = Memory.alloc ~thrdn locs in
-  let regs = RegStorage.init thrdn @@ Regs.alloc regs in
-  let initstate = Interpreter.State.init regs mem in
-
-  let stream = Query.exec (Interpreter.interpo Tactic.Interleaving) prog_Dekker initstate in
-
-  Stream.iter (fun s ->
-    Format.printf "%a" Trace.trace s
-  ) stream *)

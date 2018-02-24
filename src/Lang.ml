@@ -276,6 +276,7 @@ module Expr =
           | Const   of 'value
           | Unop    of 'uop * 't
           | Binop   of 'bop * 't * 't
+          | Choice  of 't * 't
         with gmap, show
 
         let fmap fa fb fc fd fe x = GT.gmap(t) fa fb fc fd fe x
@@ -294,6 +295,7 @@ module Expr =
     let const v       = inj @@ FT.distrib @@ T.Const v
     let unop op e     = inj @@ FT.distrib @@ T.Unop (op, e)
     let binop op l r  = inj @@ FT.distrib @@ T.Binop (op, l, r)
+    let choice l r    = inj @@ FT.distrib @@ T.Choice (l, r)
 
     let rec reify h = FT.reify (Reg.reify) (Value.reify) (Uop.reify) (Bop.reify) reify h
 
@@ -306,6 +308,7 @@ module Expr =
         | Const n          -> Format.fprintf ff "@[%a@]" Value.pprint n
         | Unop (op, e)     -> Format.fprintf ff "@[%a (%a)@]" Uop.pprint op pprint e
         | Binop (op, l, r) -> Format.fprintf ff "@[%a %a %a@]" pprint l Bop.pprint op pprint r
+        | Choice (l, r)    -> Format.fprintf ff "@[choice(%a, %a)@]" pprint l pprint r
       in
       pprint_logic s ff x
     )
@@ -352,7 +355,16 @@ module Expr =
             (nullo x)     &&& (not_nullo y) &&& (v === (integer 0));
             (not_nullo x) &&& (not_nullo y) &&& (v === (integer 1));
           ]);
-        ])
+        ]);
+
+      fresh (l r)
+        (e === choice l r)
+        (conde
+          [ (evalo rs l v)
+          ; (evalo rs r v)
+          ]
+        )
+
     ])
 
   end

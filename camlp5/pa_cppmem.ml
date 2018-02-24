@@ -40,7 +40,11 @@ EXTEND
   cppmem_eoi: [ [ x = cppmem_prog; EOI -> x ] ];
 
   cppmem_expr:
-    [ [ x = cppmem_expr; "&&"; y = cppmem_expr ->
+    [ [ "choice"; "("; x = cppmem_expr; ","; y = cppmem_expr; ")" ->
+        <:expr< choice $x$ $y$ >>
+      ]
+
+    | [ x = cppmem_expr; "&&"; y = cppmem_expr ->
         <:expr< binop (Bop.bop "&&") $x$ $y$ >>
 
       | x = cppmem_expr; "||"; y = cppmem_expr ->

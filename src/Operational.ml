@@ -95,15 +95,19 @@ module SequentialConsistent =
       ) &&& (t === t');
 
       fresh (mo loc v)
-        (label === Label.load !!MemOrder.SC loc v)
+        (* (mo === !!MemOrder.SC) *)
+        (label === Label.load mo loc v)
         (load_sco t t' tid loc v);
 
       fresh (mo loc v)
-        (label === Label.store !!MemOrder.SC loc v)
+        (* (mo === !!MemOrder.SC) *)
+        (label === Label.store mo loc v)
         (store_sco t t' tid loc v);
 
-      fresh (loc e d v)
-        (label === Label.cas !!MemOrder.SC !!MemOrder.SC loc e d v)
+      fresh (mo1 mo2 loc e d v)
+        (* (mo1 === !!MemOrder.SC) *)
+        (* (mo2 === !!MemOrder.SC) *)
+        (label === Label.cas mo1 mo2 loc e d v)
         (cas_sco t t' tid loc e d v);
     ]
   end

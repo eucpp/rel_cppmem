@@ -134,6 +134,7 @@ module Expr :
     val const     : Value.ti -> ti
     val unop      : Uop.ti -> ti -> ti
     val binop     : Bop.ti -> ti -> ti -> ti
+    val choice    : ti -> ti -> ti
 
     val show : tl -> string
   end
