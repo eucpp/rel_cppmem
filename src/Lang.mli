@@ -88,7 +88,7 @@ module Regs :
 
 module Uop :
   sig
-    type tt = NOT
+    type tt
 
     type tl = tt MiniKanren.logic
 
@@ -103,7 +103,7 @@ module Uop :
 
 module Bop :
   sig
-    type tt = ADD | MUL | EQ | NEQ | LT | LE | GT | GE | OR | AND
+    type tt
 
     type tl = tt MiniKanren.logic
 
@@ -156,10 +156,8 @@ module Stmt :
     val repeat    : Prog.ti -> Expr.ti -> ti
     val load      : MemOrder.ti -> Loc.ti -> Reg.ti -> ti
     val store     : MemOrder.ti -> Loc.ti -> Expr.ti     -> ti
-    val cas       : MemOrder.ti -> MemOrder.ti -> Loc.ti -> Expr.ti -> Expr.ti -> ti
-    (* val seq       : ti -> ti -> ti *)
+    val cas       : MemOrder.ti -> MemOrder.ti -> Loc.ti -> Expr.ti -> Expr.ti -> Reg.ti -> ti
     val spw       : Prog.ti -> Prog.ti -> ti
-    (* val par       : ti -> ti -> ti *)
     val return    : (Reg.tt, Reg.tl) MiniKanren.Std.List.groundi -> ti
 
     val show : tl -> string

@@ -95,6 +95,8 @@ module Value =
     let addo = Std.Nat.addo
     let mulo = Std.Nat.mulo
 
+    let subo x y z = addo y z x
+
     let eqo = (===)
     let nqo = (=/=)
     let lto = Std.Nat.(<)
@@ -196,7 +198,7 @@ module Uop =
 
 module Bop =
   struct
-    type tt = ADD | MUL | EQ | NEQ | LT | LE | GT | GE | OR | AND
+    type tt = ADD | SUB | MUL | EQ | NEQ | LT | LE | GT | GE | OR | AND
 
     type tl = tt MiniKanren.logic
 
@@ -204,6 +206,7 @@ module Bop =
 
     let of_string = function
       | "+"   -> ADD
+      | "-"   -> SUB
       | "*"   -> MUL
       | "="   -> EQ
       | "!="  -> NEQ
@@ -216,6 +219,7 @@ module Bop =
 
     let to_string = function
       | ADD   -> "+"
+      | SUB   -> "-"
       | MUL   -> "*"
       | EQ    -> "="
       | NEQ   -> "!="
@@ -334,6 +338,7 @@ module Expr =
         (evalo rs r y)
         (conde [
           (op === !!Bop.ADD) &&& (addo x y v);
+          (op === !!Bop.SUB) &&& (subo x y v);
           (op === !!Bop.MUL) &&& (mulo x y v);
           (op === !!Bop.EQ ) &&& (conde [(eqo x y) &&& (v === (integer 1)); (nqo x y) &&& (v === (integer 0))]);
           (op === !!Bop.NEQ) &&& (conde [(nqo x y) &&& (v === (integer 1)); (eqo x y) &&& (v === (integer 0))]);
@@ -381,7 +386,7 @@ module Stmt =
           | Repeat   of 'ts * 'e
           | Load     of 'mo * 'loc * 'reg
           | Store    of 'mo * 'loc * 'e
-          | Cas      of 'mo * 'mo * 'loc * 'e * 'e
+          | Cas      of 'mo * 'mo * 'loc * 'e * 'e * 'reg
           | Spw      of 'ts * 'ts
           | Return   of 'regs
         with gmap, show
@@ -398,16 +403,16 @@ module Stmt =
 
     module FT = Fmap6(T)
 
-    let assertion e         = inj @@ FT.distrib @@ T.Assert e
-    let asgn r e            = inj @@ FT.distrib @@ T.Asgn (r, e)
-    let if' e l r           = inj @@ FT.distrib @@ T.If (e, l, r)
-    let while' e t          = inj @@ FT.distrib @@ T.While (e, t)
-    let repeat t e          = inj @@ FT.distrib @@ T.Repeat (t, e)
-    let load mo l r         = inj @@ FT.distrib @@ T.Load (mo, l, r)
-    let store mo l t        = inj @@ FT.distrib @@ T.Store (mo, l, t)
-    let cas mo1 mo2 l e1 e2 = inj @@ FT.distrib @@ T.Cas (mo1, mo2, l, e1, e2)
-    let spw t1 t2           = inj @@ FT.distrib @@ T.Spw (t1, t2)
-    let return rs           = inj @@ FT.distrib @@ T.Return rs
+    let assertion e           = inj @@ FT.distrib @@ T.Assert e
+    let asgn r e              = inj @@ FT.distrib @@ T.Asgn (r, e)
+    let if' e l r             = inj @@ FT.distrib @@ T.If (e, l, r)
+    let while' e t            = inj @@ FT.distrib @@ T.While (e, t)
+    let repeat t e            = inj @@ FT.distrib @@ T.Repeat (t, e)
+    let load mo l r           = inj @@ FT.distrib @@ T.Load (mo, l, r)
+    let store mo l t          = inj @@ FT.distrib @@ T.Store (mo, l, t)
+    let cas mo1 mo2 l e1 e2 r = inj @@ FT.distrib @@ T.Cas (mo1, mo2, l, e1, e2, r)
+    let spw t1 t2             = inj @@ FT.distrib @@ T.Spw (t1, t2)
+    let return rs             = inj @@ FT.distrib @@ T.Return rs
 
     let skip = Std.nil
     let single s = Std.(%) s (Std.nil ())
@@ -450,8 +455,8 @@ module Stmt =
         Format.fprintf ff "@[%a := %a_%a@]" Reg.pprint r Loc.pprint l MemOrder.pprint m
       | Store (m, l, e)         ->
         Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" Loc.pprint l MemOrder.pprint m Expr.pprint e
-      | Cas (m1, m2, l, e, d)   ->
-        Format.fprintf ff "@[cas_%a_%a(%a, %a, %a)@]" MemOrder.pprint m1 MemOrder.pprint m2 Loc.pprint l Expr.pprint e Expr.pprint d
+      | Cas (m1, m2, l, e, d, r)   ->
+        Format.fprintf ff "@[%a := cas_%a_%a(%a, %a, %a)@]" Reg.pprint r MemOrder.pprint m1 MemOrder.pprint m2 Loc.pprint l Expr.pprint e Expr.pprint d
       | Spw (t1, t2)            ->
         Format.fprintf ff "@[<v>spw {{{@;<1 4>%a@;|||@;<1 4>%a@;}}}@]" ppseql t1 ppseql t2
       | Return rs               ->
@@ -769,6 +774,16 @@ module Thread =
         (rs === rs')
         (Expr.evalo rs e v)
 
+    let caso label rs rs' t t' =
+      fresh (prog prog' pid mo1 mo2 l r exp expv des desv v)
+        (t  === thrd prog  pid)
+        (t' === thrd prog' pid)
+        (prog === (cas mo1 mo2 l exp des r) % prog')
+        (label === Label.cas mo1 mo2 l expv desv v)
+        (Expr.evalo rs exp expv)
+        (Expr.evalo rs des desv)
+        (Regs.writeo rs rs' r v)
+
     let dataraceo label rs rs' t t' =
       fresh (prog prog' pid stmt mo l r e)
         (t  === thrd prog  pid)
@@ -780,7 +795,7 @@ module Thread =
 
     let stepo label rs rs' t t' =
       let rules =
-        [asserto; asgno; ifo; whileo; repeato; loado; storeo; dataraceo]
+        [asserto; asgno; ifo; whileo; repeato; loado; storeo; caso; dataraceo]
       in
       conde @@ List.map (fun rule -> rule label rs rs' t t') rules
 

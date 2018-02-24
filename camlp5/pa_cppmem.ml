@@ -74,6 +74,10 @@ EXTEND
         <:expr< binop (Bop.bop "+") $x$ $y$ >>
       ]
 
+    | [ x = cppmem_expr; "-"; y = cppmem_expr ->
+        <:expr< binop (Bop.bop "-") $x$ $y$ >>
+      ]
+
     | [ x = cppmem_expr; "*"; y = cppmem_expr ->
         <:expr< binop (Bop.bop "*") $x$ $y$ >>
       ]
@@ -86,13 +90,6 @@ EXTEND
 
       | "!"; e = cppmem_expr ->
         <:expr< unop (Uop.uop "!") $e$ >>
-
-      (* | "CAS"; "("; mo1 = LIDENT; ","; mo2 = LIDENT; ","; x = LIDENT; ","; expected = INT; ","; desired = INT; ")" ->
-        let mo1 = <:expr< MemOrder.mo $str:mo1$ >> in
-        let mo2 = <:expr< MemOrder.mo $str:mo2$ >> in
-        let expected = <:expr< const (Value.integer $int:expected$) >> in
-        let desired = <:expr< const (Value.integer $int:desired$) >> in
-        <:expr< cas $mo1$ $mo2$ (Loc.loc $str:x$) $expected$ $desired$ >> *)
 
       | "("; x = cppmem_expr; ")" -> x
       ]
@@ -110,13 +107,10 @@ EXTEND
         else
         <:expr< asgn (Reg.reg $str:x$) $e$ >>
 
-        (* | "load"; x = LIDENT; r = LIDENT ->
-          let l::mo::[] = String.split_on_char '_' x in
-          <:expr< load (MemOrder.mo $str:mo$) (Loc.loc $str:l$) (Reg.reg $str:r$) >>
-
-        | "store"; x = LIDENT; e = cppmem_expr ->
-          let l::mo::[] = String.split_on_char '_' x in
-          <:expr< store (MemOrder.mo $str:mo$) (Loc.loc $str:l$) $e$ >> *)
+      | r = LIDENT; ":="; "CAS"; "("; mo1 = LIDENT; ","; mo2 = LIDENT; ","; x = LIDENT; ","; expected = cppmem_expr; ","; desired = cppmem_expr; ")" ->
+        let mo1 = <:expr< MemOrder.mo $str:mo1$ >> in
+        let mo2 = <:expr< MemOrder.mo $str:mo2$ >> in
+        <:expr< cas $mo1$ $mo2$ (Loc.loc $str:x$) $expected$ $desired$ (Reg.reg $str:r$) >>
 
       | x = LIDENT; ":="; y = LIDENT ->
         if String.contains y '_' then

@@ -675,6 +675,19 @@ module ReleaseAcquire =
         (fence_relo t t' tid ~loc)
         (store_rlxo t' t'' tid loc value ts)
 
+    let cas_rao t t'' tid loc expected desired value =
+      fresh (t' ts ts')
+        (load_acqo t t' tid loc value ts)
+        (conde
+          [ (Lang.Value.nqo value expected) &&& (t' === t'')
+          ; fresh (thrds story na sc  ts')
+              (t' === state thrds story na sc)
+              (Lang.Value.eqo value expected)
+              (MemStory.last_tso story loc ts)
+              (store_relo t' t'' tid loc desired ts')
+          ]
+        )
+
     let load_sco t t' tid loc value ts = Timestamp.(
       fresh (thrds story na sc sc_ts ts)
         (t === state thrds story na sc)
@@ -747,6 +760,11 @@ module ReleaseAcquire =
           (mo === !!MemOrder.RLX) &&& (store_rlxo t t' tid loc v);
           (mo === !!MemOrder.NA ) &&& (store_nao  t t' tid loc v);
         ]);
+
+      fresh (mo1 mo2 loc exp des v)
+        (label === Label.cas mo1 mo2 loc exp des v)
+        (* TODO: different mo combinations *)
+        (cas_rao t t' tid loc exp des v);
 
       fresh (loc mo v)
         (label === Label.error (Error.datarace mo loc))

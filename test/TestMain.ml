@@ -34,6 +34,7 @@ let tests = Test.(
     LitmusTest.tests;
     DekkerLockTest.tests;
     CohenLockTest.tests;
+    BarrierTest.tests;
     (* SynthTest.tests; *)
   ]
 )
