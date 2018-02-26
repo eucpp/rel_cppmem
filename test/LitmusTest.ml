@@ -92,10 +92,10 @@ let make_litmus_testcase
   (type b)
   ?(consistento: ((a, b logic) injected -> goal) = fun _ -> success)
   ~tactic
-  (module Memory: MemoryModel with type tt = a and type inner = b)
+  (module Memory: Operational.MemoryModel with type tt = a and type inner = b)
   {name; prog; regs; locs; quant; assrt}
   =
-  let module Interpreter = ConcurrentInterpreter(Memory) in
+  let module Interpreter = Operational.ConcurrentInterpreter(Memory) in
   let module Trace = Utils.Trace(Interpreter.ProgramState) in
   let thrdn = thrdnum prog in
   let mem = Memory.alloc ~thrdn locs in
@@ -139,7 +139,7 @@ let make_litmus_testsuite
   ?(consistento: ((a, b logic) injected -> goal) option)
   ~name
   ~tactic
-  (module Memory: MemoryModel with type tt = a and type inner = b)
+  (module Memory: Operational.MemoryModel with type tt = a and type inner = b)
   descs
   =
   let tests = List.map (make_litmus_testcase ?consistento ~tactic (module Memory)) descs in
@@ -277,7 +277,7 @@ let test_CoRR_SC = litmus_test
 
 let tests_sc_op = make_litmus_testsuite
   ~name:"SeqCst"
-  ~tactic:Tactic.Interleaving
+  ~tactic:Operational.Tactic.Interleaving
   (module Operational.SequentialConsistent)
   [
     test_SW_SC;
@@ -287,7 +287,7 @@ let tests_sc_op = make_litmus_testsuite
     test_CoRR_SC;
   ]
 
-let tests_sc_axiom = make_litmus_testsuite
+(* let tests_sc_axiom = make_litmus_testsuite
   ~name:"SeqCst"
   ~tactic:Tactic.Sequential
   ~consistento:Axiomatic.SequentialConsistent.consistento
@@ -298,7 +298,7 @@ let tests_sc_axiom = make_litmus_testsuite
     test_LB_SC;
     test_MP_SC;
     test_CoRR_SC;
-  ]
+  ] *)
 
 (* ************************************************************************** *)
 (* ********************** ReleaseAcquire Tests ****************************** *)
@@ -556,7 +556,7 @@ let test_DR2_RA = litmus_test
 
 let tests_ra_op = make_litmus_testsuite
   ~name:"RelAcq"
-  ~tactic:Tactic.Interleaving
+  ~tactic:Operational.Tactic.Interleaving
   (module Operational.ReleaseAcquire)
   [
     test_SW_RA;

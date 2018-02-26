@@ -75,7 +75,7 @@ let regs = ["r1"; "r2"; "r3"]
 
 let test_SC =
   let module Memory = Operational.SequentialConsistent in
-  let module Interpreter = ConcurrentInterpreter(Memory) in
+  let module Interpreter = Operational.ConcurrentInterpreter(Memory) in
   let module Trace = Utils.Trace(Interpreter.ProgramState) in
 
   let name = "SC" in
@@ -93,7 +93,7 @@ let test_SC =
         ]
       )
   in
-  let evalo = Interpreter.evalo ~tactic:Tactic.Interleaving ~po:asserto in
+  let evalo = Interpreter.evalo ~tactic:Operational.Tactic.Interleaving ~po:asserto in
 
   let pprint = Trace.trace in
 
@@ -115,7 +115,7 @@ let test_SC =
 
 let test_RA =
   let module Memory = Operational.ReleaseAcquire in
-  let module Interpreter = ConcurrentInterpreter(Memory) in
+  let module Interpreter = Operational.ConcurrentInterpreter(Memory) in
   let module Trace = Utils.Trace(Interpreter.ProgramState) in
 
   let name = "RA" in
@@ -130,7 +130,7 @@ let test_RA =
       (Interpreter.State.memo s m)
       (Memory.checko m [("v", 1)])
   in
-  let evalo = Interpreter.evalo ~tactic:Tactic.Interleaving in
+  let evalo = Interpreter.evalo ~tactic:Operational.Tactic.Interleaving in
 
   let pprint = Trace.trace in
 

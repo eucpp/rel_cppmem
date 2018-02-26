@@ -230,6 +230,8 @@ module Thread :
     include Utils.Logic
 
     val init : ?pid:ThreadID.ti -> Prog.ti -> ti
+
+    val terminatedo : ti -> MiniKanren.goal
   end
 
 module ThreadManager :
@@ -237,101 +239,8 @@ module ThreadManager :
     include module type of ThreadLocalStorage(Thread)
 
     val make : CProg.ti -> ti
-  end
 
-module type MemoryModel =
-  sig
-    include Utils.Logic
+    val terminatedo : ti -> MiniKanren.goal
 
-    val alloc : thrdn:int -> string list -> ti
-    val init  : thrdn:int -> (string * int) list -> ti
-
-    val checko : ti -> (string * int) list -> MiniKanren.goal
-
-    val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
-  end
-
-module SequentialInterpreter :
-  sig
-    module State :
-      sig
-        include Utils.Logic
-
-        val init : Regs.ti -> ti
-
-        val regso : ?err:Error.ti -> ti -> Regs.ti -> MiniKanren.goal
-
-        val safeo : ti -> MiniKanren.goal
-
-        val erroro :
-          ?sg:(Error.ti -> MiniKanren.goal) ->
-          ?fg:MiniKanren.goal ->
-          ti -> MiniKanren.goal
-      end
-
-    module ProgramState :
-      sig
-        include Utils.Logic
-
-        val make : Prog.ti -> State.ti -> ti
-
-        val stateo : ti -> State.ti -> MiniKanren.goal
-
-        val terminatedo : ti -> MiniKanren.goal
-      end
-
-    val stepo : ProgramState.ti -> ProgramState.ti -> MiniKanren.goal
-
-    val evalo :
-      po:(ProgramState.ti -> MiniKanren.goal) ->
-      ProgramState.ti -> ProgramState.ti -> MiniKanren.goal
-  end
-
-module Tactic :
-  sig
-    type t =
-      | SingleThread of ThreadID.ti
-      | Sequential
-      | Interleaving
-  end
-
-module ConcurrentInterpreter(Memory : MemoryModel) :
-  sig
-    module State :
-      sig
-        include Utils.Logic
-
-        val init : RegStorage.ti -> Memory.ti -> ti
-
-        val memo  : ?err:Error.ti -> ti -> Memory.ti -> MiniKanren.goal
-        val regso : ?err:Error.ti -> ti -> ThreadID.ti -> Regs.ti -> MiniKanren.goal
-        val regstorageo : ?err:Error.ti -> ti -> RegStorage.ti -> MiniKanren.goal
-
-        val safeo : ti -> MiniKanren.goal
-
-        val erroro :
-          ?sg:(Error.ti -> MiniKanren.goal) ->
-          ?fg:MiniKanren.goal ->
-          ti -> MiniKanren.goal
-
-        val dataraceo : ti -> MiniKanren.goal
-      end
-
-    module ProgramState :
-      sig
-        include Utils.Logic
-
-        val make : CProg.ti -> State.ti -> ti
-
-        val stateo : ti -> State.ti -> MiniKanren.goal
-
-        val terminatedo : ?tid:ThreadID.ti -> ti -> MiniKanren.goal
-      end
-
-    val stepo : ?tid:ThreadID.ti -> ProgramState.ti -> ProgramState.ti -> MiniKanren.goal
-
-    val evalo :
-      tactic:Tactic.t ->
-      po:(ProgramState.ti -> MiniKanren.goal) ->
-      ProgramState.ti -> ProgramState.ti -> MiniKanren.goal
+    val stepo : ThreadID.ti -> Label.ti -> Regs.ti -> Regs.ti -> ti -> ti -> MiniKanren.goal
   end

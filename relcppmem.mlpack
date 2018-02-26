@@ -1,7 +1,6 @@
 src/Lang
 src/Storage
 src/Semantics
-src/Axiomatic
 src/Operational
 src/Query
 src/Utils
