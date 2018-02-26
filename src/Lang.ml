@@ -662,19 +662,20 @@ module Thread =
   struct
     module T =
       struct
-        @type ('prog, 'tid) t =
+        @type ('prog, 'regs, 'tid) t =
           { prog : 'prog
+          ; regs : 'regs
           ; pid  : 'tid
           }
         with gmap
 
-        let fmap fa fb x = GT.gmap(t) fa fb x
+        let fmap fa fb fc x = GT.gmap(t) fa fb fc x
       end
 
-    type tt = (Prog.tt, ThreadID.tt) T.t
+    type tt = (Prog.tt, Regs.tt, ThreadID.tt) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (Prog.tl, ThreadID.tl) T.t
+      and inner = (Prog.tl, Regs.tl, ThreadID.tl) T.t
 
     type ti = (tt, tl) MiniKanren.injected
 
@@ -805,14 +806,10 @@ module ThreadManager =
   struct
     include ThreadLocalStorage(Thread)
 
-    (* unsafe cast here, because of OCanren's weird typesystem;
-     * probably we need `project` function here,
-     * then we can project injected list of programs into regular one
-     *)
-    let make : CProg.ti -> ti = fun ps ->
-      let ps : Prog.ti list = Std.List.to_list (fun x -> x) @@ Obj.magic ps in
-      of_list @@ List.map (fun prog -> Thread.init prog) ps
-      (* of_list [] *)
+    let init ps rs =
+      List.combine ps rs
+      |> List.map (fun prog regs -> Thread.init prog regs)
+      |> of_list
 
     let terminatedo = forallo Thread.terminatedo
 

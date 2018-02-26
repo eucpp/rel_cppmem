@@ -238,7 +238,7 @@ module ThreadManager :
   sig
     include module type of ThreadLocalStorage(Thread)
 
-    val make : CProg.ti -> ti
+    val init : CProg.ti -> Regs.ti list -> ti
 
     val terminatedo : ti -> MiniKanren.goal
 
