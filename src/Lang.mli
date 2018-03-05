@@ -85,7 +85,6 @@ module Regs :
     val checko : ti -> (string * int) list -> MiniKanren.goal
   end
 
-
 module Uop :
   sig
     type tt
@@ -220,16 +219,11 @@ module ThreadLocalStorage(T : Utils.Logic) :
     val forallo : (T.ti -> MiniKanren.goal) -> ti -> MiniKanren.goal
   end
 
-module RegStorage :
-  sig
-    include module type of ThreadLocalStorage(Regs)
-  end
-
 module Thread :
   sig
     include Utils.Logic
 
-    val init : ?pid:ThreadID.ti -> Prog.ti -> ti
+    val init : ?pid:ThreadID.ti -> Prog.ti -> Regs.ti -> ti
 
     val terminatedo : ti -> MiniKanren.goal
   end
@@ -238,9 +232,9 @@ module ThreadManager :
   sig
     include module type of ThreadLocalStorage(Thread)
 
-    val init : CProg.ti -> Regs.ti list -> ti
+    val init : Prog.ti list -> Regs.ti list -> ti
 
     val terminatedo : ti -> MiniKanren.goal
 
-    val stepo : ThreadID.ti -> Label.ti -> Regs.ti -> Regs.ti -> ti -> ti -> MiniKanren.goal
+    val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
   end
