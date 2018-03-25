@@ -20,24 +20,46 @@ open MiniKanren
 open Lang
 open Utils
 
-module type MemoryModel =
-  sig
-    include Utils.Logic
+module MemoryModel =
+  struct
+    module type T =
+      sig
+        include Utils.Logic
 
-    val alloc : thrdn:int -> string list -> ti
-    val init  : thrdn:int -> (string * int) list -> ti
+        val alloc : thrdn:int -> string list -> ti
+        val init  : thrdn:int -> (string * int) list -> ti
 
-    val checko : ti -> (string * int) list -> MiniKanren.goal
+        val checko : ti -> (string * int) list -> MiniKanren.goal
 
-    val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
+        val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
+      end
+
+    module type MinT =
+      sig
+        include Utils.Logic
+
+        val init  : thrdn:int -> (string * int) list -> ti
+
+        val checko : ti -> (string * int) list -> MiniKanren.goal
+
+        val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
+      end
+
+    module Make(M : MinT) =
+      struct
+        include M
+
+        let alloc ~thrdn locs = init ~thrdn @@ List.map (fun l -> (l, 0)) locs
+      end
+
   end
 
-module State(Memory : MemoryModel) =
+module State(Memory : MemoryModel.T) =
   struct
     module T =
       struct
-        @type ('regs, 'mem, 'opterr) t =
-          { regs   : 'regs
+        @type ('thrds, 'mem, 'opterr) t =
+          { thrds  : 'thrds
           ; mem    : 'mem
           ; opterr : 'opterr
           }
@@ -46,22 +68,22 @@ module State(Memory : MemoryModel) =
         let fmap fa fb fc x = GT.gmap(t) fa fb fc x
       end
 
-    type tt = (RegStorage.tt, Memory.tt, Error.tt Std.Option.ground) T.t
+    type tt = (ThreadManager.tt, Memory.tt, Error.tt Std.Option.ground) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (RegStorage.tl, Memory.tl, Error.tl Std.Option.logic) T.t
+      and inner = (ThreadManager.tl, Memory.tl, Error.tl Std.Option.logic) T.t
 
     type ti = (tt, tl) MiniKanren.injected
 
     module F = Fmap3(T)
 
     let reify = F.reify
-      RegStorage.reify
+      ThreadManager.reify
       Memory.reify
       (Std.Option.reify Error.reify)
 
     let pprint =
-      let pp ff = let open T in fun {regs; mem; opterr} ->
+      let pp ff = let open T in fun {thrds; mem; opterr} ->
         Format.fprintf ff "@[<v>";
         pprint_logic (fun ff -> function
           | None      -> ()
@@ -69,219 +91,82 @@ module State(Memory : MemoryModel) =
             Format.fprintf ff "Error: %a@;" Error.pprint err
         ) ff opterr;
         (* Format.fprintf ff "@[<v>Registers:@;<1 2>%a@]@;@[<v>Memory:@;<1 2>%a@]" *)
-        Format.fprintf ff "Registers:@;<1 2>%a@;Memory:@;<1 2>%a"
-          RegStorage.pprint regs
+        Format.fprintf ff "%a@;Memory:@;<1 2>%a"
+          ThreadManager.pprint thrds
           Memory.pprint mem;
         Format.fprintf ff "@]@;"
       in
       pprint_logic pp
 
-    let state regs mem opterr = T.(inj @@ F.distrib {regs; mem; opterr})
+    let state thrds mem opterr = T.(inj @@ F.distrib {thrds; mem; opterr})
 
-    let init regs mem = state regs mem (Std.none ())
+    let init thrds mem = state thrds mem (Std.none ())
 
-    let memo ?err s mem =
-      fresh (regs opterr)
-        (s === state regs mem opterr)
+    let memo s mem =
+      fresh (thrds opterr)
+        (s === state thrds mem opterr)
 
-    let regso ?err s tid rs =
-      fresh (regs mem opterr)
-        (s === state regs mem opterr)
-        (RegStorage.geto regs tid rs)
-
-    let regstorageo ?err s regs =
+    let thrdmgro s thrds =
       fresh (mem opterr)
-        (s === state regs mem opterr)
+        (s === state thrds mem opterr)
 
     let erroro ?(sg=fun _ -> success) ?(fg=failure) s =
-      fresh (regs mem opterr err)
-        (s === state regs mem opterr)
+      fresh (thrds mem opterr err)
+        (s === state thrds mem opterr)
         (conde
           [ (opterr === Std.some err) &&& (sg err)
           ; (opterr === Std.none () ) &&& fg
           ])
 
     let safeo s =
-      fresh (regs mem)
-        (s === state regs mem (Std.none ()))
+      fresh (thrds mem)
+        (s === state thrds mem (Std.none ()))
 
     let dataraceo s =
       erroro s ~sg:(fun err -> fresh (mo loc) (err === Error.datarace mo loc))
 
   end
 
-module ProgramState(Memory : MemoryModel) =
+module Interpreter(Memory : MemoryModel.T) =
   struct
     module State = State(Memory)
-
-    type tt = ThreadManager.tt * State.tt
-
-    type tl = inner MiniKanren.logic
-      and inner = ThreadManager.tl * State.tl
-
-    type ti = (tt, tl) MiniKanren.injected
-
-    let reify = Std.Pair.reify ThreadManager.reify State.reify
-
-    let pprint =
-      let pp ff (tm, s) =
-        Format.fprintf ff "@[<v>Threads:@;<1 2>%a@]@;@[State:@;<1 2>%a@]@."
-          ThreadManager.pprint tm
-          State.pprint s
-      in
-      pprint_logic pp
-
-    let progstate = Std.pair
-
-    let make p = progstate @@ ThreadManager.make p
-
-    let stateo t s =
-      fresh (tm)
-        (t === progstate tm s)
-
-    let terminatedo ?tid t =
-      let fk tm = match tid with
-      | None      -> ThreadManager.terminatedo tm
-      | Some tid  ->
-        fresh (thrd)
-          (ThreadManager.geto tm tid thrd)
-          (Thread.terminatedo thrd)
-      in
-      fresh (tm s)
-        (t === progstate tm s)
-        (State.erroro s ~fg:(fk tm))
-  end
-
-module Tactic =
-  struct
-    type t =
-      | SingleThread of ThreadID.ti
-      | Sequential
-      | Interleaving
-  end
-
-module ConcurrentInterpreter(Memory : MemoryModel) =
-  struct
-    module State = State(Memory)
-    module ProgramState = ProgramState(Memory)
 
     open State
-    open ProgramState
 
-    let stepo tid t t' =
-      fresh (tm tm' s s' regs regs' rs rs' mem mem' opterr label)
-        (t  === progstate tm  s )
-        (t' === progstate tm' s')
-        (s  === state regs  mem  (Std.none ()))
-        (s' === state regs' mem' opterr)
-        (RegStorage.geto regs       tid rs )
-        (RegStorage.seto regs regs' tid rs')
-        (ThreadManager.stepo tid label rs rs' tm tm')
+    let stepo t t' =
+      fresh (s s' tm tm' mem mem' opterr tid label)
+        (s  === state tm  mem  (Std.none ()))
+        (s' === state tm' mem' opterr)
+        (ThreadManager.stepo tid label tm tm')
         (Memory.stepo tid label mem mem')
         (Label.erroro label
           ~sg:(fun err -> opterr === Std.some err)
           ~fg:(opterr === Std.none ())
         )
 
-    let rec make_evalo po stepo =
-      let evalo_norec evalo t t'' = conde
-        [ (po t) &&& (t === t'')
+    let reachableo =
+      let reachableo_norec reachableo_rec t t'' = conde
+        [ (t === t'')
         ; fresh (t')
             (stepo t t')
-            (evalo t' t'')
+            (reachableo_rec t' t'')
         ]
       in
-      Tabling.(tabledrec two) evalo_norec
+      Tabling.(tabledrec two) reachableo_norec
 
-    let rec evalo ~tactic ~po =
-      let open Tactic in
-      match tactic with
-      | SingleThread tid ->
-        make_evalo po @@ stepo tid
-      | Sequential ->
-        fun t t' ->
-          fresh (tm s tids)
-            (t === progstate tm s)
-            (ThreadManager.tidso tm tids)
-            (Utils.foldlo tids ~init:t ~res:t'
-              ~g:(fun tid t t' -> conde
-                [ (evalo ~tactic:(SingleThread tid) ~po t t')
-                ; fresh (tm s)
-                    (t === progstate tm s)
-                    (State.erroro s ~sg:(fun _ -> t === t'))
-                ])
-            )
-      | Interleaving ->
-        let stepo t t' =
-          fresh (tid)
-            (stepo tid t t')
-        in
-        make_evalo po stepo
+    let evalo t t' =
+      fresh (tm' mem' opterr')
+        (t' === state tm' mem' opterr')
+        (reachableo t t')
+        (ThreadManager.terminatedo tm')
 
-    let stepo ?tid t t' =
-      match tid with
-      | Some tid  -> stepo tid t t'
-      | None      ->
-        fresh (tid)
-          (stepo tid t t')
+    let invarianto po t = ?~(
+      fresh (t')
+          (reachableo t t')
+        ?~(po t')
+    )
 
   end
-
-  module SequentialInterpreter =
-    struct
-      module DummyMM =
-        struct
-          type tt = unit
-          type tl = inner MiniKanren.logic
-            and inner = unit
-          type ti = (tt, tl) MiniKanren.injected
-
-          let reify = MiniKanren.reify
-
-          let pprint ff t = ()
-
-          let instance () = !!()
-
-          let alloc ~thrdn locs = instance ()
-          let init  ~thrdn mem  = instance ()
-
-          let stepo tid label t t' =
-            (t === t') &&&
-            (conde
-              [ (label === Label.empty ())
-              ; fresh (err) (label === Label.error @@ Error.assertion err)
-              ]
-            )
-
-          let checko m lvs = failure
-        end
-
-      module State =
-        struct
-          include State(DummyMM)
-
-          let init rs = init (RegStorage.of_list [rs]) (DummyMM.instance ())
-
-          let regso ?err t rs = regso ?err t ThreadID.init rs
-        end
-
-      module ProgramState =
-        struct
-          include ProgramState(DummyMM)
-
-          let make p = progstate @@ ThreadManager.make (cprog [p])
-
-          let terminatedo = terminatedo ~tid:ThreadID.init
-        end
-
-      module Interpreter = ConcurrentInterpreter(DummyMM)
-
-      let stepo t t' = Interpreter.stepo ~tid:ThreadID.init t t'
-
-      let evalo ~po t t' =
-        Interpreter.evalo ~tactic:(Tactic.SingleThread ThreadID.init) ~po t t'
-
-    end
 
 (* ************************************************************************** *)
 (* ********************** SequentialConsistent ****************************** *)
@@ -311,7 +196,7 @@ module ValueStorage =
     let writeo = Storage.seto
   end
 
-module SequentialConsistent =
+module SequentialConsistent = MemoryModel.Make(
   struct
     type tt = ValueStorage.tt
 
@@ -321,10 +206,6 @@ module SequentialConsistent =
     type ti = ValueStorage.ti
 
     let reify = ValueStorage.reify
-
-    let alloc ~thrdn locs =
-      let locs = List.map (fun l -> Loc.loc l) locs in
-      ValueStorage.allocate locs
 
     let init ~thrdn mem =
       let mem = List.map (fun (l, v) -> (Loc.loc l, Value.integer v)) mem in
@@ -372,7 +253,7 @@ module SequentialConsistent =
         (label === Label.cas mo1 mo2 loc e d v)
         (cas_sco t t' tid loc e d v);
     ]
-  end
+  end)
 
 (* ************************************************************************** *)
 (* ************************* ReleaseAcquire ********************************* *)
@@ -735,7 +616,7 @@ module MemStory =
         (LocStory.last_valueo story value)
   end
 
-module ReleaseAcquire =
+module ReleaseAcquire = MemoryModel.Make(
   struct
     module T = struct
       type ('a, 'b, 'c, 'd) t = {
@@ -787,9 +668,6 @@ module ReleaseAcquire =
       let na    = ViewFront.allocate locs in
       let sc    = ViewFront.allocate locs in
       state thrds story na sc
-
-    let alloc ~thrdn locs =
-      init ~thrdn @@ List.map (fun l -> (l, 0)) locs
 
     let pprint =
       let pp ff = let open T in fun {thrds; story; na; sc} ->
@@ -1045,4 +923,4 @@ module ReleaseAcquire =
           (na_dataraceo t t' tid loc);
         ]);
     ]
-  end
+  end)
