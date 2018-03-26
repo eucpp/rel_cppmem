@@ -22,6 +22,8 @@ type ('al, 'bl) tl = ('al, 'bl) inner MiniKanren.logic
 
 type ('at, 'bt, 'al, 'bl) ti = (('at, 'bt) tt, ('al, 'bl) tl) MiniKanren.injected
 
+type ('at, 'bt, 'al, 'bl) ti = (('at, 'bt) tt, ('al, 'bl) tl) MiniKanren.reified
+
 type ('at, 'al) key = ('at, 'al) MiniKanren.injected
 type ('bt, 'bl) value = ('bt, 'bl) MiniKanren.injected
 

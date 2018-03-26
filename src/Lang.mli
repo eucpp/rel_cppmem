@@ -245,5 +245,17 @@ module ThreadManager :
 
 module SeqProg :
   sig
-    val evalo : Prog.ti -> Regs.ti -> Regs.ti -> (Error.tt, Error.tl) MiniKanren.Std.Option.groundi -> MiniKanren.goal
+    module Result :
+      sig
+        include Utils.Logic
+
+        val regso : ti -> Regs.ti -> MiniKanren.goal
+
+        val erroro :
+          ?sg:(Error.ti -> MiniKanren.goal) ->
+          ?fg:MiniKanren.goal ->
+          ti -> MiniKanren.goal
+      end
+
+    val evalo : Prog.ti -> Regs.ti -> Result.ti -> MiniKanren.goal
   end

@@ -26,6 +26,7 @@ module Reg =
       and inner = string
 
     type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     let reg r = !!r
 
@@ -44,6 +45,7 @@ module Loc =
       and inner = string
 
     type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     let loc l = !!l
 
@@ -62,6 +64,7 @@ module Value =
       and inner = tl Std.nat
 
     type ti = MiniKanrenStd.Nat.groundi
+    type ri = (tt, tl) MiniKanren.reified
 
     let integer = Std.nat
 
@@ -111,6 +114,7 @@ module MemOrder =
     type tl = tt MiniKanren.logic
 
     type ti = (tt, tl) MiniKanren.injected
+    type ti = (tt, tl) MiniKanren.reified
 
     let of_string = function
       | "sc"      -> SC
@@ -149,6 +153,7 @@ module Regs =
       and inner = (Reg.tl, Value.tl) Storage.inner
 
     type ti = (Reg.tt, Value.tt, Reg.tl, Value.tl) Storage.ti
+    type ri = (Reg.tt, Value.tt, Reg.tl, Value.tl) Storage.ri
 
     let empty = Storage.empty
 
@@ -177,6 +182,7 @@ module Uop =
     type tl = tt MiniKanren.logic
 
     type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     let of_string = function
       | "!"   -> NOT
@@ -192,16 +198,17 @@ module Uop =
 
     let show = GT.show(logic) (to_string)
 
+    module Bop =
     let pprint ff op = Format.fprintf ff "%s" @@ show op
   end
 
-module Bop =
   struct
     type tt = ADD | SUB | MUL | EQ | NEQ | LT | LE | GT | GE | OR | AND
 
     type tl = tt MiniKanren.logic
 
     type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     let of_string = function
       | "+"   -> ADD
@@ -248,6 +255,7 @@ module ThreadID =
       and inner = tl Std.nat
 
     type ti = MiniKanrenStd.Nat.groundi
+    type ri = (tt, tl) MiniKanren.reified
 
     let tid = Std.nat
 
@@ -290,7 +298,8 @@ module Expr =
     type tl = inner MiniKanren.logic
       and inner = (Reg.tl, Value.tl, Uop.tl, Bop.tl, tl) T.t
 
-    type ti = (tt, tl) Semantics.Term.ti
+    type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     module FT = Fmap5(T)
 
@@ -398,7 +407,8 @@ module Stmt =
     type tl = inner MiniKanren.logic
       and inner = (Reg.tl, Reg.tl Std.List.logic, Loc.tl, MemOrder.tl, Expr.tl, tl Std.List.logic) T.t
 
-    type ti = (tt, tl) Semantics.Term.ti
+    type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     module FT = Fmap6(T)
 
@@ -472,6 +482,7 @@ module Prog =
       and inner = (Stmt.tl, tl) Std.list
 
     type ti = (Stmt.tt, Stmt.tl) Std.List.groundi
+    type ri = (tt, tl) MiniKanren.reified
 
     let reify = Std.List.reify Stmt.reify
 
@@ -486,6 +497,7 @@ module CProg =
       and inner = (Prog.tl, tl) Std.list
 
     type ti = (Prog.tt, Prog.tl) Std.List.groundi
+    type ri = (tt, tl) MiniKanren.reified
 
     let reify = Std.List.reify Prog.reify
 
@@ -527,7 +539,8 @@ module Error =
     type tl = inner MiniKanren.logic
       and inner = (Expr.tl, MemOrder.tl, Loc.tl) T.t
 
-    type ti = (tt, tl) Semantics.Term.ti
+    type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     module F = Fmap3(T)
 
@@ -564,6 +577,7 @@ module Label =
       and inner = (ThreadID.tl, MemOrder.tl, Loc.tl, Value.tl, Error.tl) T.t
 
     type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     module FT = Fmap5(T)
 
@@ -598,6 +612,7 @@ module ThreadLocalStorage(T : Utils.Logic) =
       and inner = ThreadID.tl * (ThreadID.tl, T.tl) Storage.tl
 
     type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     let reify = Std.Pair.reify ThreadID.reify (Storage.reify ThreadID.reify T.reify)
 
@@ -677,6 +692,7 @@ module Thread =
       and inner = (Prog.tl, Regs.tl, ThreadID.tl) T.t
 
     type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     module F = Fmap3(T)
 
@@ -814,9 +830,51 @@ module ThreadManager =
         (Thread.stepo label thrd thrd')
   end
 
-module SeqInterpreter =
+module SeqProg =
   struct
-    let evalo p rs rs' opterr =
+    module Result =
+      struct
+        module T =
+          struct
+            @type ('regs, 'opterr) t =
+              { regs    : 'regs
+              ; opterr  : 'opterr
+              }
+            with gmap
+
+            let fmap fa fb x = GT.gmap(t) fa fb x
+          end
+
+        type tt = (Regs.tt, Error.tt Std.Option.ground) T.t
+
+        type tl = inner MiniKanren.logic
+          and inner = (Regs.tl, Error.tl Std.Option.logic) T.t
+
+        type ti = (tt, tl) MiniKanren.injected
+        type ri = (tt, tl) MiniKanren.reified
+
+        module F = Fmap2(T)
+
+        let result regs opterr = T.(inj @@ F.distrib {regs; opterr})
+
+        let reify h = F.reify Regs.reify (Std.Option.reify Error.reify) h
+
+        let pprint =
+          let pp ff = let open T in fun {regs; opterr} ->
+            Format.fprintf ff "@[<v>";
+            pprint_logic (fun ff -> function
+              | None      -> ()
+              | Some err  ->
+                Format.fprintf ff "Error: %a@;" Error.pprint err
+            ) ff opterr;
+            Format.fprintf ff "Registers:@;<1 2>%a" Regs.pprint regs
+            Format.fprintf ff "@]@;"
+          in
+          pprint_logic pp
+
+      end
+
+    let evalo p rs res =
       let evalo_norec evalo_rec t t'' opterr = conde
         [ (ThreadManager.terminatedo t) &&& (opterr === Std.none ()) &&& (t === t'')
         ; fresh (label t')
@@ -827,10 +885,12 @@ module SeqInterpreter =
             )
         ]
       in
-      fresh (thrd thrd' tm tm')
+      let evalo = Tabled.(tabledrec three evalo_norec) in
+      fresh (thrd thrd' tm tm' rs' opterr)
         (tm   === ThreadManager.of_list [thrd ])
         (tm'  === ThreadManager.of_list [thrd'])
         (thrd === Thread.init ps rs)
+        (res  === Result.result rs' opterr)
         (Thread.regso thrd' rs')
         (evalo tm tm' opterr)
   end

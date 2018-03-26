@@ -27,40 +27,39 @@ open Lang.Value
 
 let prog_test ~name ~prog ~check =
   let test () =
-    let open SequentialInterpreter in
-    let module Trace = Utils.Trace(State) in
-
+    let module Trace = Utils.Trace(SeqProg.Result) in
     let rs = Regs.alloc ["r1"; "r2"; "r3"; "r4"] in
-
-    
-
-    let stream = run qr
-      (fun q  r  -> SeqProg.evalo prog rs q r)
-      (fun qs rs -> Stream.zip qs rs)
+    let stream = run q
+      (fun q  -> SeqProg.evalo prog rs q)
+      (fun qs -> qs)
     in
-    let lst = Stream.take stream in
+    let lst = Stream.retrieve stream in
     let len = List.length lst in
     if len <> 1 then begin
       Format.printf "Test %s fails: number of results %d!@;" name len;
-      (* Format.printf "List of results:@;";
-      List.iter (fun (rs, err) ->
-
-        Format.printf "Error: %a@;" Trace.trace res
-      ) lst; *)
+      Format.printf "List of results:@;";
+      List.iter (fun res -> Format.printf "Error: %a@;" Trace.trace res) lst;
       Test.Fail ""
       end
     else
-      let stream = run qr
-        (fun q  r  -> SeqProg.evalo prog rs q )
-        (fun qs rs -> Stream.zip qs rs)
+      let stream = run q
+        (fun q  -> ?&
+          [ (SeqProg.evalo prog rs q)
+          ; (Result.erroro res ~fg:(
+              fresh (rs)
+                (Result.regso res rs)
+              ?~(Regs.checko rs check)
+            ))
+          ]
+        )
+        (fun qs -> qs)
       in
       if Stream.is_empty stream then
         Test.Ok
       else begin
+        let [cex] = Stream.take stream in
         Format.printf "Test %s fails!@;" name;
-        let cexs = Stream.take stream in
-        Format.printf "List of counterexamples:@;";
-        List.iter (fun (_, cex) -> Format.printf "%a@;" Trace.trace cex) cexs;
+        Format.printf "Counterexample:@;%a@;" Trace.trace cex;
         Test.Fail ""
       end
   in
