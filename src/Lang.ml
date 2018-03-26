@@ -812,10 +812,25 @@ module ThreadManager =
         (geto ts tid thrd)
         (seto ts ts' tid thrd')
         (Thread.stepo label thrd thrd')
-
   end
 
-module RegStorage =
+module SeqInterpreter =
   struct
-    include ThreadLocalStorage(Regs)
+    let evalo p rs rs' opterr =
+      let evalo_norec evalo_rec t t'' opterr = conde
+        [ (ThreadManager.terminatedo t) &&& (opterr === Std.none ()) &&& (t === t'')
+        ; fresh (label t')
+            (ThreadManager.stepo (ThreadID.tid 1) label t t')
+            (Label.erroro label
+              ~sg:(fun err -> (opterr === Std.some err) &&& (t === t''))
+              ~fg:(evalo_rec t' t'' opterr)
+            )
+        ]
+      in
+      fresh (thrd thrd' tm tm')
+        (tm   === ThreadManager.of_list [thrd ])
+        (tm'  === ThreadManager.of_list [thrd'])
+        (thrd === Thread.init ps rs)
+        (Thread.regso thrd' rs')
+        (evalo tm tm' opterr)
   end

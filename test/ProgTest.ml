@@ -29,24 +29,31 @@ let prog_test ~name ~prog ~check =
   let test () =
     let open SequentialInterpreter in
     let module Trace = Utils.Trace(State) in
-    let state = State.init @@ Regs.alloc ["r1"; "r2"; "r3"; "r4"] in
-    let lst = Stream.take @@ Query.exec interpo prog state in
+
+    let rs = Regs.alloc ["r1"; "r2"; "r3"; "r4"] in
+
+    
+
+    let stream = run qr
+      (fun q  r  -> SeqProg.evalo prog rs q r)
+      (fun qs rs -> Stream.zip qs rs)
+    in
+    let lst = Stream.take stream in
     let len = List.length lst in
     if len <> 1 then begin
       Format.printf "Test %s fails: number of results %d!@;" name len;
-      Format.printf "List of results:@;";
-      List.iter (fun res -> Format.printf "%a@;" Trace.trace res) lst;
+      (* Format.printf "List of results:@;";
+      List.iter (fun (rs, err) ->
+
+        Format.printf "Error: %a@;" Trace.trace res
+      ) lst; *)
       Test.Fail ""
       end
     else
-      let inputo = (===) state in
-      (* ignore input in assert, consider only output *)
-      let asserto _ o =
-        fresh (rs)
-          (State.regso o rs)
-          (Regs.checko rs check)
+      let stream = run qr
+        (fun q  r  -> SeqProg.evalo prog rs q )
+        (fun qs rs -> Stream.zip qs rs)
       in
-      let stream = Query.verify ~interpo ~asserto inputo prog in
       if Stream.is_empty stream then
         Test.Ok
       else begin

@@ -242,3 +242,8 @@ module ThreadManager :
 
     val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
   end
+
+module SeqProg :
+  sig
+    val evalo : Prog.ti -> Regs.ti -> Regs.ti -> (Error.tt, Error.tl) MiniKanren.Std.Option.groundi -> MiniKanren.goal
+  end
