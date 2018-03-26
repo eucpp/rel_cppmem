@@ -53,6 +53,8 @@ module Interpreter(Memory : MemoryModel.T) :
 
         val safeo     : ti -> MiniKanren.goal
         val dataraceo : ti -> MiniKanren.goal
+
+        val sato : Lang.Prop.ti -> ti -> MiniKanren.goal
       end
 
     val stepo : State.ti -> State.ti -> MiniKanren.goal
@@ -60,6 +62,8 @@ module Interpreter(Memory : MemoryModel.T) :
     val reachableo : State.ti -> State.ti -> MiniKanren.goal
 
     val evalo : State.ti -> State.ti -> MiniKanren.goal
+
+    val eval : ?prop:Lang.Prop.ti -> State.ti -> State.ri MiniKanren.Stream.t
 
     val invarianto : (State.ti -> MiniKanren.goal) -> State.ti -> MiniKanren.goal
 

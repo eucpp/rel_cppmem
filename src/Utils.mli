@@ -29,6 +29,7 @@ module type Logic =
       and inner
 
     type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     val reify : MiniKanren.helper -> ti -> tl
 

@@ -116,7 +116,8 @@ module State(Memory : MemoryModel.T) =
         (conde
           [ (opterr === Std.some err) &&& (sg err)
           ; (opterr === Std.none () ) &&& fg
-          ])
+          ]
+        )
 
     let safeo s =
       fresh (thrds mem)
@@ -124,6 +125,38 @@ module State(Memory : MemoryModel.T) =
 
     let dataraceo s =
       erroro s ~sg:(fun err -> fresh (mo loc) (err === Error.datarace mo loc))
+
+    let rec sato p s = Lang.(Prop.(conde
+      [ fresh (tid r v thrds mem opterr thrd rs)
+          (p === reg_eq tid r v)
+          (s === state thrds mem opterr)
+          (ThreadManager.geto tm tid thrd)
+          (Thread.regso thrd rs)
+          (Regs.reado rs r v)
+
+      ; fresh (tid r v thrds mem opterr thrd rs)
+          (p === loc_eq l v)
+          (s === state thrds mem opterr)
+          (Memory.checko mem l v)
+
+      ; fresh (ec err)
+          (p === error ec)
+          (erroro s ~sg:((===) err))
+          (Error.errcodeo ec err)
+
+      ; fresh (p')
+          (p === neg p')
+        ?~(sato p' s)
+
+      ; fresh (p1 p2)
+          (p === conj p1 p2)
+          ((sato p1 s) &&& (sato p2 s))
+
+      ; fresh (p1 p2)
+          (p === disj p1 p2)
+          ((sato p1 s) ||| (sato p2 s))
+      ]
+    ))
 
   end
 

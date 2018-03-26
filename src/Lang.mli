@@ -176,8 +176,12 @@ module Error :
   sig
     include Utils.Logic
 
+    type code = Assertion | Datarace
+
     val assertion : Expr.ti -> ti
     val datarace  : MemOrder.ti -> Loc.ti -> ti
+
+    val errcodeo : code -> ti -> MiniKanren.goal
   end
 
 module Label :
