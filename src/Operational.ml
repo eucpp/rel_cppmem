@@ -92,7 +92,7 @@ module State(Memory : MemoryModel.T) =
             Format.fprintf ff "Error: %a@;" Error.pprint err
         ) ff opterr;
         (* Format.fprintf ff "@[<v>Registers:@;<1 2>%a@]@;@[<v>Memory:@;<1 2>%a@]" *)
-        Format.fprintf ff "%a@;Memory:@;<1 2>%a"
+        Format.fprintf ff "%a@\nMemory:@;<1 2>%a"
           ThreadManager.pprint thrds
           Memory.pprint mem;
         Format.fprintf ff "@]@;"
@@ -151,6 +151,9 @@ module State(Memory : MemoryModel.T) =
             ]
           ))
 
+      ; (p === Prop.true_  ()) &&& success
+      ; (p === Prop.false_ ()) &&& failure
+
       ; fresh (p')
           (p === Prop.neg p')
         ?~(sato p' s)
@@ -172,8 +175,8 @@ module Interpreter(Memory : MemoryModel.T) =
 
     open State
 
-    let stepo t t' =
-      fresh (s s' tm tm' mem mem' opterr tid label)
+    let stepo s s' =
+      fresh (tm tm' mem mem' opterr tid label)
         (s  === state tm  mem  (Std.none ()))
         (s' === state tm' mem' opterr)
         (ThreadManager.stepo tid label tm tm')
@@ -184,19 +187,19 @@ module Interpreter(Memory : MemoryModel.T) =
         )
 
     let reachableo =
-      let reachableo_norec reachableo_rec t t'' = conde
-        [ (t === t'')
-        ; fresh (t')
-            (stepo t t')
-            (reachableo_rec t' t'')
+      let reachableo_norec reachableo_rec s s'' = conde
+        [ (s === s'')
+        ; fresh (s')
+            (stepo s s')
+            (reachableo_rec s' s'')
         ]
       in
       Tabling.(tabledrec two) reachableo_norec
 
-    let evalo t t' =
+    let evalo s s' =
       fresh (tm' mem' opterr')
-        (t' === state tm' mem' opterr')
-        (reachableo t t')
+        (s' === state tm' mem' opterr')
+        (reachableo s s')
         (ThreadManager.terminatedo tm')
 
     let eval ?(prop = Prop.true_ ()) s =
@@ -204,10 +207,10 @@ module Interpreter(Memory : MemoryModel.T) =
         (fun s' -> (evalo s s') &&& (sato prop s'))
         (fun ss -> ss)
 
-    let invarianto po t = ?~(
-      fresh (t')
-          (reachableo t t')
-        ?~(po t')
+    let invarianto po s = ?~(
+      fresh (s')
+          (reachableo s s')
+        ?~(po s')
     )
 
   end
@@ -241,7 +244,7 @@ module ValueStorage =
     let writeo = Storage.seto
   end
 
-module SequentialConsistent = MemoryModel.Make(
+module SeqCst = MemoryModel.Make(
   struct
     type tt = ValueStorage.tt
 
@@ -666,7 +669,7 @@ module MemStory =
         (LocStory.last_valueo story value)
   end
 
-module ReleaseAcquire = MemoryModel.Make(
+module RelAcq = MemoryModel.Make(
   struct
     module T = struct
       type ('a, 'b, 'c, 'd) t = {

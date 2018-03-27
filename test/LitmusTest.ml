@@ -31,44 +31,45 @@ type quantifier = Exists | Forall
 
 type litmus_test_desc =
   { name      : string
-  ; prog      : CProg.ti
+  ; prog      : Prog.ti list
   ; regs      : string list
   ; locs      : string list
   ; quant     : quantifier
-  ; assrt     : assertion
+  ; prop      : Prop.ti
   }
 
-let litmus_test ~name ~prog ~regs ~locs ~quant ~assrt =
-  { name; prog; regs; locs; quant; assrt }
+let litmus_test ~name ~prog ~regs ~locs ~quant ~prop =
+  { name; prog; regs; locs; quant; prop }
 
-module OperationalLitmusTest(Operational.MemoryModel.T) =
+module OperationalLitmusTest(Memory : Operational.MemoryModel.T) =
   struct
+    module Interpreter = Operational.Interpreter(Memory)
+    module Trace = Utils.Trace(Interpreter.State)
+
     let make_initstate ~prog ~regs ~locs =
-      let thrdn = thrdnum prog in
-      let tm = ThreadManager.init prog @@ Regs.alloc regs in
+      let thrdn = List.length prog in
+      let tm = ThreadManager.init prog @@ Utils.repeat (Regs.alloc regs) thrdn in
       let mem = Memory.alloc ~thrdn locs in
       Interpreter.(State.init tm mem)
 
-    let make_test_exists ~name ~prop ~prog ~regs ~locs =
+    let test_exists ~name ~prop ~prog ~regs ~locs =
       let istate = make_initstate ~prog ~regs ~locs in
       let stream = Interpreter.eval ~prop istate in
       if not @@ Stream.is_empty stream then
         Test.Ok
       else
-        let module Trace = Trace(Interpreter.State) in
         let outs = Interpreter.eval istate in
         Format.printf "Litmus test %s fails!@;" name;
         Format.printf "List of outputs:@;";
         Stream.iter (fun out -> Format.printf "%a@;" Trace.trace out) outs;
         Test.Fail ""
 
-    let make_test_forall ~name ~prop ~prog ~regs ~locs =
+    let test_forall ~name ~prop ~prog ~regs ~locs =
       let istate = make_initstate ~prog ~regs ~locs in
-      let stream = Interpreter.eval ~prop:(Prop.not prop) istate in
+      let stream = Interpreter.eval ~prop:(Prop.neg prop) istate in
       if Stream.is_empty stream then
         Test.Ok
       else begin
-        let module Trace = Trace(Interpreter.State) in
         let cexs = Stream.take stream in
         Format.printf "Litmus test %s fails!@;" name;
         Format.printf "List of counterexamples:@;";
@@ -77,9 +78,12 @@ module OperationalLitmusTest(Operational.MemoryModel.T) =
       end
 
     let make_testcase {name; prog; prop; regs; locs; quant} =
-      match quant with
-      | Exists -> make_testcase_exists ~name ~prop ~prog ~regs ~locs
-      | Forall -> make_testcase_forall ~name ~prop ~prog ~regs ~locs
+      let test () =
+        match quant with
+        | Exists -> test_exists ~name ~prop ~prog ~regs ~locs
+        | Forall -> test_forall ~name ~prop ~prog ~regs ~locs
+      in
+      Test.make_testcase ~name ~test
   end
 
 let make_litmus_testsuite ~name ~tests (module Memory: Operational.MemoryModel.T) =
@@ -107,9 +111,9 @@ let test_SW_SC = litmus_test
   ~locs:["x"; "f"]
   ~quant:Forall
   ~prop:Prop.(
-       ((2$"r1" = 0) && (2$"r2" = 0))
-    || ((2$"r1" = 0) && (2$"r2" = 1))
-    || ((2$"r1" = 1) && (2$"r2" = 1))
+       ((2%"r1" = 0) && (2%"r2" = 0))
+    || ((2%"r1" = 0) && (2%"r2" = 1))
+    || ((2%"r1" = 1) && (2%"r2" = 1))
   )
 
 let prog_SB = <:cppmem_par<
@@ -129,7 +133,7 @@ let test_SB_SC = litmus_test
   ~locs:["x"; "y";]
   ~quant:Forall
   ~prop:Prop.(
-    !((1$"r1" = 0) || (2$"r2" = 0))
+    !((1%"r1" = 0) && (2%"r2" = 0))
   )
 
 let prog_LB = <:cppmem_par<
@@ -149,7 +153,7 @@ let test_LB_SC = litmus_test
   ~locs:["x"; "y";]
   ~quant:Forall
   ~prop:Prop.(
-    !((1$"r1" = 1) && (2$"r2" = 1))
+    !((1%"r1" = 1) && (2%"r2" = 1))
   )
 
 let prog_MP = <:cppmem_par<
@@ -168,8 +172,8 @@ let test_MP_SC = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~quant:Forall
-  ~prop::Prop.(
-    (2$"r2" = 1)
+  ~prop:Prop.(
+    (2%"r2" = 1)
   )
 
 let prog_CoRR = <:cppmem_par<
@@ -193,9 +197,9 @@ let test_CoRR_SC = litmus_test
   ~locs:["x";]
   ~quant:Forall
   ~prop:Prop.(!(
-    ((3#r1 = 1) && (3$r2 = 2) && (4$r3 = 2) && (4$r4 = 1))
+    ((3%"r1" = 1) && (3%"r2" = 2) && (4%"r3" = 2) && (4%"r4" = 1))
     ||
-    ((3$r1 = 2) && (3$r2 = 1) && (4$r3 = 1) && (4$r4 = 2))
+    ((3%"r1" = 2) && (3%"r2" = 1) && (4%"r3" = 1) && (4%"r4" = 2))
   ))
 
 let tests_sc_op = make_litmus_testsuite
@@ -207,7 +211,7 @@ let tests_sc_op = make_litmus_testsuite
     test_MP_SC;
     test_CoRR_SC;
   ])
-  (module Operational.SequentialConsistent)
+  (module Operational.SeqCst)
 
 (* let tests_sc_axiom = make_litmus_testsuite
   ~name:"SeqCst"
@@ -243,9 +247,9 @@ let test_SW_RA = litmus_test
   ~locs:["x"; "f"]
   ~quant:Forall
   ~prop:Prop.(
-       ((2$"r1" = 0) && (2$"r2" = 0))
-    || ((2$"r1" = 0) && (2$"r2" = 1))
-    || ((2$"r1" = 1) && (2$"r2" = 1))
+       ((2%"r1" = 0) && (2%"r2" = 0))
+    || ((2%"r1" = 0) && (2%"r2" = 1))
+    || ((2%"r1" = 1) && (2%"r2" = 1))
   )
 
 let prog_SB = <:cppmem_par<
@@ -265,7 +269,7 @@ let test_SB_RA = litmus_test
   ~locs:["x"; "y";]
   ~quant:Exists
   ~prop:Prop.(
-    (1$"r1" = 0) || (2$"r2" = 0)
+    (1%"r1" = 0) || (2%"r2" = 0)
   )
 
 let prog_LB = <:cppmem_par<
@@ -285,7 +289,7 @@ let test_LB_RA = litmus_test
   ~locs:["x"; "y";]
   ~quant:Forall
   ~prop:Prop.(
-    !((1$"r1" = 1) && (2$"r2" = 1))
+    !((1%"r1" = 1) && (2%"r2" = 1))
   )
 
 let prog_LB_acq_rlx = <:cppmem_par<
@@ -305,7 +309,7 @@ let test_LB_acq_rlx_RA = litmus_test
   ~locs:["x"; "y"]
   ~quant:Forall
   ~prop:Prop.(
-    !((1$"r1" = 1) && (2$"r2" = 1))
+    !((1%"r1" = 1) && (2%"r2" = 1))
   )
 
 let prog_MP = <:cppmem_par<
@@ -324,8 +328,8 @@ let test_MP_RA = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~quant:Forall
-  ~prop::Prop.(
-    (2$"r2" = 1)
+  ~prop:Prop.(
+    (2%"r2" = 1)
   )
 
 let prog_MP_rlx_acq = <:cppmem_par<
@@ -344,8 +348,8 @@ let test_MP_rlx_acq_RA = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~quant:Exists
-  ~prop::Prop.(
-    (2$"r2" = 0)
+  ~prop:Prop.(
+    (2%"r2" = 0)
   )
 
 let prog_MP_rel_rlx = <:cppmem_par<
@@ -364,8 +368,8 @@ let test_MP_rel_rlx_RA = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y"; "f"]
   ~quant:Exists
-  ~prop::Prop.(
-    (2$"r2" = 0)
+  ~prop:Prop.(
+    (2%"r2" = 0)
   )
 
 let prog_MP_relseq = <:cppmem_par<
@@ -385,8 +389,8 @@ let test_MP_relseq_RA = litmus_test
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~quant:Forall
-  ~prop::Prop.(
-    (2$"r2" = 1)
+  ~prop:Prop.(
+    (2%"r2" = 1)
   )
 
 let prog_CoRR = <:cppmem_par<
@@ -411,9 +415,9 @@ let test_CoRR_RA = litmus_test
   ~locs:["x";]
   ~quant:Forall
   ~prop:Prop.(!(
-    ((3$r1 = 1) && (3$r2 = 2) && (4$r3 = 2) && (4$r4 = 1))
+    ((3%"r1" = 1) && (3%"r2" = 2) && (4%"r3" = 2) && (4%"r4" = 1))
     ||
-    ((3%r1 = 2) && (3$r2 = 1) && (4$r3 = 1) && (4$r4 = 2))
+    ((3%"r1" = 2) && (3%"r2" = 1) && (4%"r3" = 1) && (4%"r4" = 2))
   ))
 
 let prog_DR1 = <:cppmem_par<
@@ -431,7 +435,7 @@ let test_DR1_RA = litmus_test
   ~locs:["x"]
   ~quant:Exists
   ~prop:Prop.(
-    Error.Datarace
+    datarace ()
   )
 
 let prog_DR2 = <:cppmem_par<
@@ -449,7 +453,7 @@ let test_DR2_RA = litmus_test
   ~locs:["x"]
   ~quant:Exists
   ~prop:Prop.(
-    Error.Datarace
+    datarace ()
   )
 
 let tests_ra_op = make_litmus_testsuite
@@ -467,7 +471,7 @@ let tests_ra_op = make_litmus_testsuite
     test_DR1_RA;
     test_DR2_RA;
   ])
-  (module Operational.ReleaseAcquire)
+  (module Operational.RelAcq)
 
 let tests = Test.(
   make_testsuite ~name:"Litmus" ~tests: [

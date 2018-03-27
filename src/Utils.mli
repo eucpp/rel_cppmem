@@ -86,6 +86,7 @@ val zip6 : 'a MiniKanren.Stream.t ->
            'f MiniKanren.Stream.t ->
            ('a * 'b * 'c * 'd * 'e * 'f) MiniKanren.Stream.t
 
+val repeat : 'a -> int -> 'a list
 
 module Option :
   sig

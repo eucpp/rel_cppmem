@@ -133,6 +133,9 @@ let zip5 xs ys zs ws us = Stream.map (fun (x, (y, z, w, u)) -> (x, y, z, w, u)) 
 
 let zip6 xs ys zs ws us vs = Stream.map (fun (x, (y, z, w, u, v)) -> (x, y, z, w, u, v)) @@ Stream.zip xs @@ zip5 ys zs ws us vs
 
+let rec repeat x n =
+  if n <= 0 then [] else x::(repeat x (n-1))
+
 module Option =
   struct
     exception No_value

@@ -30,9 +30,9 @@ module MemoryModel :
       end
   end
 
-module SequentialConsistent : MemoryModel.T
+module SeqCst : MemoryModel.T
 
-module ReleaseAcquire : MemoryModel.T
+module RelAcq : MemoryModel.T
 
 module Interpreter(Memory : MemoryModel.T) :
   sig

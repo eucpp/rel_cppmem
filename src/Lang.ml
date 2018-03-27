@@ -785,7 +785,8 @@ module Thread =
 
     let pprint =
       let pp ff = let open T in fun { prog; regs; pid; } ->
-        Format.fprintf ff "@[<v>pid: %a@;@]@[<v>Regs:@;<1 4>%a@]@[<v>Code:@;<1 4>%a@]@."
+        (* Format.fprintf ff "@[<v>pid: %a@;@]@;@[<v>Regs:@;<1 4>%a@]@;@[<v>Code:@;<1 4>%a@]@." *)
+        Format.fprintf ff "@[<v>pid: %a@;Regs:@;<1 4>%a@;Code:@;<1 4>%a@]"
           ThreadID.pprint pid
           Regs.pprint regs
           Prog.pprint prog

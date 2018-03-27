@@ -183,7 +183,7 @@ EXTEND
           <:expr< [] >>
         in
         let progs = progs_list loc progs in
-        <:expr< cprog ($progs$) >>
+        <:expr< $progs$ >>
       ]
     ];
 

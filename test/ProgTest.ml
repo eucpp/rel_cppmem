@@ -33,7 +33,7 @@ let prog_test ~name ~prog ~check =
       (fun q  -> SeqProg.evalo prog rs q)
       (fun qs -> qs)
     in
-    let lst = Stream.retrieve stream in
+    let lst = Stream.take stream in
     let len = List.length lst in
     if len <> 1 then begin
       Format.printf "Test %s fails: number of results %d!@;" name len;
@@ -43,11 +43,11 @@ let prog_test ~name ~prog ~check =
       end
     else
       let stream = run q
-        (fun q  -> ?&
-          [ (SeqProg.evalo prog rs q)
-          ; (Result.erroro res ~fg:(
+        (fun res  -> ?&
+          [ (SeqProg.evalo prog rs res)
+          ; (SeqProg.Result.erroro res ~fg:(
               fresh (rs)
-                (Result.regso res rs)
+                (SeqProg.Result.regso res rs)
               ?~(Regs.checko rs check)
             ))
           ]
