@@ -32,6 +32,8 @@ module MemoryModel :
 
 module SeqCst : MemoryModel.T
 
+module TSO : MemoryModel.T
+
 module RelAcq : MemoryModel.T
 
 module Interpreter(Memory : MemoryModel.T) :

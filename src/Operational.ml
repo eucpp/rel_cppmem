@@ -308,6 +308,146 @@ module SeqCst = MemoryModel.Make(
   end)
 
 (* ************************************************************************** *)
+(* ************************* TotalStoreOrder ******************************** *)
+(* ************************************************************************** *)
+
+module StoreBuffer =
+  struct
+    type tt = (Loc.tt * Value.tt, tt) Std.list
+
+    type tl = inner logic
+      and inner = ((Loc.tl, Value.tl) Std.Pair.logic, tl) Std.list
+
+    type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
+
+    let reify = Std.(List.reify (Pair.reify Loc.reify Value.reify))
+
+    let pprint =
+      let pp ff (l, v) = Format.fprintf ff "%a <- %a" Loc.pprint l Value.pprint v in
+      Utils.pprint_llist (Utils.pprint_logic pp)
+
+    open Std
+
+    let empty = nil
+
+    let enqueueo t t' l v =
+      (t' === (Pair.pair l v) % t)
+
+    let rec dequeueo t t' l v =
+      fresh (hd tl tl')
+        (t === hd % tl)
+        (conde
+          [ ?& [(tl === nil ()); (t' === nil ()  ); (hd === Pair.pair l v)]
+          ; ?& [(tl =/= nil ()); (t' === hd % tl'); (dequeueo tl tl'  l v)]
+          ]
+        )
+
+    let rec loado t l v = conde
+      [ (t === nil ()) &&& (v === Std.none ())
+      ; fresh (tl l' v')
+          (t === (Pair.pair l' v') % tl)
+          (conde
+            [ (l === l') &&& (v === Std.some v')
+            ; (l =/= l') &&& (loado tl l v)
+            ]
+          )
+      ]
+
+  end
+
+module TSO = MemoryModel.Make(
+  struct
+    module TLS = Lang.ThreadLocalStorage(StoreBuffer)
+
+    type tt = TLS.tt * ValueStorage.tt
+
+    type tl = inner MiniKanren.logic
+      and inner = TLS.tl * ValueStorage.tl
+
+    type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
+
+    let reify = Std.Pair.reify TLS.reify ValueStorage.reify
+
+    let pprint =
+      let pp ff (tls, mem) =
+        Format.fprintf ff "@[<v>%a@;%a@;@]" TLS.pprint tls ValueStorage.pprint mem
+      in
+      pprint_logic pp
+
+    open Std
+
+    let init ~thrdn mem =
+      let mem = List.map (fun (l, v) -> (Loc.loc l, Value.integer v)) mem in
+      Pair.pair (TLS.init thrdn @@ StoreBuffer.empty ()) (ValueStorage.from_assoc mem)
+
+    let checko t l v =
+      fresh (tls mem)
+        (t === Pair.pair tls mem)
+        (ValueStorage.reado mem l v)
+
+    let loado t t' tid l v =
+      fresh (tls mem sb optv)
+        (t === Pair.pair tls mem)
+        (TLS.geto tls tid sb)
+        (StoreBuffer.loado sb l optv)
+        (conde
+          [ (optv === Option.some v )
+          ; (optv === Option.none ()) &&& (ValueStorage.reado mem l v)
+          ]
+        )
+
+    let storeo t t' tid l v =
+      fresh (tls tls' mem sb sb')
+        (t  === Pair.pair tls  mem)
+        (t' === Pair.pair tls' mem)
+        (TLS.geto tls      tid sb )
+        (TLS.seto tls tls' tid sb')
+        (StoreBuffer.enqueueo sb sb' l v)
+
+    let propagateo t t' tid =
+      fresh (tls tls' mem mem' sb sb' l v)
+        (t  === Pair.pair tls  mem )
+        (t' === Pair.pair tls' mem')
+        (TLS.geto tls      tid sb )
+        (TLS.seto tls tls' tid sb')
+        (StoreBuffer.dequeueo sb sb' l v)
+        (ValueStorage.writeo mem mem' l v)
+
+    (* let cas_sco t t' tid loc expected desired value =
+      (ValueStorage.reado t loc value) &&&
+      (conde [
+        (Lang.Value.eqo value expected) &&& (ValueStorage.writeo t t' loc desired);
+        (Lang.Value.nqo value expected) &&& (t === t');
+      ]) *)
+
+    let stepo tid label t t' = conde
+      [ fresh (e)
+          (t === t')
+          (label === Label.error (Error.assertion e))
+
+      ; (label === Label.empty ()) &&& (propagateo t t' tid)
+
+      ; fresh (mo loc v)
+        (* (mo === !!MemOrder.SC) *)
+        (label === Label.load mo loc v)
+        (loado t t' tid loc v)
+
+      ; fresh (mo loc v)
+        (* (mo === !!MemOrder.SC) *)
+        (label === Label.store mo loc v)
+        (storeo t t' tid loc v)
+
+      (* fresh (mo1 mo2 loc e d v)
+        (* (mo1 === !!MemOrder.SC) *)
+        (* (mo2 === !!MemOrder.SC) *)
+        (label === Label.cas mo1 mo2 loc e d v)
+        (cas_sco t t' tid loc e d v); *)
+      ]
+  end)
+
+(* ************************************************************************** *)
 (* ************************* ReleaseAcquire ********************************* *)
 (* ************************************************************************** *)
 
