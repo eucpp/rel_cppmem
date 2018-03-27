@@ -128,44 +128,47 @@ module State(Memory : MemoryModel.T) =
       erroro s ~sg:(fun err -> fresh (mo loc) (err === Error.datarace mo loc))
 
     let rec sato p s = conde
-      [ fresh (tid r v tm mem opterr thrd rs)
-          (p === Prop.reg_eq tid r v)
-          (s === state tm mem opterr)
-          (ThreadManager.geto tm tid thrd)
-          (Thread.regso thrd rs)
-          (Regs.reado rs r v)
+    [ (p === Prop.true_  ()) &&& success
+    ; (p === Prop.false_ ()) &&& failure
 
-      ; fresh (tid l v thrds mem opterr)
-          (p === Prop.loc_eq l v)
-          (s === state thrds mem opterr)
-          (Memory.checko mem l v)
+    ; fresh (p')
+        (p === Prop.neg p')
+      ?~(sato p' s)
 
-      ; fresh (err)
-          (erroro s ~sg:(fun err -> conde
-            [ fresh (mo loc)
-                (err === Error.datarace mo loc)
-                (p === Prop.datarace ())
-            ; fresh (e)
-                (err === Error.assertion e)
-                (p === Prop.assertion ())
-            ]
-          ))
+    ; fresh (p1 p2)
+        (p === Prop.conj p1 p2)
+        ((sato p1 s) &&& (sato p2 s))
 
-      ; (p === Prop.true_  ()) &&& success
-      ; (p === Prop.false_ ()) &&& failure
+    ; fresh (p1 p2)
+        (p === Prop.disj p1 p2)
+        ((sato p1 s) ||| (sato p2 s))
 
-      ; fresh (p')
-          (p === Prop.neg p')
-        ?~(sato p' s)
+    ; (erroro s
+        ~sg:(fun err -> conde
+          [ fresh (mo loc)
+              (err === Error.datarace mo loc)
+              (p === Prop.datarace ())
+          ; fresh (e)
+              (err === Error.assertion e)
+              (p === Prop.assertion ())
+          ]
+        )
+        ~fg:(conde
+          [ fresh (tid r v tm mem opterr thrd rs)
+              (p === Prop.reg_eq tid r v)
+              (s === state tm mem opterr)
+              (ThreadManager.geto tm tid thrd)
+              (Thread.regso thrd rs)
+              (Regs.reado rs r v)
 
-      ; fresh (p1 p2)
-          (p === Prop.conj p1 p2)
-          ((sato p1 s) &&& (sato p2 s))
-
-      ; fresh (p1 p2)
-          (p === Prop.disj p1 p2)
-          ((sato p1 s) ||| (sato p2 s))
-      ]
+          ; fresh (tid l v thrds mem opterr)
+              (p === Prop.loc_eq l v)
+              (s === state thrds mem opterr)
+              (Memory.checko mem l v)
+          ]
+        )
+      )
+    ]
 
   end
 

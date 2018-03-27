@@ -66,16 +66,23 @@ module OperationalLitmusTest(Memory : Operational.MemoryModel.T) =
 
     let test_forall ~name ~prop ~prog ~regs ~locs =
       let istate = make_initstate ~prog ~regs ~locs in
-      let stream = Interpreter.eval ~prop:(Prop.neg prop) istate in
-      if Stream.is_empty stream then
-        Test.Ok
-      else begin
-        let cexs = Stream.take stream in
-        Format.printf "Litmus test %s fails!@;" name;
-        Format.printf "List of counterexamples:@;";
-        List.iter (fun cex -> Format.printf "%a@;" Trace.trace cex) cexs;
+      (* check that test is runnable *)
+      (* let stream = Interpreter.eval istate in
+      if Stream.is_empty stream then begin
+        Format.printf "Litmus test %s is not runnable!@;" name;
         Test.Fail ""
-      end
+        end
+      else *)
+        let stream = Interpreter.eval ~prop:(Prop.neg prop) istate in
+        if Stream.is_empty stream then
+          Test.Ok
+        else begin
+          let cexs = Stream.take stream in
+          Format.printf "Litmus test %s fails!@;" name;
+          Format.printf "List of counterexamples:@;";
+          List.iter (fun cex -> Format.printf "%a@;" Trace.trace cex) cexs;
+          Test.Fail ""
+        end
 
     let make_testcase {name; prog; prop; regs; locs; quant} =
       let test () =
@@ -104,8 +111,8 @@ let prog_SW = <:cppmem_par<
   }}}
 >>
 
-let test_SW_SC = litmus_test
-  ~name:"SW_SC"
+let test_SW = litmus_test
+  ~name:"SW"
   ~prog:prog_SW
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
@@ -126,8 +133,8 @@ let prog_SB = <:cppmem_par<
   }}}
 >>
 
-let test_SB_SC = litmus_test
-  ~name:"SB_SC"
+let test_SB = litmus_test
+  ~name:"SB"
   ~prog:prog_SB
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
@@ -146,8 +153,8 @@ let prog_LB = <:cppmem_par<
     }}}
 >>
 
-let test_LB_SC = litmus_test
-  ~name:"LB_SC"
+let test_LB = litmus_test
+  ~name:"LB"
   ~prog:prog_LB
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
@@ -166,8 +173,8 @@ let prog_MP = <:cppmem_par<
     }}}
 >>
 
-let test_MP_SC = litmus_test
-  ~name:"MP_SC"
+let test_MP = litmus_test
+  ~name:"MP"
   ~prog:prog_MP
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
@@ -190,8 +197,8 @@ let prog_CoRR = <:cppmem_par<
   }}}
 >>
 
-let test_CoRR_SC = litmus_test
-  ~name:"CoRR_SC"
+let test_CoRR = litmus_test
+  ~name:"CoRR"
   ~prog:prog_CoRR
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";]
@@ -216,8 +223,8 @@ let prog_IRIW = <:cppmem_par<
   }}}
 >>
 
-let test_IRIW_SC = litmus_test
-  ~name:"IRIW_SC"
+let test_IRIW = litmus_test
+  ~name:"IRIW"
   ~prog:prog_IRIW
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
@@ -226,15 +233,38 @@ let test_IRIW_SC = litmus_test
     ((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
   ))
 
+let prog_WRC = <:cppmem_par<
+  spw {{{
+    x_sc := 1
+  |||
+    r1 := x_sc;
+    y_sc := r1
+  |||
+    r2 := y_sc;
+    r3 := x_sc
+  }}}
+>>
+
+let test_WRC = litmus_test
+  ~name:"WRC"
+  ~prog:prog_WRC
+  ~regs:["r1"; "r2"; "r3"; "r4"]
+  ~locs:["x";"y";]
+  ~quant:Forall
+  ~prop:Prop.(
+    !((3%"r2" = 1) && (3%"r3" = 0))
+  )
+
 let tests_sc_op = make_litmus_testsuite
   ~name:"SeqCst"
   ~tests:([
-    test_SW_SC;
-    test_SB_SC;
-    test_LB_SC;
-    test_MP_SC;
-    test_CoRR_SC;
-    test_IRIW_SC;
+    test_SW;
+    test_SB;
+    test_LB;
+    test_MP;
+    test_CoRR;
+    test_IRIW;
+    test_WRC;
   ])
   (module Operational.SeqCst)
 
@@ -265,8 +295,8 @@ let prog_SW = <:cppmem_par<
   }}}
 >>
 
-let test_SW_RA = litmus_test
-  ~name:"SW_RA"
+let test_SW = litmus_test
+  ~name:"SW"
   ~prog:prog_SW
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
@@ -287,8 +317,8 @@ let prog_SB = <:cppmem_par<
   }}}
 >>
 
-let test_SB_RA = litmus_test
-  ~name:"SB_RA"
+let test_SB = litmus_test
+  ~name:"SB"
   ~prog:prog_SB
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
@@ -307,8 +337,8 @@ let prog_LB = <:cppmem_par<
     }}}
 >>
 
-let test_LB_RA = litmus_test
-  ~name:"LB+rel+acq_RA"
+let test_LB = litmus_test
+  ~name:"LB+rel+acq"
   ~prog:prog_LB
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
@@ -327,8 +357,8 @@ let prog_LB_acq_rlx = <:cppmem_par<
     }}}
 >>
 
-let test_LB_acq_rlx_RA = litmus_test
-  ~name:"LB+acq+rlx_RA"
+let test_LB_acq_rlx = litmus_test
+  ~name:"LB+acq+rlx"
   ~prog:prog_LB_acq_rlx
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y"]
@@ -347,8 +377,8 @@ let prog_MP = <:cppmem_par<
     }}}
 >>
 
-let test_MP_RA = litmus_test
-  ~name:"MP_RA"
+let test_MP = litmus_test
+  ~name:"MP"
   ~prog:prog_MP
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
@@ -367,8 +397,8 @@ let prog_MP_rlx_acq = <:cppmem_par<
     }}}
 >>
 
-let test_MP_rlx_acq_RA = litmus_test
-  ~name:"MP+rlx+acq_RA"
+let test_MP_rlx_acq = litmus_test
+  ~name:"MP+rlx+acq"
   ~prog:prog_MP_rlx_acq
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
@@ -387,8 +417,8 @@ let prog_MP_rel_rlx = <:cppmem_par<
     }}}
 >>
 
-let test_MP_rel_rlx_RA = litmus_test
-  ~name:"MP+rel+rlx_RA"
+let test_MP_rel_rlx = litmus_test
+  ~name:"MP+rel+rlx"
   ~prog:prog_MP_rel_rlx
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y"; "f"]
@@ -408,8 +438,8 @@ let prog_MP_relseq = <:cppmem_par<
   }}}
 >>
 
-let test_MP_relseq_RA = litmus_test
-  ~name:"MP+relseq_RA"
+let test_MP_relseq = litmus_test
+  ~name:"MP+relseq"
   ~prog:prog_MP_relseq
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
@@ -432,8 +462,8 @@ let prog_CoRR = <:cppmem_par<
   }}}
 >>
 
-let test_CoRR_RA = litmus_test
-  ~name:"CoRR_RA"
+let test_CoRR = litmus_test
+  ~name:"CoRR"
   ~prog:prog_CoRR
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";]
@@ -458,8 +488,8 @@ let prog_IRIW = <:cppmem_par<
   }}}
 >>
 
-let test_IRIW_RA = litmus_test
-  ~name:"IRIW_SC"
+let test_IRIW = litmus_test
+  ~name:"IRIW"
   ~prog:prog_IRIW
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
@@ -482,8 +512,8 @@ let prog_IRIW_rlx = <:cppmem_par<
   }}}
 >>
 
-let test_IRIW_rlx_RA = litmus_test
-  ~name:"IRIW_SC"
+let test_IRIW_rlx = litmus_test
+  ~name:"IRIW+rlx"
   ~prog:prog_IRIW_rlx
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
@@ -492,17 +522,83 @@ let test_IRIW_rlx_RA = litmus_test
     ((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
   )
 
-let prog_DR1 = <:cppmem_par<
+let prog_WRC = <:cppmem_par<
   spw {{{
-      x_rlx := 1
+    x_rel := 1
   |||
-      r1 := x_na
+    r1 := x_acq;
+    y_rel := r1
+  |||
+    r2 := y_acq;
+    r3 := x_acq
   }}}
 >>
 
-let test_DR1_RA = litmus_test
-  ~name:"DR1_RA"
-  ~prog:prog_DR1
+let test_WRC = litmus_test
+  ~name:"WRC"
+  ~prog:prog_WRC
+  ~regs:["r1"; "r2"; "r3"; "r4"]
+  ~locs:["x";"y";]
+  ~quant:Forall
+  ~prop:Prop.(
+    !((3%"r2" = 1) && (3%"r3" = 0))
+  )
+
+let prog_rlx_WRC = <:cppmem_par<
+  spw {{{
+    x_rlx := 1
+  |||
+    r1 := x_rlx;
+    y_rlx := r1
+  |||
+    r2 := y_rlx;
+    r3 := x_rlx
+  }}}
+>>
+
+let test_WRC_rlx = litmus_test
+  ~name:"WRC+rlx"
+  ~prog:prog_rlx_WRC
+  ~regs:["r1"; "r2"; "r3"; "r4"]
+  ~locs:["x";"y";]
+  ~quant:Exists
+  ~prop:Prop.(
+    ((3%"r2" = 1) && (3%"r3" = 0))
+  )
+
+let prog_cas_WRC = <:cppmem_par<
+  spw {{{
+    x_rel := 1;
+    y_rel := 1
+  |||
+    r2 := CAS(rel, acq, y, 1, 2)
+  |||
+    r3 := y_acq;
+    r4 := x_acq
+  }}}
+>>
+
+let test_WRC_cas = litmus_test
+  ~name:"WRC+cas"
+  ~prog:prog_cas_WRC
+  ~regs:["r1"; "r2"; "r3"; "r4"]
+  ~locs:["x"; "y";]
+  ~quant:Forall
+  ~prop:Prop.(
+    !((3%"r3" = 2) && (3%"r4" = 0))
+  )
+
+let prog_DR_WW = <:cppmem_par<
+  spw {{{
+      x_na := 1
+  |||
+      x_na := 2
+  }}}
+>>
+
+let test_DR_WW = litmus_test
+  ~name:"DR_WW"
+  ~prog:prog_DR_WW
   ~regs:["r1"]
   ~locs:["x"]
   ~quant:Exists
@@ -510,7 +606,43 @@ let test_DR1_RA = litmus_test
     datarace ()
   )
 
-let prog_DR2 = <:cppmem_par<
+let prog_DR_RW = <:cppmem_par<
+  spw {{{
+      x_na := 1
+  |||
+      r1 := x_na
+  }}}
+>>
+
+let test_DR_RW = litmus_test
+  ~name:"DR_RW"
+  ~prog:prog_DR_WW
+  ~regs:["r1"]
+  ~locs:["x"]
+  ~quant:Exists
+  ~prop:Prop.(
+    datarace ()
+  )
+
+let prog_DR_RW_rlxR = <:cppmem_par<
+  spw {{{
+      x_rlx := 1
+  |||
+      r1 := x_na
+  }}}
+>>
+
+let test_DR_RW_rlxR = litmus_test
+  ~name:"DR_RW+rlxR"
+  ~prog:prog_DR_RW_rlxR
+  ~regs:["r1"]
+  ~locs:["x"]
+  ~quant:Exists
+  ~prop:Prop.(
+    datarace ()
+  )
+
+let prog_DR_RW_rlxW = <:cppmem_par<
   spw {{{
       x_na := 1
   |||
@@ -518,9 +650,9 @@ let prog_DR2 = <:cppmem_par<
   }}}
 >>
 
-let test_DR2_RA = litmus_test
-  ~name:"DR2_RA"
-  ~prog:prog_DR2
+let test_DR_RW_rlxW = litmus_test
+  ~name:"DR_RW+rlxW"
+  ~prog:prog_DR_RW_rlxW
   ~regs:["r1"]
   ~locs:["x"]
   ~quant:Exists
@@ -531,19 +663,24 @@ let test_DR2_RA = litmus_test
 let tests_ra_op = make_litmus_testsuite
   ~name:"RelAcq"
   ~tests:([
-    test_SW_RA;
-    test_SB_RA;
-    test_LB_RA;
-    test_LB_acq_rlx_RA;
-    test_MP_RA;
-    test_MP_rlx_acq_RA;
-    test_MP_rel_rlx_RA;
-    test_MP_relseq_RA;
-    test_CoRR_RA;
-    test_IRIW_RA;
-    test_IRIW_rlx_RA;
-    test_DR1_RA;
-    test_DR2_RA;
+    test_SW;
+    test_SB;
+    test_LB;
+    test_LB_acq_rlx;
+    test_MP;
+    test_MP_rlx_acq;
+    test_MP_rel_rlx;
+    test_MP_relseq;
+    test_CoRR;
+    test_IRIW;
+    test_IRIW_rlx;
+    test_WRC;
+    test_WRC_rlx;
+    test_WRC_cas;
+    test_DR_WW;
+    test_DR_RW;
+    test_DR_RW_rlxW;
+    test_DR_RW_rlxR;
   ])
   (module Operational.RelAcq)
 
