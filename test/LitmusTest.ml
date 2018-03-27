@@ -202,6 +202,30 @@ let test_CoRR_SC = litmus_test
     ((3%"r1" = 2) && (3%"r2" = 1) && (4%"r3" = 1) && (4%"r4" = 2))
   ))
 
+let prog_IRIW = <:cppmem_par<
+  spw {{{
+    x_sc := 1
+  |||
+    y_sc := 1
+  |||
+    r1 := x_sc;
+    r2 := y_sc
+  |||
+    r3 := y_sc;
+    r4 := x_sc
+  }}}
+>>
+
+let test_IRIW_SC = litmus_test
+  ~name:"IRIW_SC"
+  ~prog:prog_IRIW
+  ~regs:["r1"; "r2"; "r3"; "r4"]
+  ~locs:["x";"y";]
+  ~quant:Forall
+  ~prop:Prop.(!(
+    ((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
+  ))
+
 let tests_sc_op = make_litmus_testsuite
   ~name:"SeqCst"
   ~tests:([
@@ -210,6 +234,7 @@ let tests_sc_op = make_litmus_testsuite
     test_LB_SC;
     test_MP_SC;
     test_CoRR_SC;
+    test_IRIW_SC;
   ])
   (module Operational.SeqCst)
 
@@ -407,7 +432,6 @@ let prog_CoRR = <:cppmem_par<
   }}}
 >>
 
-
 let test_CoRR_RA = litmus_test
   ~name:"CoRR_RA"
   ~prog:prog_CoRR
@@ -419,6 +443,54 @@ let test_CoRR_RA = litmus_test
     ||
     ((3%"r1" = 2) && (3%"r2" = 1) && (4%"r3" = 1) && (4%"r4" = 2))
   ))
+
+let prog_IRIW = <:cppmem_par<
+  spw {{{
+    x_rel := 1
+  |||
+    y_rel := 1
+  |||
+    r1 := x_acq;
+    r2 := y_acq
+  |||
+    r3 := y_acq;
+    r4 := x_acq
+  }}}
+>>
+
+let test_IRIW_RA = litmus_test
+  ~name:"IRIW_SC"
+  ~prog:prog_IRIW
+  ~regs:["r1"; "r2"; "r3"; "r4"]
+  ~locs:["x";"y";]
+  ~quant:Exists
+  ~prop:Prop.(
+    ((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
+  )
+
+let prog_IRIW_rlx = <:cppmem_par<
+  spw {{{
+    x_rlx := 1
+  |||
+    y_rlx := 1
+  |||
+    r1 := x_rlx;
+    r2 := y_rlx
+  |||
+    r3 := y_rlx;
+    r4 := x_rlx
+  }}}
+>>
+
+let test_IRIW_rlx_RA = litmus_test
+  ~name:"IRIW_SC"
+  ~prog:prog_IRIW_rlx
+  ~regs:["r1"; "r2"; "r3"; "r4"]
+  ~locs:["x";"y";]
+  ~quant:Exists
+  ~prop:Prop.(
+    ((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
+  )
 
 let prog_DR1 = <:cppmem_par<
   spw {{{
@@ -468,6 +540,8 @@ let tests_ra_op = make_litmus_testsuite
     test_MP_rel_rlx_RA;
     test_MP_relseq_RA;
     test_CoRR_RA;
+    test_IRIW_RA;
+    test_IRIW_rlx_RA;
     test_DR1_RA;
     test_DR2_RA;
   ])
