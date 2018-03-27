@@ -24,7 +24,7 @@ module MemoryModel :
         val alloc : thrdn:int -> string list -> ti
         val init  : thrdn:int -> (string * int) list -> ti
 
-        val checko : ti -> (string * int) list -> MiniKanren.goal
+        val checko : ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
 
         val stepo : Lang.ThreadID.ti -> Lang.Label.ti -> ti -> ti -> MiniKanren.goal
       end

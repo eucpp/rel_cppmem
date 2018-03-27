@@ -114,7 +114,7 @@ module MemOrder =
     type tl = tt MiniKanren.logic
 
     type ti = (tt, tl) MiniKanren.injected
-    type ti = (tt, tl) MiniKanren.reified
+    type ri = (tt, tl) MiniKanren.reified
 
     let of_string = function
       | "sc"      -> SC
@@ -198,10 +198,10 @@ module Uop =
 
     let show = GT.show(logic) (to_string)
 
-    module Bop =
     let pprint ff op = Format.fprintf ff "%s" @@ show op
   end
 
+module Bop =
   struct
     type tt = ADD | SUB | MUL | EQ | NEQ | LT | LE | GT | GE | OR | AND
 
@@ -597,10 +597,91 @@ module Label =
       [ fresh (err)
           (label === error err)
           (sg err)
-
       ; ?~(fresh (err) (label === error err)) &&& fg
-
       ]
+
+  end
+
+module Prop =
+  struct
+    module T =
+      struct
+        @type ('tid, 'reg, 'loc, 'value, 't) t =
+          | True
+          | False
+          | RegEq       of 'tid * 'reg * 'value
+          | LocEq       of 'loc * 'value
+          | Conj        of 't * 't
+          | Disj        of 't * 't
+          | Neg         of 't
+          | Datarace
+          | Assertion
+        with gmap, show
+
+        let fmap fa fb fc fd fe x = GT.gmap(t) fa fb fc fd fe x
+      end
+
+    type tt = (ThreadID.tt, Reg.tt, Loc.tt, Value.tt, tt) T.t
+
+    type tl = inner MiniKanren.logic
+      and inner = (ThreadID.tl, Reg.tl, Loc.tl, Value.tl, tl) T.t
+
+    type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
+
+    module F = Fmap5(T)
+
+    let true_ ()          = inj @@ F.distrib @@ T.True
+    let false_ ()         = inj @@ F.distrib @@ T.False
+    let reg_eq tid reg v  = inj @@ F.distrib @@ T.RegEq (tid, reg, v)
+    let loc_eq loc v      = inj @@ F.distrib @@ T.LocEq (loc, v)
+    let conj p1 p2        = inj @@ F.distrib @@ T.Conj (p1, p2)
+    let disj p1 p2        = inj @@ F.distrib @@ T.Disj (p1, p2)
+    let neg p             = inj @@ F.distrib @@ T.Neg p
+    let datarace ()       = inj @@ F.distrib @@ T.Datarace
+    let assertion ()      = inj @@ F.distrib @@ T.Assertion
+
+    let rec reify h = F.reify ThreadID.reify Reg.reify Loc.reify Value.reify reify h
+
+    let pprint =
+      let rec pp ff = T.(function
+        | True ->
+          Format.fprintf ff "@[true@]"
+        | False ->
+          Format.fprintf ff "@[false@]"
+        | RegEq (tid, r, v) ->
+          Format.fprintf ff "@[%a#%a = %a@]" ThreadID.pprint tid Reg.pprint r Value.pprint v
+        | LocEq (l, v) ->
+          Format.fprintf ff "@[%a = %a@]" Loc.pprint l Value.pprint v
+        | Conj (p1, p2) ->
+          Format.fprintf ff "@[(%a) && (%a)@]" ppl p1 ppl p2
+        | Disj (p1, p2) ->
+          Format.fprintf ff "@[(%a) || (%a)@]" ppl p1 ppl p2
+        | Neg p ->
+          Format.fprintf ff "@[not (%a)@]" ppl p
+        | Datarace ->
+          Format.fprintf ff "@[datarace@]"
+        | Assertion ->
+          Format.fprintf ff "@[assertion@]"
+      )
+      and ppl ff x = pprint_logic pp ff x
+      in
+      ppl
+
+    type lhs = TidReg of ThreadID.ti * Reg.ti | Loc of Loc.ti
+
+    let (%) tid r = TidReg (ThreadID.tid tid, Reg.reg r)
+
+    let (~) l = Loc (Loc.loc l)
+
+    let (=) lhs v =
+      match lhs with
+      | TidReg (tid, reg) -> reg_eq tid reg (Value.integer v)
+      | Loc loc           -> loc_eq loc (Value.integer v)
+
+    let (&&) = conj
+    let (||) = disj
+    let (!)  = neg
 
   end
 
@@ -713,6 +794,10 @@ module Thread =
 
     open Std
     open Stmt
+
+    let regso t rs =
+      fresh (pid p)
+        (t  === thrd p rs pid)
 
     let terminatedo t =
       fresh (pid regs)
@@ -867,10 +952,24 @@ module SeqProg =
               | Some err  ->
                 Format.fprintf ff "Error: %a@;" Error.pprint err
             ) ff opterr;
-            Format.fprintf ff "Registers:@;<1 2>%a" Regs.pprint regs
+            Format.fprintf ff "Registers:@;<1 2>%a" Regs.pprint regs;
             Format.fprintf ff "@]@;"
           in
           pprint_logic pp
+
+        let regso t rs =
+          fresh (opterr)
+            (t === result rs opterr)
+
+        let erroro ?(sg=fun _ -> success) ?(fg=failure) t =
+          fresh (rs opterr)
+            (t === result rs opterr)
+            (conde
+              [ fresh (err)
+                  (opterr === Std.Option.some err)
+                  (sg err)
+              ; (opterr === Std.Option.none ()) &&& fg
+              ])
 
       end
 
@@ -885,11 +984,11 @@ module SeqProg =
             )
         ]
       in
-      let evalo = Tabled.(tabledrec three evalo_norec) in
+      let evalo = Tabling.(tabledrec three evalo_norec) in
       fresh (thrd thrd' tm tm' rs' opterr)
         (tm   === ThreadManager.of_list [thrd ])
         (tm'  === ThreadManager.of_list [thrd'])
-        (thrd === Thread.init ps rs)
+        (thrd === Thread.init p rs)
         (res  === Result.result rs' opterr)
         (Thread.regso thrd' rs')
         (evalo tm tm' opterr)

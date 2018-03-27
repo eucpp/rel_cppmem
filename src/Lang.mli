@@ -176,12 +176,8 @@ module Error :
   sig
     include Utils.Logic
 
-    type code = Assertion | Datarace
-
     val assertion : Expr.ti -> ti
     val datarace  : MemOrder.ti -> Loc.ti -> ti
-
-    val errcodeo : code -> ti -> MiniKanren.goal
   end
 
 module Label :
@@ -201,6 +197,34 @@ module Label :
       ?sg:(Error.ti -> MiniKanren.goal) ->
       ?fg:MiniKanren.goal ->
       ti -> MiniKanren.goal
+  end
+
+module Prop :
+  sig
+    include Utils.Logic
+
+    val true_   : unit -> ti
+    val false_  : unit -> ti
+
+    val reg_eq : ThreadID.ti -> Reg.ti -> Value.ti -> ti
+    val loc_eq : Loc.ti -> Value.ti -> ti
+
+    type lhs
+
+    val (%) : int -> string -> lhs
+    val (~) : string -> lhs
+    val (=) : lhs -> int -> ti
+
+    val conj : ti -> ti -> ti
+    val disj : ti -> ti -> ti
+    val neg  : ti -> ti
+
+    val (&&) : ti -> ti -> ti
+    val (||) : ti -> ti -> ti
+    val (!)  : ti -> ti
+
+    val datarace  : unit -> ti
+    val assertion : unit -> ti
   end
 
 module ThreadLocalStorage(T : Utils.Logic) :
@@ -228,6 +252,8 @@ module Thread :
     include Utils.Logic
 
     val init : ?pid:ThreadID.ti -> Prog.ti -> Regs.ti -> ti
+
+    val regso : ti -> Regs.ti -> MiniKanren.goal
 
     val terminatedo : ti -> MiniKanren.goal
   end

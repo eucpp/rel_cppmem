@@ -29,7 +29,7 @@ module MemoryModel =
         val alloc : thrdn:int -> string list -> ti
         val init  : thrdn:int -> (string * int) list -> ti
 
-        val checko : ti -> (string * int) list -> MiniKanren.goal
+        val checko : ti -> Loc.ti -> Value.ti -> MiniKanren.goal
 
         val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
       end
@@ -40,7 +40,7 @@ module MemoryModel =
 
         val init  : thrdn:int -> (string * int) list -> ti
 
-        val checko : ti -> (string * int) list -> MiniKanren.goal
+        val checko : ti -> Loc.ti -> Value.ti -> MiniKanren.goal
 
         val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
       end
@@ -74,6 +74,7 @@ module State(Memory : MemoryModel.T) =
       and inner = (ThreadManager.tl, Memory.tl, Error.tl Std.Option.logic) T.t
 
     type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     module F = Fmap3(T)
 
@@ -126,37 +127,42 @@ module State(Memory : MemoryModel.T) =
     let dataraceo s =
       erroro s ~sg:(fun err -> fresh (mo loc) (err === Error.datarace mo loc))
 
-    let rec sato p s = Lang.(Prop.(conde
-      [ fresh (tid r v thrds mem opterr thrd rs)
-          (p === reg_eq tid r v)
-          (s === state thrds mem opterr)
+    let rec sato p s = conde
+      [ fresh (tid r v tm mem opterr thrd rs)
+          (p === Prop.reg_eq tid r v)
+          (s === state tm mem opterr)
           (ThreadManager.geto tm tid thrd)
           (Thread.regso thrd rs)
           (Regs.reado rs r v)
 
-      ; fresh (tid r v thrds mem opterr thrd rs)
-          (p === loc_eq l v)
+      ; fresh (tid l v thrds mem opterr)
+          (p === Prop.loc_eq l v)
           (s === state thrds mem opterr)
           (Memory.checko mem l v)
 
-      ; fresh (ec err)
-          (p === error ec)
-          (erroro s ~sg:((===) err))
-          (Error.errcodeo ec err)
+      ; fresh (err)
+          (erroro s ~sg:(fun err -> conde
+            [ fresh (mo loc)
+                (err === Error.datarace mo loc)
+                (p === Prop.datarace ())
+            ; fresh (e)
+                (err === Error.assertion e)
+                (p === Prop.assertion ())
+            ]
+          ))
 
       ; fresh (p')
-          (p === neg p')
+          (p === Prop.neg p')
         ?~(sato p' s)
 
       ; fresh (p1 p2)
-          (p === conj p1 p2)
+          (p === Prop.conj p1 p2)
           ((sato p1 s) &&& (sato p2 s))
 
       ; fresh (p1 p2)
-          (p === disj p1 p2)
+          (p === Prop.disj p1 p2)
           ((sato p1 s) ||| (sato p2 s))
       ]
-    ))
 
   end
 
@@ -193,6 +199,11 @@ module Interpreter(Memory : MemoryModel.T) =
         (reachableo t t')
         (ThreadManager.terminatedo tm')
 
+    let eval ?(prop = Prop.true_ ()) s =
+      run q
+        (fun s' -> (evalo s s') &&& (sato prop s'))
+        (fun ss -> ss)
+
     let invarianto po t = ?~(
       fresh (t')
           (reachableo t t')
@@ -213,6 +224,7 @@ module ValueStorage =
       and inner = (Lang.Loc.tl, Lang.Value.tl) Storage.inner
 
     type ti = (Lang.Loc.tt, Lang.Value.tt, Lang.Loc.tl, Lang.Value.tl) Storage.ti
+    type ri = (tt, tl) MiniKanren.reified
 
     let allocate = Storage.allocate (Lang.Value.integer 0)
 
@@ -237,6 +249,7 @@ module SequentialConsistent = MemoryModel.Make(
       and inner = ValueStorage.inner
 
     type ti = ValueStorage.ti
+    type ri = (tt, tl) MiniKanren.reified
 
     let reify = ValueStorage.reify
 
@@ -246,8 +259,8 @@ module SequentialConsistent = MemoryModel.Make(
 
     let pprint = ValueStorage.pprint
 
-    let checko t lvs =
-      Storage.checko t @@ List.map (fun (l, v) -> (Loc.loc l, Value.integer v)) lvs
+    let checko t l v =
+      (ValueStorage.reado t l v)
 
     let load_sco t t' tid loc value =
       (t === t') &&&
@@ -302,6 +315,7 @@ module Timestamp =
       and inner = tl nat
 
     type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     let ts = nat
 
@@ -341,6 +355,7 @@ module ViewFront =
       and inner = (Lang.Loc.tl, Timestamp.tl) Storage.inner
 
     type ti = (Lang.Loc.tt, Timestamp.tt, Lang.Loc.tl, Timestamp.tl) Storage.ti
+    type ri = (Lang.Loc.tt, Timestamp.tt, Lang.Loc.tl, Timestamp.tl) Storage.ri
 
     let bottom = Storage.empty
 
@@ -400,6 +415,7 @@ module ThreadFront =
       and inner = (ViewFront.tl, ViewFront.tl, ViewFront.tl) T.t
 
     type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     include Fmap3(T)
 
@@ -494,6 +510,7 @@ module LocStory =
           and inner = (Timestamp.tl, Lang.Value.tl, ViewFront.tl) T.t
 
         type ti = (tt, tl) MiniKanren.injected
+        type ri = (tt, tl) MiniKanren.reified
 
         include Fmap3(T)
 
@@ -685,6 +702,7 @@ module ReleaseAcquire = MemoryModel.Make(
       ) T.t
 
     type ti = (tt, tl) MiniKanren.injected
+    type ri = (tt, tl) MiniKanren.reified
 
     include Fmap4(T)
 
@@ -712,12 +730,10 @@ module ReleaseAcquire = MemoryModel.Make(
       in
       pprint_logic pp
 
-    let checko t lvs =
+    let checko t l v =
       fresh (thrds story na sc)
         (t === state thrds story na sc)
-        (?& (ListLabels.map lvs ~f:(fun (l, v) ->
-          MemStory.last_valueo story (Loc.loc l) (Value.integer v)
-        )))
+        (MemStory.last_valueo story l v)
 
     let spawno t t' pid tid1 tid2 =
       fresh (thrds thrds' thrds'' pfront tfront1 tfront2 story na sc)
