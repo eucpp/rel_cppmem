@@ -21,6 +21,8 @@ module MemoryModel :
       sig
         include Utils.Logic
 
+        val name : string
+
         val alloc : thrdn:int -> string list -> ti
         val init  : thrdn:int -> (string * int) list -> ti
 
@@ -44,7 +46,9 @@ module Interpreter(Memory : MemoryModel.T) :
       sig
         include Utils.Logic
 
-        val init : Lang.ThreadManager.ti -> Memory.ti -> ti
+        val istate : Lang.ThreadManager.ti -> Memory.ti -> ti
+
+        val alloc_istate : regs:(string list) -> locs:(string list) -> Lang.Prog.ti list -> ti
 
         val memo : ti -> Memory.ti -> MiniKanren.goal
 

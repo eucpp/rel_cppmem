@@ -670,9 +670,9 @@ module Prop =
 
     type lhs = TidReg of ThreadID.ti * Reg.ti | Loc of Loc.ti
 
-    let (%) tid r = TidReg (ThreadID.tid tid, Reg.reg r)
+    let loc l = Loc (Loc.loc l)
 
-    let (~) l = Loc (Loc.loc l)
+    let (%) tid r = TidReg (ThreadID.tid tid, Reg.reg r)
 
     let (=) lhs v =
       match lhs with

@@ -211,9 +211,9 @@ module Prop :
 
     type lhs
 
-    val (%) : int -> string -> lhs
-    val (~) : string -> lhs
-    val (=) : lhs -> int -> ti
+    val loc  : string -> lhs
+    val (%)  : int -> string -> lhs
+    val (=)  : lhs -> int -> ti
 
     val conj : ti -> ti -> ti
     val disj : ti -> ti -> ti

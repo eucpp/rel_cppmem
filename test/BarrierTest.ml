@@ -57,106 +57,31 @@ let prog_Barrier = <:cppmem_par<
   }}}
 >>
 
-let thrdn = 2
-let locs = [("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
-let regs = ["r1"; "r2"; "r3"]
+let test_Barrier ~stat = Test.(make_test_desc
+  ~name:"Barrier"
+  ~prog:prog_Barrier
+  ~regs:["r1"; "r2"; "r3"]
+  ~locs:["x"; "y"; "d"]
+  ~prop:Prop.((1%"r3" = 0) && (2%"r3" = 0))
+  ~stat
+)
 
-let test_SC =
-  let module Memory = Operational.SequentialConsistent in
-  let module Interpreter = Operational.ConcurrentInterpreter(Memory) in
-  let module Trace = Utils.Trace(Interpreter.ProgramState) in
+let tests = Test.(make_testsuite ~name:"Barrier"
+  ~tests:[
+    make_operational_testsuite
+      ~model:SeqCst
+      ~tests:[ test_Barrier ~stat:Fulfills ]
 
-  let name = "SC" in
+    ;
 
-  let mem = Memory.init ~thrdn locs in
-  let regs = RegStorage.init thrdn @@ Regs.alloc regs in
-  let initstate = Interpreter.(ProgramState.make prog_Barrier @@ State.init regs mem) in
-  let asserto t =
-    fresh (s m)
-      (Interpreter.ProgramState.terminatedo t)
-      (Interpreter.ProgramState.stateo t s)
-      (conde
-        [ (Interpreter.State.erroro s)
-        ; fresh (rs1 rs2 v1 v2)
-            (Interpreter.State.regso s (ThreadID.tid 1) rs1)
-            (Interpreter.State.regso s (ThreadID.tid 1) rs2)
-            (Regs.reado rs1 (Reg.reg "r3") v1)
-            (Regs.reado rs2 (Reg.reg "r3") v2)
-            ((v1 =/= (Value.integer 1)) ||| (v2 =/= (Value.integer 1)))
-        ]
-      )
-  in
-  let evalo = Interpreter.evalo ~tactic:Operational.Tactic.Interleaving in
+    make_operational_testsuite
+      ~model:TSO
+      ~tests:[ test_Barrier ~stat:Fulfills ]
 
-  let pprint = Trace.trace in
+    ;
 
-  let test () =
-    let stream = Query.eval (evalo ~po:asserto) initstate in
-    if Stream.is_empty stream then
-      Test.Ok
-    else begin
-      Format.printf "Barrier test (%s) fails!@;" name;
-      let cexs = Stream.take stream in
-      Format.printf "List of counterexamples:@;";
-      List.iter (fun cex -> Format.printf "%a@;" pprint cex) cexs;
-      Test.Fail ""
-    end
-  in
-
-  Test.make_testcase ~name ~test
-
-let test_RA =
-  let module Memory = Operational.ReleaseAcquire in
-  let module Interpreter = Operational.ConcurrentInterpreter(Memory) in
-  let module Trace = Utils.Trace(Interpreter.ProgramState) in
-
-  let name = "RA" in
-
-  let mem = Memory.init ~thrdn locs in
-  let regs = RegStorage.init thrdn @@ Regs.alloc regs in
-  let initstate = Interpreter.(ProgramState.make prog_Barrier @@ State.init regs mem) in
-  let asserto t =
-    fresh (s m)
-      (Interpreter.ProgramState.terminatedo t)
-      (Interpreter.ProgramState.stateo t s)
-      (conde
-        [ (Interpreter.State.erroro s)
-        ; fresh (rs1 rs2 v1 v2)
-            (Interpreter.State.regso s (ThreadID.tid 1) rs1)
-            (Interpreter.State.regso s (ThreadID.tid 1) rs2)
-            (Regs.reado rs1 (Reg.reg "r3") v1)
-            (Regs.reado rs2 (Reg.reg "r3") v2)
-            ((v1 =/= (Value.integer 1)) ||| (v2 =/= (Value.integer 1)))
-        ]
-      )
-  in
-  let evalo = Interpreter.evalo ~tactic:Operational.Tactic.Interleaving in
-
-  let pprint = Trace.trace in
-
-  let test () =
-    let stream = Query.eval (evalo ~po:asserto) initstate in
-    if Stream.is_empty stream then
-      Test.Ok
-    else begin
-      Format.printf "Barrier test (%s) fails!@;" name;
-      let cexs = Stream.take stream in
-      Format.printf "List of counterexamples:@;";
-      List.iter (fun cex -> Format.printf "%a@;" pprint cex) cexs;
-      Test.Fail ""
-    end
-    (* let stream = Query.eval (evalo ~po:Interpreter.ProgramState.terminatedo) initstate in
-    let cexs = Stream.take stream in
-    Format.printf "List of counterexamples:@;";
-    List.iter (fun cex -> Format.printf "%a@;" pprint cex) cexs;
-    Test.Ok *)
-  in
-
-  Test.make_testcase ~name ~test
-
-
-let tests = Test.make_testsuite ~name:"Barrier" ~tests:
-  [
-    test_SC;
-    test_RA;
+    make_operational_testsuite
+      ~model:RelAcq
+      ~tests:[ test_Barrier ~stat:Fulfills ]
   ]
+)

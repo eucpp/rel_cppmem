@@ -26,6 +26,8 @@ module MemoryModel =
       sig
         include Utils.Logic
 
+        val name : string
+
         val alloc : thrdn:int -> string list -> ti
         val init  : thrdn:int -> (string * int) list -> ti
 
@@ -39,6 +41,8 @@ module MemoryModel =
     module type MinT =
       sig
         include Utils.Logic
+
+        val name : string
 
         val init  : thrdn:int -> (string * int) list -> ti
 
@@ -105,7 +109,13 @@ module State(Memory : MemoryModel.T) =
 
     let state thrds mem opterr = T.(inj @@ F.distrib {thrds; mem; opterr})
 
-    let init thrds mem = state thrds mem (Std.none ())
+    let istate thrds mem = state thrds mem (Std.none ())
+
+    let alloc_istate ~regs ~locs prog =
+      let thrdn = List.length prog in
+      let tm = ThreadManager.init prog @@ Utils.repeat (Regs.alloc regs) thrdn in
+      let mem = Memory.alloc ~thrdn locs in
+      istate tm mem
 
     let memo s mem =
       fresh (thrds opterr)
@@ -259,6 +269,8 @@ module ValueStorage =
 
 module SeqCst = MemoryModel.Make(
   struct
+    let name = "SeqCst"
+
     type tt = ValueStorage.tt
 
     type tl = ValueStorage.tl
@@ -371,6 +383,8 @@ module StoreBuffer =
 
 module TSO = MemoryModel.Make(
   struct
+    let name = "TSO"
+
     module TLS = Lang.ThreadLocalStorage(StoreBuffer)
 
     type tt = TLS.tt * ValueStorage.tt
@@ -833,6 +847,8 @@ module MemStory =
 
 module RelAcq = MemoryModel.Make(
   struct
+    let name = "RelAcq"
+
     module T = struct
       type ('a, 'b, 'c, 'd) t = {
         thrds : 'a;

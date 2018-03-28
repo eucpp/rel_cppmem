@@ -53,91 +53,38 @@ let prog_CohenLock = <:cppmem_par<
   }}}
 >>
 
-let thrdn = 2
-let locs = ["x"; "y"; "d"]
-let regs = ["r1"; "r2"; "r3"]
+let () =
+  let module Memory = Operational.RelAcq in
+  let module Interpreter = Operational.Interpreter(Memory) in
+  let module Trace = Utils.Trace(Interpreter.State) in
+  let istate = Interpreter.State.alloc_istate ~regs:["r1"; "r2"; "r3"] ~locs:["x"; "y"; "d"] prog_CohenLock in
+  Stream.iter ((fun out -> Format.printf "%a@;" Trace.trace out)) @@ Interpreter.eval istate
 
-let test_SC =
-  let module Memory = Operational.SequentialConsistent in
-  let module Interpreter = Operational.ConcurrentInterpreter(Memory) in
-  let module Trace = Utils.Trace(Interpreter.ProgramState) in
+let test_CohenLock ~stat = Test.(make_test_desc
+  ~name:"CohenLock"
+  ~prog:prog_CohenLock
+  ~regs:["r1"; "r2"; "r3"]
+  ~locs:["x"; "y"; "d"]
+  ~prop:Prop.(loc "d" = 10)
+  ~stat
+)
 
-  let name = "SC" in
+let tests = Test.(make_testsuite ~name:"Cohen"
+  ~tests:[
+    make_operational_testsuite
+      ~model:SeqCst
+      ~tests:[ test_CohenLock ~stat:Fulfills ]
 
-  let mem = Memory.alloc ~thrdn locs in
-  let regs = RegStorage.init thrdn @@ Regs.alloc regs in
-  let initstate = Interpreter.(ProgramState.make prog_CohenLock @@ State.init regs mem) in
-  let asserto t =
-    fresh (s m)
-      (Interpreter.ProgramState.terminatedo t)
-      (Interpreter.ProgramState.stateo t s)
-      (conde
-        [ (Interpreter.State.memo s m) &&& (Memory.checko m [("d", 2)])
-        ; (Interpreter.State.erroro s)
-        ]
-      )
-  in
-  let evalo = Interpreter.evalo ~tactic:Operational.Tactic.Interleaving ~po:asserto in
+    ;
 
-  let pprint = Trace.trace in
+    make_operational_testsuite
+      ~model:TSO
+      ~tests:[ test_CohenLock ~stat:Fulfills ]
 
-  let test () =
-    let stream = Query.eval evalo initstate in
-    if Stream.is_empty stream then
-      Test.Ok
-    else begin
-      Format.printf "Cohen Lock test (%s) fails!@;" name;
-      let cexs = Stream.take stream in
-      Format.printf "List of counterexamples:@;";
-      List.iter (fun cex -> Format.printf "%a@;" pprint cex) cexs;
-      Test.Fail ""
-    end
-  in
+    ;
 
-  Test.make_testcase ~name ~test
-
-
-let test_RA =
-  let module Memory = Operational.ReleaseAcquire in
-  let module Interpreter = Operational.ConcurrentInterpreter(Memory) in
-  let module Trace = Utils.Trace(Interpreter.ProgramState) in
-
-  let name = "RA" in
-
-  let mem = Memory.alloc ~thrdn locs in
-  let regs = RegStorage.init thrdn @@ Regs.alloc regs in
-  let initstate = Interpreter.(ProgramState.make prog_CohenLock @@ State.init regs mem) in
-  let asserto t =
-    fresh (s m)
-      (Interpreter.ProgramState.terminatedo t)
-      (Interpreter.ProgramState.stateo t s)
-      (conde
-        [ (Interpreter.State.memo s m) &&& (Memory.checko m [("d", 2)])
-        ; (Interpreter.State.erroro s)
-        ]
-      )
-  in
-  let evalo = Interpreter.evalo ~tactic:Operational.Tactic.Interleaving in
-
-  let pprint = Trace.trace in
-
-  let test () =
-    let stream = Query.eval (evalo ~po:asserto) initstate in
-    if Stream.is_empty stream then
-      Test.Ok
-    else begin
-      Format.printf "Cohen Lock test (%s) fails!@;" name;
-      let cexs = Stream.take stream in
-      Format.printf "List of counterexamples:@;";
-      List.iter (fun cex -> Format.printf "%a@;" pprint cex) cexs;
-      Test.Fail ""
-    end
-  in
-
-  Test.make_testcase ~name ~test
-
-let tests = Test.make_testsuite ~name:"CohenLock" ~tests:
-  [
-    test_SC;
-    test_RA;
+    make_operational_testsuite
+      ~model:RelAcq
+      ~tests:[ test_CohenLock ~stat:Fulfills ]
   ]
+)
