@@ -914,6 +914,15 @@ module ThreadManager =
         (geto ts tid thrd)
         (seto ts ts' tid thrd')
         (Thread.stepo label thrd thrd')
+
+    let rec non_silent_stepo tid label ts ts'' =
+      fresh (ts' label')
+        (stepo tid label' ts ts')
+        (conde
+          [ (label' =/= Label.empty ()) &&& (label === label') &&& (ts' === ts'')
+          ; (label' === Label.empty ()) &&& (non_silent_stepo tid label ts' ts'')
+          ]
+        )
   end
 
 module SeqProg =

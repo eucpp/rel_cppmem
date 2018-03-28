@@ -267,6 +267,8 @@ module ThreadManager :
     val terminatedo : ti -> MiniKanren.goal
 
     val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
+
+    val non_silent_stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
   end
 
 module SeqProg :

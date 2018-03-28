@@ -182,12 +182,16 @@ module Interpreter(Memory : MemoryModel.T) =
       fresh (tm tm' mem mem' opterr tid label)
         (s  === state tm  mem  (Std.none ()))
         (s' === state tm' mem' opterr)
-        (ThreadManager.stepo tid label tm tm')
-        (Memory.stepo tid label mem mem')
-        (Label.erroro label
-          ~sg:(fun err -> opterr === Std.some err)
-          ~fg:(opterr === Std.none ())
+        (conde
+          [ (ThreadManager.non_silent_stepo tid label tm tm') &&& (Memory.stepo tid label mem mem')
+          ; (tm === tm') &&& (Memory.stepo tid (Label.empty ()) mem mem')
+          ]
         )
+        (Label.erroro label
+            ~sg:(fun err -> opterr === Std.some err)
+            ~fg:(opterr === Std.none ())
+        )
+
 
     let reachableo =
       let reachableo_norec reachableo_rec s s'' = conde
@@ -282,29 +286,27 @@ module SeqCst = MemoryModel.Make(
         (Lang.Value.nqo value expected) &&& (t === t');
       ])
 
-    let stepo tid label t t' = conde [
-      (conde
-        [ (label === Label.empty ())
-        ; fresh (e) (label === Label.error (Error.assertion e))
-        ]
-      ) &&& (t === t');
+    let stepo tid label t t' = conde
+      [ fresh (e)
+          (t === t')
+          (label === Label.error (Error.assertion e))
 
-      fresh (mo loc v)
-        (* (mo === !!MemOrder.SC) *)
-        (label === Label.load mo loc v)
-        (load_sco t t' tid loc v);
+      ; fresh (mo loc v)
+          (* (mo === !!MemOrder.SC) *)
+          (label === Label.load mo loc v)
+          (load_sco t t' tid loc v)
 
-      fresh (mo loc v)
-        (* (mo === !!MemOrder.SC) *)
-        (label === Label.store mo loc v)
-        (store_sco t t' tid loc v);
+      ; fresh (mo loc v)
+          (* (mo === !!MemOrder.SC) *)
+          (label === Label.store mo loc v)
+          (store_sco t t' tid loc v)
 
-      fresh (mo1 mo2 loc e d v)
-        (* (mo1 === !!MemOrder.SC) *)
-        (* (mo2 === !!MemOrder.SC) *)
-        (label === Label.cas mo1 mo2 loc e d v)
-        (cas_sco t t' tid loc e d v);
-    ]
+      ; fresh (mo1 mo2 loc e d v)
+          (* (mo1 === !!MemOrder.SC) *)
+          (* (mo2 === !!MemOrder.SC) *)
+          (label === Label.cas mo1 mo2 loc e d v)
+          (cas_sco t t' tid loc e d v)
+      ]
   end)
 
 (* ************************************************************************** *)
@@ -1073,49 +1075,47 @@ module RelAcq = MemoryModel.Make(
         (ViewFront.shapeo na locs)
         (ViewFront.shapeo sc locs)
 
-    let stepo tid label t t' = conde [
-      (conde
-        [ (label === Label.empty ())
-        ; fresh (e) (label === Label.error (Error.assertion e))
-        ]
-      ) &&& (t === t');
+    let stepo tid label t t' = conde
+      [ fresh (e)
+          (t === t')
+          (label === Label.error (Error.assertion e))
 
-      fresh (mo loc v)
-        (label === Label.load mo loc v)
-        (conde [
-          (mo === !!MemOrder.SC ) &&& (load_acqo t t' tid loc v);
-          (mo === !!MemOrder.ACQ) &&& (load_acqo t t' tid loc v);
-          (mo === !!MemOrder.RLX) &&& (load_rlxo t t' tid loc v);
-          (mo === !!MemOrder.NA ) &&& (load_nao  t t' tid loc v);
-        ]);
-
-      fresh (mo loc v)
-        (label === Label.store mo loc v)
-        (conde [
-          (mo === !!MemOrder.SC ) &&& (store_relo t t' tid loc v);
-          (mo === !!MemOrder.REL) &&& (store_relo t t' tid loc v);
-          (mo === !!MemOrder.RLX) &&& (store_rlxo t t' tid loc v);
-          (mo === !!MemOrder.NA ) &&& (store_nao  t t' tid loc v);
-        ]);
-
-      fresh (mo1 mo2 loc exp des v)
-        (label === Label.cas mo1 mo2 loc exp des v)
-        (* TODO: different mo combinations *)
-        (cas_rao t t' tid loc exp des v);
-
-      fresh (loc mo v)
-        (label === Label.error (Error.datarace mo loc))
-        (conde [
+      ; fresh (mo loc v)
+          (label === Label.load mo loc v)
           (conde [
-            (mo === !!MemOrder.SC);
-            (mo === !!MemOrder.ACQ);
-            (mo === !!MemOrder.REL);
-            (mo === !!MemOrder.RLX);
-          ]) &&&
-          (dataraceo t t' tid loc);
+            (mo === !!MemOrder.SC ) &&& (load_acqo t t' tid loc v);
+            (mo === !!MemOrder.ACQ) &&& (load_acqo t t' tid loc v);
+            (mo === !!MemOrder.RLX) &&& (load_rlxo t t' tid loc v);
+            (mo === !!MemOrder.NA ) &&& (load_nao  t t' tid loc v);
+          ])
 
-          (mo === !!MemOrder.NA) &&&
-          (na_dataraceo t t' tid loc);
-        ]);
-    ]
+      ; fresh (mo loc v)
+          (label === Label.store mo loc v)
+          (conde [
+            (mo === !!MemOrder.SC ) &&& (store_relo t t' tid loc v);
+            (mo === !!MemOrder.REL) &&& (store_relo t t' tid loc v);
+            (mo === !!MemOrder.RLX) &&& (store_rlxo t t' tid loc v);
+            (mo === !!MemOrder.NA ) &&& (store_nao  t t' tid loc v);
+          ])
+
+      ; fresh (mo1 mo2 loc exp des v)
+          (label === Label.cas mo1 mo2 loc exp des v)
+          (* TODO: different mo combinations *)
+          (cas_rao t t' tid loc exp des v)
+
+      ; fresh (loc mo v)
+          (label === Label.error (Error.datarace mo loc))
+          (conde [
+            (conde [
+              (mo === !!MemOrder.SC);
+              (mo === !!MemOrder.ACQ);
+              (mo === !!MemOrder.REL);
+              (mo === !!MemOrder.RLX);
+            ]) &&&
+            (dataraceo t t' tid loc);
+
+            (mo === !!MemOrder.NA) &&&
+            (na_dataraceo t t' tid loc)
+          ]);
+      ]
   end)

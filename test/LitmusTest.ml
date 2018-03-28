@@ -282,6 +282,177 @@ let tests_sc_op = make_litmus_testsuite
   ] *)
 
 (* ************************************************************************** *)
+(* ********************* TotalStoreOrder Tests ****************************** *)
+(* ************************************************************************** *)
+
+let prog_SW = <:cppmem_par<
+  spw {{{
+      x_rlx := 1;
+      f_rlx := 1
+  |||
+      r1 := f_rlx;
+      r2 := x_rlx
+  }}}
+>>
+
+let test_SW = litmus_test
+  ~name:"SW"
+  ~prog:prog_SW
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "f"]
+  ~quant:Forall
+  ~prop:Prop.(
+       ((2%"r1" = 0) && (2%"r2" = 0))
+    || ((2%"r1" = 0) && (2%"r2" = 1))
+    || ((2%"r1" = 1) && (2%"r2" = 1))
+  )
+
+let prog_SB = <:cppmem_par<
+  spw {{{
+      x_rlx := 1;
+      r1 := y_rlx
+  |||
+      y_rlx := 1;
+      r2 := x_rlx
+  }}}
+>>
+
+let test_SB = litmus_test
+  ~name:"SB"
+  ~prog:prog_SB
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y";]
+  ~quant:Exists
+  ~prop:Prop.(
+    ((1%"r1" = 0) && (2%"r2" = 0))
+  )
+
+let prog_LB = <:cppmem_par<
+    spw {{{
+        r1 := x_rlx;
+        y_rlx := 1
+    |||
+        r2 := y_rlx;
+        x_rlx := 1
+    }}}
+>>
+
+let test_LB = litmus_test
+  ~name:"LB"
+  ~prog:prog_LB
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y";]
+  ~quant:Forall
+  ~prop:Prop.(
+    !((1%"r1" = 1) && (2%"r2" = 1))
+  )
+
+let prog_MP = <:cppmem_par<
+    spw {{{
+        x_rlx := 1;
+        f_rlx := 1
+    |||
+        repeat r1 := f_rlx until r1;
+        r2 := x_rlx
+    }}}
+>>
+
+let test_MP = litmus_test
+  ~name:"MP"
+  ~prog:prog_MP
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "f"]
+  ~quant:Forall
+  ~prop:Prop.(
+    (2%"r2" = 1)
+  )
+
+let prog_CoRR = <:cppmem_par<
+  spw {{{
+    x_rlx := 1
+  |||
+    x_rlx := 2
+  |||
+    r1 := x_rlx;
+    r2 := x_rlx
+  |||
+    r3 := x_rlx;
+    r4 := x_rlx
+  }}}
+>>
+
+let test_CoRR = litmus_test
+  ~name:"CoRR"
+  ~prog:prog_CoRR
+  ~regs:["r1"; "r2"; "r3"; "r4"]
+  ~locs:["x";]
+  ~quant:Forall
+  ~prop:Prop.(!(
+    ((3%"r1" = 1) && (3%"r2" = 2) && (4%"r3" = 2) && (4%"r4" = 1))
+    ||
+    ((3%"r1" = 2) && (3%"r2" = 1) && (4%"r3" = 1) && (4%"r4" = 2))
+  ))
+
+let prog_IRIW = <:cppmem_par<
+  spw {{{
+    x_rlx := 1
+  |||
+    y_rlx := 1
+  |||
+    r1 := x_rlx;
+    r2 := y_rlx
+  |||
+    r3 := y_rlx;
+    r4 := x_rlx
+  }}}
+>>
+
+let test_IRIW = litmus_test
+  ~name:"IRIW"
+  ~prog:prog_IRIW
+  ~regs:["r1"; "r2"; "r3"; "r4"]
+  ~locs:["x";"y";]
+  ~quant:Exists
+  ~prop:Prop.(
+    ((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
+  )
+
+let prog_WRC = <:cppmem_par<
+  spw {{{
+    x_rlx := 1
+  |||
+    r1 := x_rlx;
+    y_rlx := r1
+  |||
+    r2 := y_rlx;
+    r3 := x_rlx
+  }}}
+>>
+
+let test_WRC = litmus_test
+  ~name:"WRC"
+  ~prog:prog_WRC
+  ~regs:["r1"; "r2"; "r3"; "r4"]
+  ~locs:["x";"y";]
+  ~quant:Forall
+  ~prop:Prop.(
+    !((3%"r2" = 1) && (3%"r3" = 0))
+  )
+
+let tests_tso_op = make_litmus_testsuite
+  ~name:"TSO"
+  ~tests:([
+    test_SW;
+    (* test_SB; *)
+    (* test_LB; *)
+    (* test_MP; *)
+    (* test_CoRR; *)
+    (* test_IRIW; *)
+    (* test_WRC; *)
+  ])
+  (module Operational.TSO)
+
+(* ************************************************************************** *)
 (* ********************** ReleaseAcquire Tests ****************************** *)
 (* ************************************************************************** *)
 
@@ -687,8 +858,9 @@ let tests_ra_op = make_litmus_testsuite
 let tests = Test.(
   make_testsuite ~name:"Litmus" ~tests: [
     make_testsuite ~name:"Operational" ~tests: [
-      tests_sc_op;
-      tests_ra_op;
+      (* tests_sc_op; *)
+      tests_tso_op;
+      (* tests_ra_op; *)
     ];
 
     make_testsuite ~name:"Axiomatic" ~tests: [
