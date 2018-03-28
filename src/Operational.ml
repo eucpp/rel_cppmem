@@ -31,6 +31,8 @@ module MemoryModel =
 
         val checko : ti -> Loc.ti -> Value.ti -> MiniKanren.goal
 
+        val terminatedo : ti -> MiniKanren.goal
+
         val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
       end
 
@@ -41,6 +43,8 @@ module MemoryModel =
         val init  : thrdn:int -> (string * int) list -> ti
 
         val checko : ti -> Loc.ti -> Value.ti -> MiniKanren.goal
+
+        val terminatedo : ti -> MiniKanren.goal
 
         val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
       end
@@ -110,6 +114,12 @@ module State(Memory : MemoryModel.T) =
     let thrdmgro s thrds =
       fresh (mem opterr)
         (s === state thrds mem opterr)
+
+    let terminatedo s =
+      fresh (tm mem opterr)
+        (s === state tm mem opterr)
+        (ThreadManager.terminatedo tm)
+        (Memory.terminatedo mem)
 
     let erroro ?(sg=fun _ -> success) ?(fg=failure) s =
       fresh (thrds mem opterr err)
@@ -183,15 +193,14 @@ module Interpreter(Memory : MemoryModel.T) =
         (s  === state tm  mem  (Std.none ()))
         (s' === state tm' mem' opterr)
         (conde
-          [ (ThreadManager.non_silent_stepo tid label tm tm') &&& (Memory.stepo tid label mem mem')
-          ; (tm === tm') &&& (Memory.stepo tid (Label.empty ()) mem mem')
+          [ ?& [(ThreadManager.non_silent_stepo tid label tm tm'); (Memory.stepo tid label mem mem')]
+          ; ?& [(tm === tm'); (label === Label.empty ()); (Memory.stepo tid label mem mem')]
           ]
         )
         (Label.erroro label
             ~sg:(fun err -> opterr === Std.some err)
             ~fg:(opterr === Std.none ())
         )
-
 
     let reachableo =
       let reachableo_norec reachableo_rec s s'' = conde
@@ -204,10 +213,7 @@ module Interpreter(Memory : MemoryModel.T) =
       Tabling.(tabledrec two) reachableo_norec
 
     let evalo s s' =
-      fresh (tm' mem' opterr')
-        (s' === state tm' mem' opterr')
-        (reachableo s s')
-        (ThreadManager.terminatedo tm')
+      (reachableo s s') &&& (terminatedo s')
 
     let eval ?(prop = Prop.true_ ()) s =
       run q
@@ -272,6 +278,8 @@ module SeqCst = MemoryModel.Make(
     let checko t l v =
       (ValueStorage.reado t l v)
 
+    let terminatedo t = success
+
     let load_sco t t' tid loc value =
       (t === t') &&&
       (ValueStorage.reado t loc value)
@@ -333,6 +341,9 @@ module StoreBuffer =
 
     let empty = nil
 
+    let emptyo t =
+      (t === nil ())
+
     let enqueueo t t' l v =
       (t' === (Pair.pair l v) % t)
 
@@ -389,9 +400,15 @@ module TSO = MemoryModel.Make(
         (t === Pair.pair tls mem)
         (ValueStorage.reado mem l v)
 
+    let terminatedo t =
+      fresh (tls mem)
+        (t === Pair.pair tls mem)
+        (TLS.forallo StoreBuffer.emptyo tls)
+
     let loado t t' tid l v =
       fresh (tls mem sb optv)
-        (t === Pair.pair tls mem)
+        (t  === Pair.pair tls mem)
+        (t' === t)
         (TLS.geto tls tid sb)
         (StoreBuffer.loado sb l optv)
         (conde
@@ -882,6 +899,8 @@ module RelAcq = MemoryModel.Make(
       fresh (thrds story na sc)
         (t === state thrds story na sc)
         (MemStory.last_valueo story l v)
+
+    let terminatedo t = success
 
     let spawno t t' pid tid1 tid2 =
       fresh (thrds thrds' thrds'' pfront tfront1 tfront2 story na sc)

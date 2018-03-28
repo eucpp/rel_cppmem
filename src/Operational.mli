@@ -26,6 +26,8 @@ module MemoryModel :
 
         val checko : ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
 
+        val terminatedo : ti -> MiniKanren.goal
+
         val stepo : Lang.ThreadID.ti -> Lang.Label.ti -> ti -> ti -> MiniKanren.goal
       end
   end

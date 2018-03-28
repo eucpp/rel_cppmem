@@ -412,9 +412,9 @@ let test_IRIW = litmus_test
   ~prog:prog_IRIW
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
-  ~quant:Exists
+  ~quant:Forall
   ~prop:Prop.(
-    ((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
+    !((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
   )
 
 let prog_WRC = <:cppmem_par<
@@ -443,12 +443,12 @@ let tests_tso_op = make_litmus_testsuite
   ~name:"TSO"
   ~tests:([
     test_SW;
-    (* test_SB; *)
-    (* test_LB; *)
-    (* test_MP; *)
-    (* test_CoRR; *)
-    (* test_IRIW; *)
-    (* test_WRC; *)
+    test_SB;
+    test_LB;
+    test_MP;
+    test_CoRR;
+    test_IRIW;
+    test_WRC;
   ])
   (module Operational.TSO)
 
@@ -858,9 +858,9 @@ let tests_ra_op = make_litmus_testsuite
 let tests = Test.(
   make_testsuite ~name:"Litmus" ~tests: [
     make_testsuite ~name:"Operational" ~tests: [
-      (* tests_sc_op; *)
+      tests_sc_op;
       tests_tso_op;
-      (* tests_ra_op; *)
+      tests_ra_op;
     ];
 
     make_testsuite ~name:"Axiomatic" ~tests: [
