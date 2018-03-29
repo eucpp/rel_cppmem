@@ -53,19 +53,20 @@ let prog_CohenLock = <:cppmem_par<
   }}}
 >>
 
-let () =
-  let module Memory = Operational.RelAcq in
+(* let () =
+  let module Memory = Operational.SeqCst in
   let module Interpreter = Operational.Interpreter(Memory) in
   let module Trace = Utils.Trace(Interpreter.State) in
   let istate = Interpreter.State.alloc_istate ~regs:["r1"; "r2"; "r3"] ~locs:["x"; "y"; "d"] prog_CohenLock in
   Stream.iter ((fun out -> Format.printf "%a@;" Trace.trace out)) @@ Interpreter.eval istate
+*)
 
 let test_CohenLock ~stat = Test.(make_test_desc
   ~name:"CohenLock"
   ~prog:prog_CohenLock
   ~regs:["r1"; "r2"; "r3"]
   ~locs:["x"; "y"; "d"]
-  ~prop:Prop.(loc "d" = 10)
+  ~prop:Prop.(loc "d" = 1)
   ~stat
 )
 
@@ -88,3 +89,5 @@ let tests = Test.(make_testsuite ~name:"Cohen"
       ~tests:[ test_CohenLock ~stat:Fulfills ]
   ]
 )
+
+(* let tests = Test.(make_testsuite ~name:"Cohen" ~tests:[]) *)

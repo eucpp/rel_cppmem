@@ -916,10 +916,14 @@ module ThreadManager =
         (Thread.stepo label thrd thrd')
 
     let rec non_silent_stepo tid label ts ts'' =
-      fresh (ts' label')
+      fresh (ts' label' thrd')
         (stepo tid label' ts ts')
+        (geto ts' tid thrd')
         (conde
-          [ (label' =/= Label.empty ()) &&& (label === label') &&& (ts' === ts'')
+          [ (label === label') &&& (ts' === ts'') &&& (conde
+            [ (label =/= Label.empty ())
+            ; (Thread.terminatedo thrd')
+            ])
           ; (label' === Label.empty ()) &&& (non_silent_stepo tid label ts' ts'')
           ]
         )

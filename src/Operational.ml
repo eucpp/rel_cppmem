@@ -203,10 +203,19 @@ module Interpreter(Memory : MemoryModel.T) =
         (s  === state tm  mem  (Std.none ()))
         (s' === state tm' mem' opterr)
         (conde
-          [ ?& [(ThreadManager.non_silent_stepo tid label tm tm'); (Memory.stepo tid label mem mem')]
-          ; ?& [(tm === tm'); (label === Label.empty ()); (Memory.stepo tid label mem mem')]
-          ]
-        )
+          (* thread-silent step *)
+          [ ?&  [ (tm === tm'); (label === Label.empty ()); (Memory.stepo tid label mem mem')]
+
+          (* thread-non-silent step *)
+          ; ?&  [ (ThreadManager.non_silent_stepo tid label tm tm')
+                ; (conde
+                    (* thread has fineished *)
+                    [ (label === Label.empty ()) &&& (mem === mem')
+                    (* thread has performed an action *)
+                    ; (label =/= Label.empty ()) &&& (Memory.stepo tid label mem mem')
+                    ])
+                ]
+          ])
         (Label.erroro label
             ~sg:(fun err -> opterr === Std.some err)
             ~fg:(opterr === Std.none ())
@@ -310,6 +319,8 @@ module SeqCst = MemoryModel.Make(
       [ fresh (e)
           (t === t')
           (label === Label.error (Error.assertion e))
+
+      ; (t === t') &&& (label === Label.empty ())
 
       ; fresh (mo loc v)
           (* (mo === !!MemOrder.SC) *)
