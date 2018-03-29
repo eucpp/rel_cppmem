@@ -20,49 +20,22 @@ open MiniKanren
 open Lang
 open Utils
 
-module MemoryModel =
-  struct
-    module type T =
-      sig
-        include Utils.Logic
+module type MemoryModel =
+  sig
+    include Utils.Logic
 
-        val name : string
+    val name : string
 
-        val alloc : thrdn:int -> string list -> ti
-        val init  : thrdn:int -> (string * int) list -> ti
+    val init  : thrdn:int -> (string * int) list -> ti
 
-        val checko : ti -> Loc.ti -> Value.ti -> MiniKanren.goal
+    val checko : ti -> Loc.ti -> Value.ti -> MiniKanren.goal
 
-        val terminatedo : ti -> MiniKanren.goal
+    val terminatedo : ti -> MiniKanren.goal
 
-        val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
-      end
-
-    module type MinT =
-      sig
-        include Utils.Logic
-
-        val name : string
-
-        val init  : thrdn:int -> (string * int) list -> ti
-
-        val checko : ti -> Loc.ti -> Value.ti -> MiniKanren.goal
-
-        val terminatedo : ti -> MiniKanren.goal
-
-        val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
-      end
-
-    module Make(M : MinT) =
-      struct
-        include M
-
-        let alloc ~thrdn locs = init ~thrdn @@ List.map (fun l -> (l, 0)) locs
-      end
-
+    val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
   end
 
-module State(Memory : MemoryModel.T) =
+module State(Memory : MemoryModel) =
   struct
     module T =
       struct
@@ -111,11 +84,14 @@ module State(Memory : MemoryModel.T) =
 
     let istate thrds mem = state thrds mem (Std.none ())
 
-    let alloc_istate ~regs ~locs prog =
+    let init_istate ~regs ~mem prog =
       let thrdn = List.length prog in
       let tm = ThreadManager.init prog @@ Utils.repeat (Regs.alloc regs) thrdn in
-      let mem = Memory.alloc ~thrdn locs in
+      let mem = Memory.init ~thrdn mem in
       istate tm mem
+
+    let alloc_istate ~regs ~locs prog =
+      init_istate ~regs ~mem:(List.map (fun l -> (l, 0)) locs) prog
 
     let memo s mem =
       fresh (thrds opterr)
@@ -192,7 +168,7 @@ module State(Memory : MemoryModel.T) =
 
   end
 
-module Interpreter(Memory : MemoryModel.T) =
+module Interpreter(Memory : MemoryModel) =
   struct
     module State = State(Memory)
 
@@ -209,7 +185,7 @@ module Interpreter(Memory : MemoryModel.T) =
           (* thread-non-silent step *)
           ; ?&  [ (ThreadManager.non_silent_stepo tid label tm tm')
                 ; (conde
-                    (* thread has fineished *)
+                    (* thread has finished *)
                     [ (label === Label.empty ()) &&& (mem === mem')
                     (* thread has performed an action *)
                     ; (label =/= Label.empty ()) &&& (Memory.stepo tid label mem mem')
@@ -276,7 +252,7 @@ module ValueStorage =
     let writeo = Storage.seto
   end
 
-module SeqCst = MemoryModel.Make(
+module SeqCst =
   struct
     let name = "SeqCst"
 
@@ -338,7 +314,7 @@ module SeqCst = MemoryModel.Make(
           (label === Label.cas mo1 mo2 loc e d v)
           (cas_sco t t' tid loc e d v)
       ]
-  end)
+  end
 
 (* ************************************************************************** *)
 (* ************************* TotalStoreOrder ******************************** *)
@@ -392,7 +368,7 @@ module StoreBuffer =
 
   end
 
-module TSO = MemoryModel.Make(
+module TSO =
   struct
     let name = "TSO"
 
@@ -489,7 +465,7 @@ module TSO = MemoryModel.Make(
         (label === Label.cas mo1 mo2 loc e d v)
         (cas_sco t t' tid loc e d v); *)
       ]
-  end)
+  end
 
 (* ************************************************************************** *)
 (* ************************* ReleaseAcquire ********************************* *)
@@ -856,7 +832,7 @@ module MemStory =
         (LocStory.last_valueo story value)
   end
 
-module RelAcq = MemoryModel.Make(
+module RelAcq =
   struct
     let name = "RelAcq"
 
@@ -1164,4 +1140,4 @@ module RelAcq = MemoryModel.Make(
             (na_dataraceo t t' tid loc)
           ]);
       ]
-  end)
+  end

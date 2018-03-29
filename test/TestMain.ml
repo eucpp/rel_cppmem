@@ -32,9 +32,9 @@ let tests = Test.(
   make_testsuite ~name:"relcppmem" ~tests: [
     (* ProgTest.tests; *)
     (* LitmusTest.tests; *)
-    DekkerLockTest.tests;
+    (* DekkerLockTest.tests; *)
     (* CohenLockTest.tests; *)
-    (* BarrierTest.tests; *)
+    BarrierTest.tests;
     (* SynthTest.tests; *)
   ]
 )

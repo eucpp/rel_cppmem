@@ -57,13 +57,16 @@ let prog_Barrier = <:cppmem_par<
   }}}
 >>
 
+module Interpreter = Operational.Interpreter(Operational.RelAcq)
+module Trace = Utils.Trace(Interpreter.State)
+
 let test_Barrier ~stat = Test.(make_test_desc
   ~name:"Barrier"
-  ~prog:prog_Barrier
   ~regs:["r1"; "r2"; "r3"]
-  ~locs:["x"; "y"; "d"]
-  ~prop:Prop.((1%"r3" = 0) && (2%"r3" = 0))
+  ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
+  ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
   ~stat
+  prog_Barrier
 )
 
 let tests = Test.(make_testsuite ~name:"Barrier"
@@ -74,11 +77,11 @@ let tests = Test.(make_testsuite ~name:"Barrier"
 
     ;
 
-    make_operational_testsuite
+    (* make_operational_testsuite
       ~model:TSO
       ~tests:[ test_Barrier ~stat:Fulfills ]
 
-    ;
+    ; *)
 
     make_operational_testsuite
       ~model:RelAcq

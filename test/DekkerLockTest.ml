@@ -88,12 +88,12 @@ let tests = Test.(make_testsuite ~name:"Dekker"
 
     make_operational_testsuite
       ~model:TSO
-      ~tests:[ test_DekkerLock ~stat:Fulfills ]
+      ~tests:[ test_DekkerLock ~stat:Violates ]
 
     ;
 
     make_operational_testsuite
       ~model:RelAcq
-      ~tests:[ test_DekkerLock ~stat:Fulfills ]
+      ~tests:[ test_DekkerLock ~stat:Violates ]
   ]
 )

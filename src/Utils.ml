@@ -86,7 +86,7 @@ let rec pprint_llist' pp ff = function
     Format.fprintf ff "_.%d{" i;
     List.iter (fun ctr -> Format.fprintf ff "=/= %a; " (pprint_llist' pp) ctr) ctrs;
     Format.fprintf ff "}"
-  | Value (Cons (x, Value Nil))     -> Format.fprintf ff "%a;@;<1>" pp x
+  | Value (Cons (x, Value Nil))     -> Format.fprintf ff "%a@;<1>" pp x
   | Value (Cons (x, xs))            -> Format.fprintf ff "%a;@;<1 4>%a" pp x (pprint_llist' pp) xs
   | Value Nil                       -> ()
 

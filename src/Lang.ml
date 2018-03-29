@@ -332,7 +332,7 @@ module Expr =
         (e === var x)
         (Regs.reado rs x v);
 
-      fresh (op e' v')
+      fresh (e' v')
         (e === unop !!Uop.NOT e')
         (conde [
           (Value.nullo v')     &&& (v === (integer 1));
@@ -457,9 +457,9 @@ module Stmt =
       | If (e, t1, t2)          ->
         Format.fprintf ff "@[<v>if %a@;then %a@;else %a@]" Expr.pprint e ppseql t1 ppseql t2
       | While (e, t)            ->
-        Format.fprintf ff "@[while (%a) @;<1 4>%a@;@]" Expr.pprint e ppseql t
+        Format.fprintf ff "@[<v>while (%a) @;<1 4>%a@;@]" Expr.pprint e ppseql t
       | Repeat (t, e)           ->
-        Format.fprintf ff "@[repeat @;<1 4>%a@; until (%a)@]" ppseql t Expr.pprint e
+        Format.fprintf ff "@[<v>repeat @;<1 4>%a@; until (%a)@]" ppseql t Expr.pprint e
       | Load (m, l, r)          ->
         Format.fprintf ff "@[%a := %a_%a@]" Reg.pprint r Loc.pprint l MemOrder.pprint m
       | Store (m, l, e)         ->

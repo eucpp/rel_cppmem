@@ -38,21 +38,30 @@ type test_desc =
   { name      : string
   ; prog      : Lang.Prog.ti list
   ; regs      : string list
-  ; locs      : string list
+  ; locs      : string list option
+  ; mem       : (string * int) list option
   ; stat      : status
   ; prop      : Lang.Prop.ti
   }
 
-let make_test_desc ~name ~prog ~regs ~locs ~stat ~prop =
-  { name; prog; regs; locs; stat; prop }
+let make_test_desc ?locs ?mem ~regs ~name ~stat ~prop prog =
+  { name; prog; regs; locs; mem; stat; prop }
 
-module OperationalTest(Memory : Operational.MemoryModel.T) =
+module OperationalTest(Memory : Operational.MemoryModel) =
   struct
     module Interpreter = Operational.Interpreter(Memory)
     module Trace = Utils.Trace(Interpreter.State)
 
-    let test_violates ~name ~prop ~prog ~regs ~locs =
-      let istate = Interpreter.State.alloc_istate ~regs ~locs prog in
+    let make_istate ~regs ~locs ~mem prog =
+      match mem with
+      | Some mem -> Interpreter.State.init_istate ~regs ~mem prog
+      | None     ->
+        match locs with
+        | Some locs -> Interpreter.State.alloc_istate ~regs ~locs prog
+        | None      -> failwith "Cannot make initial state"
+
+    let test_violates ~name ~prop ~prog ~regs ~locs ~mem =
+      let istate = make_istate ~regs ~locs ~mem prog in
       let stream = Interpreter.eval ~prop:(Lang.Prop.neg prop) istate in
       if not @@ Stream.is_empty stream then
         Ok
@@ -63,8 +72,8 @@ module OperationalTest(Memory : Operational.MemoryModel.T) =
         Stream.iter (fun out -> Format.printf "%a@;" Trace.trace out) outs;
         Fail ""
 
-    let test_fulfills ~name ~prop ~prog ~regs ~locs =
-      let istate = Interpreter.State.alloc_istate ~regs ~locs prog in
+    let test_fulfills ~name ~prop ~prog ~regs ~locs ~mem =
+      let istate = make_istate ~regs ~locs ~mem prog in
       (* check that test is runnable *)
       (* let stream = Interpreter.eval istate in
       if Stream.is_empty stream then begin
@@ -83,12 +92,12 @@ module OperationalTest(Memory : Operational.MemoryModel.T) =
           Fail ""
         end
 
-    let make_testcase {name; prog; prop; regs; locs; stat} =
+    let make_testcase {name; prog; prop; regs; locs; mem; stat} =
       let full_name = Printf.sprintf "%s::%s" Memory.name name in
       let test () =
         match stat with
-        | Violates -> test_violates ~name:full_name ~prop ~prog ~regs ~locs
-        | Fulfills -> test_fulfills ~name:full_name ~prop ~prog ~regs ~locs
+        | Violates -> test_violates ~name:full_name ~prop ~prog ~regs ~locs ~mem
+        | Fulfills -> test_fulfills ~name:full_name ~prop ~prog ~regs ~locs ~mem
       in
       make_testcase ~name ~test
 

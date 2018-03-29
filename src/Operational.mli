@@ -15,32 +15,28 @@
  * limitations under the License.
  *)
 
-module MemoryModel :
+module type MemoryModel =
   sig
-    module type T =
-      sig
-        include Utils.Logic
+    include Utils.Logic
 
-        val name : string
+    val name : string
 
-        val alloc : thrdn:int -> string list -> ti
-        val init  : thrdn:int -> (string * int) list -> ti
+    val init  : thrdn:int -> (string * int) list -> ti
 
-        val checko : ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
+    val checko : ti -> Lang.Loc.ti -> Lang.Value.ti -> MiniKanren.goal
 
-        val terminatedo : ti -> MiniKanren.goal
+    val terminatedo : ti -> MiniKanren.goal
 
-        val stepo : Lang.ThreadID.ti -> Lang.Label.ti -> ti -> ti -> MiniKanren.goal
-      end
+    val stepo : Lang.ThreadID.ti -> Lang.Label.ti -> ti -> ti -> MiniKanren.goal
   end
 
-module SeqCst : MemoryModel.T
+module SeqCst : MemoryModel
 
-module TSO : MemoryModel.T
+module TSO : MemoryModel
 
-module RelAcq : MemoryModel.T
+module RelAcq : MemoryModel
 
-module Interpreter(Memory : MemoryModel.T) :
+module Interpreter(Memory : MemoryModel) :
   sig
     module State :
       sig
@@ -48,6 +44,7 @@ module Interpreter(Memory : MemoryModel.T) :
 
         val istate : Lang.ThreadManager.ti -> Memory.ti -> ti
 
+        val init_istate  : regs:(string list) -> mem:((string * int) list) -> Lang.Prog.ti list -> ti
         val alloc_istate : regs:(string list) -> locs:(string list) -> Lang.Prog.ti list -> ti
 
         val memo : ti -> Memory.ti -> MiniKanren.goal
