@@ -71,11 +71,11 @@ let prog_DekkerLock = <:cppmem_par<
 
 let test_DekkerLock ~stat = Test.(make_test_desc
   ~name:"DekkerLock"
-  ~prog:prog_DekkerLock
   ~regs:["r1"; "r2"; "r3"]
   ~locs:["x"; "y"; "turn"; "v"]
   ~prop:Prop.(loc "v" = 2)
   ~stat
+  prog_DekkerLock
 )
 
 let tests = Test.(make_testsuite ~name:"Dekker"

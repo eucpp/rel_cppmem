@@ -41,7 +41,6 @@ let prog_SW = <:cppmem_par<
 
 let test_SW = Test.(make_test_desc
   ~name:"SW"
-  ~prog:prog_SW
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~stat:Fulfills
@@ -50,6 +49,7 @@ let test_SW = Test.(make_test_desc
     || ((2%"r1" = 0) && (2%"r2" = 1))
     || ((2%"r1" = 1) && (2%"r2" = 1))
   )
+  prog_SW
 )
 
 let prog_SB = <:cppmem_par<
@@ -64,13 +64,13 @@ let prog_SB = <:cppmem_par<
 
 let test_SB = Test.(make_test_desc
   ~name:"SB"
-  ~prog:prog_SB
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
   ~stat:Fulfills
   ~prop:Prop.(
     !((1%"r1" = 0) && (2%"r2" = 0))
   )
+  prog_SB
 )
 
 let prog_LB = <:cppmem_par<
@@ -85,13 +85,13 @@ let prog_LB = <:cppmem_par<
 
 let test_LB = Test.(make_test_desc
   ~name:"LB"
-  ~prog:prog_LB
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
   ~stat:Fulfills
   ~prop:Prop.(
     !((1%"r1" = 1) && (2%"r2" = 1))
   )
+  prog_LB
 )
 
 let prog_MP = <:cppmem_par<
@@ -106,13 +106,13 @@ let prog_MP = <:cppmem_par<
 
 let test_MP = Test.(make_test_desc
   ~name:"MP"
-  ~prog:prog_MP
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~stat:Fulfills
   ~prop:Prop.(
     (2%"r2" = 1)
   )
+  prog_MP
 )
 
 let prog_CoRR = <:cppmem_par<
@@ -131,7 +131,6 @@ let prog_CoRR = <:cppmem_par<
 
 let test_CoRR = Test.(make_test_desc
   ~name:"CoRR"
-  ~prog:prog_CoRR
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";]
   ~stat:Fulfills
@@ -140,6 +139,7 @@ let test_CoRR = Test.(make_test_desc
     ||
     ((3%"r1" = 2) && (3%"r2" = 1) && (4%"r3" = 1) && (4%"r4" = 2))
   ))
+  prog_CoRR
 )
 
 let prog_IRIW = <:cppmem_par<
@@ -158,13 +158,13 @@ let prog_IRIW = <:cppmem_par<
 
 let test_IRIW = Test.(make_test_desc
   ~name:"IRIW"
-  ~prog:prog_IRIW
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
   ~stat:Fulfills
   ~prop:Prop.(!(
     ((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
   ))
+  prog_IRIW
 )
 
 let prog_WRC = <:cppmem_par<
@@ -181,13 +181,13 @@ let prog_WRC = <:cppmem_par<
 
 let test_WRC = Test.(make_test_desc
   ~name:"WRC"
-  ~prog:prog_WRC
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
   ~stat:Fulfills
   ~prop:Prop.(
     !((3%"r2" = 1) && (3%"r3" = 0))
   )
+  prog_WRC
 )
 
 let tests_sc_op = Test.make_operational_testsuite
@@ -231,7 +231,6 @@ let prog_SW = <:cppmem_par<
 
 let test_SW = Test.(make_test_desc
   ~name:"SW"
-  ~prog:prog_SW
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~stat:Fulfills
@@ -240,6 +239,7 @@ let test_SW = Test.(make_test_desc
     || ((2%"r1" = 0) && (2%"r2" = 1))
     || ((2%"r1" = 1) && (2%"r2" = 1))
   )
+  prog_SW
 )
 
 let prog_SB = <:cppmem_par<
@@ -254,13 +254,13 @@ let prog_SB = <:cppmem_par<
 
 let test_SB = Test.(make_test_desc
   ~name:"SB"
-  ~prog:prog_SB
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
   ~stat:Violates
   ~prop:Prop.(
     !((1%"r1" = 0) && (2%"r2" = 0))
   )
+  prog_SB
 )
 
 let prog_LB = <:cppmem_par<
@@ -275,13 +275,13 @@ let prog_LB = <:cppmem_par<
 
 let test_LB = Test.(make_test_desc
   ~name:"LB"
-  ~prog:prog_LB
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
   ~stat:Fulfills
   ~prop:Prop.(
     !((1%"r1" = 1) && (2%"r2" = 1))
   )
+  prog_LB
 )
 
 let prog_MP = <:cppmem_par<
@@ -296,13 +296,13 @@ let prog_MP = <:cppmem_par<
 
 let test_MP = Test.(make_test_desc
   ~name:"MP"
-  ~prog:prog_MP
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~stat:Fulfills
   ~prop:Prop.(
     (2%"r2" = 1)
   )
+  prog_MP
 )
 
 let prog_CoRR = <:cppmem_par<
@@ -321,7 +321,6 @@ let prog_CoRR = <:cppmem_par<
 
 let test_CoRR = Test.(make_test_desc
   ~name:"CoRR"
-  ~prog:prog_CoRR
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";]
   ~stat:Fulfills
@@ -330,6 +329,7 @@ let test_CoRR = Test.(make_test_desc
     ||
     ((3%"r1" = 2) && (3%"r2" = 1) && (4%"r3" = 1) && (4%"r4" = 2))
   ))
+  prog_CoRR
 )
 
 let prog_IRIW = <:cppmem_par<
@@ -348,13 +348,13 @@ let prog_IRIW = <:cppmem_par<
 
 let test_IRIW = Test.(make_test_desc
   ~name:"IRIW"
-  ~prog:prog_IRIW
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
   ~stat:Fulfills
   ~prop:Prop.(
     !((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
   )
+  prog_IRIW
 )
 
 let prog_WRC = <:cppmem_par<
@@ -371,13 +371,13 @@ let prog_WRC = <:cppmem_par<
 
 let test_WRC = Test.(make_test_desc
   ~name:"WRC"
-  ~prog:prog_WRC
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
   ~stat:Fulfills
   ~prop:Prop.(
     !((3%"r2" = 1) && (3%"r3" = 0))
   )
+  prog_WRC
 )
 
 let tests_tso_op = Test.make_operational_testsuite
@@ -408,7 +408,6 @@ let prog_SW = <:cppmem_par<
 
 let test_SW = Test.(make_test_desc
   ~name:"SW"
-  ~prog:prog_SW
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~stat:Fulfills
@@ -417,6 +416,7 @@ let test_SW = Test.(make_test_desc
     || ((2%"r1" = 0) && (2%"r2" = 1))
     || ((2%"r1" = 1) && (2%"r2" = 1))
   )
+  prog_SW
 )
 
 let prog_SB = <:cppmem_par<
@@ -431,13 +431,13 @@ let prog_SB = <:cppmem_par<
 
 let test_SB = Test.(make_test_desc
   ~name:"SB"
-  ~prog:prog_SB
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
   ~stat:Violates
   ~prop:Prop.(
     !((1%"r1" = 0) || (2%"r2" = 0))
   )
+  prog_SB
 )
 
 let prog_LB = <:cppmem_par<
@@ -452,13 +452,13 @@ let prog_LB = <:cppmem_par<
 
 let test_LB = Test.(make_test_desc
   ~name:"LB+rel+acq"
-  ~prog:prog_LB
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
   ~stat:Fulfills
   ~prop:Prop.(
     !((1%"r1" = 1) && (2%"r2" = 1))
   )
+  prog_LB
 )
 
 let prog_LB_acq_rlx = <:cppmem_par<
@@ -473,13 +473,13 @@ let prog_LB_acq_rlx = <:cppmem_par<
 
 let test_LB_acq_rlx = Test.(make_test_desc
   ~name:"LB+acq+rlx"
-  ~prog:prog_LB_acq_rlx
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y"]
   ~stat:Fulfills
   ~prop:Prop.(
     !((1%"r1" = 1) && (2%"r2" = 1))
   )
+  prog_LB_acq_rlx
 )
 
 let prog_MP = <:cppmem_par<
@@ -494,13 +494,13 @@ let prog_MP = <:cppmem_par<
 
 let test_MP = Test.(make_test_desc
   ~name:"MP"
-  ~prog:prog_MP
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~stat:Fulfills
   ~prop:Prop.(
     (2%"r2" = 1)
   )
+  prog_MP
 )
 
 let prog_MP_rlx_acq = <:cppmem_par<
@@ -515,13 +515,13 @@ let prog_MP_rlx_acq = <:cppmem_par<
 
 let test_MP_rlx_acq = Test.(make_test_desc
   ~name:"MP+rlx+acq"
-  ~prog:prog_MP_rlx_acq
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~stat:Violates
   ~prop:Prop.(
     !((2%"r2" = 0))
   )
+  prog_MP_rlx_acq
 )
 
 let prog_MP_rel_rlx = <:cppmem_par<
@@ -536,13 +536,13 @@ let prog_MP_rel_rlx = <:cppmem_par<
 
 let test_MP_rel_rlx = Test.(make_test_desc
   ~name:"MP+rel+rlx"
-  ~prog:prog_MP_rel_rlx
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y"; "f"]
   ~stat:Violates
   ~prop:Prop.(
     !(2%"r2" = 0)
   )
+  prog_MP_rel_rlx
 )
 
 let prog_MP_relseq = <:cppmem_par<
@@ -558,13 +558,13 @@ let prog_MP_relseq = <:cppmem_par<
 
 let test_MP_relseq = Test.(make_test_desc
   ~name:"MP+relseq"
-  ~prog:prog_MP_relseq
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
   ~stat:Fulfills
   ~prop:Prop.(
     (2%"r2" = 1)
   )
+  prog_MP_relseq
 )
 
 let prog_CoRR = <:cppmem_par<
@@ -583,7 +583,6 @@ let prog_CoRR = <:cppmem_par<
 
 let test_CoRR = Test.(make_test_desc
   ~name:"CoRR"
-  ~prog:prog_CoRR
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";]
   ~stat:Fulfills
@@ -592,6 +591,7 @@ let test_CoRR = Test.(make_test_desc
     ||
     ((3%"r1" = 2) && (3%"r2" = 1) && (4%"r3" = 1) && (4%"r4" = 2))
   ))
+  prog_CoRR
 )
 
 let prog_IRIW = <:cppmem_par<
@@ -610,13 +610,13 @@ let prog_IRIW = <:cppmem_par<
 
 let test_IRIW = Test.(make_test_desc
   ~name:"IRIW"
-  ~prog:prog_IRIW
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
   ~stat:Violates
   ~prop:Prop.(
     !((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
   )
+  prog_IRIW
 )
 
 let prog_IRIW_rlx = <:cppmem_par<
@@ -635,13 +635,13 @@ let prog_IRIW_rlx = <:cppmem_par<
 
 let test_IRIW_rlx = Test.(make_test_desc
   ~name:"IRIW+rlx"
-  ~prog:prog_IRIW_rlx
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
   ~stat:Violates
   ~prop:Prop.(
     !((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
   )
+  prog_IRIW_rlx
 )
 
 let prog_WRC = <:cppmem_par<
@@ -658,13 +658,13 @@ let prog_WRC = <:cppmem_par<
 
 let test_WRC = Test.(make_test_desc
   ~name:"WRC"
-  ~prog:prog_WRC
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
   ~stat:Fulfills
   ~prop:Prop.(
     !((3%"r2" = 1) && (3%"r3" = 0))
   )
+  prog_WRC
 )
 
 let prog_rlx_WRC = <:cppmem_par<
@@ -681,13 +681,13 @@ let prog_rlx_WRC = <:cppmem_par<
 
 let test_WRC_rlx = Test.(make_test_desc
   ~name:"WRC+rlx"
-  ~prog:prog_rlx_WRC
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
   ~stat:Violates
   ~prop:Prop.(
     !((3%"r2" = 1) && (3%"r3" = 0))
   )
+  prog_rlx_WRC
 )
 
 let prog_cas_WRC = <:cppmem_par<
@@ -704,13 +704,13 @@ let prog_cas_WRC = <:cppmem_par<
 
 let test_WRC_cas = Test.(make_test_desc
   ~name:"WRC+cas"
-  ~prog:prog_cas_WRC
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x"; "y";]
   ~stat:Fulfills
   ~prop:Prop.(
     !((3%"r3" = 2) && (3%"r4" = 0))
   )
+  prog_cas_WRC
 )
 
 let prog_DR_WW = <:cppmem_par<
@@ -723,13 +723,13 @@ let prog_DR_WW = <:cppmem_par<
 
 let test_DR_WW = Test.(make_test_desc
   ~name:"DR_WW"
-  ~prog:prog_DR_WW
   ~regs:["r1"]
   ~locs:["x"]
   ~stat:Violates
   ~prop:Prop.(
     !(datarace ())
   )
+  prog_DR_WW
 )
 
 let prog_DR_RW = <:cppmem_par<
@@ -742,13 +742,13 @@ let prog_DR_RW = <:cppmem_par<
 
 let test_DR_RW = Test.(make_test_desc
   ~name:"DR_RW"
-  ~prog:prog_DR_WW
   ~regs:["r1"]
   ~locs:["x"]
   ~stat:Violates
   ~prop:Prop.(
     !(datarace ())
   )
+  prog_DR_WW
 )
 
 let prog_DR_RW_rlxR = <:cppmem_par<
@@ -761,13 +761,13 @@ let prog_DR_RW_rlxR = <:cppmem_par<
 
 let test_DR_RW_rlxR = Test.(make_test_desc
   ~name:"DR_RW+rlxR"
-  ~prog:prog_DR_RW_rlxR
   ~regs:["r1"]
   ~locs:["x"]
   ~stat:Violates
   ~prop:Prop.(
     !(datarace ())
   )
+  prog_DR_RW_rlxR
 )
 
 let prog_DR_RW_rlxW = <:cppmem_par<
@@ -780,13 +780,13 @@ let prog_DR_RW_rlxW = <:cppmem_par<
 
 let test_DR_RW_rlxW = Test.(make_test_desc
   ~name:"DR_RW+rlxW"
-  ~prog:prog_DR_RW_rlxW
   ~regs:["r1"]
   ~locs:["x"]
   ~stat:Violates
   ~prop:Prop.(
     !(datarace ())
   )
+  prog_DR_RW_rlxW
 )
 
 let tests_ra_op = Test.make_operational_testsuite

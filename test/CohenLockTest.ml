@@ -63,11 +63,11 @@ let prog_CohenLock = <:cppmem_par<
 
 let test_CohenLock ~stat = Test.(make_test_desc
   ~name:"CohenLock"
-  ~prog:prog_CohenLock
   ~regs:["r1"; "r2"; "r3"]
   ~locs:["x"; "y"; "d"]
   ~prop:Prop.(loc "d" = 1)
   ~stat
+  prog_CohenLock
 )
 
 let tests = Test.(make_testsuite ~name:"Cohen"
