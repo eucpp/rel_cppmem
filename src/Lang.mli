@@ -159,6 +159,9 @@ module Stmt :
     val spw       : Prog.ti -> Prog.ti -> ti
     val return    : (Reg.tt, Reg.tl) MiniKanren.Std.List.groundi -> ti
 
+    val skip    : unit -> Prog.ti
+    val single  : ti -> Prog.ti
+
     val show : tl -> string
   end
 

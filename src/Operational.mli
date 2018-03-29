@@ -59,6 +59,8 @@ module Interpreter(Memory : MemoryModel) :
         val safeo     : ti -> MiniKanren.goal
         val dataraceo : ti -> MiniKanren.goal
 
+        val terminatedo : ti -> MiniKanren.goal
+
         val sato : Lang.Prop.ti -> ti -> MiniKanren.goal
       end
 

@@ -27,7 +27,7 @@ relcppmem:
 plugin: relcppmem
 	$(OCB) -I camlp5 camlp5/pa_cppmem.cmo
 
-test: relcppmem plugin
+test: plugin
 	$(OCB) -I test -pkgs "oUnit" TestMain.native
 
 ################################# Samples ####################################

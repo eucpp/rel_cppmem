@@ -50,9 +50,9 @@ let make_test_desc ?locs ?mem ~regs ~name ~stat ~prop prog =
 module OperationalTest(Memory : Operational.MemoryModel) =
   struct
     module Interpreter = Operational.Interpreter(Memory)
-    module Trace = Utils.Trace(Interpreter.State)
+    module State = Interpreter.State
 
-    let make_istate ~regs ~locs ~mem prog =
+    let make_istate ~regs ?locs ?mem prog =
       match mem with
       | Some mem -> Interpreter.State.init_istate ~regs ~mem prog
       | None     ->
@@ -61,7 +61,8 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         | None      -> failwith "Cannot make initial state"
 
     let test_violates ~name ~prop ~prog ~regs ~locs ~mem =
-      let istate = make_istate ~regs ~locs ~mem prog in
+      let module Trace = Utils.Trace(State) in
+      let istate = make_istate ~regs ?locs ?mem prog in
       let stream = Interpreter.eval ~prop:(Lang.Prop.neg prop) istate in
       if not @@ Stream.is_empty stream then
         Ok
@@ -73,7 +74,8 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         Fail ""
 
     let test_fulfills ~name ~prop ~prog ~regs ~locs ~mem =
-      let istate = make_istate ~regs ~locs ~mem prog in
+      let module Trace = Utils.Trace(State) in
+      let istate = make_istate ~regs ?locs ?mem prog in
       (* check that test is runnable *)
       (* let stream = Interpreter.eval istate in
       if Stream.is_empty stream then begin
@@ -91,6 +93,36 @@ module OperationalTest(Memory : Operational.MemoryModel) =
           List.iter (fun cex -> Format.printf "%a@;" Trace.trace cex) cexs;
           Fail ""
         end
+
+    let test_synth ~name ~prop stateo =
+      let module Trace = Utils.Trace(State) in
+      let stream = run q
+        (fun s ->
+            fresh (s')
+              (stateo s)
+              (Interpreter.reachableo s s')
+              (State.terminatedo s')
+              (State.sato prop s')
+            ?~(fresh (s'')
+                  (Interpreter.reachableo s s'')
+                  (State.terminatedo s'')
+                ?~(State.sato prop s'')
+              )
+        )
+        (fun qs -> qs)
+      in
+      if Stream.is_empty stream then begin
+        Format.printf "Test %s fails: !@;" name;
+        Format.printf "No programs were synthesized@;";
+        Fail ""
+        end
+      else begin
+        let progs = Stream.take ~n:1 stream in
+        Format.printf "Test %s succeeded!@;" name;
+        Format.printf "List of synthesized programs:@;";
+        List.iter (Format.printf "%a@;" Trace.trace) progs;
+        Ok
+      end
 
     let make_testcase {name; prog; prop; regs; locs; mem; stat} =
       let full_name = Printf.sprintf "%s::%s" Memory.name name in
