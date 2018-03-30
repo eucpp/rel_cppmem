@@ -441,14 +441,14 @@ module Stmt =
       let open Std in
       Format.fprintf ff "@[<v>";
       begin match xs with
+      | Cons (t, Value Nil) ->
+        Format.fprintf ff "%a" ppl t
       | Cons (t, ts) ->
         Format.fprintf ff "%a;@;%a" ppl t ppseql ts
-      | Cons (t, Value Nil) ->
-        Format.fprintf ff "%a@;" ppl t
       | Nil -> ()
       | _   -> assert false
       end;
-      Format.fprintf ff "@]@."
+      Format.fprintf ff "@]"
     and pp ff = T.(function
       | Assert e                ->
         Format.fprintf ff "@[assert (%a)@;@]" Expr.pprint e
@@ -459,7 +459,8 @@ module Stmt =
       | While (e, t)            ->
         Format.fprintf ff "@[<v>while (%a) @;<1 4>%a@;@]" Expr.pprint e ppseql t
       | Repeat (t, e)           ->
-        Format.fprintf ff "@[<v>repeat @;<1 4>%a@; until (%a)@]" ppseql t Expr.pprint e
+        Format.fprintf ff "@[<v>repeat @;<1 4>%a@;until (%a)@]" ppseql t Expr.pprint e
+        (* Format.fprintf ff "@[<v>repeat @;%a@;@]" ppseql t (*Expr.pprint e*) *)
       | Load (m, l, r)          ->
         Format.fprintf ff "@[%a := %a_%a@]" Reg.pprint r Loc.pprint l MemOrder.pprint m
       | Store (m, l, e)         ->

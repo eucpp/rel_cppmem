@@ -45,13 +45,13 @@ let istate_MPo s =
     (h2 === repeat (single @@ load mo2 (loc "f") (reg "r1")) (var @@ reg "r1"))
 
 
-let test_MP =
+let test_MP () =
   RelAcqTest.test_synth
     ~name:"MP"
     ~prop:Prop.(
       (2%"r2" = 1)
     )
-    ~n:4
+    ~n:1
     istate_MPo
 
 let prog_CohenLock h1 h2 h3 h4 = <:cppmem_par<
@@ -96,7 +96,7 @@ let istate_Coheno s =
     (h3 === repeat (single @@ load mo3 (loc "y") (reg "r2")) (var @@ reg "r2"))
     (h4 === repeat (single @@ load mo4 (loc "x") (reg "r2")) (var @@ reg "r2"))
 
-let test_Cohen =
+let test_Cohen () =
   RelAcqTest.test_synth
     ~name:"MP"
     ~prop:Prop.(
@@ -107,7 +107,7 @@ let test_Cohen =
 
 let tests_ra_op =
   Test.(make_testsuite ~name:"Synth" ~tests: [
-    make_testcase ~name:"MP" ~test:(fun () -> test_MP);
+    make_testcase ~name:"MP" ~test:test_MP;
     (* make_testcase ~name:"Cohen" ~test:(fun () -> test_Cohen); *)
   ])
 
