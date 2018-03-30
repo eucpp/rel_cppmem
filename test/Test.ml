@@ -94,7 +94,7 @@ module OperationalTest(Memory : Operational.MemoryModel) =
           Fail ""
         end
 
-    let test_synth ~name ~prop stateo =
+    let test_synth ~n ~name ~prop stateo =
       let module Trace = Utils.Trace(State) in
       let stream = run q
         (fun s ->
@@ -117,7 +117,7 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         Fail ""
         end
       else begin
-        let progs = Stream.take ~n:1 stream in
+        let progs = Stream.take ~n stream in
         Format.printf "Test %s succeeded!@;" name;
         Format.printf "List of synthesized programs:@;";
         List.iter (Format.printf "%a@;" Trace.trace) progs;
