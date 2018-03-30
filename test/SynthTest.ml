@@ -102,13 +102,13 @@ let test_Cohen () =
     ~prop:Prop.(
       (loc "d" = 1)
     )
-    ~n:1
+    ~n:3
     istate_Coheno
 
 let tests_ra_op =
   Test.(make_testsuite ~name:"Synth" ~tests: [
     make_testcase ~name:"MP" ~test:test_MP;
-    (* make_testcase ~name:"Cohen" ~test:(fun () -> test_Cohen); *)
+    make_testcase ~name:"Cohen" ~test:test_Cohen;
   ])
 
 let tests = Test.(

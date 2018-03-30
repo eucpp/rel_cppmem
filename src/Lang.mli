@@ -256,6 +256,7 @@ module Thread :
 
     val init : ?pid:ThreadID.ti -> Prog.ti -> Regs.ti -> ti
 
+    val progo : ti -> Prog.ti -> MiniKanren.goal
     val regso : ti -> Regs.ti -> MiniKanren.goal
 
     val terminatedo : ti -> MiniKanren.goal
@@ -266,6 +267,8 @@ module ThreadManager :
     include module type of ThreadLocalStorage(Thread)
 
     val init : Prog.ti list -> Regs.ti list -> ti
+
+    val cprogo : ti -> CProg.ti -> MiniKanren.goal
 
     val terminatedo : ti -> MiniKanren.goal
 

@@ -1105,19 +1105,19 @@ module RelAcq =
       ; fresh (mo loc v)
           (label === Label.load mo loc v)
           (conde [
-            (mo === !!MemOrder.SC ) &&& (load_acqo t t' tid loc v);
-            (mo === !!MemOrder.ACQ) &&& (load_acqo t t' tid loc v);
-            (mo === !!MemOrder.RLX) &&& (load_rlxo t t' tid loc v);
             (mo === !!MemOrder.NA ) &&& (load_nao  t t' tid loc v);
+            (mo === !!MemOrder.RLX) &&& (load_rlxo t t' tid loc v);
+            (mo === !!MemOrder.ACQ) &&& (load_acqo t t' tid loc v);
+            (mo === !!MemOrder.SC ) &&& (load_acqo t t' tid loc v);
           ])
 
       ; fresh (mo loc v)
           (label === Label.store mo loc v)
           (conde [
-            (mo === !!MemOrder.SC ) &&& (store_relo t t' tid loc v);
-            (mo === !!MemOrder.REL) &&& (store_relo t t' tid loc v);
-            (mo === !!MemOrder.RLX) &&& (store_rlxo t t' tid loc v);
             (mo === !!MemOrder.NA ) &&& (store_nao  t t' tid loc v);
+            (mo === !!MemOrder.RLX) &&& (store_rlxo t t' tid loc v);
+            (mo === !!MemOrder.REL) &&& (store_relo t t' tid loc v);
+            (mo === !!MemOrder.SC ) &&& (store_relo t t' tid loc v);
           ])
 
       ; fresh (mo1 mo2 loc exp des v)
@@ -1129,10 +1129,10 @@ module RelAcq =
           (label === Label.error (Error.datarace mo loc))
           (conde [
             (conde [
-              (mo === !!MemOrder.SC);
-              (mo === !!MemOrder.ACQ);
-              (mo === !!MemOrder.REL);
               (mo === !!MemOrder.RLX);
+              (mo === !!MemOrder.REL);
+              (mo === !!MemOrder.ACQ);
+              (mo === !!MemOrder.SC);
             ]) &&&
             (dataraceo t t' tid loc);
 

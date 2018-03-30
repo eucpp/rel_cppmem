@@ -95,10 +95,10 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         end
 
     let test_synth ~n ~name ~prop stateo =
-      let module Trace = Utils.Trace(State) in
+      let module Trace = Utils.Trace(Lang.CProg) in
       let stream = run q
-        (fun s ->
-            fresh (s')
+        (fun p ->
+            fresh (s s' tm)
               (stateo s)
               (Interpreter.reachableo s s')
               (State.terminatedo s')
@@ -108,6 +108,8 @@ module OperationalTest(Memory : Operational.MemoryModel) =
                   (State.terminatedo s'')
                 ?~(State.sato prop s'')
               )
+              (State.thrdmgro s tm)
+              (Lang.ThreadManager.cprogo tm p)
         )
         (fun qs -> qs)
       in
@@ -119,8 +121,12 @@ module OperationalTest(Memory : Operational.MemoryModel) =
       else begin
         let progs = Stream.take ~n stream in
         Format.printf "Test %s succeeded!@;" name;
-        Format.printf "List of synthesized programs:@;";
-        List.iter (Format.printf "%a@;" Trace.trace) progs;
+        Format.printf "List of synthesized programs:@\n";
+        let cnt = ref 0 in
+        List.iter (fun p ->
+          cnt := !cnt + 1;
+          Format.printf "Program #%d:@;%a@\n" !cnt Trace.trace p
+        ) progs;
         Ok
       end
 

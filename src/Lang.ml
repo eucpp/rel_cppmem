@@ -505,10 +505,10 @@ module CProg =
     let pprint ff x =
       let rec pp ff =
         let open Std in function
-        | Cons (t, ts) ->
-          Format.fprintf ff "@;<1 4>@[<v>%a]@;|||%a" Prog.pprint t ppl ts
         | Cons (t, Value Nil) ->
-          Format.fprintf ff "@;<1 4>@[<v>%a]@;" Prog.pprint t
+          Format.fprintf ff "@;<1 4>@[<v>%a@]@;" Prog.pprint t
+        | Cons (t, ts) ->
+          Format.fprintf ff "@;<1 4>@[<v>%a@]@\n|||@\n%a" Prog.pprint t ppl ts
         | Nil -> ()
         | _   -> assert false
       and ppl ff x = pprint_logic pp ff x
@@ -797,9 +797,13 @@ module Thread =
     open Std
     open Stmt
 
+    let progo t p =
+      fresh (pid rs)
+        (t === thrd p rs pid)
+
     let regso t rs =
       fresh (pid p)
-        (t  === thrd p rs pid)
+        (t === thrd p rs pid)
 
     let terminatedo t =
       fresh (pid regs)
@@ -907,6 +911,14 @@ module ThreadManager =
       List.combine ps rs
       |> List.map (fun (prog, regs) -> Thread.init prog regs)
       |> of_list
+
+    let cprogo t ps =
+      let helpero thrd acc acc' = Std.(
+        fresh (p)
+          (acc' === p % acc)
+          (Thread.progo thrd p)
+      ) in
+      foldo helpero t (Std.nil ()) ps
 
     let terminatedo = forallo Thread.terminatedo
 
