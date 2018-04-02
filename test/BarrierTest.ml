@@ -71,11 +71,11 @@ let test_Barrier ~stat = Test.(make_test_desc
 
 let tests = Test.(make_testsuite ~name:"Barrier"
   ~tests:[
-    make_operational_testsuite
+    (* make_operational_testsuite
       ~model:SeqCst
       ~tests:[ test_Barrier ~stat:Fulfills ]
 
-    ;
+    ; *)
 
     (* make_operational_testsuite
       ~model:TSO

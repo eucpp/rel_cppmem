@@ -80,17 +80,17 @@ let test_DekkerLock ~stat = Test.(make_test_desc
 
 let tests = Test.(make_testsuite ~name:"Dekker"
   ~tests:[
-    make_operational_testsuite
+    (* make_operational_testsuite
       ~model:SeqCst
       ~tests:[ test_DekkerLock ~stat:Fulfills ]
 
-    ;
+    ; *)
 
-    make_operational_testsuite
+    (* make_operational_testsuite
       ~model:TSO
       ~tests:[ test_DekkerLock ~stat:Violates ]
 
-    ;
+    ; *)
 
     make_operational_testsuite
       ~model:RelAcq

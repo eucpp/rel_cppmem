@@ -72,17 +72,17 @@ let test_CohenLock ~stat = Test.(make_test_desc
 
 let tests = Test.(make_testsuite ~name:"Cohen"
   ~tests:[
-    make_operational_testsuite
+    (* make_operational_testsuite
       ~model:SeqCst
       ~tests:[ test_CohenLock ~stat:Fulfills ]
 
-    ;
+    ; *)
 
-    make_operational_testsuite
+    (* make_operational_testsuite
       ~model:TSO
       ~tests:[ test_CohenLock ~stat:Fulfills ]
 
-    ;
+    ; *)
 
     make_operational_testsuite
       ~model:RelAcq

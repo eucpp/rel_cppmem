@@ -482,17 +482,19 @@ module TSO =
 
       ; fresh (mo loc v)
           (label === Label.load mo loc v)
-          (conde
+          (loado t t' tid loc v)
+          (* (conde
             [ (mo === !!MemOrder.SC) &&& (load_sco t t' tid loc v)
             ; (mo =/= !!MemOrder.SC) &&& (loado t t' tid loc v)
-            ])
+            ]) *)
 
       ; fresh (mo loc v)
         (label === Label.store mo loc v)
-        (conde
+        (storeo t t' tid loc v)
+        (* (conde
           [ (mo === !!MemOrder.SC) &&& (store_sco t t' tid loc v)
           ; (mo =/= !!MemOrder.SC) &&& (storeo t t' tid loc v)
-          ])
+          ]) *)
 
       ; fresh (mo1 mo2 loc e d v)
           (label === Label.cas mo1 mo2 loc e d v)
