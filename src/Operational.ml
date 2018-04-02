@@ -482,22 +482,26 @@ module TSO =
 
       ; fresh (mo loc v)
           (label === Label.load mo loc v)
-          (loado t t' tid loc v)
-          (* (conde
-            [ (mo === !!MemOrder.SC) &&& (load_sco t t' tid loc v)
-            ; (mo =/= !!MemOrder.SC) &&& (loado t t' tid loc v)
-            ]) *)
+          (* (loado t t' tid loc v) *)
+          (conde
+            [ (mo === !!MemOrder.RLX) &&& (loado t t' tid loc v)
+            ; (mo === !!MemOrder.NA ) &&& (loado t t' tid loc v)
+            ; (mo === !!MemOrder.SC ) &&& (load_sco t t' tid loc v)
+            ])
 
       ; fresh (mo loc v)
-        (label === Label.store mo loc v)
-        (storeo t t' tid loc v)
-        (* (conde
-          [ (mo === !!MemOrder.SC) &&& (store_sco t t' tid loc v)
-          ; (mo =/= !!MemOrder.SC) &&& (storeo t t' tid loc v)
-          ]) *)
+          (label === Label.store mo loc v)
+          (* (storeo t t' tid loc v) *)
+          (conde
+            [ (mo === !!MemOrder.RLX) &&& (storeo t t' tid loc v)
+            ; (mo === !!MemOrder.NA ) &&& (storeo t t' tid loc v)
+            ; (mo === !!MemOrder.SC ) &&& (store_sco t t' tid loc v)
+            ])
 
       ; fresh (mo1 mo2 loc e d v)
           (label === Label.cas mo1 mo2 loc e d v)
+          (mo1 === !!MemOrder.SC)
+          (mo2 === !!MemOrder.SC)
           (caso t t' tid loc e d v);
       ]
   end
@@ -1143,7 +1147,7 @@ module RelAcq =
             (mo === !!MemOrder.NA ) &&& (load_nao  t t' tid loc v);
             (mo === !!MemOrder.RLX) &&& (load_rlxo t t' tid loc v);
             (mo === !!MemOrder.ACQ) &&& (load_acqo t t' tid loc v);
-            (mo === !!MemOrder.SC ) &&& (load_acqo t t' tid loc v);
+            (mo === !!MemOrder.SC ) &&& (load_sco t t' tid loc v);
           ])
 
       ; fresh (mo loc v)
@@ -1152,12 +1156,14 @@ module RelAcq =
             (mo === !!MemOrder.NA ) &&& (store_nao  t t' tid loc v);
             (mo === !!MemOrder.RLX) &&& (store_rlxo t t' tid loc v);
             (mo === !!MemOrder.REL) &&& (store_relo t t' tid loc v);
-            (mo === !!MemOrder.SC ) &&& (store_relo t t' tid loc v);
+            (mo === !!MemOrder.SC ) &&& (store_sco t t' tid loc v);
           ])
 
       ; fresh (mo1 mo2 loc exp des v)
           (label === Label.cas mo1 mo2 loc exp des v)
           (* TODO: different mo combinations *)
+          (mo1 === !!MemOrder.ACQ_REL)
+          (mo2 === !!MemOrder.ACQ_REL)
           (cas_rao t t' tid loc exp des v)
 
       ; fresh (loc mo v)

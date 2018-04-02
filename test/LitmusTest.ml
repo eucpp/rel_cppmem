@@ -815,9 +815,9 @@ let tests_ra_op = Test.make_operational_testsuite
 let tests = Test.(
   make_testsuite ~name:"Litmus" ~tests: [
     make_testsuite ~name:"Operational" ~tests: [
-      tests_sc_op;
+      (* tests_sc_op; *)
       tests_tso_op;
-      tests_ra_op;
+      (* tests_ra_op; *)
     ];
 
     make_testsuite ~name:"Axiomatic" ~tests: [

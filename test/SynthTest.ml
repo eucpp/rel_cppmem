@@ -42,7 +42,9 @@ module MP(Memory : Operational.MemoryModel) =
       let regs = ["r1"; "r2"] in
       let locs = ["x" ; "f" ] in
       fresh (h1 h2 mo1 mo2)
-        (s  === Test.make_istate ~regs ~locs @@ prog_MP h1 h2)
+        (s === Test.make_istate ~regs ~locs @@ prog_MP h1 h2)
+        (* (mo1 === !!MemOrder.RLX) *)
+        (* (mo2 === !!MemOrder.RLX) *)
         (h1 === store mo1 (loc "f") (const @@ integer 1))
         (h2 === load mo2 (loc "f") (reg "r1"))
 
@@ -64,6 +66,126 @@ let mp_tests = Test.(make_testsuite ~name:"MP"
   ~tests:[
     make_testcase ~name:"TSO" ~test:MP_TSO.test;
     make_testcase ~name:"SRA" ~test:MP_SRA.test;
+  ]
+)
+
+let prog_DekkerLock
+  h1  h2  h3  h4  h5  h6  h7  h8  h9
+  h10 h11 h12 h13 h14 h15 h16 h17 h18 =
+<:cppmem_par<
+  spw {{{
+      (* x_sc := 1; *)
+      ? h1;
+      (* r1 := y_sc; *)
+      ? h3;
+      while (r1) do
+        (* r2 := turn_sc; *)
+        ? h5;
+        if (r2 != 0) then
+          (* x_sc := 0; *)
+          ? h7;
+          repeat
+            (* r2 := turn_sc  *)
+            ? h9
+          until (r2 = 0);
+          (* x_sc := 1 *)
+          ? h11
+        else
+          skip
+        fi;
+        (* r1 := y_sc *)
+        ? h13
+      od;
+      (* start of critical section *)
+      r3 := v_sc;
+      v_sc := (r3 + 1);
+      (* end of critical section *)
+      (* turn_sc := 1; *)
+      ? h15;
+      (* x_sc := 0 *)
+      ? h17
+  |||
+      (* y_sc := 1; *)
+      ? h2;
+      (* r1 := x_sc; *)
+      ? h4;
+      while (r1) do
+        (* r2 := turn_sc; *)
+        ? h6;
+        if (r2 != 1) then
+          (* y_sc := 0; *)
+          ? h8;
+          repeat
+            (* r2 := turn_sc  *)
+            ? h10
+          until (r2 = 1);
+          (* y_sc := 1 *)
+          ? h12
+        else
+          skip
+        fi;
+        (* r1 := x_sc *)
+        ? h14
+      od;
+      (* start of critical section *)
+      r3 := v_sc;
+      v_sc := (r3 + 1);
+      (* end of critical section *)
+      (* turn_sc := 0; *)
+      ? h16;
+      (* y_sc := 0 *)
+      ? h18
+  }}}
+>>
+
+module Dekker(Memory : Operational.MemoryModel) =
+  struct
+    module Test = Test.OperationalTest(Memory)
+
+    let istateo s =
+      let regs = ["r1"; "r2"; "r3"] in
+      let locs = ["x"; "y"; "turn"; "v"] in
+      fresh (
+        h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16 h17 h18
+        mo1 mo2 mo3 mo4 mo5 mo6 mo7 mo8 mo9 mo10 mo11 mo12 mo13 mo14 mo15 mo16 mo17 mo18
+      )
+        (s  === Test.make_istate ~regs ~locs @@
+          prog_DekkerLock h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16 h17 h18
+        )
+        (h1   === store mo1  (loc "x") (const @@ integer 1))
+        (h2   === store mo2  (loc "y") (const @@ integer 1))
+        (h3   === load  mo3  (loc "y") (reg "r1"))
+        (h4   === load  mo4  (loc "x") (reg "r1"))
+        (h5   === load  mo5  (loc "turn") (reg "r2"))
+        (h6   === load  mo6  (loc "turn") (reg "r2"))
+        (h7   === store mo7  (loc "x") (const @@ integer 0))
+        (h8   === store mo8  (loc "y") (const @@ integer 0))
+        (h9   === store mo9  (loc "turn") (var @@ reg "r2"))
+        (h10  === store mo10 (loc "turn") (var @@ reg "r2"))
+        (h11  === store mo11 (loc "x") (const @@ integer 1))
+        (h12  === store mo12 (loc "y") (const @@ integer 1))
+        (h13  === load  mo13 (loc "y") (reg "r1"))
+        (h14  === load  mo14 (loc "x") (reg "r1"))
+        (h15  === store mo15 (loc "turn") (const @@ integer 1))
+        (h16  === store mo16 (loc "turn") (const @@ integer 0))
+        (h17  === store mo17 (loc "x") (const @@ integer 0))
+        (h18  === store mo18 (loc "y") (const @@ integer 0))
+
+    let test () =
+      Test.test_synth
+        ~name:"Dekker"
+        ~prop:Prop.(loc "v" = 2)
+        ~n:1
+        istateo
+  end
+
+module Dekker_TSO = Dekker(Operational.TSO)
+module Dekker_SRA = Dekker(Operational.RelAcq)
+
+let dekker_tests = Test.(make_testsuite ~name:"Dekker"
+  ~tests:[
+    make_testcase ~name:"TSO" ~test:Dekker_TSO.test;
+    (* make_testcase ~name:"SRA" ~test:Dekker_SRA.test; *)
   ]
 )
 
@@ -140,7 +262,7 @@ let prog_Barrier h1 h2 h3 h4 h5 h6 h7 h8 = <:cppmem_par<
     repeat
       (* r1 := cnt_rlx; *)
       ? h1;
-      (* r2 := CAS(relAcq, rlx, cnt, r1, (r1 - 1)) *)
+      (* r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1)) *)
       ? h3
     until (r1 = r2);
     if (r2 = 1) then
@@ -148,7 +270,7 @@ let prog_Barrier h1 h2 h3 h4 h5 h6 h7 h8 = <:cppmem_par<
       ? h5
     else
       repeat
-        (* r1 := g_acq  *)
+        (* r1 := g_acq *)
         ? h7
       until (r1)
     fi;
@@ -160,7 +282,7 @@ let prog_Barrier h1 h2 h3 h4 h5 h6 h7 h8 = <:cppmem_par<
     repeat
       (* r1 := cnt_rlx; *)
       ? h2;
-      (* r2 := CAS(relAcq, rlx, cnt, r1, (r1 - 1)) *)
+      (* r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1)) *)
       ? h4
     until (r1 = r2);
     if (r2 = 1) then
@@ -168,7 +290,7 @@ let prog_Barrier h1 h2 h3 h4 h5 h6 h7 h8 = <:cppmem_par<
       ? h6
     else
       repeat
-        (* r1 := g_acq  *)
+        (* r1 := g_acq *)
         ? h8
       until r1
     fi;
@@ -183,11 +305,11 @@ module Barrier(Memory : Operational.MemoryModel) =
 
     let istateo s =
       let regs = ["r1"; "r2"; "r3"] in
-      let locs = ["x" ; "y"; "d" ] in
+      let mem = [("x", 0); ("y", 0); ("g", 0); ("cnt", 2)] in
       fresh (h1 h2 h3 h4 h5 h6 h7 h8 mo1 mo2 mo3 mo3' mo4 mo4' mo5 mo6 mo7 mo8)
-        (s  === Test.make_istate ~regs ~locs @@ prog_Barrier h1 h2 h3 h4 h5 h6 h7 h8)
-        (h1 === store mo1 (loc "cnt") (var @@ reg "r1"))
-        (h2 === store mo2 (loc "cnt") (var @@ reg "r1"))
+        (s  === Test.make_istate ~regs ~mem @@ prog_Barrier h1 h2 h3 h4 h5 h6 h7 h8)
+        (h1 === load mo1 (loc "cnt") (reg "r1"))
+        (h2 === load mo2 (loc "cnt") (reg "r1"))
         (h3 === cas
           mo3 mo3'
           (loc "cnt")
@@ -209,10 +331,8 @@ module Barrier(Memory : Operational.MemoryModel) =
 
     let test () =
       Test.test_synth
-        ~name:"Cohen"
-        ~prop:Prop.(
-          (loc "d" = 1)
-        )
+        ~name:"Barrier"
+        ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
         ~n:1
         istateo
   end
@@ -222,7 +342,7 @@ module Barrier_SRA = Barrier(Operational.RelAcq)
 
 let barrier_tests = Test.(make_testsuite ~name:"Barrier"
   ~tests:[
-    make_testcase ~name:"TSO" ~test:Barrier_TSO.test;
+    (* make_testcase ~name:"TSO" ~test:Barrier_TSO.test; *)
     make_testcase ~name:"SRA" ~test:Barrier_SRA.test;
   ]
 )
@@ -230,9 +350,10 @@ let barrier_tests = Test.(make_testsuite ~name:"Barrier"
 let tests = Test.(
   make_testsuite ~name:"Synth" ~tests: [
     make_testsuite ~name:"Operational" ~tests: [
-      mp_tests;
-      cohen_tests;
-      barrier_tests;
+      (* mp_tests; *)
+      (* cohen_tests; *)
+      (* barrier_tests; *)
+      dekker_tests
     ];
   ]
 )
