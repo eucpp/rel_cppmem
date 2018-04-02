@@ -343,15 +343,15 @@ module StoreBuffer =
     let emptyo t =
       (t === nil ())
 
-    let enqueueo t t' l v =
+    let enqo t t' l v =
       (t' === (Pair.pair l v) % t)
 
-    let rec dequeueo t t' l v =
+    let rec deqo t t' l v =
       fresh (hd tl tl')
         (t === hd % tl)
         (conde
           [ ?& [(tl === nil ()); (t' === nil ()  ); (hd === Pair.pair l v)]
-          ; ?& [(tl =/= nil ()); (t' === hd % tl'); (dequeueo tl tl'  l v)]
+          ; ?& [(tl =/= nil ()); (t' === hd % tl'); (deqo tl tl'  l v)]
           ]
         )
 
@@ -406,6 +406,31 @@ module TSO =
         (t === Pair.pair tls mem)
         (TLS.forallo StoreBuffer.emptyo tls)
 
+    let propagateo t t' tid =
+      fresh (tls tls' mem mem' sb sb' l v)
+        (t  === Pair.pair tls  mem )
+        (t' === Pair.pair tls' mem')
+        (TLS.geto tls      tid sb )
+        (TLS.seto tls tls' tid sb')
+        (StoreBuffer.deqo sb sb' l v)
+        (ValueStorage.writeo mem mem' l v)
+
+    let mfenceo t t' tid =
+      let rec helpero sb sb'' mem mem'' = conde
+        [ ?& [ (StoreBuffer.emptyo sb); (sb === sb''); (mem === mem'') ]
+        ; fresh (l v sb' mem')
+            (StoreBuffer.deqo sb sb' l v)
+            (ValueStorage.writeo mem mem' l v)
+            (helpero sb' sb'' mem mem'')
+        ]
+      in
+      fresh (tls tls' mem mem' sb sb' l v)
+        (t  === Pair.pair tls  mem )
+        (t' === Pair.pair tls' mem')
+        (TLS.geto tls      tid sb )
+        (TLS.seto tls tls' tid sb')
+        (helpero sb sb' mem mem')
+
     let loado t t' tid l v =
       fresh (tls mem sb optv)
         (t  === Pair.pair tls mem)
@@ -418,29 +443,35 @@ module TSO =
           ]
         )
 
+    let load_sco t t'' tid l v =
+      fresh (t')
+        (mfenceo t t' tid)
+        (loado t' t'' tid l v)
+
     let storeo t t' tid l v =
       fresh (tls tls' mem sb sb')
         (t  === Pair.pair tls  mem)
         (t' === Pair.pair tls' mem)
         (TLS.geto tls      tid sb )
         (TLS.seto tls tls' tid sb')
-        (StoreBuffer.enqueueo sb sb' l v)
+        (StoreBuffer.enqo sb sb' l v)
 
-    let propagateo t t' tid =
-      fresh (tls tls' mem mem' sb sb' l v)
-        (t  === Pair.pair tls  mem )
-        (t' === Pair.pair tls' mem')
-        (TLS.geto tls      tid sb )
-        (TLS.seto tls tls' tid sb')
-        (StoreBuffer.dequeueo sb sb' l v)
-        (ValueStorage.writeo mem mem' l v)
+    let store_sco t t'' tid l v =
+      fresh (t')
+        (storeo t t' tid l v)
+        (mfenceo t' t'' tid)
 
-    (* let cas_sco t t' tid loc expected desired value =
-      (ValueStorage.reado t loc value) &&&
-      (conde [
-        (Lang.Value.eqo value expected) &&& (ValueStorage.writeo t t' loc desired);
-        (Lang.Value.nqo value expected) &&& (t === t');
-      ]) *)
+    let caso t t' tid loc expected desired value =
+      fresh (tls mem mem' sb)
+        (t  === Pair.pair tls mem )
+        (t' === Pair.pair tls mem')
+        (TLS.geto tls tid sb )
+        (StoreBuffer.emptyo sb)
+        (ValueStorage.reado mem loc value)
+        (conde [
+          (Lang.Value.eqo value expected) &&& (ValueStorage.writeo mem mem' loc desired);
+          (Lang.Value.nqo value expected) &&& (mem === mem');
+        ])
 
     let stepo tid label t t' = conde
       [ fresh (e)
@@ -450,20 +481,22 @@ module TSO =
       ; (label === Label.empty ()) &&& (propagateo t t' tid)
 
       ; fresh (mo loc v)
-        (* (mo === !!MemOrder.SC) *)
-        (label === Label.load mo loc v)
-        (loado t t' tid loc v)
+          (label === Label.load mo loc v)
+          (conde
+            [ (mo === !!MemOrder.SC) &&& (load_sco t t' tid loc v)
+            ; (mo =/= !!MemOrder.SC) &&& (loado t t' tid loc v)
+            ])
 
       ; fresh (mo loc v)
-        (* (mo === !!MemOrder.SC) *)
         (label === Label.store mo loc v)
-        (storeo t t' tid loc v)
+        (conde
+          [ (mo === !!MemOrder.SC) &&& (store_sco t t' tid loc v)
+          ; (mo =/= !!MemOrder.SC) &&& (storeo t t' tid loc v)
+          ])
 
-      (* fresh (mo1 mo2 loc e d v)
-        (* (mo1 === !!MemOrder.SC) *)
-        (* (mo2 === !!MemOrder.SC) *)
-        (label === Label.cas mo1 mo2 loc e d v)
-        (cas_sco t t' tid loc e d v); *)
+      ; fresh (mo1 mo2 loc e d v)
+          (label === Label.cas mo1 mo2 loc e d v)
+          (caso t t' tid loc e d v);
       ]
   end
 
