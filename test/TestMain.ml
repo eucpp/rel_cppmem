@@ -30,12 +30,12 @@ open Utils
 
 let tests = Test.(
   make_testsuite ~name:"relcppmem" ~tests: [
-    (* ProgTest.tests; *)
-    (* LitmusTest.tests; *)
-    (* DekkerLockTest.tests; *)
-    (* CohenLockTest.tests; *)
-    (* BarrierTest.tests; *)
-    SynthTest.tests;
+    ProgTest.tests;
+    LitmusTest.tests;
+    DekkerLockTest.tests;
+    CohenExclTest.tests;
+    BarrierTest.tests;
+    (* SynthTest.tests; *)
   ]
 )
 

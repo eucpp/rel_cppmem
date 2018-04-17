@@ -16,7 +16,6 @@
  *)
 
 open MiniKanren
-(* open MiniKanren.Std *)
 
 open Lang
 open Lang.Expr
@@ -33,7 +32,9 @@ let prog_DekkerLock = <:cppmem_par<
         r2 := turn_sc;
         if (r2 != 0) then
           x_sc := 0;
-          repeat r2 := turn_sc until (r2 = 0);
+          repeat
+            r2 := turn_sc
+          until (r2 = 0);
           x_sc := 1
         else
           skip
@@ -53,7 +54,9 @@ let prog_DekkerLock = <:cppmem_par<
         r2 := turn_sc;
         if (r2 != 1) then
           y_sc := 0;
-          repeat r2 := turn_sc until (r2 = 1);
+          repeat
+            r2 := turn_sc
+          until (r2 = 1);
           y_sc := 1
         else
           skip
@@ -69,31 +72,97 @@ let prog_DekkerLock = <:cppmem_par<
   }}}
 >>
 
-let test_DekkerLock ~stat = Test.(make_test_desc
-  ~name:"DekkerLock"
-  ~regs:["r1"; "r2"; "r3"]
-  ~locs:["x"; "y"; "turn"; "v"]
-  ~prop:Prop.(loc "v" = 2)
-  ~stat
-  prog_DekkerLock
+let test_sc = Test.(make_operational_testsuite
+  ~model:SeqCst
+  ~tests:([
+    make_test_desc
+      ~name:"DekkerLock"
+      ~regs:["r1"; "r2"; "r3"]
+      ~locs:["x"; "y"; "turn"; "v"]
+      ~prop:Prop.(loc "v" = 2)
+      ~stat:Fulfills
+      prog_DekkerLock
+  ])
 )
 
-let tests = Test.(make_testsuite ~name:"Dekker"
+let prog_DekkerLock = <:cppmem_par<
+  spw {{{
+      x_rlx := 1;
+      r1 := y_rlx;
+      while (r1) do
+        r2 := turn_rlx;
+        if (r2 != 0) then
+          x_rlx := 0;
+          repeat
+            r2 := turn_rlx
+          until (r2 = 0);
+          x_rlx := 1
+        else
+          skip
+        fi;
+        r1 := y_rlx
+      od;
+      (* start of critical section *)
+      r3 := v_rlx;
+      v_rlx := (r3 + 1);
+      (* end of critical section *)
+      turn_rlx := 1;
+      x_rlx := 0
+  |||
+      y_rlx := 1;
+      r1 := x_rlx;
+      while (r1) do
+        r2 := turn_rlx;
+        if (r2 != 1) then
+          y_rlx := 0;
+          repeat
+            r2 := turn_rlx
+          until (r2 = 1);
+          y_rlx := 1
+        else
+          skip
+        fi;
+        r1 := x_rlx
+      od;
+      (* start of critical section *)
+      r3 := v_rlx;
+      v_rlx := (r3 + 1);
+      (* end of critical section *)
+      turn_rlx := 0;
+      y_rlx := 0
+  }}}
+>>
+
+let test_tso = Test.(make_operational_testsuite
+  ~model:TSO
+  ~tests:([
+    make_test_desc
+      ~name:"DekkerLock"
+      ~regs:["r1"; "r2"; "r3"]
+      ~locs:["x"; "y"; "turn"; "v"]
+      ~prop:Prop.(loc "v" = 2)
+      ~stat:Violates
+      prog_DekkerLock
+  ])
+)
+
+let test_ra = Test.(make_operational_testsuite
+  ~model:RelAcq
+  ~tests:([
+    make_test_desc
+      ~name:"DekkerLock"
+      ~regs:["r1"; "r2"; "r3"]
+      ~locs:["x"; "y"; "turn"; "v"]
+      ~prop:Prop.(loc "v" = 2)
+      ~stat:Violates
+      prog_DekkerLock
+  ])
+)
+
+let tests = Test.(make_testsuite ~name:"VerifyDekkerLock"
   ~tests:[
-    (* make_operational_testsuite
-      ~model:SeqCst
-      ~tests:[ test_DekkerLock ~stat:Fulfills ]
-
-    ; *)
-
-    (* make_operational_testsuite
-      ~model:TSO
-      ~tests:[ test_DekkerLock ~stat:Violates ]
-
-    ; *)
-
-    make_operational_testsuite
-      ~model:RelAcq
-      ~tests:[ test_DekkerLock ~stat:Violates ]
+    test_sc;
+    test_tso;
+    test_ra;
   ]
 )

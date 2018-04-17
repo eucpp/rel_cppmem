@@ -27,11 +27,109 @@ open Lang.Value
 
 let prog_Barrier = <:cppmem_par<
   spw {{{
+    x_sc := 1;
+    (* barrier start *)
+    repeat
+      r1 := cnt_sc;
+      r2 := CAS(sc, sc, cnt, r1, (r1 - 1))
+    until (r1 = r2);
+    if (r2 = 1) then
+      g_sc := 1
+    else
+      repeat
+        r1 := g_sc
+      until (r1)
+    fi;
+    (* barrier end *)
+    r3 := y_sc
+  |||
+    y_sc := 1;
+    (* barrier start *)
+    repeat
+      r1 := cnt_sc;
+      r2 := CAS(sc, sc, cnt, r1, (r1 - 1))
+    until (r1 = r2);
+    if (r2 = 1) then
+      g_sc := 1
+    else
+      repeat
+        r1 := g_sc
+      until (r1)
+    fi;
+    (* barrier end *)
+    r3 := x_sc
+  }}}
+>>
+
+let test_sc = Test.(make_operational_testsuite
+  ~model:SeqCst
+  ~tests:([
+    make_test_desc
+      ~name:"Barrier"
+      ~regs:["r1"; "r2"; "r3"]
+      ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
+      ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
+      ~stat:Fulfills
+      prog_Barrier
+  ])
+)
+
+let prog_Barrier = <:cppmem_par<
+  spw {{{
+    x_rlx := 1;
+    (* barrier start *)
+    repeat
+      r1 := cnt_rlx;
+      r2 := CAS(sc, sc, cnt, r1, (r1 - 1))
+    until (r1 = r2);
+    if (r2 = 1) then
+      g_rlx := 1
+    else
+      repeat
+        r1 := g_rlx
+      until (r1)
+    fi;
+    (* barrier end *)
+    r3 := y_rlx
+  |||
+    y_rlx := 1;
+    (* barrier start *)
+    repeat
+      r1 := cnt_rlx;
+      r2 := CAS(sc, sc, cnt, r1, (r1 - 1))
+    until (r1 = r2);
+    if (r2 = 1) then
+      g_rlx := 1
+    else
+      repeat
+        r1 := g_rlx
+      until (r1)
+    fi;
+    (* barrier end *)
+    r3 := x_rlx
+  }}}
+>>
+
+let test_tso = Test.(make_operational_testsuite
+  ~model:TSO
+  ~tests:([
+    make_test_desc
+      ~name:"Barrier"
+      ~regs:["r1"; "r2"; "r3"]
+      ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
+      ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
+      ~stat:Fulfills
+      prog_Barrier
+  ])
+)
+
+let prog_Barrier = <:cppmem_par<
+  spw {{{
     x_na := 1;
     (* barrier start *)
     repeat
       r1 := cnt_rlx;
-      r2 := CAS(relAcq, rlx, cnt, r1, (r1 - 1))
+      r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
     until (r1 = r2);
     if (r2 = 1) then
       g_rel := 1
@@ -45,7 +143,7 @@ let prog_Barrier = <:cppmem_par<
     (* barrier start *)
     repeat
       r1 := cnt_rlx;
-      r2 := CAS(relAcq, rlx, cnt, r1, (r1 - 1))
+      r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
     until (r1 = r2);
     if (r2 = 1) then
       g_rel := 1
@@ -57,34 +155,23 @@ let prog_Barrier = <:cppmem_par<
   }}}
 >>
 
-module Interpreter = Operational.Interpreter(Operational.RelAcq)
-module Trace = Utils.Trace(Interpreter.State)
-
-let test_Barrier ~stat = Test.(make_test_desc
-  ~name:"Barrier"
-  ~regs:["r1"; "r2"; "r3"]
-  ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
-  ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
-  ~stat
-  prog_Barrier
+let test_ra = Test.(make_operational_testsuite
+  ~model:RelAcq
+  ~tests:([
+    make_test_desc
+      ~name:"Barrier"
+      ~regs:["r1"; "r2"; "r3"]
+      ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
+      ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
+      ~stat:Fulfills
+      prog_Barrier
+  ])
 )
 
-let tests = Test.(make_testsuite ~name:"Barrier"
+let tests = Test.(make_testsuite ~name:"VerifyBarrier"
   ~tests:[
-    (* make_operational_testsuite
-      ~model:SeqCst
-      ~tests:[ test_Barrier ~stat:Fulfills ]
-
-    ; *)
-
-    (* make_operational_testsuite
-      ~model:TSO
-      ~tests:[ test_Barrier ~stat:Fulfills ]
-
-    ; *)
-
-    make_operational_testsuite
-      ~model:RelAcq
-      ~tests:[ test_Barrier ~stat:Fulfills ]
+    test_sc;
+    test_tso;
+    test_ra;
   ]
 )
