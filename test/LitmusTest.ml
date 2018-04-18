@@ -383,13 +383,13 @@ let test_WRC = Test.(make_test_desc
 let tests_tso_op = Test.make_operational_testsuite
   ~model:Test.TSO
   ~tests:([
-    (* test_SW; *)
-    (* test_SB; *)
-    (* test_LB; *)
+    test_SW;
+    test_SB;
+    test_LB;
     test_MP;
-    (* test_CoRR; *)
-    (* test_IRIW; *)
-    (* test_WRC; *)
+    test_CoRR;
+    test_IRIW;
+    test_WRC;
   ])
 
 (* ************************************************************************** *)
@@ -792,32 +792,32 @@ let test_DR_RW_rlxW = Test.(make_test_desc
 let tests_ra_op = Test.make_operational_testsuite
   ~model:Test.RelAcq
   ~tests:([
-    (* test_SW; *)
-    (* test_SB; *)
-    (* test_LB; *)
-    (* test_LB_acq_rlx; *)
+    test_SW;
+    test_SB;
+    test_LB;
+    test_LB_acq_rlx;
     test_MP;
-    (* test_MP_rlx_acq; *)
-    (* test_MP_rel_rlx; *)
-    (* test_MP_relseq; *)
-    (* test_CoRR; *)
-    (* test_IRIW; *)
-    (* test_IRIW_rlx; *)
-    (* test_WRC; *)
-    (* test_WRC_rlx; *)
-    (* test_WRC_cas; *)
-    (* test_DR_WW; *)
-    (* test_DR_RW; *)
-    (* test_DR_RW_rlxW; *)
-    (* test_DR_RW_rlxR; *)
+    test_MP_rlx_acq;
+    test_MP_rel_rlx;
+    test_MP_relseq;
+    test_CoRR;
+    test_IRIW;
+    test_IRIW_rlx;
+    test_WRC;
+    test_WRC_rlx;
+    test_WRC_cas;
+    test_DR_WW;
+    test_DR_RW;
+    test_DR_RW_rlxW;
+    test_DR_RW_rlxR;
   ])
 
 let tests = Test.(
   make_testsuite ~name:"Litmus" ~tests: [
     make_testsuite ~name:"Operational" ~tests: [
       tests_sc_op;
-      (* tests_tso_op; *)
-      (* tests_ra_op; *)
+      tests_tso_op;
+      tests_ra_op;
     ];
 
     make_testsuite ~name:"Axiomatic" ~tests: [
