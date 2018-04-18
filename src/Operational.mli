@@ -47,6 +47,9 @@ module Interpreter(Memory : MemoryModel) :
         val init_istate  : regs:(string list) -> mem:((string * int) list) -> Lang.Prog.ti list -> ti
         val alloc_istate : regs:(string list) -> locs:(string list) -> Lang.Prog.ti list -> ti
 
+        (* instantiate all `unknown` memory order specifiers to fresh variables *)
+        val instmo : ti -> ti -> MiniKanren.goal
+
         val memo : ti -> Memory.ti -> MiniKanren.goal
 
         val thrdmgro : ti -> Lang.ThreadManager.ti -> MiniKanren.goal

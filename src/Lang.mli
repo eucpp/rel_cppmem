@@ -57,7 +57,7 @@ module Value :
 
 module MemOrder :
   sig
-    type tt = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
+    type tt = SC | ACQ | REL | ACQ_REL | CON | RLX | NA | UNKW
 
     type tl = tt MiniKanren.logic
 
@@ -141,6 +141,8 @@ module Expr :
 module Prog :
   sig
     include Utils.Logic
+
+    val instmo : ti -> ti -> MiniKanren.goal
   end
 
 module Stmt :
@@ -243,6 +245,8 @@ module ThreadLocalStorage(T : Utils.Logic) :
 
     val tidso : ti -> (ThreadID.tt, ThreadID.tl) MiniKanren.Std.List.groundi -> MiniKanren.goal
 
+    val mapo : (T.ti -> T.ti -> MiniKanren.goal) -> ti -> ti -> MiniKanren.goal
+
     val foldo :
       (T.ti -> ('at, _ MiniKanren.logic as 'al) MiniKanren.injected -> ('at, 'al) MiniKanren.injected -> MiniKanren.goal) ->
       ti -> ('at, 'al) MiniKanren.injected -> ('at, 'al) MiniKanren.injected -> MiniKanren.goal
@@ -259,6 +263,8 @@ module Thread :
     val progo : ti -> Prog.ti -> MiniKanren.goal
     val regso : ti -> Regs.ti -> MiniKanren.goal
 
+    val instmo : ti -> ti -> MiniKanren.goal
+
     val terminatedo : ti -> MiniKanren.goal
   end
 
@@ -269,6 +275,8 @@ module ThreadManager :
     val init : Prog.ti list -> Regs.ti list -> ti
 
     val cprogo : ti -> CProg.ti -> MiniKanren.goal
+
+    val instmo : ti -> ti -> MiniKanren.goal
 
     val terminatedo : ti -> MiniKanren.goal
 

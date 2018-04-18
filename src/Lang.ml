@@ -109,7 +109,7 @@ module Value =
 
 module MemOrder =
   struct
-    type tt = SC | ACQ | REL | ACQ_REL | CON | RLX | NA
+    type tt = SC | ACQ | REL | ACQ_REL | CON | RLX | NA | UNKW
 
     type tl = tt MiniKanren.logic
 
@@ -124,6 +124,7 @@ module MemOrder =
       | "con"     -> CON
       | "rlx"     -> RLX
       | "na"      -> NA
+      | "unkw"    -> UNKW
 
     let to_string = function
       | SC      -> "sc"
@@ -133,6 +134,7 @@ module MemOrder =
       | CON     -> "con"
       | RLX     -> "rlx"
       | NA      -> "na"
+      | UNKW    -> "unkw"
 
     let mo s = !!(of_string s)
 
@@ -473,6 +475,59 @@ module Stmt =
         Format.fprintf ff "@[<v>return %s@]" (GT.show(Std.List.logic) Reg.show rs)
     )
 
+    let rec instmo t t' = conde
+      [ (t === t') &&& (conde
+        [ fresh (e)
+            (t === assertion e)
+        ; fresh (r e)
+            (t === asgn r e)
+        ])
+
+      ; fresh (e l l' r r')
+          (t  === if' e l  r )
+          (t' === if' e l' r')
+          (Std.List.mapo instmo l l')
+          (Std.List.mapo instmo r r')
+
+      ; fresh (e body body')
+          (t  === while' e body )
+          (t' === while' e body')
+          (Std.List.mapo instmo body body')
+
+      ; fresh (e body body')
+          (t  === repeat body  e)
+          (t' === repeat body' e)
+          (Std.List.mapo instmo body body')
+
+      ; fresh (mo mo' l r)
+          (t  === load mo  l r)
+          (t' === load mo' l r)
+          (conde
+            [ (mo === !!MemOrder.UNKW)
+            ; (mo =/= !!MemOrder.UNKW) &&& (mo === mo')
+            ])
+
+      ; fresh (mo mo' l e)
+          (t  === store mo  l e)
+          (t' === store mo' l e)
+          (conde
+            [ (mo === !!MemOrder.UNKW)
+            ; (mo =/= !!MemOrder.UNKW) &&& (mo === mo')
+            ])
+
+      ; fresh (mo1 mo1' mo2 mo2' exp des l r)
+          (t  === cas mo1  mo2  l exp des r)
+          (t' === cas mo1' mo2' l exp des r)
+          (conde
+            [ (mo1 === !!MemOrder.UNKW)
+            ; (mo1 =/= !!MemOrder.UNKW) &&& (mo1 === mo1')
+            ])
+          (conde
+            [ (mo2 === !!MemOrder.UNKW)
+            ; (mo2 =/= !!MemOrder.UNKW) &&& (mo2 === mo2')
+            ])
+      ]
+
   end
 
 module Prog =
@@ -488,6 +543,9 @@ module Prog =
     let reify = Std.List.reify Stmt.reify
 
     let pprint = Stmt.ppseql
+
+    let instmo = Std.List.mapo Stmt.instmo
+
   end
 
 module CProg =
@@ -742,6 +800,15 @@ module ThreadLocalStorage(T : Utils.Logic) =
         (tls === Std.pair cnt thrds)
         (Storage.keyso thrds tids)
 
+    let mapo g tls tls' =
+      let helpero tid thrd tid' thrd' =
+        (tid === tid') &&& (g thrd thrd')
+      in
+      fresh (cnt thrds thrds')
+        (tls  === Std.pair cnt thrds )
+        (tls' === Std.pair cnt thrds')
+        (Storage.mapo helpero thrds thrds')
+
     let foldo g tls acc acc' =
       fresh (cnt thrds)
         (tls === Std.pair cnt thrds)
@@ -804,6 +871,12 @@ module Thread =
     let regso t rs =
       fresh (pid p)
         (t === thrd p rs pid)
+
+    let instmo t t' =
+      fresh (p p' rs pid)
+        (t  === thrd p  rs pid)
+        (t' === thrd p' rs pid)
+        (Prog.instmo p p')
 
     let terminatedo t =
       fresh (pid regs)
@@ -919,6 +992,8 @@ module ThreadManager =
           (Thread.progo thrd p)
       ) in
       foldo helpero t (Std.nil ()) ps
+
+    let instmo = mapo Thread.instmo
 
     let terminatedo = forallo Thread.terminatedo
 

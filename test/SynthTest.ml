@@ -24,15 +24,151 @@ open Lang.Loc
 open Lang.Reg
 open Lang.Value
 
-let prog_MP h1 h2 = <:cppmem_par<
+let prog_MessagePassing = <:cppmem_par<
   spw {{{
-    x_na := 1;
-    ? h1
+    x_rlx := 1;
+    f_unkw := 1
   |||
-    repeat ? h2 until (r1);
-    r2 := x_na
+    repeat
+      r1 := f_unkw
+    until (r1);
+    r2 := x_rlx
   }}}
 >>
+
+let test_MessagePassing = Test.(make_test_desc
+  ~name:"MessagePassing"
+  ~regs:["r1"; "r2";]
+  ~locs:["x"; "f";]
+  ~prop:Prop.(2%"r2" = 1)
+  ~stat:Synth
+  ~n:1
+  prog_MessagePassing
+)
+
+let prog_CohenExcl = <:cppmem_par<
+  spw {{{
+    r1 := choice(1, 2);
+    x_unkw := r1;
+    repeat
+      r2 := y_unkw
+    until (r2);
+    if (r1 = r2) then
+      (* start of critical section *)
+      r3 := d_rlx;
+      d_rlx := (r3 + 1)
+      (* end of critical section *)
+    else
+      skip
+    fi
+  |||
+    r1 := choice(1, 2);
+    y_unkw := r1;
+    repeat
+      r2 := x_unkw
+    until (r2);
+    if (r1 != r2) then
+      (* start of critical section *)
+      r3 := d_rlx;
+      d_rlx := (r3 + 1)
+      (* end of critical section *)
+    else
+      skip
+    fi
+  }}}
+>>
+
+let test_CohenExcl = Test.(make_test_desc
+  ~name:"CohenExcl"
+  ~regs:["r1"; "r2"; "r3"]
+  ~locs:["x"; "y"; "d"]
+  ~prop:Prop.(loc "d" = 1)
+  ~stat:Synth
+  ~n:1
+  prog_CohenExcl
+)
+
+let prog_DekkerLock = <:cppmem_par<
+  spw {{{
+      x_unkw := 1;
+      r1 := y_unkw;
+      while (r1) do
+        r2 := turn_unkw;
+        if (r2 != 0) then
+          x_unkw := 0;
+          repeat
+            r2 := turn_unkw
+          until (r2 = 0);
+          x_unkw := 1
+        else
+          skip
+        fi;
+        r1 := y_unkw
+      od;
+      (* start of critical section *)
+      r3 := v_rlx;
+      v_rlx := (r3 + 1);
+      (* end of critical section *)
+      turn_unkw := 1;
+      x_unkw := 0
+  |||
+      y_unkw := 1;
+      r1 := x_unkw;
+      while (r1) do
+        r2 := turn_unkw;
+        if (r2 != 1) then
+          y_unkw := 0;
+          repeat
+            r2 := turn_unkw
+          until (r2 = 1);
+          y_unkw := 1
+        else
+          skip
+        fi;
+        r1 := x_unkw
+      od;
+      (* start of critical section *)
+      r3 := v_rlx;
+      v_rlx := (r3 + 1);
+      (* end of critical section *)
+      turn_unkw := 0;
+      y_unkw := 0
+  }}}
+>>
+
+let test_DekkerLock = Test.(make_test_desc
+  ~name:"DekkerLock"
+  ~regs:["r1"; "r2"; "r3"]
+  ~locs:["x"; "y"; "turn"; "v"]
+  ~prop:Prop.(loc "v" = 2)
+  ~stat:Synth
+  ~n:1
+  prog_DekkerLock
+)
+
+let tests_tso = Test.make_operational_testsuite
+  ~model:Test.TSO
+  ~tests:([
+    test_MessagePassing;
+    test_CohenExcl;
+  ])
+
+let tests_ra = Test.make_operational_testsuite
+  ~model:Test.RelAcq
+  ~tests:([
+    test_MessagePassing;
+    test_CohenExcl;
+    (* test_DekkerLock; *)
+  ])
+
+let tests = Test.(make_testsuite ~name:"Synth"
+  ~tests:[
+    tests_tso;
+    tests_ra;
+  ]
+)
+
+(*
 
 module MP(Memory : Operational.MemoryModel) =
   struct
@@ -357,3 +493,5 @@ let tests = Test.(
     ];
   ]
 )
+
+*)

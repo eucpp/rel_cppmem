@@ -30,12 +30,12 @@ open Utils
 
 let tests = Test.(
   make_testsuite ~name:"relcppmem" ~tests: [
-    ProgTest.tests;
-    LitmusTest.tests;
-    DekkerLockTest.tests;
-    CohenExclTest.tests;
-    BarrierTest.tests;
-    (* SynthTest.tests; *)
+    (* ProgTest.tests; *)
+    (* LitmusTest.tests; *)
+    (* DekkerLockTest.tests; *)
+    (* CohenExclTest.tests; *)
+    (* BarrierTest.tests; *)
+    SynthTest.tests;
   ]
 )
 
@@ -43,4 +43,5 @@ let () =
   (* Test.ounit_run tests *)
 
   Test.simple_run tests;
+  Printf.printf "\n";
   MiniKanren.report_counters ()

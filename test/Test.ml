@@ -32,7 +32,7 @@ let make_testsuite ~name ~tests = TestSuite (name, tests)
 
 type memory_model = SeqCst | TSO | RelAcq
 
-type status = Violates | Fulfills
+type status = Violates | Fulfills | Synth
 
 type test_desc =
   { name      : string
@@ -42,10 +42,11 @@ type test_desc =
   ; mem       : (string * int) list option
   ; stat      : status
   ; prop      : Lang.Prop.ti
+  ; n         : int option
   }
 
-let make_test_desc ?locs ?mem ~regs ~name ~stat ~prop prog =
-  { name; prog; regs; locs; mem; stat; prop }
+let make_test_desc ?n ?locs ?mem ~regs ~name ~stat ~prop prog =
+  { name; prog; regs; locs; mem; stat; prop; n }
 
 module OperationalTest(Memory : Operational.MemoryModel) =
   struct
@@ -94,12 +95,15 @@ module OperationalTest(Memory : Operational.MemoryModel) =
           Fail ""
         end
 
-    let test_synth ~n ~name ~prop stateo =
+    let test_synth ?n ~name ~prop ~prog ~regs ~locs ~mem =
       let module Trace = Utils.Trace(Lang.CProg) in
+      let istate = make_istate ~regs ?locs ?mem prog in
       let stream = run q
         (fun p ->
             fresh (s s' tm)
-              (stateo s)
+              (State.instmo istate s)
+              (State.thrdmgro s tm)
+              (Lang.ThreadManager.cprogo tm p)
               (Interpreter.reachableo s s')
               (State.terminatedo s')
               (State.sato prop s')
@@ -108,8 +112,6 @@ module OperationalTest(Memory : Operational.MemoryModel) =
                   (State.terminatedo s'')
                 ?~(State.sato prop s'')
               )
-              (State.thrdmgro s tm)
-              (Lang.ThreadManager.cprogo tm p)
         )
         (fun qs -> qs)
       in
@@ -119,23 +121,24 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         Fail ""
         end
       else begin
-        let progs = Stream.take ~n stream in
+        let progs = Stream.take ?n stream in
         Format.printf "Test %s succeeded!@;" name;
         Format.printf "List of synthesized programs:@\n";
         let cnt = ref 0 in
         List.iter (fun p ->
           cnt := !cnt + 1;
-          Format.printf "Program #%d:@;%a@\n" !cnt Trace.trace p
+          Format.printf "Program #%d:@\n%a@\n" !cnt Trace.trace p
         ) progs;
         Ok
       end
 
-    let make_testcase {name; prog; prop; regs; locs; mem; stat} =
+    let make_testcase { name; prog; prop; regs; locs; mem; stat; n } =
       let full_name = Printf.sprintf "%s::%s" Memory.name name in
       let test () =
         match stat with
         | Violates -> test_violates ~name:full_name ~prop ~prog ~regs ~locs ~mem
         | Fulfills -> test_fulfills ~name:full_name ~prop ~prog ~regs ~locs ~mem
+        | Synth    -> test_synth ?n ~name:full_name ~prop ~prog ~regs ~locs ~mem
       in
       make_testcase ~name ~test
 

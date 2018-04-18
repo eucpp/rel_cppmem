@@ -93,6 +93,12 @@ module State(Memory : MemoryModel) =
     let alloc_istate ~regs ~locs prog =
       init_istate ~regs ~mem:(List.map (fun l -> (l, 0)) locs) prog
 
+    let instmo s s' =
+      fresh (thrds thrds' mem opterr)
+        (s  === state thrds  mem opterr)
+        (s' === state thrds' mem opterr)
+        (ThreadManager.instmo thrds thrds')
+
     let memo s mem =
       fresh (thrds opterr)
         (s === state thrds mem opterr)
