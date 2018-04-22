@@ -61,18 +61,16 @@ let prog_Barrier = <:cppmem_par<
   }}}
 >>
 
-let test_sc = Test.(make_operational_testsuite
-  ~model:SeqCst
-  ~tests:([
-    make_test_desc
-      ~name:"Barrier"
-      ~regs:["r1"; "r2"; "r3"]
-      ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
-      ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
-      ~stat:Fulfills
-      prog_Barrier
-  ])
-)
+let test_sc = Test.(make_operational_testsuite ~model:SeqCst [
+  make_test_desc
+    ~name:"Barrier"
+    ~regs:["r1"; "r2"; "r3"]
+    ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
+    ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
+    ~stat:Fulfills
+    ~len:Long
+    prog_Barrier
+])
 
 let prog_Barrier = <:cppmem_par<
   spw {{{
@@ -110,18 +108,16 @@ let prog_Barrier = <:cppmem_par<
   }}}
 >>
 
-let test_tso = Test.(make_operational_testsuite
-  ~model:TSO
-  ~tests:([
-    make_test_desc
-      ~name:"Barrier"
-      ~regs:["r1"; "r2"; "r3"]
-      ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
-      ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
-      ~stat:Fulfills
-      prog_Barrier
-  ])
-)
+let test_tso = Test.(make_operational_testsuite ~model:TSO [
+  make_test_desc
+    ~name:"Barrier"
+    ~regs:["r1"; "r2"; "r3"]
+    ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
+    ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
+    ~stat:Fulfills
+    ~len:Long
+    prog_Barrier
+])
 
 let prog_Barrier = <:cppmem_par<
   spw {{{
@@ -155,23 +151,19 @@ let prog_Barrier = <:cppmem_par<
   }}}
 >>
 
-let test_ra = Test.(make_operational_testsuite
-  ~model:RelAcq
-  ~tests:([
-    make_test_desc
-      ~name:"Barrier"
-      ~regs:["r1"; "r2"; "r3"]
-      ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
-      ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
-      ~stat:Fulfills
-      prog_Barrier
-  ])
-)
+let test_ra = Test.(make_operational_testsuite ~model:RelAcq [
+  make_test_desc
+    ~name:"Barrier"
+    ~regs:["r1"; "r2"; "r3"]
+    ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
+    ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
+    ~stat:Fulfills
+    ~len:Long
+    prog_Barrier
+])
 
-let tests = Test.(make_testsuite ~name:"VerifyBarrier"
-  ~tests:[
-    test_sc;
-    test_tso;
-    test_ra;
-  ]
-)
+let tests = Test.(make_testsuite ~name:"VerifyBarrier" [
+  test_sc;
+  test_tso;
+  test_ra;
+])

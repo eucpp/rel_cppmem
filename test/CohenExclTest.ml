@@ -56,18 +56,16 @@ let prog_CohenExcl = <:cppmem_par<
   }}}
 >>
 
-let test_sc = Test.(make_operational_testsuite
-  ~model:SeqCst
-  ~tests:([
+let test_sc = Test.(make_operational_testsuite ~model:SeqCst [
     make_test_desc
       ~name:"CohenExcl"
       ~regs:["r1"; "r2"; "r3"]
       ~locs:["x"; "y"; "d"]
       ~prop:Prop.(loc "d" = 1)
       ~stat:Fulfills
+      ~len:Long
       prog_CohenExcl
-  ])
-)
+])
 
 let prog_CohenExcl = <:cppmem_par<
   spw {{{
@@ -101,18 +99,16 @@ let prog_CohenExcl = <:cppmem_par<
   }}}
 >>
 
-let test_tso = Test.(make_operational_testsuite
-  ~model:TSO
-  ~tests:([
-    make_test_desc
-      ~name:"CohenExcl"
-      ~regs:["r1"; "r2"; "r3"]
-      ~locs:["x"; "y"; "d"]
-      ~prop:Prop.(loc "d" = 1)
-      ~stat:Fulfills
-      prog_CohenExcl
-  ])
-)
+let test_tso = Test.(make_operational_testsuite ~model:TSO [
+  make_test_desc
+    ~name:"CohenExcl"
+    ~regs:["r1"; "r2"; "r3"]
+    ~locs:["x"; "y"; "d"]
+    ~prop:Prop.(loc "d" = 1)
+    ~stat:Fulfills
+    ~len:Long
+    prog_CohenExcl
+])
 
 let prog_CohenExcl = <:cppmem_par<
   spw {{{
@@ -146,23 +142,19 @@ let prog_CohenExcl = <:cppmem_par<
   }}}
 >>
 
-let test_ra = Test.(make_operational_testsuite
-  ~model:RelAcq
-  ~tests:([
-    make_test_desc
-      ~name:"CohenExcl"
-      ~regs:["r1"; "r2"; "r3"]
-      ~locs:["x"; "y"; "d"]
-      ~prop:Prop.(loc "d" = 1)
-      ~stat:Fulfills
-      prog_CohenExcl
-  ])
-)
+let test_ra = Test.(make_operational_testsuite ~model:RelAcq [
+  make_test_desc
+    ~name:"CohenExcl"
+    ~regs:["r1"; "r2"; "r3"]
+    ~locs:["x"; "y"; "d"]
+    ~prop:Prop.(loc "d" = 1)
+    ~stat:Fulfills
+    ~len:Long
+    prog_CohenExcl
+])
 
-let tests = Test.(make_testsuite ~name:"VerifyCohenExcl"
-  ~tests:[
-    test_sc;
-    test_tso;
-    test_ra;
-  ]
-)
+let tests = Test.(make_testsuite ~name:"VerifyCohenExcl" [
+  test_sc;
+  test_tso;
+  test_ra;
+])

@@ -29,7 +29,7 @@ open Lang.Value
 open Utils
 
 let tests = Test.(
-  make_testsuite ~name:"relcppmem" ~tests: [
+  make_testsuite ~name:"relcppmem" [
     ProgTest.tests;
     LitmusTest.tests;
     DekkerLockTest.tests;
@@ -40,8 +40,8 @@ let tests = Test.(
 )
 
 let () =
-  (* Test.ounit_run tests *)
+  Test.ounit_run tests
 
-  Test.simple_run tests;
+  (* Test.simple_run tests;
   Printf.printf "\n";
-  MiniKanren.report_counters ()
+  MiniKanren.report_counters () *)

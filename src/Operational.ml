@@ -491,7 +491,6 @@ module TSO =
           (* (loado t t' tid loc v) *)
           (conde
             [ (mo === !!MemOrder.RLX) &&& (loado t t' tid loc v)
-            ; (mo === !!MemOrder.NA ) &&& (loado t t' tid loc v)
             ; (mo === !!MemOrder.SC ) &&& (load_sco t t' tid loc v)
             ])
 
@@ -500,7 +499,6 @@ module TSO =
           (* (storeo t t' tid loc v) *)
           (conde
             [ (mo === !!MemOrder.RLX) &&& (storeo t t' tid loc v)
-            ; (mo === !!MemOrder.NA ) &&& (storeo t t' tid loc v)
             ; (mo === !!MemOrder.SC ) &&& (store_sco t t' tid loc v)
             ])
 

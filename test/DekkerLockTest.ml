@@ -72,18 +72,16 @@ let prog_DekkerLock = <:cppmem_par<
   }}}
 >>
 
-let test_sc = Test.(make_operational_testsuite
-  ~model:SeqCst
-  ~tests:([
-    make_test_desc
-      ~name:"DekkerLock"
-      ~regs:["r1"; "r2"; "r3"]
-      ~locs:["x"; "y"; "turn"; "v"]
-      ~prop:Prop.(loc "v" = 2)
-      ~stat:Fulfills
-      prog_DekkerLock
-  ])
-)
+let test_sc = Test.(make_operational_testsuite ~model:SeqCst [
+  make_test_desc
+    ~name:"DekkerLock"
+    ~regs:["r1"; "r2"; "r3"]
+    ~locs:["x"; "y"; "turn"; "v"]
+    ~prop:Prop.(loc "v" = 2)
+    ~stat:Fulfills
+    ~len:Long
+    prog_DekkerLock
+])
 
 let prog_DekkerLock = <:cppmem_par<
   spw {{{
@@ -133,36 +131,30 @@ let prog_DekkerLock = <:cppmem_par<
   }}}
 >>
 
-let test_tso = Test.(make_operational_testsuite
-  ~model:TSO
-  ~tests:([
-    make_test_desc
-      ~name:"DekkerLock"
-      ~regs:["r1"; "r2"; "r3"]
-      ~locs:["x"; "y"; "turn"; "v"]
-      ~prop:Prop.(loc "v" = 2)
-      ~stat:Violates
-      prog_DekkerLock
-  ])
-)
+let test_tso = Test.(make_operational_testsuite ~model:TSO [
+  make_test_desc
+    ~name:"DekkerLock"
+    ~regs:["r1"; "r2"; "r3"]
+    ~locs:["x"; "y"; "turn"; "v"]
+    ~prop:Prop.(loc "v" = 2)
+    ~stat:Violates
+    ~len:Long
+    prog_DekkerLock
+])
 
-let test_ra = Test.(make_operational_testsuite
-  ~model:RelAcq
-  ~tests:([
-    make_test_desc
-      ~name:"DekkerLock"
-      ~regs:["r1"; "r2"; "r3"]
-      ~locs:["x"; "y"; "turn"; "v"]
-      ~prop:Prop.(loc "v" = 2)
-      ~stat:Violates
-      prog_DekkerLock
-  ])
-)
+let test_ra = Test.(make_operational_testsuite ~model:RelAcq [
+  make_test_desc
+    ~name:"DekkerLock"
+    ~regs:["r1"; "r2"; "r3"]
+    ~locs:["x"; "y"; "turn"; "v"]
+    ~prop:Prop.(loc "v" = 2)
+    ~stat:Violates
+    ~len:Long
+    prog_DekkerLock
+])
 
-let tests = Test.(make_testsuite ~name:"VerifyDekkerLock"
-  ~tests:[
-    test_sc;
-    test_tso;
-    test_ra;
-  ]
-)
+let tests = Test.(make_testsuite ~name:"VerifyDekkerLock" [
+  test_sc;
+  test_tso;
+  test_ra;
+])

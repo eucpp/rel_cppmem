@@ -63,7 +63,7 @@ let prog_test ~name ~prog ~check =
         Test.Fail ""
       end
   in
-  Test.make_testcase ~name ~test
+  Test.make_testcase ~name test
 
 let test_assign = prog_test
   ~name:"assign"
@@ -102,7 +102,7 @@ let test_repeat = prog_test
   >>
 
 let tests = Test.(
-  make_testsuite ~name:"Prog" ~tests: [
+  make_testsuite ~name:"Prog" [
     test_assign;
     test_seq;
     test_if_true;
