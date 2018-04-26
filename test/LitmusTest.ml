@@ -190,17 +190,15 @@ let test_WRC = Test.(make_test_desc
   prog_WRC
 )
 
-let tests_sc_op = Test.make_operational_testsuite
-  ~model:Test.SeqCst
-  ~tests:([
-    (* test_SW; *)
-    (* test_SB; *)
-    (* test_LB; *)
-    test_MP;
-    (* test_CoRR; *)
-    (* test_IRIW; *)
-    (* test_WRC; *)
-  ])
+let tests_sc_op = Test.make_operational_testsuite ~model:Test.SeqCst [
+  test_SW;
+  test_SB;
+  test_LB;
+  test_MP;
+  test_CoRR;
+  test_IRIW;
+  test_WRC;
+]
 
 (* let tests_sc_axiom = make_litmus_testsuite
   ~name:"SeqCst"
@@ -380,17 +378,15 @@ let test_WRC = Test.(make_test_desc
   prog_WRC
 )
 
-let tests_tso_op = Test.make_operational_testsuite
-  ~model:Test.TSO
-  ~tests:([
-    test_SW;
-    test_SB;
-    test_LB;
-    test_MP;
-    test_CoRR;
-    test_IRIW;
-    test_WRC;
-  ])
+let tests_tso_op = Test.make_operational_testsuite ~model:Test.TSO [
+  test_SW;
+  test_SB;
+  test_LB;
+  test_MP;
+  test_CoRR;
+  test_IRIW;
+  test_WRC;
+]
 
 (* ************************************************************************** *)
 (* ********************** ReleaseAcquire Tests ****************************** *)
@@ -586,6 +582,7 @@ let test_CoRR = Test.(make_test_desc
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";]
   ~kind:Safe
+  ~len:Long
   ~prop:Prop.(!(
     ((3%"r1" = 1) && (3%"r2" = 2) && (4%"r3" = 2) && (4%"r4" = 1))
     ||
@@ -789,38 +786,36 @@ let test_DR_RW_rlxW = Test.(make_test_desc
   prog_DR_RW_rlxW
 )
 
-let tests_ra_op = Test.make_operational_testsuite
-  ~model:Test.RelAcq
-  ~tests:([
-    test_SW;
-    test_SB;
-    test_LB;
-    test_LB_acq_rlx;
-    test_MP;
-    test_MP_rlx_acq;
-    test_MP_rel_rlx;
-    test_MP_relseq;
-    test_CoRR;
-    test_IRIW;
-    test_IRIW_rlx;
-    test_WRC;
-    test_WRC_rlx;
-    test_WRC_cas;
-    test_DR_WW;
-    test_DR_RW;
-    test_DR_RW_rlxW;
-    test_DR_RW_rlxR;
-  ])
+let tests_ra_op = Test.make_operational_testsuite ~model:Test.RelAcq [
+  test_SW;
+  test_SB;
+  test_LB;
+  test_LB_acq_rlx;
+  test_MP;
+  test_MP_rlx_acq;
+  test_MP_rel_rlx;
+  test_MP_relseq;
+  test_CoRR;
+  test_IRIW;
+  test_IRIW_rlx;
+  test_WRC;
+  test_WRC_rlx;
+  test_WRC_cas;
+  test_DR_WW;
+  test_DR_RW;
+  test_DR_RW_rlxW;
+  test_DR_RW_rlxR;
+]
 
 let tests = Test.(
-  make_testsuite ~name:"Litmus" ~tests: [
-    make_testsuite ~name:"Operational" ~tests: [
+  make_testsuite ~name:"Litmus" [
+    make_testsuite ~name:"Operational" [
       tests_sc_op;
       tests_tso_op;
       tests_ra_op;
     ];
 
-    make_testsuite ~name:"Axiomatic" ~tests: [
+    make_testsuite ~name:"Axiomatic" [
       (* tests_sc_axiom; *)
     ]
   ]

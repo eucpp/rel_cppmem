@@ -20,15 +20,17 @@ open MiniKanren
 
 type result = Ok | Fail of string
 
-type testcase = unit -> result
+type testfun = unit -> result
+
+type testlen = test_length
 
 type test =
-  | TestCase  of string * testcase
+  | TestCase  of string * testlen * testfun
   | TestSuite of string * test list
 
-let make_testcase ~name ~test = TestCase (name, test)
+let make_testcase ?(length=OUnitTest.Short) ~name test = TestCase (name, length, test)
 
-let make_testsuite ~name ~tests = TestSuite (name, tests)
+let make_testsuite ~name tests = TestSuite (name, tests)
 
 type memory_model = SeqCst | TSO | RelAcq
 
@@ -43,10 +45,11 @@ type test_desc =
   ; kind      : testkind
   ; prop      : Lang.Prop.ti
   ; n         : int option
+  ; len       : test_length option
   }
 
-let make_test_desc ?n ?locs ?mem ~regs ~name ~kind ~prop prog =
-  { name; prog; regs; locs; mem; kind; prop; n }
+let make_test_desc ?n ?locs ?mem ?len ~regs ~name ~kind ~prop prog =
+  { name; prog; regs; locs; mem; kind; prop; n; len }
 
 module OperationalTest(Memory : Operational.MemoryModel) =
   struct
@@ -132,7 +135,7 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         Ok
       end
 
-    let make_testcase { name; prog; prop; regs; locs; mem; kind; n } =
+    let make_testcase { name; prog; prop; regs; locs; mem; kind; n; len } =
       let full_name = Printf.sprintf "%s::%s" Memory.name name in
       let test () =
         match kind with
@@ -140,13 +143,13 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         | Safe    -> test_safe   ~name:full_name ~prop ~prog ~regs ~locs ~mem
         | Synth   -> test_synth  ~name:full_name ~prop ~prog ~regs ~locs ~mem ?n
       in
-      make_testcase ~name ~test
+      make_testcase ?length:len ~name test
 
     let make_testsuite tests =
-      make_testsuite ~name:Memory.name ~tests:(List.map make_testcase tests)
+      make_testsuite ~name:Memory.name (List.map make_testcase tests)
   end
 
-let make_operational_testsuite ~model ~tests =
+let make_operational_testsuite ~model tests =
   match model with
   | SeqCst ->
     let module Test = OperationalTest(Operational.SeqCst) in
@@ -159,15 +162,16 @@ let make_operational_testsuite ~model ~tests =
     Test.make_testsuite tests
 
 let rec simple_run = function
-  | TestCase  (name, test)  -> let _ = test () in ()
-  | TestSuite (name, tests) -> List.iter simple_run tests
+  | TestCase  (name, len, test)  -> let _ = test () in ()
+  | TestSuite (name, tests)      -> List.iter simple_run tests
 
 let rec ounit_test = function
-  | TestCase (name, test)  -> name >:: fun test_ctx ->
-    begin match test () with
-    | Ok -> ()
-    | Fail s -> assert_failure s
-    end
+  | TestCase (name, length, test)  -> name >: (
+      test_case ~length @@ fun test_ctx ->
+        match test () with
+        | Ok      -> ()
+        | Fail s  -> assert_failure s
+    )
   | TestSuite (name, tests) -> name >::: (List.map ounit_test tests)
 
 let ounit_run t = run_test_tt_main @@ ounit_test t

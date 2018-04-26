@@ -29,7 +29,7 @@ open Lang.Value
 open Utils
 
 let tests = Test.(
-  make_testsuite ~name:"relcppmem" ~tests: [
+  make_testsuite ~name:"relcppmem" [
     ProgTest.tests;
     LitmusTest.tests;
     DekkerLockTest.tests;
