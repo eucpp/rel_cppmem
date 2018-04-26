@@ -80,7 +80,7 @@ let test_sc = Test.(make_operational_testsuite
       ~regs:["r1"; "r2"; "r3"]
       ~locs:["x"; "y"; "turn"; "v"]
       ~prop:Prop.(loc "v" = 2)
-      ~stat:Fulfills
+      ~kind:Safe
       prog_DekkerLock
   ])
 )
@@ -141,7 +141,7 @@ let test_tso = Test.(make_operational_testsuite
       ~regs:["r1"; "r2"; "r3"]
       ~locs:["x"; "y"; "turn"; "v"]
       ~prop:Prop.(loc "v" = 2)
-      ~stat:Violates
+      ~kind:Unsafe
       prog_DekkerLock
   ])
 )
@@ -154,7 +154,7 @@ let test_ra = Test.(make_operational_testsuite
       ~regs:["r1"; "r2"; "r3"]
       ~locs:["x"; "y"; "turn"; "v"]
       ~prop:Prop.(loc "v" = 2)
-      ~stat:Violates
+      ~kind:Unsafe
       prog_DekkerLock
   ])
 )

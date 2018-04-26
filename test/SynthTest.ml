@@ -41,7 +41,7 @@ let test_MessagePassing = Test.(make_test_desc
   ~regs:["r1"; "r2";]
   ~locs:["x"; "f";]
   ~prop:Prop.(2%"r2" = 1)
-  ~stat:Synth
+  ~kind:Synth
   ~n:1
   prog_MessagePassing
 )
@@ -83,7 +83,7 @@ let test_CohenExcl = Test.(make_test_desc
   ~regs:["r1"; "r2"; "r3"]
   ~locs:["x"; "y"; "d"]
   ~prop:Prop.(loc "d" = 1)
-  ~stat:Synth
+  ~kind:Synth
   ~n:1
   prog_CohenExcl
 )
@@ -141,7 +141,7 @@ let test_DekkerLock = Test.(make_test_desc
   ~regs:["r1"; "r2"; "r3"]
   ~locs:["x"; "y"; "turn"; "v"]
   ~prop:Prop.(loc "v" = 2)
-  ~stat:Synth
+  ~kind:Synth
   ~n:1
   prog_DekkerLock
 )

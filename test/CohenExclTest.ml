@@ -64,7 +64,7 @@ let test_sc = Test.(make_operational_testsuite
       ~regs:["r1"; "r2"; "r3"]
       ~locs:["x"; "y"; "d"]
       ~prop:Prop.(loc "d" = 1)
-      ~stat:Fulfills
+      ~kind:Safe
       prog_CohenExcl
   ])
 )
@@ -109,7 +109,7 @@ let test_tso = Test.(make_operational_testsuite
       ~regs:["r1"; "r2"; "r3"]
       ~locs:["x"; "y"; "d"]
       ~prop:Prop.(loc "d" = 1)
-      ~stat:Fulfills
+      ~kind:Safe
       prog_CohenExcl
   ])
 )
@@ -154,7 +154,7 @@ let test_ra = Test.(make_operational_testsuite
       ~regs:["r1"; "r2"; "r3"]
       ~locs:["x"; "y"; "d"]
       ~prop:Prop.(loc "d" = 1)
-      ~stat:Fulfills
+      ~kind:Safe
       prog_CohenExcl
   ])
 )

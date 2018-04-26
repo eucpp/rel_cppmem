@@ -43,7 +43,7 @@ let test_SW = Test.(make_test_desc
   ~name:"SW"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
        ((2%"r1" = 0) && (2%"r2" = 0))
     || ((2%"r1" = 0) && (2%"r2" = 1))
@@ -66,7 +66,7 @@ let test_SB = Test.(make_test_desc
   ~name:"SB"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     !((1%"r1" = 0) && (2%"r2" = 0))
   )
@@ -87,7 +87,7 @@ let test_LB = Test.(make_test_desc
   ~name:"LB"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     !((1%"r1" = 1) && (2%"r2" = 1))
   )
@@ -108,7 +108,7 @@ let test_MP = Test.(make_test_desc
   ~name:"MP"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     (2%"r2" = 1)
   )
@@ -133,7 +133,7 @@ let test_CoRR = Test.(make_test_desc
   ~name:"CoRR"
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(!(
     ((3%"r1" = 1) && (3%"r2" = 2) && (4%"r3" = 2) && (4%"r4" = 1))
     ||
@@ -160,7 +160,7 @@ let test_IRIW = Test.(make_test_desc
   ~name:"IRIW"
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(!(
     ((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
   ))
@@ -183,7 +183,7 @@ let test_WRC = Test.(make_test_desc
   ~name:"WRC"
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     !((3%"r2" = 1) && (3%"r3" = 0))
   )
@@ -233,7 +233,7 @@ let test_SW = Test.(make_test_desc
   ~name:"SW"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
        ((2%"r1" = 0) && (2%"r2" = 0))
     || ((2%"r1" = 0) && (2%"r2" = 1))
@@ -256,7 +256,7 @@ let test_SB = Test.(make_test_desc
   ~name:"SB"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
-  ~stat:Violates
+  ~kind:Unsafe
   ~prop:Prop.(
     !((1%"r1" = 0) && (2%"r2" = 0))
   )
@@ -277,7 +277,7 @@ let test_LB = Test.(make_test_desc
   ~name:"LB"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     !((1%"r1" = 1) && (2%"r2" = 1))
   )
@@ -298,7 +298,7 @@ let test_MP = Test.(make_test_desc
   ~name:"MP"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     (2%"r2" = 1)
   )
@@ -323,7 +323,7 @@ let test_CoRR = Test.(make_test_desc
   ~name:"CoRR"
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(!(
     ((3%"r1" = 1) && (3%"r2" = 2) && (4%"r3" = 2) && (4%"r4" = 1))
     ||
@@ -350,7 +350,7 @@ let test_IRIW = Test.(make_test_desc
   ~name:"IRIW"
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     !((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
   )
@@ -373,7 +373,7 @@ let test_WRC = Test.(make_test_desc
   ~name:"WRC"
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     !((3%"r2" = 1) && (3%"r3" = 0))
   )
@@ -410,7 +410,7 @@ let test_SW = Test.(make_test_desc
   ~name:"SW"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
        ((2%"r1" = 0) && (2%"r2" = 0))
     || ((2%"r1" = 0) && (2%"r2" = 1))
@@ -433,7 +433,7 @@ let test_SB = Test.(make_test_desc
   ~name:"SB"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
-  ~stat:Violates
+  ~kind:Unsafe
   ~prop:Prop.(
     !((1%"r1" = 0) || (2%"r2" = 0))
   )
@@ -454,7 +454,7 @@ let test_LB = Test.(make_test_desc
   ~name:"LB+rel+acq"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y";]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     !((1%"r1" = 1) && (2%"r2" = 1))
   )
@@ -475,7 +475,7 @@ let test_LB_acq_rlx = Test.(make_test_desc
   ~name:"LB+acq+rlx"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y"]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     !((1%"r1" = 1) && (2%"r2" = 1))
   )
@@ -496,7 +496,7 @@ let test_MP = Test.(make_test_desc
   ~name:"MP"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     (2%"r2" = 1)
   )
@@ -517,7 +517,7 @@ let test_MP_rlx_acq = Test.(make_test_desc
   ~name:"MP+rlx+acq"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
-  ~stat:Violates
+  ~kind:Unsafe
   ~prop:Prop.(
     !((2%"r2" = 0))
   )
@@ -538,7 +538,7 @@ let test_MP_rel_rlx = Test.(make_test_desc
   ~name:"MP+rel+rlx"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "y"; "f"]
-  ~stat:Violates
+  ~kind:Unsafe
   ~prop:Prop.(
     !(2%"r2" = 0)
   )
@@ -560,7 +560,7 @@ let test_MP_relseq = Test.(make_test_desc
   ~name:"MP+relseq"
   ~regs:["r1"; "r2"]
   ~locs:["x"; "f"]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     (2%"r2" = 1)
   )
@@ -585,7 +585,7 @@ let test_CoRR = Test.(make_test_desc
   ~name:"CoRR"
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(!(
     ((3%"r1" = 1) && (3%"r2" = 2) && (4%"r3" = 2) && (4%"r4" = 1))
     ||
@@ -612,7 +612,7 @@ let test_IRIW = Test.(make_test_desc
   ~name:"IRIW"
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
-  ~stat:Violates
+  ~kind:Unsafe
   ~prop:Prop.(
     !((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
   )
@@ -637,7 +637,7 @@ let test_IRIW_rlx = Test.(make_test_desc
   ~name:"IRIW+rlx"
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
-  ~stat:Violates
+  ~kind:Unsafe
   ~prop:Prop.(
     !((3%"r1" = 1) && (3%"r2" = 0) && (4%"r3" = 1) && (4%"r4" = 0))
   )
@@ -660,7 +660,7 @@ let test_WRC = Test.(make_test_desc
   ~name:"WRC"
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     !((3%"r2" = 1) && (3%"r3" = 0))
   )
@@ -683,7 +683,7 @@ let test_WRC_rlx = Test.(make_test_desc
   ~name:"WRC+rlx"
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x";"y";]
-  ~stat:Violates
+  ~kind:Unsafe
   ~prop:Prop.(
     !((3%"r2" = 1) && (3%"r3" = 0))
   )
@@ -706,7 +706,7 @@ let test_WRC_cas = Test.(make_test_desc
   ~name:"WRC+cas"
   ~regs:["r1"; "r2"; "r3"; "r4"]
   ~locs:["x"; "y";]
-  ~stat:Fulfills
+  ~kind:Safe
   ~prop:Prop.(
     !((3%"r3" = 2) && (3%"r4" = 0))
   )
@@ -725,7 +725,7 @@ let test_DR_WW = Test.(make_test_desc
   ~name:"DR_WW"
   ~regs:["r1"]
   ~locs:["x"]
-  ~stat:Violates
+  ~kind:Unsafe
   ~prop:Prop.(
     !(datarace ())
   )
@@ -744,7 +744,7 @@ let test_DR_RW = Test.(make_test_desc
   ~name:"DR_RW"
   ~regs:["r1"]
   ~locs:["x"]
-  ~stat:Violates
+  ~kind:Unsafe
   ~prop:Prop.(
     !(datarace ())
   )
@@ -763,7 +763,7 @@ let test_DR_RW_rlxR = Test.(make_test_desc
   ~name:"DR_RW+rlxR"
   ~regs:["r1"]
   ~locs:["x"]
-  ~stat:Violates
+  ~kind:Unsafe
   ~prop:Prop.(
     !(datarace ())
   )
@@ -782,7 +782,7 @@ let test_DR_RW_rlxW = Test.(make_test_desc
   ~name:"DR_RW+rlxW"
   ~regs:["r1"]
   ~locs:["x"]
-  ~stat:Violates
+  ~kind:Unsafe
   ~prop:Prop.(
     !(datarace ())
   )

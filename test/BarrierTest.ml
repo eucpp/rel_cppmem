@@ -69,7 +69,7 @@ let test_sc = Test.(make_operational_testsuite
       ~regs:["r1"; "r2"; "r3"]
       ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
       ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
-      ~stat:Fulfills
+      ~kind:Safe
       prog_Barrier
   ])
 )
@@ -118,7 +118,7 @@ let test_tso = Test.(make_operational_testsuite
       ~regs:["r1"; "r2"; "r3"]
       ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
       ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
-      ~stat:Fulfills
+      ~kind:Safe
       prog_Barrier
   ])
 )
@@ -163,7 +163,7 @@ let test_ra = Test.(make_operational_testsuite
       ~regs:["r1"; "r2"; "r3"]
       ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
       ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
-      ~stat:Fulfills
+      ~kind:Safe
       prog_Barrier
   ])
 )

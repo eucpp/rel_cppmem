@@ -158,8 +158,6 @@ module Stmt :
     val load      : MemOrder.ti -> Loc.ti -> Reg.ti -> ti
     val store     : MemOrder.ti -> Loc.ti -> Expr.ti     -> ti
     val cas       : MemOrder.ti -> MemOrder.ti -> Loc.ti -> Expr.ti -> Expr.ti -> Reg.ti -> ti
-    val spw       : Prog.ti -> Prog.ti -> ti
-    val return    : (Reg.tt, Reg.tl) MiniKanren.Std.List.groundi -> ti
 
     val skip    : unit -> Prog.ti
     val single  : ti -> Prog.ti

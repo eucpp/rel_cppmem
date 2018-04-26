@@ -397,8 +397,6 @@ module Stmt =
           | Load     of 'mo * 'loc * 'reg
           | Store    of 'mo * 'loc * 'e
           | Cas      of 'mo * 'mo * 'loc * 'e * 'e * 'reg
-          | Spw      of 'ts * 'ts
-          | Return   of 'regs
         with gmap, show
 
         let fmap fa fb fc fd fe ff x = GT.gmap(t) fa fb fc fd fe ff x
@@ -422,8 +420,6 @@ module Stmt =
     let load mo l r           = inj @@ FT.distrib @@ T.Load (mo, l, r)
     let store mo l t          = inj @@ FT.distrib @@ T.Store (mo, l, t)
     let cas mo1 mo2 l e1 e2 r = inj @@ FT.distrib @@ T.Cas (mo1, mo2, l, e1, e2, r)
-    let spw t1 t2             = inj @@ FT.distrib @@ T.Spw (t1, t2)
-    let return rs             = inj @@ FT.distrib @@ T.Return rs
 
     let skip = Std.nil
     let single s = Std.(%) s (Std.nil ())
@@ -469,10 +465,6 @@ module Stmt =
         Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" Loc.pprint l MemOrder.pprint m Expr.pprint e
       | Cas (m1, m2, l, e, d, r)   ->
         Format.fprintf ff "@[%a := cas_%a_%a(%a, %a, %a)@]" Reg.pprint r MemOrder.pprint m1 MemOrder.pprint m2 Loc.pprint l Expr.pprint e Expr.pprint d
-      | Spw (t1, t2)            ->
-        Format.fprintf ff "@[<v>spw {{{@;<1 4>%a@;|||@;<1 4>%a@;}}}@]" ppseql t1 ppseql t2
-      | Return rs               ->
-        Format.fprintf ff "@[<v>return %s@]" (GT.show(Std.List.logic) Reg.show rs)
     )
 
     let rec instmo t t' = conde

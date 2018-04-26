@@ -32,7 +32,7 @@ let make_testsuite ~name ~tests = TestSuite (name, tests)
 
 type memory_model = SeqCst | TSO | RelAcq
 
-type status = Violates | Fulfills | Synth
+type testkind = Safe | Unsafe | Synth
 
 type test_desc =
   { name      : string
@@ -40,13 +40,13 @@ type test_desc =
   ; regs      : string list
   ; locs      : string list option
   ; mem       : (string * int) list option
-  ; stat      : status
+  ; kind      : testkind
   ; prop      : Lang.Prop.ti
   ; n         : int option
   }
 
-let make_test_desc ?n ?locs ?mem ~regs ~name ~stat ~prop prog =
-  { name; prog; regs; locs; mem; stat; prop; n }
+let make_test_desc ?n ?locs ?mem ~regs ~name ~kind ~prop prog =
+  { name; prog; regs; locs; mem; kind; prop; n }
 
 module OperationalTest(Memory : Operational.MemoryModel) =
   struct
@@ -61,7 +61,7 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         | Some locs -> Interpreter.State.alloc_istate ~regs ~locs prog
         | None      -> failwith "Cannot make initial state"
 
-    let test_violates ~name ~prop ~prog ~regs ~locs ~mem =
+    let test_unsafe ~name ~prop ~prog ~regs ~locs ~mem =
       let module Trace = Utils.Trace(State) in
       let istate = make_istate ~regs ?locs ?mem prog in
       let stream = Interpreter.eval ~prop:(Lang.Prop.neg prop) istate in
@@ -74,7 +74,7 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         Stream.iter (fun out -> Format.printf "%a@;" Trace.trace out) outs;
         Fail ""
 
-    let test_fulfills ~name ~prop ~prog ~regs ~locs ~mem =
+    let test_safe ~name ~prop ~prog ~regs ~locs ~mem =
       let module Trace = Utils.Trace(State) in
       let istate = make_istate ~regs ?locs ?mem prog in
       (* check that test is runnable *)
@@ -132,13 +132,13 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         Ok
       end
 
-    let make_testcase { name; prog; prop; regs; locs; mem; stat; n } =
+    let make_testcase { name; prog; prop; regs; locs; mem; kind; n } =
       let full_name = Printf.sprintf "%s::%s" Memory.name name in
       let test () =
-        match stat with
-        | Violates -> test_violates ~name:full_name ~prop ~prog ~regs ~locs ~mem
-        | Fulfills -> test_fulfills ~name:full_name ~prop ~prog ~regs ~locs ~mem
-        | Synth    -> test_synth ?n ~name:full_name ~prop ~prog ~regs ~locs ~mem
+        match kind with
+        | Unsafe  -> test_unsafe ~name:full_name ~prop ~prog ~regs ~locs ~mem
+        | Safe    -> test_safe   ~name:full_name ~prop ~prog ~regs ~locs ~mem
+        | Synth   -> test_synth  ~name:full_name ~prop ~prog ~regs ~locs ~mem ?n
       in
       make_testcase ~name ~test
 
