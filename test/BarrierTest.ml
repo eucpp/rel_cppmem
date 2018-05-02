@@ -25,7 +25,7 @@ open Lang.Loc
 open Lang.Reg
 open Lang.Value
 
-let prog_Barrier = <:cppmem_par<
+let prog_Barrier_sc = <:cppmem_par<
   spw {{{
     x_sc := 1;
     (* barrier start *)
@@ -61,24 +61,13 @@ let prog_Barrier = <:cppmem_par<
   }}}
 >>
 
-let test_sc = Test.(make_operational_testsuite ~model:SeqCst [
-  make_test_desc
-    ~name:"Barrier"
-    ~regs:["r1"; "r2"; "r3"]
-    ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
-    ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
-    ~kind:Safe
-    ~len:Long
-    prog_Barrier
-  ])
-
-let prog_Barrier = <:cppmem_par<
+let prog_Barrier_rlx = <:cppmem_par<
   spw {{{
     x_rlx := 1;
     (* barrier start *)
     repeat
       r1 := cnt_rlx;
-      r2 := CAS(sc, sc, cnt, r1, (r1 - 1))
+      r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
     until (r1 = r2);
     if (r2 = 1) then
       g_rlx := 1
@@ -94,7 +83,7 @@ let prog_Barrier = <:cppmem_par<
     (* barrier start *)
     repeat
       r1 := cnt_rlx;
-      r2 := CAS(sc, sc, cnt, r1, (r1 - 1))
+      r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
     until (r1 = r2);
     if (r2 = 1) then
       g_rlx := 1
@@ -108,61 +97,111 @@ let prog_Barrier = <:cppmem_par<
   }}}
 >>
 
-let test_tso = Test.(make_operational_testsuite ~model:TSO [
-    make_test_desc
-      ~name:"Barrier"
-      ~regs:["r1"; "r2"; "r3"]
-      ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
-      ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
-      ~kind:Safe
-      ~len:Long
-      prog_Barrier
-  ])
-
-let prog_Barrier = <:cppmem_par<
+let prog_Barrier_tpl = <:cppmem_par<
   spw {{{
-    x_na := 1;
+    x_unkw := 1;
     (* barrier start *)
     repeat
-      r1 := cnt_rlx;
-      r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
+      r1 := cnt_unkw;
+      r2 := CAS(unkw, unkw, cnt, r1, (r1 - 1))
     until (r1 = r2);
     if (r2 = 1) then
-      g_rel := 1
+      g_unkw := 1
     else
-      repeat r1 := g_acq until r1
+      repeat
+        r1 := g_unkw
+      until (r1)
     fi;
     (* barrier end *)
-    r3 := y_na
+    r3 := y_unkw
   |||
-    y_na := 1;
+    y_unkw := 1;
     (* barrier start *)
     repeat
-      r1 := cnt_rlx;
-      r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
+      r1 := cnt_unkw;
+      r2 := CAS(unkw, unkw, cnt, r1, (r1 - 1))
     until (r1 = r2);
     if (r2 = 1) then
-      g_rel := 1
+      g_unkw := 1
     else
-      repeat r1 := g_acq until r1
+      repeat
+        r1 := g_unkw
+      until (r1)
     fi;
     (* barrier end *)
-    r3 := x_na
+    r3 := x_unkw
   }}}
 >>
 
-let test_ra = Test.(make_operational_testsuite ~model:RelAcq [
-  make_test_desc
-    ~name:"Barrier"
-    ~regs:["r1"; "r2"; "r3"]
-    ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
-    ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
-    ~kind:Safe
-    ~len:Long
-    prog_Barrier
+let test_verify_sc = Test.(make_test_desc
+  ~name:"Verify"
+  ~regs:["r1"; "r2"; "r3"]
+  ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
+  ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
+  ~kind:Safe
+  ~len:Long
+  ~n:1
+  prog_Barrier_sc
+)
+
+let test_sc = Test.(make_operational_testsuite ~model:SeqCst [
+  test_verify_sc
 ])
 
-let tests = Test.(make_testsuite ~name:"VerifyBarrier" [
+let test_verify_tso = Test.(make_test_desc
+  ~name:"Verify"
+  ~regs:["r1"; "r2"; "r3"]
+  ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
+  ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
+  ~kind:Safe
+  ~len:Long
+  ~n:1
+  prog_Barrier_rlx
+)
+
+let test_synth_tso = Test.(make_test_desc
+  ~name:"Synth"
+  ~regs:["r1"; "r2"; "r3"]
+  ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
+  ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
+  ~kind:Synth
+  ~len:Huge
+  ~n:1
+  prog_Barrier_tpl
+)
+
+let test_tso = Test.(make_operational_testsuite ~model:TSO [
+  test_verify_tso;
+  test_synth_tso
+])
+
+let test_verify_ra = Test.(make_test_desc
+  ~name:"Verify"
+  ~regs:["r1"; "r2"; "r3"]
+  ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
+  ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
+  ~kind:Safe
+  ~len:Long
+  prog_Barrier_rlx
+)
+
+let test_synth_ra = Test.(make_test_desc
+  ~name:"Synth"
+  ~regs:["r1"; "r2"; "r3"]
+  ~mem:[("x", 0); ("y", 0); ("g", 0); ("cnt", 2)]
+  ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
+  ~kind:Synth
+  ~len:Huge
+  ~n:1
+  prog_Barrier_tpl
+)
+
+let test_ra = Test.(make_operational_testsuite ~model:RelAcq [
+  test_verify_ra;
+  test_synth_ra;
+])
+
+let tests = Test.(make_testsuite ~name:"Barrier" [
   test_sc;
   test_tso;
   test_ra;

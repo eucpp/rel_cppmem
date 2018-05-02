@@ -491,6 +491,7 @@ module TSO =
           (* (loado t t' tid loc v) *)
           (conde
             [ (mo === !!MemOrder.RLX) &&& (loado t t' tid loc v)
+            ; (mo === !!MemOrder.ACQ) &&& (loado t t' tid loc v)
             ; (mo === !!MemOrder.SC ) &&& (load_sco t t' tid loc v)
             ])
 
@@ -499,13 +500,14 @@ module TSO =
           (* (storeo t t' tid loc v) *)
           (conde
             [ (mo === !!MemOrder.RLX) &&& (storeo t t' tid loc v)
+            ; (mo === !!MemOrder.REL) &&& (storeo t t' tid loc v)
             ; (mo === !!MemOrder.SC ) &&& (store_sco t t' tid loc v)
             ])
 
       ; fresh (mo1 mo2 loc e d v)
           (label === Label.cas mo1 mo2 loc e d v)
-          (mo1 === !!MemOrder.SC)
-          (mo2 === !!MemOrder.SC)
+          ((mo1 === !!MemOrder.SC) ||| (mo1 === !!MemOrder.ACQ_REL))
+          ((mo2 === !!MemOrder.SC) ||| (mo2 === !!MemOrder.ACQ_REL))
           (caso t t' tid loc e d v);
       ]
   end

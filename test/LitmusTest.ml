@@ -99,7 +99,7 @@ let prog_MP = <:cppmem_par<
         x_sc := 1;
         f_sc := 1
     |||
-        repeat r1 := f_sc until r1;
+        r1 := f_sc;
         r2 := x_sc
     }}}
 >>
@@ -110,7 +110,7 @@ let test_MP = Test.(make_test_desc
   ~locs:["x"; "f"]
   ~kind:Safe
   ~prop:Prop.(
-    (2%"r2" = 1)
+    !((2%"r1" = 1) && (2%"r2" = 0))
   )
   prog_MP
 )
@@ -287,7 +287,7 @@ let prog_MP = <:cppmem_par<
         x_rlx := 1;
         f_rlx := 1
     |||
-        repeat r1 := f_rlx until r1;
+        r1 := f_rlx;
         r2 := x_rlx
     }}}
 >>
@@ -298,7 +298,7 @@ let test_MP = Test.(make_test_desc
   ~locs:["x"; "f"]
   ~kind:Safe
   ~prop:Prop.(
-    (2%"r2" = 1)
+    !((2%"r1" = 1) && (2%"r2" = 0))
   )
   prog_MP
 )
@@ -504,7 +504,7 @@ let prog_MP = <:cppmem_par<
         x_rlx := 1;
         f_rel := 1
     |||
-        repeat r1 := f_acq until r1;
+        r1 := f_acq;
         r2 := x_rlx
     }}}
 >>
@@ -515,7 +515,7 @@ let test_MP = Test.(make_test_desc
   ~locs:["x"; "f"]
   ~kind:Safe
   ~prop:Prop.(
-    (2%"r2" = 1)
+    !((2%"r1" = 1) && (2%"r2" = 0))
   )
   prog_MP
 )
@@ -525,7 +525,7 @@ let prog_MP_rlx_acq = <:cppmem_par<
         x_rlx := 1;
         f_rlx := 1
     |||
-        repeat r1 := f_acq until r1;
+        r1 := f_acq;
         r2 := x_rlx
     }}}
 >>
@@ -536,7 +536,7 @@ let test_MP_rlx_acq = Test.(make_test_desc
   ~locs:["x"; "f"]
   ~kind:Unsafe
   ~prop:Prop.(
-    !((2%"r2" = 0))
+    !((2%"r1" = 1) && (2%"r2" = 0))
   )
   prog_MP_rlx_acq
 )
@@ -546,7 +546,7 @@ let prog_MP_rel_rlx = <:cppmem_par<
         x_rlx := 1;
         f_rel := 1
     |||
-        repeat r1 := f_rlx until r1;
+        r1 := f_rlx;
         r2 := x_rlx
     }}}
 >>
@@ -557,7 +557,7 @@ let test_MP_rel_rlx = Test.(make_test_desc
   ~locs:["x"; "y"; "f"]
   ~kind:Unsafe
   ~prop:Prop.(
-    !(2%"r2" = 0)
+    !((2%"r1" = 1) && (2%"r2" = 0))
   )
   prog_MP_rel_rlx
 )
@@ -568,7 +568,7 @@ let prog_MP_relseq = <:cppmem_par<
       f_rel := 1;
       f_rlx := 2
   |||
-      repeat r1 := f_acq until (r1 = 2);
+      r1 := f_acq;
       r2 := x_rlx
   }}}
 >>
@@ -579,7 +579,7 @@ let test_MP_relseq = Test.(make_test_desc
   ~locs:["x"; "f"]
   ~kind:Safe
   ~prop:Prop.(
-    (2%"r2" = 1)
+    !((2%"r1" = 2) && (2%"r2" = 0))
   )
   prog_MP_relseq
 )

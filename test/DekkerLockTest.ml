@@ -24,7 +24,7 @@ open Lang.Loc
 open Lang.Reg
 open Lang.Value
 
-let prog_DekkerLock = <:cppmem_par<
+let prog_DekkerLock_sc = <:cppmem_par<
   spw {{{
       x_sc := 1;
       r1 := y_sc;
@@ -72,18 +72,7 @@ let prog_DekkerLock = <:cppmem_par<
   }}}
 >>
 
-let test_sc = Test.(make_operational_testsuite ~model:SeqCst [
-  make_test_desc
-    ~name:"DekkerLock"
-    ~regs:["r1"; "r2"; "r3"]
-    ~locs:["x"; "y"; "turn"; "v"]
-    ~prop:Prop.(loc "v" = 2)
-    ~kind:Safe
-    ~len:Long
-    prog_DekkerLock
-])
-
-let prog_DekkerLock = <:cppmem_par<
+let prog_DekkerLock_rlx = <:cppmem_par<
   spw {{{
       x_rlx := 1;
       r1 := y_rlx;
@@ -131,29 +120,124 @@ let prog_DekkerLock = <:cppmem_par<
   }}}
 >>
 
-let test_tso = Test.(make_operational_testsuite ~model:TSO [
-  make_test_desc
-    ~name:"DekkerLock"
-    ~regs:["r1"; "r2"; "r3"]
-    ~locs:["x"; "y"; "turn"; "v"]
-    ~prop:Prop.(loc "v" = 2)
-    ~kind:Unsafe
-    ~len:Long
-    prog_DekkerLock
+let prog_DekkerLock_tpl = <:cppmem_par<
+  spw {{{
+      x_unkw := 1;
+      r1 := y_unkw;
+      while (r1) do
+        r2 := turn_unkw;
+        if (r2 != 0) then
+          x_unkw := 0;
+          repeat
+            r2 := turn_unkw
+          until (r2 = 0);
+          x_unkw := 1
+        else
+          skip
+        fi;
+        r1 := y_unkw
+      od;
+      (* start of critical section *)
+      r3 := v_rlx;
+      v_rlx := (r3 + 1);
+      (* end of critical section *)
+      turn_unkw := 1;
+      x_unkw := 0
+  |||
+      y_unkw := 1;
+      r1 := x_unkw;
+      while (r1) do
+        r2 := turn_unkw;
+        if (r2 != 1) then
+          y_unkw := 0;
+          repeat
+            r2 := turn_unkw
+          until (r2 = 1);
+          y_unkw := 1
+        else
+          skip
+        fi;
+        r1 := x_unkw
+      od;
+      (* start of critical section *)
+      r3 := v_rlx;
+      v_rlx := (r3 + 1);
+      (* end of critical section *)
+      turn_unkw := 0;
+      y_unkw := 0
+  }}}
+>>
+
+let test_verify_sc = Test.(make_test_desc
+  ~name:"Verify"
+  ~regs:["r1"; "r2"; "r3"]
+  ~locs:["x"; "y"; "turn"; "v"]
+  ~prop:Prop.(loc "v" = 2)
+  ~kind:Safe
+  ~len:Long
+  ~n:1
+  prog_DekkerLock_sc
+)
+
+let test_sc = Test.(make_operational_testsuite ~model:SeqCst [
+  test_verify_sc
 ])
+
+let test_verify_rlx_tso = Test.(make_test_desc
+  ~name:"Verify+rlx"
+  ~regs:["r1"; "r2"; "r3"]
+  ~locs:["x"; "y"; "turn"; "v"]
+  ~prop:Prop.(loc "v" = 2)
+  ~kind:Unsafe
+  ~len:Long
+  ~n:1
+  prog_DekkerLock_rlx
+)
+
+let test_synth_tso = Test.(make_test_desc
+  ~name:"Synth"
+  ~regs:["r1"; "r2"; "r3"]
+  ~locs:["x"; "y"; "turn"; "v"]
+  ~prop:Prop.(loc "v" = 2)
+  ~kind:Synth
+  ~len:Huge
+  ~n:1
+  prog_DekkerLock_tpl
+)
+
+let test_tso = Test.(make_operational_testsuite ~model:TSO [
+  test_verify_rlx_tso;
+  test_synth_tso;
+])
+
+let test_verify_rlx_ra = Test.(make_test_desc
+  ~name:"Verify+rlx"
+  ~regs:["r1"; "r2"; "r3"]
+  ~locs:["x"; "y"; "turn"; "v"]
+  ~prop:Prop.(loc "v" = 2)
+  ~kind:Unsafe
+  ~len:Long
+  ~n:1
+  prog_DekkerLock_rlx
+)
+
+let test_synth_ra = Test.(make_test_desc
+  ~name:"Synth"
+  ~regs:["r1"; "r2"; "r3"]
+  ~locs:["x"; "y"; "turn"; "v"]
+  ~prop:Prop.(loc "v" = 2)
+  ~kind:Synth
+  ~len:Huge
+  ~n:1
+  prog_DekkerLock_tpl
+)
 
 let test_ra = Test.(make_operational_testsuite ~model:RelAcq [
-  make_test_desc
-    ~name:"DekkerLock"
-    ~regs:["r1"; "r2"; "r3"]
-    ~locs:["x"; "y"; "turn"; "v"]
-    ~prop:Prop.(loc "v" = 2)
-    ~kind:Unsafe
-    ~len:Long
-    prog_DekkerLock
+  test_verify_rlx_ra;
+  test_synth_ra;
 ])
 
-let tests = Test.(make_testsuite ~name:"VerifyDekkerLock" [
+let tests = Test.(make_testsuite ~name:"DekkerLock" [
   test_sc;
   test_tso;
   test_ra;
