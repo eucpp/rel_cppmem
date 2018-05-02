@@ -64,20 +64,20 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         | Some locs -> Interpreter.State.alloc_istate ~regs ~locs prog
         | None      -> failwith "Cannot make initial state"
 
-    let test_unsafe ~name ~prop ~prog ~regs ~locs ~mem =
+    let test_unsafe ~name ~prop ~prog ~regs ~locs ~mem ~n =
       let module Trace = Utils.Trace(State) in
       let istate = make_istate ~regs ?locs ?mem prog in
       let stream = Interpreter.eval ~prop:(Lang.Prop.neg prop) istate in
       if not @@ Stream.is_empty stream then
         Ok
       else
-        let outs = Interpreter.eval istate in
+        let outs = Stream.take ?n @@ Interpreter.eval istate in
         Format.printf "Test %s::%s fails!@;" Memory.name name;
         Format.printf "List of outputs:@;";
-        Stream.iter (fun out -> Format.printf "%a@;" Trace.trace out) outs;
+        List.iter (fun out -> Format.printf "%a@;" Trace.trace out) outs;
         Fail ""
 
-    let test_safe ~name ~prop ~prog ~regs ~locs ~mem =
+    let test_safe ?n ~name ~prop ~prog ~regs ~locs ~mem =
       let module Trace = Utils.Trace(State) in
       let istate = make_istate ~regs ?locs ?mem prog in
       (* check that test is runnable *)
@@ -91,7 +91,7 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         if Stream.is_empty stream then
           Ok
         else begin
-          let cexs = Stream.take stream in
+          let cexs = Stream.take ?n stream in
           Format.printf "Test %s fails!@;" name;
           Format.printf "List of counterexamples:@;";
           List.iter (fun cex -> Format.printf "%a@;" Trace.trace cex) cexs;
@@ -139,8 +139,8 @@ module OperationalTest(Memory : Operational.MemoryModel) =
       let full_name = Printf.sprintf "%s::%s" Memory.name name in
       let test () =
         match kind with
-        | Unsafe  -> test_unsafe ~name:full_name ~prop ~prog ~regs ~locs ~mem
-        | Safe    -> test_safe   ~name:full_name ~prop ~prog ~regs ~locs ~mem
+        | Unsafe  -> test_unsafe ~name:full_name ~prop ~prog ~regs ~locs ~mem ?n
+        | Safe    -> test_safe   ~name:full_name ~prop ~prog ~regs ~locs ~mem ?n
         | Synth   -> test_synth  ~name:full_name ~prop ~prog ~regs ~locs ~mem ?n
       in
       make_testcase ?length:len ~name test

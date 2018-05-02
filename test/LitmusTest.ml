@@ -431,9 +431,30 @@ let test_SB = Test.(make_test_desc
   ~locs:["x"; "y";]
   ~kind:Unsafe
   ~prop:Prop.(
-    !((1%"r1" = 0) || (2%"r2" = 0))
+    !((1%"r1" = 0) && (2%"r2" = 0))
   )
   prog_SB
+)
+
+let prog_SB_sc = <:cppmem_par<
+  spw {{{
+      x_sc := 1;
+      r1 := y_sc
+  |||
+      y_sc := 1;
+      r2 := x_sc
+  }}}
+>>
+
+let test_SB_sc = Test.(make_test_desc
+  ~name:"SB+sc"
+  ~regs:["r1"; "r2"]
+  ~locs:["x"; "y";]
+  ~kind:Safe
+  ~prop:Prop.(
+    !((1%"r1" = 0) && (2%"r2" = 0))
+  )
+  prog_SB_sc
 )
 
 let prog_LB = <:cppmem_par<
@@ -789,6 +810,7 @@ let test_DR_RW_rlxW = Test.(make_test_desc
 let tests_ra_op = Test.make_operational_testsuite ~model:Test.RelAcq [
   test_SW;
   test_SB;
+  test_SB_sc;
   test_LB;
   test_LB_acq_rlx;
   test_MP;
