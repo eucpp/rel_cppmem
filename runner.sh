@@ -9,7 +9,7 @@
 BF=$(mktemp)
 trap 'rm -f -- "$BF"' INT TERM HUP EXIT
 ./TestMain.native -list-test | while read -r line ; do
-    echo "-q ./TestMain.native -only-test $line" >> $BF
+    echo "./TestMain.native -only-test $line" >> $BF
 done
 
 multitime -c 95 -n 5 -b $BF 2>results.txt

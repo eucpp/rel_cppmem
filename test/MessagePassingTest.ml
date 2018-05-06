@@ -133,6 +133,7 @@ let test_synth_ra = Test.(make_test_desc
   ~locs:["x"; "f"]
   ~prop:Prop.(2%"r2" = 1)
   ~kind:Safe
+  ~n:1
   prog_MessagePassing_tpl
 )
 
