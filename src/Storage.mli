@@ -34,9 +34,9 @@ val allocate : ('bt, 'bl) value -> ('at, 'al) key list -> ('at, 'bt, 'al, 'bl) t
 val from_assoc : (('at, 'al) key * ('bt, 'bl) value) list -> ('at, 'bt, 'al, 'bl) ti
 
 val reify :
-  (MiniKanren.helper -> ('at, 'al) MiniKanren.injected -> 'al) ->
-  (MiniKanren.helper -> ('bt, 'bl) MiniKanren.injected -> 'bl) ->
-  MiniKanren.helper -> ('at, 'bt, 'al, 'bl) ti -> ('al, 'bl) tl
+  (MiniKanren.Env.t -> ('at, 'al) MiniKanren.injected -> 'al) ->
+  (MiniKanren.Env.t -> ('bt, 'bl) MiniKanren.injected -> 'bl) ->
+  MiniKanren.Env.t -> ('at, 'bt, 'al, 'bl) ti -> ('al, 'bl) tl
 
 val pprint : (Format.formatter -> 'al * 'bl -> unit) -> Format.formatter -> ('al, 'bl) tl -> unit
 

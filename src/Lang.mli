@@ -65,7 +65,7 @@ module MemOrder :
 
     val mo : string -> ti
 
-    val reify : MiniKanren.helper -> ti -> tl
+      val reify : MiniKanren.Env.t -> ti -> tl
 
     val show : tl -> string
   end
@@ -95,7 +95,7 @@ module Uop :
 
     val uop : string -> ti
 
-    val reify : MiniKanren.helper -> ti -> tl
+    val reify : MiniKanren.Env.t -> ti -> tl
 
     val show : tl -> string
   end
@@ -110,7 +110,7 @@ module Bop :
 
     val bop : string -> ti
 
-    val reify : MiniKanren.helper -> ti -> tl
+    val reify : MiniKanren.Env.t -> ti -> tl
 
     val show : tl -> string
   end

@@ -31,7 +31,7 @@ module type Logic =
     type ti = (tt, tl) MiniKanren.injected
     type ri = (tt, tl) MiniKanren.reified
 
-    val reify : MiniKanren.helper -> ti -> tl
+    val reify : MiniKanren.Env.t -> ti -> tl
 
     val pprint : Format.formatter -> tl -> unit
   end
