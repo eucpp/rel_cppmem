@@ -32,7 +32,7 @@ module type MemoryModel =
 
     val terminatedo : ti -> MiniKanren.goal
 
-    val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
+    val stepo : ThreadID.ti -> Action.ti -> ti -> ti -> MiniKanren.goal
   end
 
 module State(Memory : MemoryModel) =
@@ -181,24 +181,24 @@ module Interpreter(Memory : MemoryModel) =
     open State
 
     let stepo s s' =
-      fresh (tm tm' mem mem' opterr tid label)
+      fresh (tm tm' mem mem' opterr tid a)
         (s  === state tm  mem  (Std.none ()))
         (s' === state tm' mem' opterr)
         (conde
-          (* thread-silent step *)
-          [ ?&  [ (tm === tm'); (label === Label.empty ()); (Memory.stepo tid label mem mem')]
+          (* thread silent step *)
+          [ ?&  [ (tm === tm'); (a === Action.eps ()); (Memory.stepo tid a mem mem')]
 
-          (* thread-non-silent step *)
-          ; ?&  [ (ThreadManager.non_silent_stepo tid label tm tm')
+          (* thread non-silent step *)
+          ; ?&  [ (ThreadManager.non_silent_stepo tid a tm tm')
                 ; (conde
                     (* thread has finished *)
-                    [ (label === Label.empty ()) &&& (mem === mem')
+                    [ (a === Action.eps ()) &&& (mem === mem')
                     (* thread has performed an action *)
-                    ; (label =/= Label.empty ()) &&& (Memory.stepo tid label mem mem')
+                    ; (a =/= Action.eps ()) &&& (Memory.stepo tid a mem mem')
                     ])
                 ]
           ])
-        (Label.erroro label
+        (Action.erroro a
             ~sg:(fun err -> opterr === Std.some err)
             ~fg:(opterr === Std.none ())
         )
@@ -290,35 +290,30 @@ module SeqCst =
     let store_sco t t' tid loc value =
       (ValueStorage.writeo t t' loc value)
 
-    let cas_sco t t' tid loc expected desired value =
-      (ValueStorage.reado t loc value) &&&
-      (conde [
-        (Lang.Value.eqo value expected) &&& (ValueStorage.writeo t t' loc desired);
-        (Lang.Value.nqo value expected) &&& (t === t');
-      ])
+    let rmw_sco t t' tid loc vr vw =
+      (ValueStorage.reado t loc vr) &&& (ValueStorage.writeo t t' loc vw)
 
-    let stepo tid label t t' = conde
+    let stepo tid a t t' = conde
       [ fresh (e)
           (t === t')
-          (label === Label.error (Error.assertion e))
+          (a === Action.err (Error.assertion e))
 
-      ; (t === t') &&& (label === Label.empty ())
+      ; (t === t') &&& (a === Action.eps ())
 
       ; fresh (mo loc v)
-          (* (mo === !!MemOrder.SC) *)
-          (label === Label.load mo loc v)
+          (mo === !!MemOrder.SC)
+          (a  === Action.r mo loc v)
           (load_sco t t' tid loc v)
 
       ; fresh (mo loc v)
-          (* (mo === !!MemOrder.SC) *)
-          (label === Label.store mo loc v)
+          (mo === !!MemOrder.SC)
+          (a  === Action.w mo loc v)
           (store_sco t t' tid loc v)
 
-      ; fresh (mo1 mo2 loc e d v)
-          (* (mo1 === !!MemOrder.SC) *)
-          (* (mo2 === !!MemOrder.SC) *)
-          (label === Label.cas mo1 mo2 loc e d v)
-          (cas_sco t t' tid loc e d v)
+      ; fresh (mo loc vr vw)
+          (mo === !!MemOrder.SC)
+          (a  === Action.rmw mo loc vr vw)
+          (rmw_sco t t' tid loc vr vw)
       ]
   end
 
@@ -467,28 +462,24 @@ module TSO =
         (storeo t t' tid l v)
         (mfenceo t' t'' tid)
 
-    let caso t t' tid loc expected desired value =
+    let rmwo t t' tid loc vr vw =
       fresh (tls mem mem' sb)
         (t  === Pair.pair tls mem )
         (t' === Pair.pair tls mem')
         (TLS.geto tls tid sb )
         (StoreBuffer.emptyo sb)
-        (ValueStorage.reado mem loc value)
-        (conde [
-          (Lang.Value.eqo value expected) &&& (ValueStorage.writeo mem mem' loc desired);
-          (Lang.Value.nqo value expected) &&& (mem === mem');
-        ])
+        (ValueStorage.reado mem loc vr)
+        (ValueStorage.writeo mem mem' loc vw)
 
-    let stepo tid label t t' = conde
+    let stepo tid a t t' = conde
       [ fresh (e)
           (t === t')
-          (label === Label.error (Error.assertion e))
+          (a === Action.err (Error.assertion e))
 
-      ; (label === Label.empty ()) &&& (propagateo t t' tid)
+      ; (a === Action.eps ()) &&& (propagateo t t' tid)
 
       ; fresh (mo loc v)
-          (label === Label.load mo loc v)
-          (* (loado t t' tid loc v) *)
+          (a === Action.r mo loc v)
           (conde
             [ (mo === !!MemOrder.RLX) &&& (loado t t' tid loc v)
             ; (mo === !!MemOrder.ACQ) &&& (loado t t' tid loc v)
@@ -496,19 +487,17 @@ module TSO =
             ])
 
       ; fresh (mo loc v)
-          (label === Label.store mo loc v)
-          (* (storeo t t' tid loc v) *)
+          (a === Action.w mo loc v)
           (conde
             [ (mo === !!MemOrder.RLX) &&& (storeo t t' tid loc v)
             ; (mo === !!MemOrder.REL) &&& (storeo t t' tid loc v)
             ; (mo === !!MemOrder.SC ) &&& (store_sco t t' tid loc v)
             ])
 
-      ; fresh (mo1 mo2 loc e d v)
-          (label === Label.cas mo1 mo2 loc e d v)
-          ((mo1 === !!MemOrder.SC) ||| (mo1 === !!MemOrder.ACQ_REL))
-          ((mo2 === !!MemOrder.SC) ||| (mo2 === !!MemOrder.ACQ_REL))
-          (caso t t' tid loc e d v);
+      ; fresh (mo loc vr vw)
+          (a === Action.rmw mo loc vr vw)
+          ((mo === !!MemOrder.SC) ||| (mo === !!MemOrder.ACQ_REL) ||| (mo === !!MemOrder.RLX))
+          (rmwo t t' tid loc vr vw)
       ]
   end
 
@@ -1109,6 +1098,19 @@ module RelAcq =
         (store_relo t t' tid loc value ts)
         (ViewFront.updateo sc sc' loc ts)
 
+    let rmwo loado storeo t t'' tid loc vr vw =
+      fresh (t' ts ts' thrds story na sc)
+        (t' === state thrds story na sc)
+        (loado t t' tid loc vr ts)
+        (MemStory.last_tso story loc ts)
+        (storeo t' t'' tid loc vw ts')
+
+    let rmw_rlxo = rmwo load_rlxo store_rlxo
+
+    let rmw_rao  = rmwo load_acqo store_relo
+
+    let rmw_sco  = rmwo load_sco store_sco
+
     let load_rlxo t t' tid loc value =
       fresh (ts)
         (load_rlxo t t' tid loc value ts)
@@ -1142,13 +1144,13 @@ module RelAcq =
         (ViewFront.shapeo na locs)
         (ViewFront.shapeo sc locs)
 
-    let stepo tid label t t' = conde
+    let stepo tid a t t' = conde
       [ fresh (e)
           (t === t')
-          (label === Label.error (Error.assertion e))
+          (a === Action.err (Error.assertion e))
 
       ; fresh (mo loc v)
-          (label === Label.load mo loc v)
+          (a === Action.r mo loc v)
           (conde [
             (mo === !!MemOrder.NA ) &&& (load_nao  t t' tid loc v);
             (mo === !!MemOrder.RLX) &&& (load_rlxo t t' tid loc v);
@@ -1157,7 +1159,7 @@ module RelAcq =
           ])
 
       ; fresh (mo loc v)
-          (label === Label.store mo loc v)
+          (a === Action.w mo loc v)
           (conde [
             (mo === !!MemOrder.NA ) &&& (store_nao  t t' tid loc v);
             (mo === !!MemOrder.RLX) &&& (store_rlxo t t' tid loc v);
@@ -1165,15 +1167,16 @@ module RelAcq =
             (mo === !!MemOrder.SC ) &&& (store_sco t t' tid loc v);
           ])
 
-      ; fresh (mo1 mo2 loc exp des v)
-          (label === Label.cas mo1 mo2 loc exp des v)
-          (* TODO: different mo combinations *)
-          (mo1 === !!MemOrder.ACQ_REL)
-          (mo2 === !!MemOrder.ACQ_REL)
-          (cas_rao t t' tid loc exp des v)
+      ; fresh (mo loc vr vw)
+          (a === Action.rmw mo loc vr vw)
+          (conde [
+            (mo === !!MemOrder.RLX)     &&& (rmw_rlxo t t' tid loc vr vw);
+            (mo === !!MemOrder.ACQ_REL) &&& (rmw_rao  t t' tid loc vr vw);
+            (mo === !!MemOrder.SC )     &&& (rmw_sco  t t' tid loc vr vw);
+          ])
 
       ; fresh (loc mo v)
-          (label === Label.error (Error.datarace mo loc))
+          (a === Action.err (Error.datarace mo loc))
           (conde [
             (conde [
               (mo === !!MemOrder.RLX);

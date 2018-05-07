@@ -32,8 +32,8 @@ let prog_Barrier_sc = <:cppmem_par<
     repeat
       r1 := cnt_sc;
       r2 := CAS(sc, sc, cnt, r1, (r1 - 1))
-    until (r1 = r2);
-    if (r2 = 1) then
+    until (r2);
+    if (r1 = 1) then
       g_sc := 1
     else
       repeat
@@ -48,8 +48,8 @@ let prog_Barrier_sc = <:cppmem_par<
     repeat
       r1 := cnt_sc;
       r2 := CAS(sc, sc, cnt, r1, (r1 - 1))
-    until (r1 = r2);
-    if (r2 = 1) then
+    until (r2);
+    if (r1 = 1) then
       g_sc := 1
     else
       repeat
@@ -68,8 +68,8 @@ let prog_Barrier_acq_rel = <:cppmem_par<
     repeat
       r1 := cnt_rlx;
       r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
-    until (r1 = r2);
-    if (r2 = 1) then
+    until (r2);
+    if (r1 = 1) then
       g_rel := 1
     else
       repeat
@@ -84,8 +84,8 @@ let prog_Barrier_acq_rel = <:cppmem_par<
     repeat
       r1 := cnt_rlx;
       r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
-    until (r1 = r2);
-    if (r2 = 1) then
+    until (r2);
+    if (r1 = 1) then
       g_rel := 1
     else
       repeat
@@ -104,8 +104,8 @@ let prog_Barrier_rlx = <:cppmem_par<
     repeat
       r1 := cnt_rlx;
       r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
-    until (r1 = r2);
-    if (r2 = 1) then
+    until (r2);
+    if (r1 = 1) then
       g_rlx := 1
     else
       repeat
@@ -120,8 +120,8 @@ let prog_Barrier_rlx = <:cppmem_par<
     repeat
       r1 := cnt_rlx;
       r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
-    until (r1 = r2);
-    if (r2 = 1) then
+    until (r2);
+    if (r1 = 1) then
       g_rlx := 1
     else
       repeat
@@ -140,8 +140,8 @@ let prog_Barrier_tpl = <:cppmem_par<
     repeat
       r1 := cnt_unkw;
       r2 := CAS(unkw, unkw, cnt, r1, (r1 - 1))
-    until (r1 = r2);
-    if (r2 = 1) then
+    until (r2);
+    if (r1 = 1) then
       g_unkw := 1
     else
       repeat
@@ -156,8 +156,8 @@ let prog_Barrier_tpl = <:cppmem_par<
     repeat
       r1 := cnt_unkw;
       r2 := CAS(unkw, unkw, cnt, r1, (r1 - 1))
-    until (r1 = r2);
-    if (r2 = 1) then
+    until (r2);
+    if (r1 = 1) then
       g_unkw := 1
     else
       repeat

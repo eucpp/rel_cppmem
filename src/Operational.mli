@@ -27,7 +27,7 @@ module type MemoryModel =
 
     val terminatedo : ti -> MiniKanren.goal
 
-    val stepo : Lang.ThreadID.ti -> Lang.Label.ti -> ti -> ti -> MiniKanren.goal
+    val stepo : Lang.ThreadID.ti -> Lang.Action.ti -> ti -> ti -> MiniKanren.goal
   end
 
 module SeqCst : MemoryModel

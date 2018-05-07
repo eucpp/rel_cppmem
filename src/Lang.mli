@@ -41,6 +41,9 @@ module Value :
 
     val show : tl -> string
 
+    val zero  : ti
+    val one   : ti
+
     val nullo     : ti -> MiniKanren.goal
     val not_nullo : ti -> MiniKanren.goal
 
@@ -183,18 +186,18 @@ module Error :
     val datarace  : MemOrder.ti -> Loc.ti -> ti
   end
 
-module Label :
+module Action :
   sig
     include Utils.Logic
 
-    val empty : unit -> ti
+    val eps : unit -> ti
 
-    val load  : MemOrder.ti -> Loc.ti -> Value.ti -> ti
-    val store : MemOrder.ti -> Loc.ti -> Value.ti -> ti
+    val r : MemOrder.ti -> Loc.ti -> Value.ti -> ti
+    val w : MemOrder.ti -> Loc.ti -> Value.ti -> ti
 
-    val cas : MemOrder.ti -> MemOrder.ti -> Loc.ti -> Value.ti -> Value.ti -> Value.ti -> ti
+    val rmw : MemOrder.ti -> Loc.ti -> Value.ti -> Value.ti -> ti
 
-    val error : Error.ti -> ti
+    val err : Error.ti -> ti
 
     val erroro :
       ?sg:(Error.ti -> MiniKanren.goal) ->
@@ -278,9 +281,9 @@ module ThreadManager :
 
     val terminatedo : ti -> MiniKanren.goal
 
-    val stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
+    val stepo : ThreadID.ti -> Action.ti -> ti -> ti -> MiniKanren.goal
 
-    val non_silent_stepo : ThreadID.ti -> Label.ti -> ti -> ti -> MiniKanren.goal
+    val non_silent_stepo : ThreadID.ti -> Action.ti -> ti -> ti -> MiniKanren.goal
   end
 
 module SeqProg :

@@ -89,10 +89,12 @@ module Value =
           Printf.sprintf "_.%d{=/= %s}" i cs
 
     let pprint ff v = Format.fprintf ff "%s" @@ show v
-    let nullo v = (v === Std.Nat.zero)
 
+    let nullo v = (v === Std.Nat.zero)
     let not_nullo v = fresh (x) (v === Std.Nat.succ x)
 
+    let zero = Std.Nat.zero
+    let one  = Std.Nat.one
 
     let addo = Std.Nat.addo
     let mulo = Std.Nat.mulo
@@ -607,48 +609,48 @@ module Error =
     let datarace mo loc   = inj @@ F.distrib @@ T.Datarace (mo, loc)
   end
 
-module Label =
+module Action =
   struct
     module T =
       struct
-        @type ('tid, 'mo, 'loc, 'value, 'err) t =
-          | Empty
-          | Load            of 'mo * 'loc * 'value
-          | Store           of 'mo * 'loc * 'value
-          | CAS             of 'mo * 'mo * 'loc * 'value * 'value * 'value
-          | Error           of 'err
+        @type ('mo, 'loc, 'value, 'err) t =
+          | EPS
+          | R           of 'mo * 'loc * 'value
+          | W           of 'mo * 'loc * 'value
+          | RMW         of 'mo * 'loc * 'value * 'value
+          | ERR         of 'err
         with gmap, show
 
-        let fmap fa fb fc fd fe x = GT.gmap(t) fa fb fc fd fe x
+        let fmap fa fb fc fd x = GT.gmap(t) fa fb fc fd x
       end
 
-    type tt = (ThreadID.tt, MemOrder.tt, Loc.tt, Value.tt, Error.tt) T.t
+    type tt = (MemOrder.tt, Loc.tt, Value.tt, Error.tt) T.t
 
     type tl = inner MiniKanren.logic
-      and inner = (ThreadID.tl, MemOrder.tl, Loc.tl, Value.tl, Error.tl) T.t
+      and inner = (MemOrder.tl, Loc.tl, Value.tl, Error.tl) T.t
 
     type ti = (tt, tl) MiniKanren.injected
     type ri = (tt, tl) MiniKanren.reified
 
-    module FT = Fmap5(T)
+    module FT = Fmap4(T)
 
-    let empty ()               = inj @@ FT.distrib @@ T.Empty
-    let load  mo loc v         = inj @@ FT.distrib @@ T.Load  (mo, loc, v)
-    let store mo loc v         = inj @@ FT.distrib @@ T.Store (mo, loc, v)
-    let cas mo1 mo2 loc e d v  = inj @@ FT.distrib @@ T.CAS (mo1, mo2, loc, e, d, v)
-    let error e                = inj @@ FT.distrib @@ T.Error e
+    let eps ()            = inj @@ FT.distrib @@ T.EPS
+    let r mo loc v        = inj @@ FT.distrib @@ T.R  (mo, loc, v)
+    let w mo loc v        = inj @@ FT.distrib @@ T.W (mo, loc, v)
+    let rmw mo loc vr vw  = inj @@ FT.distrib @@ T.RMW (mo, loc, vr, vw)
+    let err e             = inj @@ FT.distrib @@ T.ERR e
 
-    let reify h = FT.reify ThreadID.reify MemOrder.reify Loc.reify Value.reify Error.reify h
+    let reify h = FT.reify MemOrder.reify Loc.reify Value.reify Error.reify h
 
-    let show = GT.show(T.t) ThreadID.show MemOrder.show Loc.show Value.show Error.show
+    let show = GT.show(T.t) MemOrder.show Loc.show Value.show Error.show
 
     let pprint = pprint_logic @@ (fun ff x -> Format.fprintf ff "@[%s@]" (show x))
 
-    let erroro ?(sg=fun _ -> success) ?(fg=failure) label = conde
-      [ fresh (err)
-          (label === error err)
-          (sg err)
-      ; ?~(fresh (err) (label === error err)) &&& fg
+    let erroro ?(sg=fun _ -> success) ?(fg=failure) a = conde
+      [ fresh (e)
+          (a === err e)
+          (sg e)
+      ; ?~(fresh (e) (a === err e)) &&& fg
       ]
 
   end
@@ -874,97 +876,105 @@ module Thread =
       fresh (pid regs)
         (t  === thrd (Stmt.skip ()) regs pid)
 
-    let asserto label t t' =
+    let asserto a t t' =
       fresh (prog prog' rs pid e v stmts)
         (t  === thrd prog  rs pid)
         (t' === thrd prog' rs pid)
         (prog === (assertion e) % stmts)
         (Expr.evalo rs e v)
         (conde [
-          (Value.not_nullo v) &&& (prog' === stmts  ) &&& (label === Label.empty ());
-          (Value.nullo     v) &&& (prog' === skip ()) &&& (label === Label.error (Error.assertion e));
+          (Value.not_nullo v) &&& (prog' === stmts  ) &&& (a === Action.eps ());
+          (Value.nullo     v) &&& (prog' === skip ()) &&& (a === Action.err (Error.assertion e));
         ])
 
-    let asgno label t t' =
+    let asgno a t t' =
       fresh (prog prog' rs rs' pid r e v)
         (t  === thrd prog  rs  pid)
         (t' === thrd prog' rs' pid)
+        (a  === Action.eps ())
         (prog === (asgn r e) % prog')
-        (label === Label.empty ())
         (Expr.evalo rs e v)
         (Regs.writeo rs rs' r v)
 
-    let ifo label t t' =
+    let ifo a t t' =
       fresh (prog prog' rs pid e v t1 t2 stmts)
         (t  === thrd prog  rs pid)
         (t' === thrd prog' rs pid)
+        (a  === Action.eps ())
         (prog === (if' e t1 t2) % stmts)
-        (label === Label.empty ())
         (Expr.evalo rs e v)
         (conde [
           (Value.not_nullo v) &&& (seqo t1 stmts prog');
           (Value.nullo     v) &&& (seqo t2 stmts prog');
         ])
 
-    let whileo label t t' =
+    let whileo a t t' =
       fresh (prog prog' rs pid e body stmt stmt' stmts stmts')
         (t  === thrd prog  rs pid)
         (t' === thrd prog' rs pid)
+        (a  === Action.eps ())
         (prog  === stmt  % stmts)
         (prog' === stmt' % stmts)
         (stmt  === (while' e body))
         (stmt' === if' e stmts' (skip ()))
-        (label === Label.empty ())
         (seqo body (single stmt) stmts')
 
-    let repeato label t t' =
+    let repeato a t t' =
       fresh (prog prog' rs pid e body body' stmts)
         (t  === thrd prog  rs pid)
         (t' === thrd prog' rs pid)
+        (a  === Action.eps ())
         (prog  === (repeat body e) % stmts)
-        (label === Label.empty ())
         (seqo body (single @@ while' (Expr.unop !!Uop.NOT e) body) body')
         (seqo body' stmts prog')
 
-    let loado label t t' =
+    let loado a t t' =
       fresh (prog prog' rs rs' pid mo l r v)
         (t  === thrd prog  rs  pid)
         (t' === thrd prog' rs' pid)
+        (a  === Action.r mo l v)
         (prog === (load mo l r) % prog')
-        (label === Label.load mo l v)
         (Regs.writeo rs rs' r v)
 
-    let storeo label t t' =
+    let storeo a t t' =
       fresh (prog prog' rs pid mo l e v)
         (t  === thrd prog  rs pid)
         (t' === thrd prog' rs pid)
+        (a  === Action.w mo l v)
         (prog === (store mo l e) % prog')
-        (label === Label.store mo l v)
         (Expr.evalo rs e v)
 
-    let caso label t t' =
-      fresh (prog prog' rs rs' pid mo1 mo2 l r exp expv des desv v)
+    let caso a t t' =
+      fresh (prog prog' rs rs' pid mo1 mo2 l r er vr ew vw res)
         (t  === thrd prog  rs  pid)
         (t' === thrd prog' rs' pid)
-        (prog === (cas mo1 mo2 l exp des r) % prog')
-        (label === Label.cas mo1 mo2 l expv desv v)
-        (Expr.evalo rs exp expv)
-        (Expr.evalo rs des desv)
-        (Regs.writeo rs rs' r v)
+        (prog === (cas mo1 mo2 l er ew r) % prog')
+        (Expr.evalo rs er vr)
+        (Expr.evalo rs ew vw)
+        (Regs.writeo rs rs' r res)
+        (conde
+          [ (* CAS-FAIL *)
+            fresh (v)
+              (a   === Action.r mo1 l v)
+              (vr  =/= v)
+              (Value.eqo res Value.zero)
+          ; (* CAS-SUCCESS *)
+            (a === Action.rmw mo2 l vr vw) &&& (Value.eqo res Value.one)
+          ])
 
-    let dataraceo label t t' =
+    let dataraceo a t t' =
       fresh (prog prog' rs pid stmt mo l r e)
         (t  === thrd prog  rs pid)
         (t' === thrd prog' rs pid)
         (prog === stmt % prog')
-        (label === Label.error (Error.datarace mo l))
+        (a === Action.err (Error.datarace mo l))
         ((stmt === load mo l r) ||| (stmt === store mo l e))
 
-    let stepo label t t' =
+    let stepo a t t' =
       let rules =
         [asserto; asgno; ifo; whileo; repeato; loado; storeo; caso; dataraceo]
       in
-      conde @@ List.map (fun rule -> rule label t t') rules
+      conde @@ List.map (fun rule -> rule a t t') rules
 
   end
 
@@ -989,22 +999,22 @@ module ThreadManager =
 
     let terminatedo = forallo Thread.terminatedo
 
-    let stepo tid label ts ts' =
+    let stepo tid a ts ts' =
       fresh (thrd thrd')
         (geto ts tid thrd)
         (seto ts ts' tid thrd')
-        (Thread.stepo label thrd thrd')
+        (Thread.stepo a thrd thrd')
 
-    let rec non_silent_stepo tid label ts ts'' =
-      fresh (ts' label' thrd')
-        (stepo tid label' ts ts')
+    let rec non_silent_stepo tid a ts ts'' =
+      fresh (ts' a' thrd')
+        (stepo tid a' ts ts')
         (geto ts' tid thrd')
         (conde
-          [ (label === label') &&& (ts' === ts'') &&& (conde
-            [ (label =/= Label.empty ())
+          [ (a === a') &&& (ts' === ts'') &&& (conde
+            [ (a =/= Action.eps ())
             ; (Thread.terminatedo thrd')
             ])
-          ; (label' === Label.empty ()) &&& (non_silent_stepo tid label ts' ts'')
+          ; (a' === Action.eps ()) &&& (non_silent_stepo tid a ts' ts'')
           ]
         )
   end
@@ -1070,9 +1080,9 @@ module SeqProg =
     let evalo p rs res =
       let evalo_norec evalo_rec t t'' opterr = conde
         [ (ThreadManager.terminatedo t) &&& (opterr === Std.none ()) &&& (t === t'')
-        ; fresh (label t')
-            (ThreadManager.stepo (ThreadID.tid 1) label t t')
-            (Label.erroro label
+        ; fresh (a t')
+            (ThreadManager.stepo (ThreadID.tid 1) a t t')
+            (Action.erroro a
               ~sg:(fun err -> (opterr === Std.some err) &&& (t === t''))
               ~fg:(evalo_rec t' t'' opterr)
             )
