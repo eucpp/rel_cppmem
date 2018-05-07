@@ -229,8 +229,9 @@ module Prop :
     val (||) : ti -> ti -> ti
     val (!)  : ti -> ti
 
-    val datarace  : unit -> ti
-    val assertion : unit -> ti
+    val terminated  : unit -> ti 
+    val datarace    : unit -> ti
+    val assertion   : unit -> ti
   end
 
 module ThreadLocalStorage(T : Utils.Logic) :

@@ -667,6 +667,7 @@ module Prop =
           | Conj        of 't * 't
           | Disj        of 't * 't
           | Neg         of 't
+          | Terminated
           | Datarace
           | Assertion
         with gmap, show
@@ -691,6 +692,7 @@ module Prop =
     let conj p1 p2        = inj @@ F.distrib @@ T.Conj (p1, p2)
     let disj p1 p2        = inj @@ F.distrib @@ T.Disj (p1, p2)
     let neg p             = inj @@ F.distrib @@ T.Neg p
+    let terminated ()     = inj @@ F.distrib @@ T.Terminated
     let datarace ()       = inj @@ F.distrib @@ T.Datarace
     let assertion ()      = inj @@ F.distrib @@ T.Assertion
 
@@ -712,6 +714,8 @@ module Prop =
           Format.fprintf ff "@[(%a) || (%a)@]" ppl p1 ppl p2
         | Neg p ->
           Format.fprintf ff "@[not (%a)@]" ppl p
+        | Terminated ->
+          Format.fprintf ff "@[terminated@]"
         | Datarace ->
           Format.fprintf ff "@[datarace@]"
         | Assertion ->
