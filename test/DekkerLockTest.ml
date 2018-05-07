@@ -72,6 +72,102 @@ let prog_DekkerLock_sc = <:cppmem_par<
   }}}
 >>
 
+let prog_DekkerLock_sc_rlx = <:cppmem_par<
+  spw {{{
+      x_sc := 1;
+      r1 := y_rlx;
+      while (r1) do
+        r2 := turn_rlx;
+        if (r2 != 0) then
+          x_sc := 0;
+          repeat
+            r2 := turn_rlx
+          until (r2 = 0);
+          x_sc := 1
+        else
+          skip
+        fi;
+        r1 := y_rlx
+      od;
+      (* start of critical section *)
+      r3 := v_rlx;
+      v_rlx := (r3 + 1);
+      (* end of critical section *)
+      turn_rlx := 1;
+      x_sc := 0
+  |||
+      y_sc := 1;
+      r1 := x_rlx;
+      while (r1) do
+        r2 := turn_rlx;
+        if (r2 != 1) then
+          y_sc := 0;
+          repeat
+            r2 := turn_rlx
+          until (r2 = 1);
+          y_sc := 1
+        else
+          skip
+        fi;
+        r1 := x_rlx
+      od;
+      (* start of critical section *)
+      r3 := v_rlx;
+      v_rlx := (r3 + 1);
+      (* end of critical section *)
+      turn_rlx := 0;
+      y_sc := 0
+  }}}
+>>
+
+let prog_DekkerLock_sc_acq_rel = <:cppmem_par<
+  spw {{{
+      x_sc := 1;
+      r1 := y_sc;
+      while (r1) do
+        r2 := turn_rlx;
+        if (r2 != 0) then
+          x_rel := 0;
+          repeat
+            r2 := turn_rlx
+          until (r2 = 0);
+          x_rel := 1
+        else
+          skip
+        fi;
+        r1 := y_acq
+      od;
+      (* start of critical section *)
+      r3 := v_rlx;
+      v_rlx := (r3 + 1);
+      (* end of critical section *)
+      turn_rlx := 1;
+      x_rel := 0
+  |||
+      y_sc := 1;
+      r1 := x_sc;
+      while (r1) do
+        r2 := turn_rlx;
+        if (r2 != 1) then
+          y_rel := 0;
+          repeat
+            r2 := turn_rlx
+          until (r2 = 1);
+          y_rel := 1
+        else
+          skip
+        fi;
+        r1 := x_acq
+      od;
+      (* start of critical section *)
+      r3 := v_rlx;
+      v_rlx := (r3 + 1);
+      (* end of critical section *)
+      turn_rlx := 0;
+      y_rel := 0
+  }}}
+>>
+
 let prog_DekkerLock_rlx = <:cppmem_par<
   spw {{{
       x_rlx := 1;
@@ -194,6 +290,17 @@ let test_verify_rlx_tso = Test.(make_test_desc
   prog_DekkerLock_rlx
 )
 
+let test_verify_sc_rlx_tso = Test.(make_test_desc
+  ~name:"Verify+sc+rlx"
+  ~regs:["r1"; "r2"; "r3"]
+  ~locs:["x"; "y"; "turn"; "v"]
+  ~prop:Prop.(loc "v" = 2)
+  ~kind:Safe
+  ~len:Long
+  ~n:1
+  prog_DekkerLock_sc_rlx
+)
+
 let test_synth_tso = Test.(make_test_desc
   ~name:"Synth"
   ~regs:["r1"; "r2"; "r3"]
@@ -207,6 +314,7 @@ let test_synth_tso = Test.(make_test_desc
 
 let test_tso = Test.(make_operational_testsuite ~model:TSO [
   test_verify_rlx_tso;
+  test_verify_sc_rlx_tso;
   (* test_synth_tso; *)
 ])
 
@@ -219,6 +327,17 @@ let test_verify_rlx_ra = Test.(make_test_desc
   ~len:Long
   ~n:1
   prog_DekkerLock_rlx
+)
+
+let test_verify_sc_acq_rel_ra = Test.(make_test_desc
+  ~name:"Verify+sc+acq+rel"
+  ~regs:["r1"; "r2"; "r3"]
+  ~locs:["x"; "y"; "turn"; "v"]
+  ~prop:Prop.(loc "v" = 2)
+  ~kind:Safe
+  ~len:Long
+  ~n:1
+  prog_DekkerLock_sc_acq_rel
 )
 
 let test_synth_ra = Test.(make_test_desc
@@ -234,6 +353,7 @@ let test_synth_ra = Test.(make_test_desc
 
 let test_ra = Test.(make_operational_testsuite ~model:RelAcq [
   test_verify_rlx_ra;
+  test_verify_sc_acq_rel_ra;
   (* test_synth_ra; *)
 ])
 
