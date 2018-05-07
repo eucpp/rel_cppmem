@@ -427,7 +427,7 @@ module TSO =
         ; fresh (l v sb' mem')
             (StoreBuffer.deqo sb sb' l v)
             (ValueStorage.writeo mem mem' l v)
-            (helpero sb' sb'' mem mem'')
+            (helpero sb' sb'' mem' mem'')
         ]
       in
       fresh (tls tls' mem mem' sb sb' l v)

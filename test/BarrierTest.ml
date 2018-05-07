@@ -61,6 +61,42 @@ let prog_Barrier_sc = <:cppmem_par<
   }}}
 >>
 
+let prog_Barrier_acq_rel = <:cppmem_par<
+  spw {{{
+    x_rlx := 1;
+    (* barrier start *)
+    repeat
+      r1 := cnt_rlx;
+      r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
+    until (r1 = r2);
+    if (r2 = 1) then
+      g_rel := 1
+    else
+      repeat
+        r1 := g_acq
+      until (r1)
+    fi;
+    (* barrier end *)
+    r3 := y_rlx
+  |||
+    y_rlx := 1;
+    (* barrier start *)
+    repeat
+      r1 := cnt_rlx;
+      r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
+    until (r1 = r2);
+    if (r2 = 1) then
+      g_rel := 1
+    else
+      repeat
+        r1 := g_acq
+      until (r1)
+    fi;
+    (* barrier end *)
+    r3 := x_rlx
+  }}}
+>>
+
 let prog_Barrier_rlx = <:cppmem_par<
   spw {{{
     x_rlx := 1;
@@ -172,7 +208,7 @@ let test_synth_tso = Test.(make_test_desc
 
 let test_tso = Test.(make_operational_testsuite ~model:TSO [
   test_verify_tso;
-  test_synth_tso
+  (* test_synth_tso *)
 ])
 
 let test_verify_ra = Test.(make_test_desc
@@ -182,7 +218,7 @@ let test_verify_ra = Test.(make_test_desc
   ~prop:Prop.((1%"r3" = 1) && (2%"r3" = 1))
   ~kind:Safe
   ~len:Long
-  prog_Barrier_rlx
+  prog_Barrier_acq_rel
 )
 
 let test_synth_ra = Test.(make_test_desc
@@ -198,7 +234,7 @@ let test_synth_ra = Test.(make_test_desc
 
 let test_ra = Test.(make_operational_testsuite ~model:RelAcq [
   test_verify_ra;
-  test_synth_ra;
+  (* test_synth_ra; *)
 ])
 
 let tests = Test.(make_testsuite ~name:"Barrier" [

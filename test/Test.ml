@@ -18,11 +18,15 @@
 open OUnit2
 open MiniKanren
 
+type testlen = test_length
+
+type testctx = test_ctxt
+
 type result = Ok | Fail of string
 
-type testfun = unit -> result
+type testfun = testctx -> result
 
-type testlen = test_length
+let get_fullname : testctx -> string = fun test_ctx -> OUnitTest.string_of_path test_ctx.path
 
 type test =
   | TestCase  of string * testlen * testfun
@@ -45,7 +49,7 @@ type test_desc =
   ; kind      : testkind
   ; prop      : Lang.Prop.ti
   ; n         : int option
-  ; len       : test_length option
+  ; len       : testlen option
   }
 
 let make_test_desc ?n ?locs ?mem ?len ~regs ~name ~kind ~prop prog =
@@ -64,7 +68,7 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         | Some locs -> Interpreter.State.alloc_istate ~regs ~locs prog
         | None      -> failwith "Cannot make initial state"
 
-    let test_unsafe ~name ~prop ~prog ~regs ~locs ~mem ~n =
+    let test_unsafe ~name ~prop ~prog ~regs ~locs ~mem ~n test_ctx =
       let module Trace = Utils.Trace(State) in
       let istate = make_istate ~regs ?locs ?mem prog in
       let stream = Interpreter.eval ~prop:(Lang.Prop.neg prop) istate in
@@ -72,12 +76,12 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         Ok
       else
         let outs = Stream.take ?n @@ Interpreter.eval istate in
-        Format.printf "Test %s::%s fails!@;" Memory.name name;
-        Format.printf "List of outputs:@;";
+        Format.printf "Test %s fails!@;" @@ get_fullname test_ctx;
+        Format.printf "List of outputs (%d):@;" @@ List.length outs;
         List.iter (fun out -> Format.printf "%a@;" Trace.trace out) outs;
         Fail ""
 
-    let test_safe ?n ~name ~prop ~prog ~regs ~locs ~mem =
+    let test_safe ?n ~name ~prop ~prog ~regs ~locs ~mem test_ctx =
       let module Trace = Utils.Trace(State) in
       let istate = make_istate ~regs ?locs ?mem prog in
       (* check that test is runnable *)
@@ -88,17 +92,17 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         end
       else *)
         let stream = Interpreter.eval ~prop:(Lang.Prop.neg prop) istate in
-        if Stream.is_empty stream then
+        let cexs = Stream.take ?n stream in
+        if List.length cexs = 0 then
           Ok
         else begin
-          let cexs = Stream.take ?n stream in
-          Format.printf "Test %s fails!@;" name;
-          Format.printf "List of counterexamples:@;";
+          Format.printf "Test %s fails!@;" @@ get_fullname test_ctx;
+          Format.printf "List of counterexamples (%d):@;" @@ List.length cexs;
           List.iter (fun cex -> Format.printf "%a@;" Trace.trace cex) cexs;
           Fail ""
         end
 
-    let test_synth ?n ~name ~prop ~prog ~regs ~locs ~mem =
+    let test_synth ?n ~name ~prop ~prog ~regs ~locs ~mem test_ctx =
       let module Trace = Utils.Trace(Lang.CProg) in
       let istate = make_istate ~regs ?locs ?mem prog in
       let stream = run q
@@ -118,15 +122,15 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         )
         (fun qs -> qs)
       in
-      if Stream.is_empty stream then begin
-        Format.printf "Test %s fails: !@;" name;
+      let progs = Stream.take ?n stream in
+      if List.length progs = 0 then begin
+        Format.printf "Test %s fails!@;" @@ get_fullname test_ctx;
         Format.printf "No programs were synthesized@;";
         Fail ""
         end
       else begin
-        let progs = Stream.take ?n stream in
         Format.printf "Test %s succeeded!@;" name;
-        Format.printf "List of synthesized programs:@\n";
+        Format.printf "List of synthesized programs (%d):@\n" @@ List.length progs;
         let cnt = ref 0 in
         List.iter (fun p ->
           cnt := !cnt + 1;
@@ -136,12 +140,11 @@ module OperationalTest(Memory : Operational.MemoryModel) =
       end
 
     let make_testcase { name; prog; prop; regs; locs; mem; kind; n; len } =
-      let full_name = Printf.sprintf "%s::%s" Memory.name name in
-      let test () =
+      let test =
         match kind with
-        | Unsafe  -> test_unsafe ~name:full_name ~prop ~prog ~regs ~locs ~mem ?n
-        | Safe    -> test_safe   ~name:full_name ~prop ~prog ~regs ~locs ~mem ?n
-        | Synth   -> test_synth  ~name:full_name ~prop ~prog ~regs ~locs ~mem ?n
+        | Unsafe  -> test_unsafe ~name ~prop ~prog ~regs ~locs ~mem ?n
+        | Safe    -> test_safe   ~name ~prop ~prog ~regs ~locs ~mem ?n
+        | Synth   -> test_synth  ~name ~prop ~prog ~regs ~locs ~mem ?n
       in
       make_testcase ?length:len ~name test
 
@@ -161,14 +164,14 @@ let make_operational_testsuite ~model tests =
     let module Test = OperationalTest(Operational.RelAcq) in
     Test.make_testsuite tests
 
-let rec simple_run = function
+(* let rec simple_run = function
   | TestCase  (name, len, test)  -> let _ = test () in ()
-  | TestSuite (name, tests)      -> List.iter simple_run tests
+  | TestSuite (name, tests)      -> List.iter simple_run tests *)
 
 let rec ounit_test = function
   | TestCase (name, length, test)  -> name >: (
       test_case ~length @@ fun test_ctx ->
-        match test () with
+        match test test_ctx with
         | Ok      -> ()
         | Fail s  -> assert_failure s
     )
