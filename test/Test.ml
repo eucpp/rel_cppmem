@@ -71,8 +71,11 @@ module OperationalTest(Memory : Operational.MemoryModel) =
     let test_unsafe ~name ~prop ~prog ~regs ~locs ~mem ~n test_ctx =
       let module Trace = Utils.Trace(State) in
       let istate = make_istate ~regs ?locs ?mem prog in
-      let stream = Interpreter.eval ~prop:(Lang.Prop.neg prop) istate in
-      if not @@ Stream.is_empty stream then
+      (* [test_unsafe] takes proposition on the final (terminal) state of program,
+       *   thus we add `not terminal` disjunct to invariant
+       *)
+      let prop = Lang.(Prop.((neg @@ terminated ()) || prop)) in
+      if not @@ Interpreter.invariant ~prop istate then
         Ok
       else
         let outs = Stream.take ?n @@ Interpreter.eval istate in
@@ -84,23 +87,19 @@ module OperationalTest(Memory : Operational.MemoryModel) =
     let test_safe ?n ~name ~prop ~prog ~regs ~locs ~mem test_ctx =
       let module Trace = Utils.Trace(State) in
       let istate = make_istate ~regs ?locs ?mem prog in
-      (* check that test is runnable *)
-      (* let stream = Interpreter.eval istate in
-      if Stream.is_empty stream then begin
-        Format.printf "Litmus test %s is not runnable!@;" name;
-        Test.Fail ""
-        end
-      else *)
-        let stream = Interpreter.eval ~prop:(Lang.Prop.neg prop) istate in
-        let cexs = Stream.take ?n stream in
-        if List.length cexs = 0 then
-          Ok
-        else begin
-          Format.printf "Test %s fails!@;" @@ get_fullname test_ctx;
-          Format.printf "List of counterexamples (%d):@;" @@ List.length cexs;
-          List.iter (fun cex -> Format.printf "%a@;" Trace.trace cex) cexs;
-          Fail ""
-        end
+      (* [test_safe] takes proposition on the final (terminal) state of program,
+       *   thus we add `not terminal` disjunct to invariant
+       *)
+      let prop = Lang.(Prop.((neg @@ terminated ()) || prop)) in
+      if Interpreter.invariant ~prop istate then
+        Ok
+      else begin
+        let cexs = Stream.take ?n @@ Interpreter.reachable ~prop:(Lang.Prop.neg prop) istate in
+        Format.printf "Test %s fails!@;" @@ get_fullname test_ctx;
+        Format.printf "List of counterexamples (%d):@;" @@ List.length cexs;
+        List.iter (fun cex -> Format.printf "%a@;" Trace.trace cex) cexs;
+        Fail ""
+      end
 
     let test_synth ?n ~name ~prop ~prog ~regs ~locs ~mem test_ctx =
       let module Trace = Utils.Trace(Lang.CProg) in
@@ -113,14 +112,6 @@ module OperationalTest(Memory : Operational.MemoryModel) =
               (Lang.ThreadManager.cprogo tm p)
               (Interpreter.evalo ~prop s s')
               (Interpreter.invarianto ~prop:Lang.(Prop.((neg @@ terminated ()) || prop)) s)
-              (* (Interpreter.reachableo s s')
-              (State.terminatedo s')
-              (State.sato prop s') *)
-            (* ?~(fresh (s'')
-                  (Interpreter.reachableo s s'')
-                  (State.terminatedo s'')
-                ?~(State.sato prop s'')
-              ) *)
         )
         (fun qs -> qs)
       in

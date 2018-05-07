@@ -214,18 +214,30 @@ module Interpreter(Memory : MemoryModel) =
       in
       Tabling.(tabledrec two) reachableo_norec
 
+    let reachable ~prop s =
+      run q
+        (fun s' -> reachableo ~prop s s')
+        (fun ss -> ss)
+
     let evalo ?(prop = Prop.true_ ()) =
       reachableo ~prop:Prop.((terminated ()) && prop)
 
     let eval ?prop s =
       run q
-        (fun s' -> (evalo ?prop s s'))
+        (fun s' -> evalo ?prop s s')
         (fun ss -> ss)
 
     let invarianto ~prop s = ?~(
       fresh (s')
           (reachableo (Prop.neg prop) s s')
     )
+
+    let invariant ~prop s =
+      let stream = run q
+        (fun q  -> invarianto ~prop s)
+        (fun qs -> qs)
+      in
+      not @@ Stream.is_empty stream
 
   end
 
