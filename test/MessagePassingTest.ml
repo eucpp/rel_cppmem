@@ -101,7 +101,7 @@ let test_synth_tso = Test.(make_test_desc
   ~locs:["x"; "f"]
   ~prop:Prop.(2%"r2" = 1)
   ~kind:Synth
-  ~n:1
+  (* ~n:1 *)
   prog_MessagePassing_tpl
 )
 
@@ -134,7 +134,7 @@ let test_synth_ra = Test.(make_test_desc
   ~locs:["x"; "f"]
   ~prop:Prop.(2%"r2" = 1)
   ~kind:Synth
-  ~n:1
+  (* ~n:1 *)
   prog_MessagePassing_tpl
 )
 
