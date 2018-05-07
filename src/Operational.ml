@@ -495,8 +495,8 @@ module TSO =
 
       ; fresh (mo loc vr vw)
           (a === Action.rmw mo loc vr vw)
-          ((mo === !!MemOrder.SC) ||| (mo === !!MemOrder.ACQ_REL) ||| (mo === !!MemOrder.RLX))
           (rmwo t t' tid loc vr vw)
+          ((mo === !!MemOrder.SC) ||| (mo === !!MemOrder.ACQ_REL) ||| (mo === !!MemOrder.RLX))
       ]
   end
 
@@ -1171,7 +1171,7 @@ module RelAcq =
           (conde [
             (mo === !!MemOrder.RLX)     &&& (rmw_rlxo t t' tid loc vr vw);
             (mo === !!MemOrder.ACQ_REL) &&& (rmw_rao  t t' tid loc vr vw);
-            (mo === !!MemOrder.SC )     &&& (rmw_sco  t t' tid loc vr vw);
+            (mo === !!MemOrder.SC)      &&& (rmw_sco  t t' tid loc vr vw);
           ])
 
       ; fresh (loc mo v)

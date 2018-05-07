@@ -103,7 +103,7 @@ let prog_Barrier_rlx = <:cppmem_par<
     (* barrier start *)
     repeat
       r1 := cnt_rlx;
-      r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
+      r2 := CAS(rlx, rlx, cnt, r1, (r1 - 1))
     until (r2);
     if (r1 = 1) then
       g_rlx := 1
@@ -119,7 +119,7 @@ let prog_Barrier_rlx = <:cppmem_par<
     (* barrier start *)
     repeat
       r1 := cnt_rlx;
-      r2 := CAS(relAcq, relAcq, cnt, r1, (r1 - 1))
+      r2 := CAS(rlx, rlx, cnt, r1, (r1 - 1))
     until (r2);
     if (r1 = 1) then
       g_rlx := 1
