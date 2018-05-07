@@ -107,12 +107,6 @@ module State(Memory : MemoryModel) =
       fresh (mem opterr)
         (s === state thrds mem opterr)
 
-    let terminatedo s =
-      fresh (tm mem opterr)
-        (s === state tm mem opterr)
-        (ThreadManager.terminatedo tm)
-        (Memory.terminatedo mem)
-
     let erroro ?(sg=fun _ -> success) ?(fg=failure) s =
       fresh (thrds mem opterr err)
         (s === state thrds mem opterr)
@@ -121,6 +115,11 @@ module State(Memory : MemoryModel) =
           ; (opterr === Std.none () ) &&& fg
           ]
         )
+
+    let terminatedo s =
+      fresh (tm mem opterr)
+        (s === state tm mem opterr)
+        (erroro s ~fg:((ThreadManager.terminatedo tm) &&& (Memory.terminatedo mem)))
 
     let safeo s =
       fresh (thrds mem)
@@ -148,11 +147,11 @@ module State(Memory : MemoryModel) =
     ; (erroro s
         ~sg:(fun err -> conde
           [ fresh (mo loc)
-              (err === Error.datarace mo loc)
               (p === Prop.datarace ())
+              (err === Error.datarace mo loc)
           ; fresh (e)
-              (err === Error.assertion e)
               (p === Prop.assertion ())
+              (err === Error.assertion e)
           ]
         )
         ~fg:(conde
