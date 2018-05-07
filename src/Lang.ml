@@ -466,7 +466,7 @@ module Stmt =
       | Store (m, l, e)         ->
         Format.fprintf ff "@[%a_%a :=@;<1 4>%a@]" Loc.pprint l MemOrder.pprint m Expr.pprint e
       | Cas (m1, m2, l, e, d, r)   ->
-        Format.fprintf ff "@[%a := cas_%a_%a(%a, %a, %a)@]" Reg.pprint r MemOrder.pprint m1 MemOrder.pprint m2 Loc.pprint l Expr.pprint e Expr.pprint d
+        Format.fprintf ff "@[%a := CAS(%a, %a, %a, %a, %a)@]" Reg.pprint r MemOrder.pprint m1 MemOrder.pprint m2 Loc.pprint l Expr.pprint e Expr.pprint d
     )
 
     let rec instmo t t' = conde

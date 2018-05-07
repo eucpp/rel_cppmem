@@ -129,7 +129,7 @@ module OperationalTest(Memory : Operational.MemoryModel) =
         Fail ""
         end
       else begin
-        Format.printf "Test %s succeeded!@;" name;
+        Format.printf "Test %s succeeded!@;" @@ get_fullname test_ctx;
         Format.printf "List of synthesized programs (%d):@\n" @@ List.length progs;
         let cnt = ref 0 in
         List.iter (fun p ->
