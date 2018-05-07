@@ -197,7 +197,7 @@ let test_synth_tso = Test.(make_test_desc
 let test_tso = Test.(make_operational_testsuite ~model:TSO [
   test_verify_rlx_tso;
   test_verify_sc_rlx_tso;
-  (* test_synth_tso; *)
+  test_synth_tso;
 ])
 
 let test_verify_rlx_ra = Test.(make_test_desc
@@ -236,7 +236,7 @@ let test_synth_ra = Test.(make_test_desc
 let test_ra = Test.(make_operational_testsuite ~model:RelAcq [
   test_verify_rlx_ra;
   test_verify_sc_acq_rel_ra;
-  (* test_synth_ra; *)
+  test_synth_ra;
 ])
 
 let tests = Test.(make_testsuite ~name:"PetersonLock" [
