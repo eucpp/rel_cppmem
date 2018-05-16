@@ -1,0 +1,120 @@
+===> multitime results
+1: ./TestMain.native -runner sequential -only-test relcppmem:0:MessagePassing:0:SeqCst:0:Verify
+            Mean                Std.Dev.    Min         Median      Max
+real        0.013+/-0.0055      0.008       0.009       0.009       0.035       
+user        0.007+/-0.0016      0.002       0.005       0.006       0.011       
+sys         0.003+/-0.0014      0.002       0.000       0.003       0.005       
+
+2: ./TestMain.native -runner sequential -only-test relcppmem:0:MessagePassing:1:TSO:0:Verify
+            Mean                Std.Dev.    Min         Median      Max
+real        0.015+/-0.0009      0.001       0.013       0.015       0.019       
+user        0.013+/-0.0019      0.003       0.007       0.014       0.015       
+sys         0.002+/-0.0022      0.003       0.000       0.000       0.008       
+
+3: ./TestMain.native -runner sequential -only-test relcppmem:0:MessagePassing:2:RelAcq:0:Verify+rlx
+            Mean                Std.Dev.    Min         Median      Max
+real        0.019+/-0.0060      0.009       0.014       0.014       0.034       
+user        0.012+/-0.0018      0.002       0.007       0.012       0.014       
+sys         0.002+/-0.0017      0.002       0.000       0.002       0.007       
+
+4: ./TestMain.native -runner sequential -only-test relcppmem:0:MessagePassing:2:RelAcq:1:Verify+rel+acq
+            Mean                Std.Dev.    Min         Median      Max
+real        0.020+/-0.0071      0.010       0.013       0.014       0.041       
+user        0.012+/-0.0012      0.002       0.010       0.013       0.014       
+sys         0.002+/-0.0018      0.003       0.000       0.002       0.008       
+
+5: ./TestMain.native -runner sequential -only-test relcppmem:1:PetersonLock:0:SeqCst:0:Verify
+            Mean                Std.Dev.    Min         Median      Max
+real        0.255+/-0.0055      0.008       0.247       0.253       0.272       
+user        0.239+/-0.0038      0.005       0.232       0.239       0.246       
+sys         0.012+/-0.0042      0.006       0.004       0.012       0.024       
+
+6: ./TestMain.native -runner sequential -only-test relcppmem:1:PetersonLock:1:TSO:0:Verify+rlx
+            Mean                Std.Dev.    Min         Median      Max
+real        2.910+/-0.0115      0.016       2.886       2.910       2.942       
+user        2.843+/-0.0125      0.018       2.813       2.844       2.876       
+sys         0.062+/-0.0093      0.013       0.044       0.056       0.088       
+
+7: ./TestMain.native -runner sequential -only-test relcppmem:1:PetersonLock:1:TSO:1:Verify+sc+rlx
+            Mean                Std.Dev.    Min         Median      Max
+real        0.389+/-0.0121      0.017       0.379       0.382       0.439       
+user        0.376+/-0.0075      0.011       0.359       0.376       0.393       
+sys         0.011+/-0.0065      0.009       0.000       0.006       0.028       
+
+8: ./TestMain.native -runner sequential -only-test relcppmem:1:PetersonLock:2:RelAcq:0:Verify+rlx
+            Mean                Std.Dev.    Min         Median      Max
+real        0.477+/-0.0046      0.007       0.469       0.475       0.489       
+user        0.466+/-0.0068      0.010       0.449       0.463       0.481       
+sys         0.010+/-0.0034      0.005       0.004       0.010       0.020       
+
+9: ./TestMain.native -runner sequential -only-test relcppmem:1:PetersonLock:2:RelAcq:1:Verify+sc+acq+rel
+            Mean                Std.Dev.    Min         Median      Max
+real        0.499+/-0.0038      0.005       0.494       0.497       0.512       
+user        0.487+/-0.0054      0.008       0.478       0.486       0.504       
+sys         0.011+/-0.0042      0.006       0.000       0.012       0.020       
+
+10: ./TestMain.native -runner sequential -only-test relcppmem:2:DekkerLock:0:SeqCst:0:Verify
+            Mean                Std.Dev.    Min         Median      Max
+real        0.111+/-0.0044      0.006       0.105       0.107       0.123       
+user        0.103+/-0.0028      0.004       0.098       0.104       0.112       
+sys         0.004+/-0.0023      0.003       0.000       0.004       0.008       
+
+11: ./TestMain.native -runner sequential -only-test relcppmem:2:DekkerLock:1:TSO:0:Verify+rlx
+            Mean                Std.Dev.    Min         Median      Max
+real        1.075+/-0.0132      0.019       1.060       1.071       1.125       
+user        1.037+/-0.0107      0.015       1.017       1.033       1.076       
+sys         0.034+/-0.0071      0.010       0.020       0.034       0.056       
+
+12: ./TestMain.native -runner sequential -only-test relcppmem:2:DekkerLock:1:TSO:1:Verify+sc+rlx
+            Mean                Std.Dev.    Min         Median      Max
+real        0.178+/-0.0041      0.006       0.173       0.176       0.195       
+user        0.172+/-0.0032      0.005       0.163       0.174       0.177       
+sys         0.004+/-0.0025      0.004       0.000       0.004       0.012       
+
+13: ./TestMain.native -runner sequential -only-test relcppmem:2:DekkerLock:2:RelAcq:0:Verify+rlx
+            Mean                Std.Dev.    Min         Median      Max
+real        0.208+/-0.0051      0.007       0.203       0.205       0.226       
+user        0.198+/-0.0029      0.004       0.191       0.199       0.202       
+sys         0.007+/-0.0028      0.004       0.004       0.006       0.016       
+
+14: ./TestMain.native -runner sequential -only-test relcppmem:2:DekkerLock:2:RelAcq:1:Verify+sc+acq+rel
+            Mean                Std.Dev.    Min         Median      Max
+real        0.302+/-0.0063      0.009       0.294       0.300       0.322       
+user        0.288+/-0.0025      0.004       0.280       0.289       0.293       
+sys         0.010+/-0.0028      0.004       0.004       0.012       0.016       
+
+15: ./TestMain.native -runner sequential -only-test relcppmem:3:CohenExcl:0:SeqCst:0:Verify
+            Mean                Std.Dev.    Min         Median      Max
+real        0.112+/-0.0008      0.001       0.110       0.112       0.115       
+user        0.104+/-0.0037      0.005       0.095       0.104       0.111       
+sys         0.008+/-0.0038      0.005       0.000       0.008       0.016       
+
+16: ./TestMain.native -runner sequential -only-test relcppmem:3:CohenExcl:1:TSO:0:Verify
+            Mean                Std.Dev.    Min         Median      Max
+real        0.349+/-0.0026      0.004       0.344       0.349       0.356       
+user        0.336+/-0.0052      0.007       0.328       0.334       0.352       
+sys         0.013+/-0.0049      0.007       0.000       0.016       0.024       
+
+17: ./TestMain.native -runner sequential -only-test relcppmem:3:CohenExcl:2:RelAcq:0:Verify
+            Mean                Std.Dev.    Min         Median      Max
+real        0.206+/-0.0082      0.012       0.198       0.202       0.238       
+user        0.193+/-0.0052      0.007       0.184       0.192       0.212       
+sys         0.009+/-0.0035      0.005       0.004       0.008       0.020       
+
+18: ./TestMain.native -runner sequential -only-test relcppmem:4:Barrier:0:SeqCst:0:Verify
+            Mean                Std.Dev.    Min         Median      Max
+real        0.075+/-0.0061      0.009       0.069       0.070       0.096       
+user        0.067+/-0.0016      0.002       0.062       0.067       0.070       
+sys         0.004+/-0.0020      0.003       0.000       0.004       0.008       
+
+19: ./TestMain.native -runner sequential -only-test relcppmem:4:Barrier:1:TSO:0:Verify
+            Mean                Std.Dev.    Min         Median      Max
+real        0.140+/-0.0057      0.008       0.135       0.137       0.163       
+user        0.131+/-0.0020      0.003       0.127       0.132       0.137       
+sys         0.006+/-0.0023      0.003       0.000       0.006       0.012       
+
+20: ./TestMain.native -runner sequential -only-test relcppmem:4:Barrier:2:RelAcq:0:Verify
+            Mean                Std.Dev.    Min         Median      Max
+real        0.116+/-0.0046      0.007       0.110       0.114       0.131       
+user        0.109+/-0.0019      0.003       0.105       0.109       0.113       
+sys         0.004+/-0.0022      0.003       0.000       0.004       0.008       
