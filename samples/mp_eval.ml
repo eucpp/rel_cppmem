@@ -1,35 +1,60 @@
 open MiniKanren
-open MiniKanrenStd
-open Relcppmem
-open Relcppmem.Utils
-open Relcppmem.Lang
-open Relcppmem.Lang.Term
-open Relcppmem.Lang.Register
-open Relcppmem.Lang.Loc
 
-let mp_prog = <:cppmem<
-    spw {{{
-        x_na := 1;
-        f_rel := 1
-    |||
-        repeat f_acq end;
-        ret x_na
-    }}}
+open Relcppmem.Lang
+open Relcppmem.Lang.Expr
+open Relcppmem.Lang.Stmt
+open Relcppmem.Lang.Loc
+open Relcppmem.Lang.Reg
+open Relcppmem.Lang.Value
+
+(* MP relaxed *)
+
+let mp_prog = <:cppmem_par<
+  spw {{{
+    x_rlx := 1;
+    f_rlx := 1
+  |||
+    repeat
+      r1 := f_rlx
+    until (r1);
+    r2 := x_rlx
+  }}}
 >>
 
-module M = MemoryModel.ReleaseAcquire
+open Relcppmem.Operational
 
-let pprint =
-  let module T = Trace(M) in
-  T.trace Format.std_formatter
+module IntrpSRA = Interpreter(RelAcq)
 
-let t = M.init mp_prog ~regs:[] ~locs:[loc "x"; loc "f"]
+let regs = ["r1"; "r2"]
+let locs = ["x"; "f"]
+let istate = IntrpSRA.State.alloc_istate ~regs ~locs mp_prog
+
+let res = IntrpSRA.eval istate
+
+module Trace = Relcppmem.Utils.Trace(IntrpSRA.State)
 
 let () =
-  run q
-    (fun q  -> M.evalo t q)
-    (fun qs -> Stream.iter pprint qs)
+  Format.printf "Results of mp_prog:@\n";
+  Stream.iter (Format.printf "%a@;" Trace.trace) res
+
+(* MP with release-acquire synchronization *)
+
+let mp_ra_prog = <:cppmem_par<
+  spw {{{
+    x_rlx := 1;
+    f_rel := 1
+  |||
+    repeat
+      r1 := f_acq
+    until (r1);
+    r2 := x_rlx
+  }}}
+>>
+
+let istate = IntrpSRA.State.alloc_istate ~regs ~locs mp_ra_prog
+
+let res = IntrpSRA.eval istate
 
 let () =
-  Format.fprintf Format.std_formatter "@?";
-  MiniKanren.report_counters ()
+  Format.printf "@\nResults of mp_ra_prog:@\n";
+  Stream.iter (Format.printf "%a@;" Trace.trace) res

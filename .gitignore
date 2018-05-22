@@ -4,3 +4,9 @@ _build/*
 
 *.native
 *.byte
+
+*.cmi
+*.cmx
+*.o
+
+samples/mp_eval
