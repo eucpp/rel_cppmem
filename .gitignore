@@ -10,3 +10,7 @@ _build/*
 *.o
 
 samples/mp_eval
+samples/mp_evalo
+samples/mp_ra_eval
+samples/mp_ra_reachable
+samples/mp_ra_invariant

@@ -30,63 +30,6 @@ plugin: relcppmem
 test: plugin
 	$(OCB) -I test -pkgs "oUnit" TestMain.native
 
-################################# Samples ####################################
-
-expr : relcppmem plugin
-	$(OCB) -I samples expr.native
-
-addo : relcppmem plugin
-	$(OCB) -I samples addo.native
-	time ./addo.native
-
-sb_eval : relcppmem plugin
-	$(OCB) -I samples sb_eval.native
-	time ./sb_eval.native
-
-sc_sb_eval : relcppmem plugin
-	$(OCB) -I samples sc_sb_eval.native
-	time ./sc_sb_eval.native
-
-mp_eval : relcppmem plugin
-	$(OCB) -I samples mp_eval.native
-	time ./mp_eval.native
-
-sc_mp_eval : relcppmem plugin
-	$(OCB) -I samples sc_mp_eval.native
-	time ./sc_mp_eval.native
-
-mp_synth : relcppmem plugin
-	$(OCB) -I samples mp_synth.native
-	time ./mp_synth.native
-
-sc_mp_synth : relcppmem plugin
-	$(OCB) -I samples sc_mp_synth.native
-	time ./sc_mp_synth.native
-
-mutex_eval: relcppmem plugin
-	$(OCB) -I samples mutex_eval.native
-	time ./mutex_eval.native
-
-mutex_synth: relcppmem plugin
-	$(OCB) -I samples mutex_synth.native
-	time ./mutex_synth.native
-
-sc_consensus_eval : relcppmem plugin
-	$(OCB) -I samples sc_consensus_eval.native
-	time ./sc_consensus_eval.native
-
-sc_consensus_synth : relcppmem plugin
-	$(OCB) -I samples sc_consensus_synth.native
-	time ./sc_consensus_synth.native
-
-# mp_synthesis: relcppmem plugin
-# 	$(OCB) -I samples mp_synthesis.native
-# 	time ./mp_synthesis.native
-
-# mp_sc_synthesis: relcppmem plugin
-# 	$(OCB) -I samples mp_sc_synthesis.native
-# 	time ./mp_sc_synthesis.native
-
 ######################## Installation related stuff ##########################
 INSTALL_TARGETS = META \
 	_build/relcppmem.cmi \

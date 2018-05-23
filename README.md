@@ -11,9 +11,9 @@ The interpreter allows one to:
 
 Currently execution in following memory models is supported:
 
-* SC --- Sequential Consistency;
-* TSO --- Total Store Ordering;
-* SRA --- Strong Release Acuire.
+* SC - Sequential Consistency;
+* TSO - Total Store Ordering;
+* SRA - Strong Release Acuire.
 
 ## Installation
 
@@ -29,9 +29,9 @@ After installation you can test the package:
 
 ## Usage
 
-### Executing the program
-
 Let's see some examples of library usage.
+
+### Executing the program
 
 We will define the program that emulates message passing between two threads.
 First thread prepares the value and stores it to the atomic variable `x`.
@@ -68,7 +68,7 @@ Let's see that with relaxed accesses to shared variables
 this program (under SRA MM) may lead to unexpected behaviors.  
 
 ```ocaml
-module IntrpSRA = Interpreter(RelAcq)
+open Relcppmem.Operational
 
 module IntrpSRA = Interpreter(RelAcq)
 ```
@@ -152,7 +152,37 @@ Let's check that in all possible terminals states of message passing program
 the value of register `r2` in second thread is equal to `1`.
 
 ```ocaml
-if IntrpSRA.invariant ~prop:Prop.(!(terminal ()) || (2%"r2" = 1)) istate
-then Format.printf "Invariant holds!@\n"
-else Format.printf "Invariant doen't hold!@\n"
+let () =
+  if IntrpSRA.invariant ~prop:Prop.(!(terminal ()) || (2%"r2" = 1)) istate
+  then Format.printf "Invariant holds!@\n"
+  else Format.printf "Invariant doesn't hold!@\n"
+```
+
+### Using Relations
+
+All previously mentioned functions (`eval`, `reachable` and `invariant`)
+in fact are just thin wrappers around queries to [OCanren](https://github.com/dboulytchev/ocanren).
+One can use 'relational' versions of this functions
+and compose more sophisticated queries.
+
+Let's check, for example, that version of message passing with
+relaxed accesses has at least two possible behaviors.
+
+```ocaml
+let istate = IntrpSRA.State.alloc_istate ~regs ~locs mp_prog
+
+let prop1 = Prop.(2%"r2" = 0)
+let prop2 = Prop.(2%"r2" = 1)
+
+let () =
+  let res = run q
+    (fun q ->
+      fresh (s1 s2)
+        (IntrpSRA.evalo ~prop:prop1 istate s1)
+        (IntrpSRA.evalo ~prop:prop2 istate s2)
+    (fun ss -> ss)
+  in
+  if not @@ Stream.is_empty res
+  then Format.printf "Success@\n"
+  else Format.printf "Fail@\n"
 ```

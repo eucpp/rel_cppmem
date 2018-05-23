@@ -27,8 +27,18 @@ let regs = ["r1"; "r2"]
 let locs = ["x"; "f"]
 let istate = IntrpSRA.State.alloc_istate ~regs ~locs mp_prog
 
-let res = IntrpSRA.eval istate
+let prop1 = Prop.(2%"r2" = 0)
+let prop2 = Prop.(2%"r2" = 1)
 
-module Trace = Relcppmem.Utils.Trace(IntrpSRA.State)
-
-let () = Stream.iter (Format.printf "%a@;" Trace.trace) res
+let () =
+  let res = run q
+    (fun q ->
+      fresh (s1 s2)
+        (IntrpSRA.evalo ~prop:prop1 istate s1)
+        (IntrpSRA.evalo ~prop:prop2 istate s2)
+    )
+    (fun ss -> ss)
+  in
+  if not @@ Stream.is_empty res
+  then Format.printf "Success@\n"
+  else Format.printf "Fail@\n"
