@@ -144,7 +144,7 @@ module State(Memory : MemoryModel) =
         (p === Prop.disj p1 p2)
         ((sato p1 s) ||| (sato p2 s))
 
-    ; (p === Prop.terminated ()) &&& (terminatedo s)
+    ; (p === Prop.terminal ()) &&& (terminatedo s)
 
     ; (erroro s
         ~sg:(fun err -> conde
@@ -204,7 +204,7 @@ module Interpreter(Memory : MemoryModel) =
             ~fg:(opterr === Std.none ())
         )
 
-    let reachableo ~prop =
+    let reachableo ?(prop = Prop.true_ ()) =
       let reachableo_norec reachableo_rec s s'' = conde
         [ (sato prop s) &&& (s === s'')
         ; fresh (s')
@@ -214,13 +214,13 @@ module Interpreter(Memory : MemoryModel) =
       in
       Tabling.(tabledrec two) reachableo_norec
 
-    let reachable ~prop s =
+    let reachable ?(prop = Prop.true_ ()) s =
       run q
         (fun s' -> reachableo ~prop s s')
         (fun ss -> ss)
 
     let evalo ?(prop = Prop.true_ ()) =
-      reachableo ~prop:Prop.((terminated ()) && prop)
+      reachableo ~prop:Prop.((terminal ()) && prop)
 
     let eval ?prop s =
       run q
@@ -229,7 +229,7 @@ module Interpreter(Memory : MemoryModel) =
 
     let invarianto ~prop s = ?~(
       fresh (s')
-          (reachableo (Prop.neg prop) s s')
+          (reachableo ~prop:(Prop.neg prop) s s')
     )
 
     let invariant ~prop s =

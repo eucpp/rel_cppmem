@@ -69,9 +69,9 @@ module Interpreter(Memory : MemoryModel) :
 
     val stepo : State.ti -> State.ti -> MiniKanren.goal
 
-    val reachableo : prop:Lang.Prop.ti -> State.ti -> State.ti -> MiniKanren.goal
+    val reachableo : ?prop:Lang.Prop.ti -> State.ti -> State.ti -> MiniKanren.goal
 
-    val reachable : prop:Lang.Prop.ti -> State.ti -> State.ri MiniKanren.Stream.t
+    val reachable : ?prop:Lang.Prop.ti -> State.ti -> State.ri MiniKanren.Stream.t
 
     val evalo : ?prop:Lang.Prop.ti -> State.ti -> State.ti -> MiniKanren.goal
 

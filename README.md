@@ -29,6 +29,8 @@ After installation you can test the package:
 
 ## Usage
 
+### Executing the program
+
 Let's see some examples of library usage.
 
 We will define the program that emulates message passing between two threads.
@@ -90,9 +92,7 @@ Lets print the results:
 ```ocaml
 module Trace = Relcppmem.Utils.Trace(IntrpSRA.State)
 
-let () =
-  Format.printf "Results of mp_prog:@\n";
-  Stream.iter (Format.printf "%a@;" Trace.trace) res
+let () = Stream.iter (Format.printf "%a@;" Trace.trace) res
 ```
 
 As a result one can see two possible outcomes,
@@ -119,7 +119,40 @@ let istate = IntrpSRA.State.alloc_istate ~regs ~locs mp_ra_prog
 
 let res = IntrpSRA.eval istate
 
-let () =
-  Format.printf "@\nResults of mp_ra_prog:@\n";
-  Stream.iter (Format.printf "%a@;" Trace.trace) res
+let () = Stream.iter (Format.printf "%a@;" Trace.trace) res
+```
+
+### Exploring the state space
+
+The library also allows to explore the state space of the program.
+In order to do that one have to use `reachable` function instead of `eval`.
+Function `reachable` returns a stream of all reachable states.
+
+```ocaml
+let res = IntrpSRA.reachable istate
+
+let () = Stream.iter (Format.printf "%a@;" Trace.trace) res
+```
+
+It might be useful to explore only those reachable states that
+additionly satisfies some proposition.
+One can achieve that by passing optional `prop` argument to `reachable`.
+The `Prop` module is used to construct propositions.
+For example, the following line call to `reachable` will return only those states
+which has the value `1` in location `f`.
+
+```ocaml
+let res = IntrpSRA.reachable ~prop:Prop.(loc "f" = 1) istate
+```
+### Checking invariants
+
+Often it may be useful to check that all reachable states satisfy some proposition.
+The library provides function `invariant` that does exactly that.
+Let's check that in all possible terminals states of message passing program
+the value of register `r2` in second thread is equal to `1`.
+
+```ocaml
+if IntrpSRA.invariant ~prop:Prop.(!(terminal ()) || (2%"r2" = 1)) istate
+then Format.printf "Invariant holds!@\n"
+else Format.printf "Invariant doen't hold!@\n"
 ```

@@ -692,7 +692,7 @@ module Prop =
     let conj p1 p2        = inj @@ F.distrib @@ T.Conj (p1, p2)
     let disj p1 p2        = inj @@ F.distrib @@ T.Disj (p1, p2)
     let neg p             = inj @@ F.distrib @@ T.Neg p
-    let terminated ()     = inj @@ F.distrib @@ T.Terminated
+    let terminal ()     = inj @@ F.distrib @@ T.Terminated
     let datarace ()       = inj @@ F.distrib @@ T.Datarace
     let assertion ()      = inj @@ F.distrib @@ T.Assertion
 
@@ -715,7 +715,7 @@ module Prop =
         | Neg p ->
           Format.fprintf ff "@[not (%a)@]" ppl p
         | Terminated ->
-          Format.fprintf ff "@[terminated@]"
+          Format.fprintf ff "@[terminal@]"
         | Datarace ->
           Format.fprintf ff "@[datarace@]"
         | Assertion ->

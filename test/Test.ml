@@ -74,7 +74,7 @@ module OperationalTest(Memory : Operational.MemoryModel) =
       (* [test_unsafe] takes proposition on the final (terminal) state of program,
        *   thus we add `not terminal` disjunct to invariant
        *)
-      let prop = Lang.(Prop.((neg @@ terminated ()) || prop)) in
+      let prop = Lang.(Prop.((neg @@ terminal ()) || prop)) in
       if not @@ Interpreter.invariant ~prop istate then
         Ok
       else
@@ -90,7 +90,7 @@ module OperationalTest(Memory : Operational.MemoryModel) =
       (* [test_safe] takes proposition on the final (terminal) state of program,
        *   thus we add `not terminal` disjunct to invariant
        *)
-      let prop = Lang.(Prop.((neg @@ terminated ()) || prop)) in
+      let prop = Lang.(Prop.((neg @@ terminal ()) || prop)) in
       if Interpreter.invariant ~prop istate then
         Ok
       else begin
@@ -111,7 +111,7 @@ module OperationalTest(Memory : Operational.MemoryModel) =
               (State.thrdmgro s tm)
               (Lang.ThreadManager.cprogo tm p)
               (Interpreter.evalo ~prop s s')
-              (Interpreter.invarianto ~prop:Lang.(Prop.((neg @@ terminated ()) || prop)) s)
+              (Interpreter.invarianto ~prop:Lang.(Prop.((neg @@ terminal ()) || prop)) s)
         )
         (fun qs -> qs)
       in

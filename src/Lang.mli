@@ -229,7 +229,7 @@ module Prop :
     val (||) : ti -> ti -> ti
     val (!)  : ti -> ti
 
-    val terminated  : unit -> ti 
+    val terminal    : unit -> ti
     val datarace    : unit -> ti
     val assertion   : unit -> ti
   end
